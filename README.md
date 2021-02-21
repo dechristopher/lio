@@ -1,4 +1,4 @@
-# [lioctad](https://lioctad.org)
+# [lioctad.org](https://lioctad.org)
 
 Lioctad (li[bre] octad) is a free online chess game server focused on [realtime](https://lioctad.org/games) gameplay and ease of use.
 
