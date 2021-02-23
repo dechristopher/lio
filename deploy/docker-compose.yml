@@ -1,0 +1,86 @@
+version: "3.7"
+
+x-default-opts:
+  &default-opts
+  logging:
+    options:
+      max-size: "10m"
+
+# Restart Policy Options
+x-restart_policy:
+  &restart_policy
+  restart_policy:
+    condition: on-failure
+    max_attempts: 3
+
+secrets:
+  cloudflare_acme:
+    external: true
+
+services:
+  traefik:
+    image: "traefik:v2.4"
+    command:
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.traefik.address=:8080"
+      - "--entryPoints.http.address=:80"
+      - "--entryPoints.https.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=me@dchr.host"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/certs/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.dnsChallenge.provider=cloudflare"
+      - "--certificatesresolvers.letsencrypt.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53"
+    environment:
+      - "CF_DNS_API_TOKEN_FILE=/run/secrets/cloudflare_acme"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/traefik:/etc/traefik
+    secrets:
+      - cloudflare_acme
+    deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.middlewares.http-to-https.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.http-to-https.redirectscheme.permanent=true"
+        - "traefik.http.routers.public-http.entrypoints=http"
+        - "traefik.http.routers.public-http.rule=HostRegexp(`{domain:.*}`)"
+        - "traefik.http.routers.public-http.middlewares=http-to-https"
+        - "traefik.http.services.traefik.loadbalancer.server.port=443"
+      #        - "traefik.http.routers.traefik.entrypoints=traefik"
+      #        - "traefik.http.routers.traefik.rule=HostRegexp(`{domain:.*}`)"
+      placement:
+        constraints:
+          - node.role == manager
+
+  lioctad:
+    <<: *default-opts
+    image: "lioctad:latest"
+    deploy:
+      <<: *restart_policy
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.lioctad.tls=true"
+        - "traefik.http.routers.lioctad.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.lioctad.entrypoints=https"
+        - "traefik.http.routers.lioctad.rule=Host(`lioctad.org`,`www.lioctad.org`)"
+        - "traefik.http.routers.lioctad.tls.domains[0].main=lioctad.org"
+        - "traefik.http.routers.lioctad.tls.domains[0].sans=www.lioctad.org"
+        - "traefik.http.services.lioctad.loadbalancer.server.port=4444"
+    environment:
+      DEPLOY: "prod"
+
+networks:
+  lioctad:
