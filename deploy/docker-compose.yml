@@ -59,6 +59,8 @@ services:
       placement:
         constraints:
           - node.role == manager
+    networks:
+      - traefik-public
 
   lioctad:
     <<: *default-opts
@@ -81,6 +83,11 @@ services:
         - "traefik.http.services.lioctad.loadbalancer.server.port=4444"
     environment:
       DEPLOY: "prod"
+    networks:
+      - traefik-public
+      - lioctad
 
 networks:
   lioctad:
+  traefik-public:
+    external: true
