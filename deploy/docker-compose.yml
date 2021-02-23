@@ -61,6 +61,7 @@ services:
           - node.role == manager
     networks:
       - traefik-public
+      - lioctad
 
   lioctad:
     <<: *default-opts
@@ -84,7 +85,6 @@ services:
     environment:
       DEPLOY: "prod"
     networks:
-      - traefik-public
       - lioctad
 
 networks:
