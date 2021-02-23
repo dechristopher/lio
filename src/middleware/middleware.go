@@ -34,7 +34,7 @@ func WireMiddleware(r *fiber.App) {
 		// For more options, see the Config section
 		TimeZone:   "local",
 		TimeFormat: "2006-01-02T15:04:05-0700",
-		Format:     "${ip} [${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" ${status} ${latency} \"${referrer}\" \"${ua}\"\n",
+		Format:     "${ip} ${header:x-forwarded-for} ${header:x-real-ip} [${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" ${status} ${latency} \"${referrer}\" \"${ua}\"\n",
 		Output:     os.Stdout,
 	}))
 
