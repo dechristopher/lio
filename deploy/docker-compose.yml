@@ -89,5 +89,6 @@ services:
 
 networks:
   lioctad:
+    external: true
   traefik-public:
     external: true
