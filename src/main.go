@@ -31,7 +31,7 @@ func main() {
 	engine.Reload(env.IsDev())
 
 	r := fiber.New(fiber.Config{
-		Prefork:               true,
+		Prefork:               false,
 		ServerHeader:          "lioctad.org",
 		StrictRouting:         false,
 		CaseSensitive:         true,
