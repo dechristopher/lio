@@ -1,6 +1,12 @@
 package util
 
 import (
+	"embed"
+	"io/fs"
+	"log"
+	"net/http"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/dechristopher/lioctad/env"
@@ -36,4 +42,21 @@ func genPageModel(name string, data interface{}) pageModel {
 		PageName: name,
 		Data:     data,
 	}
+}
+
+// GetFS returns either an embedded FS or an on-disk FS for the
+// given directory path
+func GetFS(useOS bool, e embed.FS, dir string) http.FileSystem {
+	if useOS {
+		log.Printf("FS: Selected OS - %s", dir)
+		return http.Dir(dir)
+	}
+
+	efs, err := fs.Sub(e, strings.Trim(dir, "./"))
+	if err != nil {
+		panic(err)
+	}
+
+	log.Printf("FS: Selected embedded - %s", dir)
+	return http.FS(efs)
 }

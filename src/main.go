@@ -1,8 +1,10 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 
@@ -16,14 +18,28 @@ import (
 )
 
 var (
-	port   string
-	engine = html.New("./views", ".html")
+	port string
+
+	//go:embed views/*
+	views   embed.FS
+	viewsFs http.FileSystem
+
+	//go:embed static/*
+	static   embed.FS
+	staticFs http.FileSystem
+
+	// fiber html template engine
+	engine *html.Engine
 )
 
 // main does the thing
 func main() {
 	_ = godotenv.Load()
 	port = os.Getenv("PORT")
+
+	viewsFs = util.GetFS(env.IsDev(), views, "./views")
+	staticFs = util.GetFS(env.IsDev(), static, "./static")
+	engine = html.NewFileSystem(viewsFs, ".html")
 
 	log.Printf("LIOCTAD.ORG - :%s - %s", port, env.GetEnv())
 
@@ -41,7 +57,7 @@ func main() {
 	})
 
 	// wire up all middleware components
-	middleware.WireMiddleware(r)
+	middleware.WireMiddleware(r, staticFs)
 
 	r.Get("/", homeHandler)
 

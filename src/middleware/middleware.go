@@ -16,7 +16,7 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-func WireMiddleware(r *fiber.App) {
+func WireMiddleware(r *fiber.App, static http.FileSystem) {
 	r.Use(requestid.New())
 
 	// Compress responses
@@ -40,12 +40,15 @@ func WireMiddleware(r *fiber.App) {
 
 	//predefined route for favicon at root of domain
 	r.Use(favicon.New(favicon.Config{
-		File: "./static/res/ico/favicon.ico",
+		File: faviconLocation(),
+		// TODO when https://github.com/gofiber/fiber/pull/1189 merges
+		// File: "./static/res/ico/favicon.ico",
+		// FileSystem: http.FS(static),
 	}))
 
 	// Serve static files from /static/res preventing directory listings
 	r.Use(filesystem.New(filesystem.Config{
-		Root:   strictFs{http.Dir("./static")},
+		Root:   strictFs{static},
 		MaxAge: 86400,
 	}))
 }
@@ -66,4 +69,14 @@ func corsOrigins() string {
 		return "https://lioctad.org"
 	}
 	return "https://localhost:4444, https://dev.lioctad.org"
+}
+
+// faviconLocation returns the relative path to the favicon
+// TODO until we have embed support in fiber for the favicon middleware
+func faviconLocation() string {
+	if env.IsProd() {
+		return "./favicon.ico"
+	} else {
+		return "./static/res/ico/favicon.ico"
+	}
 }
