@@ -10,7 +10,6 @@ RUN CGO_ENABLED=0 go build -v -trimpath -o lioctad
 FROM scratch
 
 WORKDIR /
-ENV PORT 4444
 COPY --from=build /build/lioctad lioctad
 COPY --from=build /build/static static/
 COPY --from=build /build/views views/

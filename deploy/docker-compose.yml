@@ -89,6 +89,7 @@ services:
         - "traefik.http.services.lioctad.loadbalancer.server.port=4444"
     environment:
       DEPLOY: "prod"
+      PORT: 4444
     networks:
       - lioctad
 
