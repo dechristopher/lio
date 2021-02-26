@@ -16,6 +16,10 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
+const logFormat = "${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
+	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
+	"${status} ${latency} \"${referrer}\" \"${ua}\"\n"
+
 func WireMiddleware(r *fiber.App, static http.FileSystem) {
 	r.Use(requestid.New())
 
@@ -34,7 +38,7 @@ func WireMiddleware(r *fiber.App, static http.FileSystem) {
 		// For more options, see the Config section
 		TimeZone:   "local",
 		TimeFormat: "2006-01-02T15:04:05-0700",
-		Format:     "${ip} ${header:x-forwarded-for} ${header:x-real-ip} [${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" ${status} ${latency} \"${referrer}\" \"${ua}\"\n",
+		Format:     logFormat,
 		Output:     os.Stdout,
 	}))
 
