@@ -20,7 +20,7 @@ const logFormat = "${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency} \"${referrer}\" \"${ua}\"\n"
 
-func WireMiddleware(r *fiber.App, static http.FileSystem) {
+func WireMiddleware(r fiber.Router, static http.FileSystem) {
 	r.Use(requestid.New())
 
 	// Compress responses
@@ -28,6 +28,7 @@ func WireMiddleware(r *fiber.App, static http.FileSystem) {
 		Level: compress.LevelBestSpeed,
 	}))
 
+	// Configure CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: corsOrigins(),
 		AllowHeaders: "Origin, Content-Type, Accept",
@@ -42,7 +43,7 @@ func WireMiddleware(r *fiber.App, static http.FileSystem) {
 		Output:     os.Stdout,
 	}))
 
-	//predefined route for favicon at root of domain
+	// Predefined route for favicon at root of domain
 	r.Use(favicon.New(favicon.Config{
 		File: faviconLocation(),
 		// TODO when https://github.com/gofiber/fiber/pull/1189 merges

@@ -13,8 +13,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/middleware"
 	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lioctad/www"
 )
 
 var (
@@ -37,11 +37,11 @@ func main() {
 	_ = godotenv.Load()
 	port = os.Getenv("PORT")
 
+	log.Printf("LIOCTAD.ORG - :%s - %s", port, env.GetEnv())
+
 	viewsFs = util.GetFS(env.IsDev(), views, "./views")
 	staticFs = util.GetFS(env.IsDev(), static, "./static")
 	engine = html.NewFileSystem(viewsFs, ".html")
-
-	log.Printf("LIOCTAD.ORG - :%s - %s", port, env.GetEnv())
 
 	// enable template engine reloading on dev
 	engine.Reload(env.IsDev())
@@ -56,13 +56,32 @@ func main() {
 		Views:                 engine,
 	})
 
-	// wire up all middleware components
-	middleware.WireMiddleware(r, staticFs)
+	// wire up all route handlers
+	www.WireHandlers(r, staticFs)
 
-	r.Get("/", homeHandler)
-
-	// Custom 404 page
-	middleware.NotFound(r)
+	//cl := clock.NewClock("Andrew", "Mike", clock.TimeControl{
+	//	Time:      time.Second * 15,
+	//	Increment: time.Second * 3,
+	//	Delay:     time.Second * 5,
+	//})
+	//
+	//cl.Start()
+	//
+	//go func() {
+	//	for {
+	//		select {
+	//		case s := <-cl.StateChannel:
+	//			log.Printf("%v", s)
+	//		}
+	//	}
+	//}()
+	//
+	//r.Get("/flip", func(ctx *fiber.Ctx) error {
+	//	if !cl.Flagged() {
+	//		cl.ControlChannel <- clock.Flip
+	//	}
+	//	return ctx.Status(200).JSON(cl.State())
+	//})
 
 	// Graceful shutdown with SIGINT
 	// SIGTERM and others will hard kill
@@ -81,10 +100,4 @@ func main() {
 	// Exit cleanly
 	log.Printf("LIOCTAD.ORG - exit")
 	os.Exit(0)
-}
-
-// homeHandler executes the home page template
-func homeHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, "index",
-		"Coming Soon", nil, 200)
 }
