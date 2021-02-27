@@ -1,12 +1,16 @@
-/**
- * Created by: Andrey Polyakov (andrey@polyakov.im)
- * @see https://github.com/postcss/postcss
- */
-import {isProd} from '../utils/env';
+const tw = require("tailwindcss");
+import {join} from "path";
+
+import {isProd, rootDir} from '../utils/env';
 import {arrayFilterEmpty} from '../utils/helpers';
+
+module.exports = {
+    plugins: [tw("./tailwind.config.js"), require("autoprefixer")],
+};
 
 module.exports = () => {
     const plugins = arrayFilterEmpty([
+        tw(join(rootDir, "./tailwind.config.js")),
         'autoprefixer',
         isProd ? 'cssnano' : null,
     ]);

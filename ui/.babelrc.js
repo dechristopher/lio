@@ -9,9 +9,9 @@ module.exports = (api) => {
             [
                 '@babel/preset-env',
                 {
-                    targets: {
-                        browsers: ['>1%', 'last 4 versions', 'not ie < 9'],
-                    },
+                    // targets: {
+                    //     browsers: ['>1%', 'last 4 versions', 'not ie < 9'],
+                    // },
                     useBuiltIns: 'usage',
                     debug: false,
                     corejs: 3,
@@ -26,7 +26,7 @@ module.exports = (api) => {
             '@babel/plugin-proposal-throw-expressions',
             '@babel/proposal-object-rest-spread',
             // Applies the react-refresh Babel plugin on non-production modes only
-            mode !== 'production' && 'react-refresh/babel',
+            mode !== 'production' && "react-hot-loader/babel",
         ].filter(Boolean),
     };
 };

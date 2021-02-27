@@ -3,6 +3,9 @@
  * Reconfigure default HMR behavior, now it clears your console on every
  * codebase update
  */
+
+console.log("RUNNING HMR FILE")
+
 if (IS_DEV_SERVER) {
     if (module.hot) {
         module.hot.accept();

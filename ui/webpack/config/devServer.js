@@ -1,24 +1,33 @@
-/**
- * Created by: Andrey Polyakov (andrey@polyakov.im)
- * @see https://webpack.js.org/configuration/dev-server/
- */
 import isWindows from 'is-windows';
+import {resolve} from "path";
 
-import {devServerProxyConfig} from './devServierProxy';
+import {rootDir} from "../utils/env";
 
 const defaultPort = 8080;
 
-const devServerHost = isWindows() ? '127.0.0.1' : '0.0.0.0';
+const devServerHost = isWindows() ? '127.0.0.1' : 'localhost';
 
-export const devServerUrl = `http://${devServerHost}:${defaultPort}/`;
+export const devServerUrl = `http://${devServerHost}:${defaultPort}`;
 
 export const devServerConfig = {
-    publicPath: '/',
-    port: defaultPort,
-    historyApiFallback: true,
-    headers: {'Access-Control-Allow-Origin': '*'},
-    proxy: devServerProxyConfig,
+    // open: true,
+    contentBase: resolve( rootDir, "./src" ),
+    contentBasePublicPath: "/",
+    // do not print bundle build stats
+    // noInfo: true,
+    // enable HMR
     hot: true,
-    overlay: false,
+    // embed the webpack-dev-server runtime into the bundle
+    inline: true,
+    // serve index.html in place of 404 responses to allow HTML5 history
+    historyApiFallback: true,
+    // port: 80,
     host: devServerHost,
+    disableHostCheck: true, // insecure
+    transportMode: "ws",
+    compress: true,
+
+    // clientLogLevel: 'warning',
+    // open: true,
+    stats: 'errors-only'
 };

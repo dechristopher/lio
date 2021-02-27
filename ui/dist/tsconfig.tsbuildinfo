@@ -166,14 +166,79 @@
         "signature": "5e7837730e7ef63981cbd8d878388c4b37acc70dc3190881e230a23e3b4f9514",
         "affectsGlobalScope": false
       },
-      "../src/index.tsx": {
-        "version": "efd8638774f1587a428826ceaba8fa7fb91dd9d35da2eabbd64661c1468cb5c1",
-        "signature": "2fb8e825c31c8fe3e771b68498ddff4f2064b5d3c1cd932825866a85519998a3",
+      "../node_modules/react-hot-loader/index.d.ts": {
+        "version": "b9327c652634ee93dad9bb68b7325823b2a19c0ed2bfdd8b774926e0563920be",
+        "signature": "b9327c652634ee93dad9bb68b7325823b2a19c0ed2bfdd8b774926e0563920be",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/react-hot-loader/root.d.ts": {
+        "version": "3ca4c4b33d9fcacc4e6766f1a2dd2243bec56597fdfe90c56e498030ce55dd31",
+        "signature": "3ca4c4b33d9fcacc4e6766f1a2dd2243bec56597fdfe90c56e498030ce55dd31",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/history/DOMUtils.d.ts": {
+        "version": "271cde49dfd9b398ccc91bb3aaa43854cf76f4d14e10fed91cbac649aa6cbc63",
+        "signature": "271cde49dfd9b398ccc91bb3aaa43854cf76f4d14e10fed91cbac649aa6cbc63",
+        "affectsGlobalScope": true
+      },
+      "../node_modules/@types/history/createBrowserHistory.d.ts": {
+        "version": "c6f2572e21f626260d2e4a65e4e1e42b9b273b6f43b5c3bc115c2926417d3eca",
+        "signature": "c6f2572e21f626260d2e4a65e4e1e42b9b273b6f43b5c3bc115c2926417d3eca",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/history/createHashHistory.d.ts": {
+        "version": "374ab77e05e0bf5a52acad6d65121d4bd31068108f23d70186dba5fcd7d6a1a3",
+        "signature": "374ab77e05e0bf5a52acad6d65121d4bd31068108f23d70186dba5fcd7d6a1a3",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/history/createMemoryHistory.d.ts": {
+        "version": "a4ecd4bb653aa71093375845fba6250ca0f3c633d0e933fc9bf4b301834eab27",
+        "signature": "a4ecd4bb653aa71093375845fba6250ca0f3c633d0e933fc9bf4b301834eab27",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/history/LocationUtils.d.ts": {
+        "version": "25d91fb9ed77a828cc6c7a863236fb712dafcd52f816eec481bd0c1f589f4404",
+        "signature": "25d91fb9ed77a828cc6c7a863236fb712dafcd52f816eec481bd0c1f589f4404",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/history/PathUtils.d.ts": {
+        "version": "4cd14cea22eed1bfb0dc76183e56989f897ac5b14c0e2a819e5162eafdcfe243",
+        "signature": "4cd14cea22eed1bfb0dc76183e56989f897ac5b14c0e2a819e5162eafdcfe243",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/history/index.d.ts": {
+        "version": "cc53cba64efb30576f2a36f1d7107e4453e84cbd0f371d49cd1dfd208e11233b",
+        "signature": "cc53cba64efb30576f2a36f1d7107e4453e84cbd0f371d49cd1dfd208e11233b",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/react-router/ts4.0/index.d.ts": {
+        "version": "b99bf35fc6e5501b2cfb971d2124213afa9f2b1fb474b08f48d04bed44b3f465",
+        "signature": "b99bf35fc6e5501b2cfb971d2124213afa9f2b1fb474b08f48d04bed44b3f465",
+        "affectsGlobalScope": false
+      },
+      "../node_modules/@types/react-router-dom/index.d.ts": {
+        "version": "b89701b714364b5bcb0b58e83725aa02a4f41df8357000b4e8fe60566bf805ac",
+        "signature": "b89701b714364b5bcb0b58e83725aa02a4f41df8357000b4e8fe60566bf805ac",
+        "affectsGlobalScope": false
+      },
+      "../src/app/components/Navbar/index.tsx": {
+        "version": "613812d66776fdf342406883b974ca71e1bded04231e5f96ddb83bbeff2de594",
+        "signature": "0c245e15e5b2ca617997cdf75187165bb9b47a1d1f8f3c8f133eba884b7bca8a",
         "affectsGlobalScope": false
       },
       "../src/app/views/RootView.tsx": {
-        "version": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "signature": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "version": "54dda0ae4092efebd42efa6d55cb8654091cbdc18637b4186ec50aa5e2e96b2b",
+        "signature": "9dbbb8a620103482f2c6272ba5bf2c3343360df0ce556c449440c764f72b565d",
+        "affectsGlobalScope": false
+      },
+      "../src/index.tsx": {
+        "version": "0dc21b96dd4fe66eed5bab61b31541d467f544040c09cf6fdfd074c1f63fbd03",
+        "signature": "1a44281b241ed9442d6e27e83a221482f3b2d22e8b59915f44dfaeb9faf2454b",
+        "affectsGlobalScope": false
+      },
+      "../src/@types/index.d.ts": {
+        "version": "485e926e2a0e7563eb2f7948e1fa09667ca3d96fba2c345762061fa2273f2faa",
+        "signature": "485e926e2a0e7563eb2f7948e1fa09667ca3d96fba2c345762061fa2273f2faa",
         "affectsGlobalScope": false
       },
       "../node_modules/@types/anymatch/index.d.ts": {
@@ -608,6 +673,24 @@
       "paths": {
         "@/*": [
           "./*"
+        ],
+        "@app/*": [
+          "./src/app/*"
+        ],
+        "@assets/*": [
+          "./src/assets/*"
+        ],
+        "@app:components/*": [
+          "./src/app/components/*"
+        ],
+        "@app:containers/*": [
+          "./src/app/containers/*"
+        ],
+        "@app:views/*": [
+          "./src/app/views/*"
+        ],
+        "@components/*": [
+          "./src/components/*"
         ]
       },
       "typeRoots": [
@@ -640,6 +723,31 @@
         "../node_modules/@types/node/events.d.ts",
         "../node_modules/@types/node/index.d.ts"
       ],
+      "../node_modules/@types/history/LocationUtils.d.ts": [
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/PathUtils.d.ts": [
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/createBrowserHistory.d.ts": [
+        "../node_modules/@types/history/DOMUtils.d.ts",
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/createHashHistory.d.ts": [
+        "../node_modules/@types/history/DOMUtils.d.ts",
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/createMemoryHistory.d.ts": [
+        "../node_modules/@types/history/DOMUtils.d.ts",
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/index.d.ts": [
+        "../node_modules/@types/history/LocationUtils.d.ts",
+        "../node_modules/@types/history/PathUtils.d.ts",
+        "../node_modules/@types/history/createBrowserHistory.d.ts",
+        "../node_modules/@types/history/createHashHistory.d.ts",
+        "../node_modules/@types/history/createMemoryHistory.d.ts"
+      ],
       "../node_modules/@types/node/assert.d.ts": [
         "../node_modules/@types/node/assert.d.ts"
       ],
@@ -874,6 +982,15 @@
       "../node_modules/@types/react-dom/index.d.ts": [
         "../node_modules/@types/react/index.d.ts"
       ],
+      "../node_modules/@types/react-router-dom/index.d.ts": [
+        "../node_modules/@types/history/index.d.ts",
+        "../node_modules/@types/react-router/ts4.0/index.d.ts",
+        "../node_modules/@types/react/index.d.ts"
+      ],
+      "../node_modules/@types/react-router/ts4.0/index.d.ts": [
+        "../node_modules/@types/history/index.d.ts",
+        "../node_modules/@types/react/index.d.ts"
+      ],
       "../node_modules/@types/react/index.d.ts": [
         "../node_modules/@types/prop-types/index.d.ts",
         "../node_modules/@types/react/global.d.ts",
@@ -964,9 +1081,28 @@
         "../node_modules/source-map/source-map.d.ts",
         "../node_modules/tapable/tapable.d.ts"
       ],
+      "../node_modules/react-hot-loader/index.d.ts": [
+        "../node_modules/@types/react/index.d.ts"
+      ],
+      "../node_modules/react-hot-loader/root.d.ts": [
+        "../node_modules/@types/react/index.d.ts",
+        "../node_modules/react-hot-loader/index.d.ts"
+      ],
+      "../src/app/components/Navbar/index.tsx": [
+        "../node_modules/@types/react-router-dom/index.d.ts",
+        "../node_modules/@types/react/index.d.ts",
+        "../src/@types/index.d.ts"
+      ],
+      "../src/app/views/RootView.tsx": [
+        "../node_modules/@types/react-router-dom/index.d.ts",
+        "../node_modules/@types/react/index.d.ts",
+        "../src/app/components/Navbar/index.tsx"
+      ],
       "../src/index.tsx": [
         "../node_modules/@types/react-dom/index.d.ts",
-        "../node_modules/@types/react/index.d.ts"
+        "../node_modules/@types/react/index.d.ts",
+        "../node_modules/react-hot-loader/root.d.ts",
+        "../src/app/views/RootView.tsx"
       ]
     },
     "exportedModulesMap": {
@@ -987,6 +1123,31 @@
         "../node_modules/@types/node/events.d.ts",
         "../node_modules/@types/node/index.d.ts"
       ],
+      "../node_modules/@types/history/LocationUtils.d.ts": [
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/PathUtils.d.ts": [
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/createBrowserHistory.d.ts": [
+        "../node_modules/@types/history/DOMUtils.d.ts",
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/createHashHistory.d.ts": [
+        "../node_modules/@types/history/DOMUtils.d.ts",
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/createMemoryHistory.d.ts": [
+        "../node_modules/@types/history/DOMUtils.d.ts",
+        "../node_modules/@types/history/index.d.ts"
+      ],
+      "../node_modules/@types/history/index.d.ts": [
+        "../node_modules/@types/history/LocationUtils.d.ts",
+        "../node_modules/@types/history/PathUtils.d.ts",
+        "../node_modules/@types/history/createBrowserHistory.d.ts",
+        "../node_modules/@types/history/createHashHistory.d.ts",
+        "../node_modules/@types/history/createMemoryHistory.d.ts"
+      ],
       "../node_modules/@types/node/assert.d.ts": [
         "../node_modules/@types/node/assert.d.ts"
       ],
@@ -1221,6 +1382,15 @@
       "../node_modules/@types/react-dom/index.d.ts": [
         "../node_modules/@types/react/index.d.ts"
       ],
+      "../node_modules/@types/react-router-dom/index.d.ts": [
+        "../node_modules/@types/history/index.d.ts",
+        "../node_modules/@types/react-router/ts4.0/index.d.ts",
+        "../node_modules/@types/react/index.d.ts"
+      ],
+      "../node_modules/@types/react-router/ts4.0/index.d.ts": [
+        "../node_modules/@types/history/index.d.ts",
+        "../node_modules/@types/react/index.d.ts"
+      ],
       "../node_modules/@types/react/index.d.ts": [
         "../node_modules/@types/prop-types/index.d.ts",
         "../node_modules/@types/react/global.d.ts",
@@ -1311,7 +1481,17 @@
         "../node_modules/source-map/source-map.d.ts",
         "../node_modules/tapable/tapable.d.ts"
       ],
-      "../src/index.tsx": [
+      "../node_modules/react-hot-loader/index.d.ts": [
+        "../node_modules/@types/react/index.d.ts"
+      ],
+      "../node_modules/react-hot-loader/root.d.ts": [
+        "../node_modules/@types/react/index.d.ts",
+        "../node_modules/react-hot-loader/index.d.ts"
+      ],
+      "../src/app/components/Navbar/index.tsx": [
+        "../node_modules/@types/react/index.d.ts"
+      ],
+      "../src/app/views/RootView.tsx": [
         "../node_modules/@types/react/index.d.ts"
       ]
     },
@@ -1324,6 +1504,13 @@
       "../node_modules/@types/eslint/index.d.ts",
       "../node_modules/@types/estree/index.d.ts",
       "../node_modules/@types/glob/index.d.ts",
+      "../node_modules/@types/history/DOMUtils.d.ts",
+      "../node_modules/@types/history/LocationUtils.d.ts",
+      "../node_modules/@types/history/PathUtils.d.ts",
+      "../node_modules/@types/history/createBrowserHistory.d.ts",
+      "../node_modules/@types/history/createHashHistory.d.ts",
+      "../node_modules/@types/history/createMemoryHistory.d.ts",
+      "../node_modules/@types/history/index.d.ts",
       "../node_modules/@types/html-minifier-terser/index.d.ts",
       "../node_modules/@types/json-schema/index.d.ts",
       "../node_modules/@types/json5/index.d.ts",
@@ -1379,6 +1566,8 @@
       "../node_modules/@types/prop-types/index.d.ts",
       "../node_modules/@types/q/index.d.ts",
       "../node_modules/@types/react-dom/index.d.ts",
+      "../node_modules/@types/react-router-dom/index.d.ts",
+      "../node_modules/@types/react-router/ts4.0/index.d.ts",
       "../node_modules/@types/react/global.d.ts",
       "../node_modules/@types/react/index.d.ts",
       "../node_modules/@types/source-list-map/index.d.ts",
@@ -1400,6 +1589,8 @@
       "../node_modules/@types/webpack/index.d.ts",
       "../node_modules/anymatch/index.d.ts",
       "../node_modules/csstype/index.d.ts",
+      "../node_modules/react-hot-loader/index.d.ts",
+      "../node_modules/react-hot-loader/root.d.ts",
       "../node_modules/source-map/source-map.d.ts",
       "../node_modules/tapable/tapable.d.ts",
       "../node_modules/typescript/lib/lib.dom.d.ts",
@@ -1430,6 +1621,8 @@
       "../node_modules/typescript/lib/lib.es2020.bigint.d.ts",
       "../node_modules/typescript/lib/lib.es5.d.ts",
       "../node_modules/typescript/lib/lib.esnext.intl.d.ts",
+      "../src/@types/index.d.ts",
+      "../src/app/components/Navbar/index.tsx",
       "../src/app/views/RootView.tsx",
       "../src/index.tsx"
     ]
