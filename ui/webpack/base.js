@@ -4,7 +4,7 @@
 import path from 'path';
 import {TsconfigPathsPlugin} from "tsconfig-paths-webpack-plugin"
 
-import {devServerUrl, externalItems} from './config';
+import {devServerUrl} from './config';
 import entry from './entry';
 import optimization from './optimization';
 import * as plugins from './plugins';
@@ -50,5 +50,4 @@ export default {
         extensions: ['.tsx', '.ts', '.js', '.jsx'],
     },
     optimization,
-    externals: externalItems,
 };
