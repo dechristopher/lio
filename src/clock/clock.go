@@ -24,7 +24,7 @@ type Clock struct {
 	ControlChannel chan Command
 	StateChannel   chan State
 
-	ticker *time.Ticker // fires per-ms events for decrementing time
+	ticker *time.Ticker // fires per-cs events for decrementing time
 	timer  *time.Timer  // fires an event to represent delay time expiring
 	mutex  sync.Mutex
 }
@@ -81,6 +81,7 @@ func (c *Clock) Start() {
 				if c.Flagged() {
 					c.ticker.Stop()
 					c.timer.Stop()
+					c.StateChannel <- c.State()
 					log.Printf("Game over, victor: %d", c.victor)
 					return
 				}
