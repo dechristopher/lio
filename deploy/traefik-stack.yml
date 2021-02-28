@@ -1,18 +1,5 @@
 version: "3.7"
 
-x-default-opts:
-  &default-opts
-  logging:
-    options:
-      max-size: "10m"
-
-# Restart Policy Options
-x-restart_policy:
-  &restart_policy
-  restart_policy:
-    condition: on-failure
-    max_attempts: 3
-
 secrets:
   cloudflare_acme:
     external: true
@@ -55,42 +42,17 @@ services:
         constraints:
           - node.role == manager
       labels:
-          - "traefik.enable=true"
-          - "traefik.http.middlewares.http-to-https.redirectscheme.scheme=https"
-          - "traefik.http.middlewares.http-to-https.redirectscheme.permanent=true"
-          - "traefik.http.routers.public-http.entrypoints=http"
-          - "traefik.http.routers.public-http.rule=HostRegexp(`{domain:.*}`)"
-          - "traefik.http.routers.public-http.middlewares=http-to-https"
-          - "traefik.http.services.traefik.loadbalancer.server.port=443"
+        - "traefik.enable=true"
+        - "traefik.http.middlewares.http-to-https.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.http-to-https.redirectscheme.permanent=true"
+        - "traefik.http.routers.public-http.entrypoints=http"
+        - "traefik.http.routers.public-http.rule=HostRegexp(`{domain:.*}`)"
+        - "traefik.http.routers.public-http.middlewares=http-to-https"
+        - "traefik.http.services.traefik.loadbalancer.server.port=443"
       #        - "traefik.http.routers.traefik.entrypoints=traefik"
       #        - "traefik.http.routers.traefik.rule=HostRegexp(`{domain:.*}`)"
     networks:
       - traefik-public
-      - lioctad
-
-  lioctad:
-    <<: *default-opts
-    image: "lioctad:latest"
-    deploy:
-      <<: *restart_policy
-      replicas: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-        order: start-first
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.lioctad.tls=true"
-        - "traefik.http.routers.lioctad.tls.certresolver=letsencrypt"
-        - "traefik.http.routers.lioctad.entrypoints=https"
-        - "traefik.http.routers.lioctad.rule=Host(`lioctad.org`,`www.lioctad.org`)"
-        - "traefik.http.routers.lioctad.tls.domains[0].main=lioctad.org"
-        - "traefik.http.routers.lioctad.tls.domains[0].sans=www.lioctad.org"
-        - "traefik.http.services.lioctad.loadbalancer.server.port=4444"
-    environment:
-      DEPLOY: "prod"
-      PORT: 4444
-    networks:
       - lioctad
 
 networks:
