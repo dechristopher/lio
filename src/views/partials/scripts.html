@@ -1,4 +1,10 @@
+<script src="octadground.js"></script>
 <script>
 	const logMe = () => console.log(`© 2021 lioctad.org`);
 	window.addEventListener('load', logMe);
+	var cg = Octadground(document.getElementById('game'), {
+		draggable: {
+			showGhost: true
+		}
+	});
 </script>

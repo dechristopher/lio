@@ -1,5 +1,5 @@
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=5">
   <title>lioctad.org • {{ . }}</title>
@@ -16,76 +16,56 @@
   <meta property="og:title" content="The best free, adless octad server">
   <meta property="og:url" content="https://lioctad.org">
   <meta property="og:type" content="website">
-  <meta name="description" content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
-  <meta property="og:description" content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
+  <meta name="description"
+        content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
+  <meta property="og:description"
+        content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
+  <link rel="stylesheet" href="https://unpkg.com/normalize.css@8.0.1/normalize.css">
+  <link rel="stylesheet" href="octadground.base.css">
+  <link rel="stylesheet" href="/res/themes/board/green.css">
+  <link rel="stylesheet" href="/res/themes/piece/cburnett.css">
   <style>
-	  html, body, pre {
+	  body {
 		  margin: 0;
-		  height: 100%;
+      width: 100vw;
 		  font-size: large;
-	    font-family: 'LM', sans-serif;
+		  font-family: 'LM', sans-serif;
 		  text-align: center;
 		  display: flex;
 		  flex-direction: column;
 		  justify-content: center;
 	  }
+
+    span.sm {
+	    cursor: default;
+	    font-size: 0.75em;
+    }
+
 	  span {
 		  cursor: pointer;
 	  }
-	  .to {
-		  font-weight: bold;
-		  font-size: 28px;
-		  margin-bottom: -16px;
+
+	  .c {
+      margin-top: 16px;
+		  display: flex;
+		  flex-direction: column;
+		  align-items: center
 	  }
+
+    .mtb8 {
+        margin: 8px 0 8px 0;
+    }
+
 	  .t404 {
 		  font-size: 52px;
 	  }
 
-    @media all and (max-width: 699px) {
-	    img {
-		    width: 50%;
-	    }
-    }
-
-    @media all and (min-width: 700px) and (max-width: 999px) {
-	    img {
-		    width: 30%;
-	    }
-    }
-
-    @media all and (min-width: 1000px) and (max-width: 1499px) {
-	    img {
-		    width: 25%;
-	    }
-    }
-
-    @media all and (min-width: 1500px) {
-	    img {
-		    width: 20%;
-	    }
-    }
-
-    @font-face {
-	    font-family: 'LM';
-	    src: url('/res/font/lm.woff2') format('woff2'),
-	    url('/res/font/lm.woff') format('woff');
-	    font-weight: normal;
-	    font-style: normal;
-    }
-
-    .game-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        align-self: center;
-	      flex-wrap: wrap;
-    }
-
-    .game {
-        display: inline-block;
-        width: 175px;
-        flex-basis: 47%;
-        margin: 5px;
-    }
+	  @font-face {
+		  font-family: 'LM';
+		  src: url('/res/font/lm.woff2') format('woff2'),
+		  url('/res/font/lm.woff') format('woff');
+		  font-weight: normal;
+		  font-style: normal;
+	  }
   </style>
 </head>
