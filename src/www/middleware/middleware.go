@@ -16,9 +16,12 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-const logFormat = "${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
+const logFormatProd = "${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency} \"${referrer}\" \"${ua}\"\n"
+
+const logFormatDev = "${ip} [${time}] \"${method} ${path} ${protocol}\" " +
+	"${status} ${latency}\n"
 
 func WireMiddleware(r fiber.Router, static http.FileSystem) {
 	r.Use(requestid.New())
@@ -39,7 +42,7 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 		// For more options, see the Config section
 		TimeZone:   "local",
 		TimeFormat: "2006-01-02T15:04:05-0700",
-		Format:     logFormat,
+		Format:     logFormat(),
 		Output:     os.Stdout,
 	}))
 
@@ -74,6 +77,13 @@ func corsOrigins() string {
 		return "https://lioctad.org"
 	}
 	return "https://localhost:4444, https://dev.lioctad.org"
+}
+
+func logFormat() string {
+	if env.IsProd() {
+		return logFormatProd
+	}
+	return logFormatDev
 }
 
 // faviconLocation returns the relative path to the favicon
