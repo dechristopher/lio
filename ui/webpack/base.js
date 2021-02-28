@@ -4,12 +4,11 @@
 import path from 'path';
 import {TsconfigPathsPlugin} from "tsconfig-paths-webpack-plugin"
 
-import {devServerUrl} from './config';
 import entry from './entry';
 import optimization from './optimization';
 import * as plugins from './plugins';
 import * as rules from './rules';
-import {isDevServer, isProd} from './utils/env';
+import {isDevServer, isProd, rootDir} from './utils/env';
 import {arrayFilterEmpty} from './utils/helpers';
 
 export default {
@@ -60,6 +59,7 @@ export default {
     resolve: {
         plugins: [new TsconfigPathsPlugin()],
         extensions: ['.tsx', '.ts', '.js', '.jsx'],
+        modules: [ path.resolve( rootDir, "src" ), "node_modules" ],
     },
     optimization,
 };

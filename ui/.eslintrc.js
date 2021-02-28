@@ -7,7 +7,8 @@ module.exports = {
         jest: true,
     },
     extends: [
-        'plugin:@typescript-eslint/recommended', // Uses the recommended rules from the @typescript-eslint/eslint-plugin
+        'plugin:@typescript-eslint/recommended', // Uses the recommended rules from the @typescript-eslint/eslint-plugin,
+        'plugin:react/recommended'
     ],
     parserOptions: {
         project: path.resolve(__dirname, './tsconfig.json'),
