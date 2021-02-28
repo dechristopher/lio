@@ -1,23 +1,27 @@
 import React, {FC, useRef, useState} from "react";
+import {useHistory} from "react-router-dom";
 import {Transition} from "@headlessui/react";
-import {Link} from "react-router-dom";
-import classNames from "classnames";
 
 import LogoPrimary from "@assets/images/logo.svg";
 import LogoAlt from "@assets/images/logo-alt.svg";
 import {useOutsideClick} from "@/src/utils/hooks/useOutsideClick";
-import {MobileNavbar} from "@app/components/Navbar/MobileNavbar";
+import {DesktopNavLink} from "@app/components/Navbar/desktop/DesktopNavLink";
+import {MobileNavbarMenu} from "@app/components/Navbar/mobile/MobileNavbarMenu";
+import {DesktopMenuOption} from "@app/components/Navbar/desktop/DesktopMenuOption";
+import {MobileNavbarMenuButton} from "@app/components/Navbar/mobile/MobileNavbarMenuButton";
 
 export interface NavbarProps {
 	pathname?: string;
 }
 
 export const Navbar: FC<NavbarProps> = (props) => {
+	const history = useHistory();
 	const [ menuOpen, setMenuOpen ] = useState<boolean>(false);
+
 	const menuRef = useRef(null);
 	const profileImgRef = useRef(null);
-	const mobileMenuBtnRef = useRef(null);
 	const mobileMenuRef = useRef(null);
+	const mobileMenuBtnRef = useRef(null);
 
 	useOutsideClick([menuRef, profileImgRef, mobileMenuBtnRef, mobileMenuRef], () => {
 		if (menuOpen) setMenuOpen(false)
@@ -29,92 +33,20 @@ export const Navbar: FC<NavbarProps> = (props) => {
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="flex justify-between h-16">
 						<div className="flex">
-							<div className="-ml-2 mr-2 flex items-center md:hidden">
-								{/* Mobile menu button */}
-								<button
-									ref={mobileMenuBtnRef}
-									type="button"
-									aria-expanded="false"
-									aria-controls="mobile-menu"
-									onClick={() => setMenuOpen(open => !open)}
-									className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
-								>
-									<span className="sr-only">Open main menu</span>
-									{/* Icon when menu is closed. */}
-									{/*
-									Heroicon name: outline/menu
-
-									Menu open: "hidden", Menu closed: "block"
-								*/}
-									<svg
-										className={classNames("h-6 w-6", {
-											"hidden": menuOpen,
-											"block": !menuOpen,
-										})}
-										xmlns="http://www.w3.org/2000/svg"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										aria-hidden="true"
-									>
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-									</svg>
-									{/* Icon when menu is open. */}
-									{/*
-									Heroicon name: outline/x
-
-									Menu open: "block", Menu closed: "hidden"
-								*/}
-									<svg className={classNames("h-6 w-6", {
-										"hidden": !menuOpen,
-										"block": menuOpen,
-									})}  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-									</svg>
-								</button>
-							</div>
-							<div className="flex-shrink-0 flex items-center">
-								<LogoAlt className="block lg:hidden h-8 w-8" />
-								<LogoPrimary className="hidden lg:block h-12 w-48 mt-1" />
+							<MobileNavbarMenuButton
+								menuOpen={menuOpen}
+								setMenuOpen={setMenuOpen}
+								menuButtonRef={mobileMenuBtnRef}
+							/>
+							<div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => history.push("/")}>
+								<LogoAlt className="block md:hidden h-8 w-8" />
+								<LogoPrimary className="hidden md:block h-12 w-48 mt-1" />
 							</div>
 							<div className="hidden md:ml-6 md:flex md:space-x-8">
-								{/* Current: "border-green-500 text-gray-900", Default: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700" */}
-								<Link
-									to="/play"
-									className={classNames("inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", {
-										"border-green-500 text-gray-900": props.pathname === "/play",
-										"border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700": props.pathname !== "/play"
-									})}
-								>
-									Play
-								</Link>
-								<Link
-									to="/learn"
-									className={classNames("inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", {
-										"border-green-500 text-gray-900": props.pathname === "/learn",
-										"border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700": props.pathname !== "/learn"
-									})}
-								>
-									Learn
-								</Link>
-								<Link
-									to="/watch"
-									className={classNames("inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", {
-										"border-green-500 text-gray-900": props.pathname === "/watch",
-										"border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700": props.pathname !== "/watch"
-									})}
-								>
-									Watch
-								</Link>
-								<Link
-									to="/players"
-									className={classNames("inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium", {
-										"border-green-500 text-gray-900": props.pathname === "/players",
-										"border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700": props.pathname !== "/players"
-									})}
-								>
-									Players
-								</Link>
+								<DesktopNavLink to="/play" active={props.pathname === "/play"}>Play</DesktopNavLink>
+								<DesktopNavLink to="/learn" active={props.pathname === "/learn"}>Learn</DesktopNavLink>
+								<DesktopNavLink to="/watch" active={props.pathname === "/watch"}>Watch</DesktopNavLink>
+								<DesktopNavLink to="/players" active={props.pathname === "/players"}>Players</DesktopNavLink>
 							</div>
 						</div>
 						<div className="flex items-center">
@@ -150,16 +82,8 @@ export const Navbar: FC<NavbarProps> = (props) => {
 											<img className="h-8 w-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixqx=tlsAo3tXUW&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
 										</button>
 									</div>
-									{/*
-									Profile dropdown panel, show/hide based on dropdown state.
 
-									Entering: "transition ease-out duration-200"
-										From: "transform opacity-0 scale-95"
-										To: "transform opacity-100 scale-100"
-									Leaving: "transition ease-in duration-75"
-										From: "transform opacity-100 scale-100"
-										To: "transform opacity-0 scale-95"
-								*/}
+									{/* Profile dropdown panel, show/hide based on dropdown state. */}
 									<Transition
 										show={menuOpen}
 										enter="transition ease-out duration-200"
@@ -174,11 +98,16 @@ export const Navbar: FC<NavbarProps> = (props) => {
 											ref={menuRef}
 											aria-orientation="vertical"
 											aria-labelledby="user-menu"
-											className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5"
+											className="origin-top-right absolute right-0 mt-6 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5"
 										>
-											<Link to="/u" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Profile</Link>
-											<Link to="/account/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Settings</Link>
-											<Link to="/sign-out" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">Sign out</Link>
+											<DesktopMenuOption
+												type="profile"
+												title={<div className="text-base font-medium text-gray-800">Tom Cook</div>}
+												description={<div className="text-sm font-medium text-gray-500">tom@example.com</div>}
+											/>
+											<DesktopMenuOption type="link" to="/u">Profile</DesktopMenuOption>
+											<DesktopMenuOption type="link" to="/account/settings">Settings</DesktopMenuOption>
+											<DesktopMenuOption type="link" to="/sign-out">Sign out</DesktopMenuOption>
 										</div>
 									</Transition>
 								</div>
@@ -190,7 +119,7 @@ export const Navbar: FC<NavbarProps> = (props) => {
 
 			{/* Mobile menu, show/hide based on menu state. */}
 			<div className="md:hidden absolute w-screen z-10" style={{top: "4.25rem"}} id="mobile-menu">
-				<MobileNavbar {...props} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={mobileMenuRef} />
+				<MobileNavbarMenu {...props} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={mobileMenuRef} />
 			</div>
 		</nav>
 	)

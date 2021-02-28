@@ -38,6 +38,7 @@ module.exports = {
             },
         ], // also want to use with ".tsx"
         'react/prop-types': 'off', // Is this incompatible with TS props type?
+        "@typescript-eslint/no-namespace": "off"
     },
     settings: {
         react: {
