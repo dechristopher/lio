@@ -26,7 +26,7 @@ module.exports = (api) => {
             '@babel/plugin-proposal-throw-expressions',
             '@babel/proposal-object-rest-spread',
             // Applies the react-refresh Babel plugin on non-production modes only
-            mode !== 'production' && "react-hot-loader/babel",
+            mode !== 'production' && require.resolve("react-refresh/babel")
         ].filter(Boolean),
     };
 };

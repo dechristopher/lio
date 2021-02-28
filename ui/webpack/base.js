@@ -30,7 +30,7 @@ export default {
     },
     output: {
         path: path.join(__dirname, '../dist'),
-        publicPath: isDevServer ? devServerUrl : './',
+        publicPath: '/',
         filename: isDevServer
             ? '[name].[fullhash].js'
             : '[name].[contenthash].js',

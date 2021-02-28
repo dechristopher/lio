@@ -20,7 +20,7 @@ export const devServerConfig = {
     historyApiFallback: true,
     contentBasePublicPath: "/",
     // proxy: devServerProxyConfig,
-    contentBase: join(rootDir, "./src"),
+    contentBase: join(rootDir, "./"),
     // headers: {'Access-Control-Allow-Origin': '*'},
     disableHostCheck: true,
     transportMode: "ws",
