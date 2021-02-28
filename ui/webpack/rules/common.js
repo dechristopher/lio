@@ -21,7 +21,18 @@ export const javascriptRule = {
     test: /\.(js|jsx)$/,
     use: [babelLoader],
     exclude: /node_modules/,
+    include: /src/
 };
+
+/**
+ * @see https://github.com/gaearon/react-hot-loader/issues/1227#issuecomment-482518698
+ */
+export const hmrRule = {
+    test: /\.(js|jsx)$/,
+    use: 'react-hot-loader/webpack',
+    include: /node_modules/
+};
+
 
 /**
  * @see https://webpack.js.org/loaders/html-loader
