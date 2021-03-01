@@ -1,22 +1,22 @@
 /*
  * Green board theme
  */
-.green .cg-wrap {
+.green .og-wrap {
 	background-image: url('/res/img/board.svg');
 }
 
-.green .cg-wrap coords.ranks > coord:nth-child(odd) {
+.green .og-wrap coords.ranks > coord:nth-child(odd) {
 	color: #FFFFDF;
 }
 
-.green .cg-wrap coords.ranks > coord:nth-child(even) {
+.green .og-wrap coords.ranks > coord:nth-child(even) {
 	color: #93AF6C;
 }
 
-.green .cg-wrap coords.files > coord:nth-child(odd) {
+.green .og-wrap coords.files > coord:nth-child(odd) {
 	color: #FFFFDF;
 }
 
-.green .cg-wrap coords.files > coord:nth-child(even) {
+.green .og-wrap coords.files > coord:nth-child(even) {
 	color: #93AF6C;
 }

@@ -636,8 +636,8 @@ var Octadground = (function () {
 	    if ((_a = config.movable) === null || _a === void 0 ? void 0 : _a.dests)
 	        state.movable.dests = undefined;
 	    merge(state, config);
-	    if (config.fen) {
-	        state.pieces = ofen.read(config.fen);
+	    if (config.ofen) {
+	        state.pieces = ofen.read(config.ofen);
 	        state.drawable.shapes = [];
 	    }
 	    if (config.hasOwnProperty('check'))
@@ -925,7 +925,7 @@ var Octadground = (function () {
 	            previouslySelected,
 	            originTarget: e.target,
 	        };
-	        element.cgDragging = true;
+	        element.ogDragging = true;
 	        element.classList.add('dragging');
 	        const ghost = s.dom.elements.ghost;
 	        if (ghost) {
@@ -991,7 +991,7 @@ var Octadground = (function () {
 	                    const found = cur.element();
 	                    if (!found)
 	                        return;
-	                    found.cgDragging = true;
+	                    found.ogDragging = true;
 	                    found.classList.add('dragging');
 	                    cur.element = found;
 	                }
@@ -1070,7 +1070,7 @@ var Octadground = (function () {
 	function pieceElementByKey(s, key) {
 	    let el = s.dom.elements.board.firstChild;
 	    while (el) {
-	        if (el.cgKey === key && el.tagName === 'PIECE')
+	        if (el.ogKey === key && el.tagName === 'PIECE')
 	            return el;
 	        el = el.nextSibling;
 	    }
@@ -1121,7 +1121,7 @@ var Octadground = (function () {
 	        set(config$1) {
 	            if (config$1.orientation && config$1.orientation !== state.orientation)
 	                toggleOrientation();
-	            (config$1.fen ? anim_1.anim : anim_1.render)(state => config.configure(state, config$1), state);
+	            (config$1.ofen ? anim_1.anim : anim_1.render)(state => config.configure(state, config$1), state);
 	        },
 	        state,
 	        getOfen: () => ofen.write(state.pieces),
@@ -1271,22 +1271,17 @@ var Octadground = (function () {
 	            shapes: [],
 	            autoShapes: [],
 	            brushes: {
-	                green: { key: 'g', color: '#15781B', opacity: 1, lineWidth: 10 },
-	                red: { key: 'r', color: '#882020', opacity: 1, lineWidth: 10 },
-	                blue: { key: 'b', color: '#003088', opacity: 1, lineWidth: 10 },
-	                yellow: { key: 'y', color: '#e68f00', opacity: 1, lineWidth: 10 },
+	                green: { key: 'g', color: '#15781B', opacity: 1, lineWidth: 15 },
+	                red: { key: 'r', color: '#882020', opacity: 1, lineWidth: 15 },
+	                blue: { key: 'b', color: '#003088', opacity: 1, lineWidth: 15 },
+	                yellow: { key: 'y', color: '#e68f00', opacity: 1, lineWidth: 15 },
 	                paleBlue: { key: 'pb', color: '#003088', opacity: 0.4, lineWidth: 15 },
 	                paleGreen: { key: 'pg', color: '#15781B', opacity: 0.4, lineWidth: 15 },
 	                paleRed: { key: 'pr', color: '#882020', opacity: 0.4, lineWidth: 15 },
-	                paleGrey: {
-	                    key: 'pgr',
-	                    color: '#4a4a4a',
-	                    opacity: 0.35,
-	                    lineWidth: 15,
-	                },
+	                paleGrey: { key: 'pgr', color: '#4a4a4a', opacity: 0.35, lineWidth: 15 },
 	            },
 	            pieces: {
-	                baseUrl: 'https://lichess1.org/assets/piece/cburnett/',
+	                baseUrl: 'https://lioctad.org/res/img/cburnett/',
 	            },
 	            prevSvgHash: '',
 	        },
@@ -1350,7 +1345,7 @@ var Octadground = (function () {
 	    const keysInDom = new Set();
 	    let el = defsEl.firstChild;
 	    while (el) {
-	        keysInDom.add(el.getAttribute('cgKey'));
+	        keysInDom.add(el.getAttribute('ogKey'));
 	        el = el.nextSibling;
 	    }
 	    for (const [key, brush] of brushes.entries()) {
@@ -1364,7 +1359,7 @@ var Octadground = (function () {
 	        hashesInDom.set(sc.hash, false);
 	    let el = root.firstChild, elHash;
 	    while (el) {
-	        elHash = el.getAttribute('cgHash');
+	        elHash = el.getAttribute('ogHash');
 	        if (hashesInDom.has(elHash))
 	            hashesInDom.set(elHash, true);
 	        else
@@ -1426,7 +1421,7 @@ var Octadground = (function () {
 	        else
 	            el = renderCircle(brushes[shape.brush], orig, current, bounds);
 	    }
-	    el.setAttribute('cgHash', hash);
+	    el.setAttribute('ogHash', hash);
 	    return el;
 	}
 	function renderCustomSvg(customSvg, pos, bounds) {
@@ -1442,7 +1437,7 @@ var Octadground = (function () {
 	    return g;
 	}
 	function renderCircle(brush, pos, current, bounds) {
-	    const o = pos2px(pos, bounds), widths = circleWidth(bounds), radius = (bounds.width + bounds.height) / 32;
+	    const o = pos2px(pos, bounds), widths = circleWidth(bounds), radius = (bounds.width + bounds.height) / 17;
 	    return setAttributes(createElement('circle'), {
 	        stroke: brush.color,
 	        'stroke-width': widths[current ? 0 : 1],
@@ -1491,7 +1486,7 @@ var Octadground = (function () {
 	        d: 'M0,0 V4 L3,2 Z',
 	        fill: brush.color,
 	    }));
-	    marker.setAttribute('cgKey', brush.key);
+	    marker.setAttribute('ogKey', brush.key);
 	    return marker;
 	}
 	function setAttributes(el, attrs) {
@@ -1513,10 +1508,10 @@ var Octadground = (function () {
 	}
 	function circleWidth(bounds) {
 	    const base = bounds.width / 512;
-	    return [3 * base, 4 * base];
+	    return [7 * base, 8 * base];
 	}
 	function lineWidth(brush, current, bounds) {
-	    return (((brush.lineWidth || 10) * (current ? 0.85 : 1)) / 512) * bounds.width;
+	    return (((brush.lineWidth || 56) * (current ? 0.85 : 1)) / 512) * bounds.width;
 	}
 	function opacity(brush, current) {
 	    return (brush.opacity || 1) * (current ? 0.9 : 1);
@@ -1538,23 +1533,23 @@ var Octadground = (function () {
 
 	function renderWrap(element, s, relative) {
 	    element.innerHTML = '';
-	    element.classList.add('cg-wrap');
+	    element.classList.add('og-wrap');
 	    for (const c of types.colors)
 	        element.classList.toggle('orientation-' + c, s.orientation === c);
 	    element.classList.toggle('manipulable', !s.viewOnly);
-	    const helper = util.createEl('cg-helper');
+	    const helper = util.createEl('og-helper');
 	    element.appendChild(helper);
-	    const container = util.createEl('cg-container');
+	    const container = util.createEl('og-container');
 	    helper.appendChild(container);
-	    const board = util.createEl('cg-board');
+	    const board = util.createEl('og-board');
 	    container.appendChild(board);
 	    let svg$1;
 	    let customSvg;
 	    if (s.drawable.visible && !relative) {
-	        svg$1 = svg.setAttributes(svg.createElement('svg'), { 'class': 'cg-shapes' });
+	        svg$1 = svg.setAttributes(svg.createElement('svg'), { 'class': 'og-shapes' });
 	        svg$1.appendChild(svg.createElement('defs'));
 	        svg$1.appendChild(svg.createElement('g'));
-	        customSvg = svg.setAttributes(svg.createElement('svg'), { 'class': 'cg-custom-svgs' });
+	        customSvg = svg.setAttributes(svg.createElement('svg'), { 'class': 'og-custom-svgs' });
 	        customSvg.appendChild(svg.createElement('g'));
 	        container.appendChild(svg$1);
 	        container.appendChild(customSvg);
@@ -1661,7 +1656,7 @@ var Octadground = (function () {
 	function bindDocument(s, boundsUpdated) {
 	    const unbinds = [];
 	    if (!s.dom.relative && s.resizable && !('ResizeObserver' in window)) {
-	        unbinds.push(unbindable(document.body, 'chessground.resize', boundsUpdated));
+	        unbinds.push(unbindable(document.body, 'octadground.resize', boundsUpdated));
 	    }
 	    if (!s.viewOnly) {
 	        const onmove = dragOrDraw(s, drag.move, draw.move);
@@ -1723,43 +1718,43 @@ var Octadground = (function () {
 	    let k, el, pieceAtKey, elPieceName, anim, fading, pMvdset, pMvd, sMvdset, sMvd;
 	    el = boardEl.firstChild;
 	    while (el) {
-	        k = el.cgKey;
+	        k = el.ogKey;
 	        if (isPieceNode(el)) {
 	            pieceAtKey = pieces.get(k);
 	            anim = anims.get(k);
 	            fading = fadings.get(k);
-	            elPieceName = el.cgPiece;
-	            if (el.cgDragging && (!curDrag || curDrag.orig !== k)) {
+	            elPieceName = el.ogPiece;
+	            if (el.ogDragging && (!curDrag || curDrag.orig !== k)) {
 	                el.classList.remove('dragging');
 	                translate(el, posToTranslate(util.key2pos(k), asWhite));
-	                el.cgDragging = false;
+	                el.ogDragging = false;
 	            }
-	            if (!fading && el.cgFading) {
-	                el.cgFading = false;
+	            if (!fading && el.ogFading) {
+	                el.ogFading = false;
 	                el.classList.remove('fading');
 	            }
 	            if (pieceAtKey) {
-	                if (anim && el.cgAnimating && elPieceName === pieceNameOf(pieceAtKey)) {
+	                if (anim && el.ogAnimating && elPieceName === pieceNameOf(pieceAtKey)) {
 	                    const pos = util.key2pos(k);
 	                    pos[0] += anim[2];
 	                    pos[1] += anim[3];
 	                    el.classList.add('anim');
 	                    translate(el, posToTranslate(pos, asWhite));
 	                }
-	                else if (el.cgAnimating) {
-	                    el.cgAnimating = false;
+	                else if (el.ogAnimating) {
+	                    el.ogAnimating = false;
 	                    el.classList.remove('anim');
 	                    translate(el, posToTranslate(util.key2pos(k), asWhite));
 	                    if (s.addPieceZIndex)
 	                        el.style.zIndex = posZIndex(util.key2pos(k), asWhite);
 	                }
-	                if (elPieceName === pieceNameOf(pieceAtKey) && (!fading || !el.cgFading)) {
+	                if (elPieceName === pieceNameOf(pieceAtKey) && (!fading || !el.ogFading)) {
 	                    samePieces.add(k);
 	                }
 	                else {
 	                    if (fading && elPieceName === pieceNameOf(fading)) {
 	                        el.classList.add('fading');
-	                        el.cgFading = true;
+	                        el.ogFading = true;
 	                    }
 	                    else {
 	                        appendValue(movedPieces, elPieceName, el);
@@ -1785,12 +1780,12 @@ var Octadground = (function () {
 	            sMvd = sMvdset && sMvdset.pop();
 	            const translation = posToTranslate(util.key2pos(sk), asWhite);
 	            if (sMvd) {
-	                sMvd.cgKey = sk;
+	                sMvd.ogKey = sk;
 	                translate(sMvd, translation);
 	            }
 	            else {
 	                const squareNode = util.createEl('square', className);
-	                squareNode.cgKey = sk;
+	                squareNode.ogKey = sk;
 	                translate(squareNode, translation);
 	                boardEl.insertBefore(squareNode, boardEl.firstChild);
 	            }
@@ -1802,16 +1797,16 @@ var Octadground = (function () {
 	            pMvdset = movedPieces.get(pieceNameOf(p));
 	            pMvd = pMvdset && pMvdset.pop();
 	            if (pMvd) {
-	                pMvd.cgKey = k;
-	                if (pMvd.cgFading) {
+	                pMvd.ogKey = k;
+	                if (pMvd.ogFading) {
 	                    pMvd.classList.remove('fading');
-	                    pMvd.cgFading = false;
+	                    pMvd.ogFading = false;
 	                }
 	                const pos = util.key2pos(k);
 	                if (s.addPieceZIndex)
 	                    pMvd.style.zIndex = posZIndex(pos, asWhite);
 	                if (anim) {
-	                    pMvd.cgAnimating = true;
+	                    pMvd.ogAnimating = true;
 	                    pMvd.classList.add('anim');
 	                    pos[0] += anim[2];
 	                    pos[1] += anim[3];
@@ -1820,10 +1815,10 @@ var Octadground = (function () {
 	            }
 	            else {
 	                const pieceName = pieceNameOf(p), pieceNode = util.createEl('piece', pieceName), pos = util.key2pos(k);
-	                pieceNode.cgPiece = pieceName;
-	                pieceNode.cgKey = k;
+	                pieceNode.ogPiece = pieceName;
+	                pieceNode.ogKey = k;
 	                if (anim) {
-	                    pieceNode.cgAnimating = true;
+	                    pieceNode.ogAnimating = true;
 	                    pos[0] += anim[2];
 	                    pos[1] += anim[3];
 	                }
@@ -1846,8 +1841,8 @@ var Octadground = (function () {
 	    const asWhite = board.whitePov(s), posToTranslate = util$1.posToTranslateAbs(s.dom.bounds());
 	    let el = s.dom.elements.board.firstChild;
 	    while (el) {
-	        if ((isPieceNode(el) && !el.cgAnimating) || isSquareNode(el)) {
-	            util$1.translateAbs(el, posToTranslate(util.key2pos(el.cgKey), asWhite));
+	        if ((isPieceNode(el) && !el.ogAnimating) || isSquareNode(el)) {
+	            util$1.translateAbs(el, posToTranslate(util.key2pos(el.ogKey), asWhite));
 	        }
 	        el = el.nextSibling;
 	    }

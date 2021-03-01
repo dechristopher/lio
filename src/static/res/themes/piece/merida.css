@@ -1,39 +1,39 @@
 /*
  * Merida piece theme
  */
-.merida .cg-wrap piece.pawn.white {
+.merida .og-wrap piece.pawn.white {
 	background-image: url('/res/img/merida/wP.svg');
 }
-.merida .cg-wrap piece.bishop.white {
+.merida .og-wrap piece.bishop.white {
 	background-image: url('/res/img/merida/wB.svg');
 }
-.merida .cg-wrap piece.knight.white {
+.merida .og-wrap piece.knight.white {
 	background-image: url('/res/img/merida/wN.svg');
 }
-.merida .cg-wrap piece.rook.white {
+.merida .og-wrap piece.rook.white {
 	background-image: url('/res/img/merida/wR.svg');
 }
-.merida .cg-wrap piece.queen.white {
+.merida .og-wrap piece.queen.white {
 	background-image: url('/res/img/merida/wQ.svg');
 }
-.merida .cg-wrap piece.king.white {
+.merida .og-wrap piece.king.white {
 	background-image: url('/res/img/merida/wK.svg');
 }
-.merida .cg-wrap piece.pawn.black {
+.merida .og-wrap piece.pawn.black {
 	background-image: url('/res/img/merida/bP.svg');
 }
-.merida .cg-wrap piece.bishop.black {
+.merida .og-wrap piece.bishop.black {
 	background-image: url('/res/img/merida/bB.svg');
 }
-.merida .cg-wrap piece.knight.black {
+.merida .og-wrap piece.knight.black {
 	background-image: url('/res/img/merida/bN.svg');
 }
-.merida .cg-wrap piece.rook.black {
+.merida .og-wrap piece.rook.black {
 	background-image: url('/res/img/merida/bR.svg');
 }
-.merida .cg-wrap piece.queen.black {
+.merida .og-wrap piece.queen.black {
 	background-image: url('/res/img/merida/bQ.svg');
 }
-.merida .cg-wrap piece.king.black {
+.merida .og-wrap piece.king.black {
 	background-image: url('/res/img/merida/bK.svg');
 }

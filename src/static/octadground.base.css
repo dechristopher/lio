@@ -1,11 +1,11 @@
-.cg-wrap {
+.og-wrap {
   width: 320px;
   height: 320px;
   position: relative;
   display: block;
 }
 
-cg-helper {
+og-helper {
   position: absolute;
   width: 12.5%;
   padding-bottom: 12.5%;
@@ -13,7 +13,7 @@ cg-helper {
   bottom: 0;
 }
 
-cg-container {
+og-container {
   position: absolute;
   width: 800%;
   height: 800%;
@@ -21,7 +21,7 @@ cg-container {
   bottom: 0;
 }
 
-cg-board {
+og-board {
   position: absolute;
   top: 0;
   left: 0;
@@ -36,7 +36,7 @@ cg-board {
   cursor: pointer;
 }
 
-cg-board square {
+og-board square {
   position: absolute;
   top: 0;
   left: 0;
@@ -45,15 +45,15 @@ cg-board square {
   pointer-events: none;
 }
 
-cg-board square.move-dest {
+og-board square.move-dest {
   pointer-events: auto;
 }
 
-cg-board square.last-move {
+og-board square.last-move {
   will-change: transform;
 }
 
-.cg-wrap piece {
+.og-wrap piece {
   position: absolute;
   top: 0;
   left: 0;
@@ -65,7 +65,7 @@ cg-board square.last-move {
   pointer-events: none;
 }
 
-cg-board piece.dragging {
+og-board piece.dragging {
   cursor: move;
   z-index: 10;
 }
@@ -79,11 +79,11 @@ piece.fading {
   opacity: 0.5;
 }
 
-.cg-wrap piece.ghost {
+.og-wrap piece.ghost {
   opacity: 0.3;
 }
 
-.cg-wrap piece svg {
+.og-wrap piece svg {
   overflow: hidden;
   position: relative;
   top: 0;
@@ -95,11 +95,11 @@ piece.fading {
   opacity: 0.6;
 }
 
-.cg-wrap piece svg image {
+.og-wrap piece svg image {
   opacity: 0.5;
 }
 
-.cg-wrap .cg-shapes, .cg-wrap .cg-custom-svgs {
+.og-wrap .og-shapes, .og-wrap .og-custom-svgs {
   overflow: hidden;
   position: absolute;
   top: 0;
@@ -109,17 +109,17 @@ piece.fading {
   pointer-events: none;
 }
 
-.cg-wrap .cg-shapes {
+.og-wrap .og-shapes {
   opacity: 0.6;
   z-index: 2;
 }
 
-.cg-wrap .cg-custom-svgs {
+.og-wrap .og-custom-svgs {
   /* over piece.anim = 8, but under piece.dragging = 10 */
   z-index: 9;
 }
 
-.cg-wrap coords {
+.og-wrap coords {
   position: absolute;
   display: flex;
   pointer-events: none;
@@ -128,7 +128,7 @@ piece.fading {
   font-size: 9px;
 }
 
-.cg-wrap coords.ranks {
+.og-wrap coords.ranks {
   left: 4px;
   top: -20px;
   flex-flow: column-reverse;
@@ -136,11 +136,11 @@ piece.fading {
   width: 12px;
 }
 
-.cg-wrap coords.ranks.black {
+.og-wrap coords.ranks.black {
   flex-flow: column;
 }
 
-.cg-wrap coords.files {
+.og-wrap coords.files {
   bottom: -4px;
   left: 24px;
   flex-flow: row;
@@ -150,14 +150,14 @@ piece.fading {
   text-align: center;
 }
 
-.cg-wrap coords.files.black {
+.og-wrap coords.files.black {
   flex-flow: row-reverse;
 }
 
-.cg-wrap coords coord {
+.og-wrap coords coord {
   flex: 1 1 auto;
 }
 
-.cg-wrap coords.ranks coord {
+.og-wrap coords.ranks coord {
   transform: translateY(39%);
 }
