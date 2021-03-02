@@ -2,14 +2,18 @@ package util
 
 import (
 	"bufio"
+	_ "embed"
 	"math/rand"
-	"os"
 	"strings"
 	"time"
 )
 
 var (
-	naughtyList = "static/naughty.txt"
+	//go:embed naughty.txt
+	naughtyFile string
+)
+
+var (
 	charset     = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789"
 	charsetFull = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
 	seededRand  = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -18,15 +22,8 @@ var (
 
 // loadNaughty loads the naughty list on boot
 func loadNaughty() []string {
-	file, err := os.Open(naughtyList)
-	if err != nil {
-		return nil
-	}
-
-	defer file.Close()
-
 	var lines []string
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(strings.NewReader(naughtyFile))
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
