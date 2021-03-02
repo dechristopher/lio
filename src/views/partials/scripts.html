@@ -225,7 +225,8 @@
 	const disableBoard = () => {
 		og.set({
 			movable: {
-				free: false
+				free: false,
+				dests: new Map(),
 			}
 		})
 	};
