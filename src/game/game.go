@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	// TODO persist in redis or something
 	// Games is an in-memory cache of all active games
+	// TODO persist in redis or something
 	Games map[string]*OctadGame
 )
 
