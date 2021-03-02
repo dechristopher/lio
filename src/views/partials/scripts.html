@@ -151,7 +151,7 @@
 	const parseResponse = (raw) => {
 		let message = JSON.parse(raw);
 
-		console.log(message);
+		// console.log(message);
 
 		switch (message.c) {
 			case -1:
@@ -186,7 +186,7 @@
 							free: false
 						}
 					});
-					console.log('game over');
+					document.getElementById("info").innerHTML = "GAME OVER!";
 					setTimeout(() => {
 						location.reload();
 					}, 2000)
@@ -195,7 +195,7 @@
 			default:
 				return;
 		}
-		console.log('state', og.state);
+		// console.log('state', og.state);
 	};
 
 	const allMoves = (moves) => {
