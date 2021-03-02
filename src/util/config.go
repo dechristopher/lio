@@ -10,8 +10,10 @@ var (
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
 
+	// DebugFlagPtr contains raw debug flags direct from STDIN
 	DebugFlagPtr *string
-	DebugFlags   []string
+	// DebugFlags holds all active, parsed debug flags
+	DebugFlags []string
 )
 
 // IsDebugFlag returns true if a given debug flag is enabled in this instance

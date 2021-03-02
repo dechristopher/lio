@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// clock represents the clock for a single game
+// Clock represents the clock for a single game
 type Clock struct {
 	black  string
 	white  string

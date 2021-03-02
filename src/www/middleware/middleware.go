@@ -23,6 +23,7 @@ const logFormatProd = "${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
 const logFormatDev = "${ip} [${time}] \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency}\n"
 
+// WireMiddleware attaches all middleware to the given router
 func WireMiddleware(r fiber.Router, static http.FileSystem) {
 	r.Use(requestid.New())
 
@@ -109,7 +110,6 @@ func logFormat() string {
 func faviconLocation() string {
 	if env.IsProd() {
 		return "./favicon.ico"
-	} else {
-		return "./static/res/ico/favicon.ico"
 	}
+	return "./static/res/ico/favicon.ico"
 }

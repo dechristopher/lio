@@ -10,10 +10,11 @@ import (
 
 var (
 	// TODO persist in redis or something
+	// Games is an in-memory cache of all active games
 	Games map[string]*OctadGame
 )
 
-// LiGame wraps octad game and clock
+// OctadGame wraps octad game and clock
 type OctadGame struct {
 	ID     string       `json:"i"` // game id
 	White  string       `json:"w"` // white userid
@@ -45,6 +46,7 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 	return &g, nil
 }
 
+// LegalMoves returns all legal moves in a string array
 func (g *OctadGame) LegalMoves() map[string][]string {
 	legalMoves := make(map[string][]string)
 	for _, move := range g.Game.ValidMoves() {
@@ -57,6 +59,7 @@ func (g *OctadGame) LegalMoves() map[string][]string {
 	return legalMoves
 }
 
+// LegalMovesJSON returns a json formatted array of all legal moves
 func (g *OctadGame) LegalMovesJSON() string {
 	moves := g.LegalMoves()
 	j, err := json.Marshal(moves)
@@ -66,6 +69,8 @@ func (g *OctadGame) LegalMovesJSON() string {
 	return string(j)
 }
 
+// AllMovesJSON returns a JSON formatted array of all moves in
+// the game so far
 func (g *OctadGame) AllMovesJSON() string {
 	moves := g.Game.Moves()
 	allMoves := make([]string, 0)
@@ -91,27 +96,3 @@ func genGame(ofen ...string) (*octad.Game, error) {
 
 	return octad.NewGame()
 }
-
-//cl := clock.NewClock("Andrew", "Mike", clock.TimeControl{
-//	Time:      time.Second * 15,
-//	Increment: time.Second * 3,
-//	Delay:     time.Second * 5,
-//})
-//
-//cl.Start()
-//
-//go func() {
-//	for {
-//		select {
-//		case s := <-cl.StateChannel:
-//			log.Printf("%v", s)
-//		}
-//	}
-//}()
-//
-//r.Get("/flip", func(ctx *fiber.Ctx) error {
-//	if !cl.Flagged() {
-//		cl.ControlChannel <- clock.Flip
-//	}
-//	return ctx.Status(200).JSON(cl.State())
-//})

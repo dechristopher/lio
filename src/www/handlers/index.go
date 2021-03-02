@@ -6,7 +6,7 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-// indexHandler executes the home page template
+// IndexHandler executes the home page template
 func IndexHandler(c *fiber.Ctx) error {
 	return util.HandleTemplate(c, "index",
 		"Coming Soon", nil, 200)

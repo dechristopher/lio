@@ -1,6 +1,6 @@
 package str
 
-// Current max caller padding, dynamically increased
+// CPadding is the current max caller padding, dynamically increased
 var CPadding = 0
 
 // Flags, log formats and miscellaneous strings

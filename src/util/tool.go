@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	// import embed for side-effects to allow embedding naughty.txt
 	_ "embed"
 	"math/rand"
 	"strings"

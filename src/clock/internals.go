@@ -12,16 +12,21 @@ type TimeControl struct {
 	// TODO Bronstein delay?
 }
 
+// Centi represents one centi-second
 const Centi = time.Second / 100
 
+// Command constant for clock operations
 type Command int
 
+// Clock commands, not many so far
 const (
 	Flip Command = iota
 )
 
+// Victor of the game
 type Victor int
 
+// Possible victor states according to the clock
 const (
 	NoVictor Victor = iota
 	Black

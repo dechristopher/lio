@@ -12,6 +12,7 @@ import (
 	"github.com/dechristopher/lioctad/www/ws/proto"
 )
 
+// HandleGame processes game update messages
 func HandleGame(m proto.Message) proto.Message {
 	response := common.GenResponse(m)
 
