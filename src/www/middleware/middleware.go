@@ -49,10 +49,8 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 
 	// Predefined route for favicon at root of domain
 	r.Use(favicon.New(favicon.Config{
-		File: faviconLocation(),
-		// TODO when https://github.com/gofiber/fiber/pull/1189 merges
-		// File: "./static/res/ico/favicon.ico",
-		// FileSystem: http.FS(static),
+		File:       "./res/ico/favicon.ico",
+		FileSystem: static,
 	}))
 
 	// Serve static files from /static/res preventing directory listings
@@ -103,13 +101,4 @@ func logFormat() string {
 		return logFormatProd
 	}
 	return logFormatDev
-}
-
-// faviconLocation returns the relative path to the favicon
-// TODO until we have embed support in fiber for the favicon middleware
-func faviconLocation() string {
-	if env.IsProd() {
-		return "./favicon.ico"
-	}
-	return "./static/res/ico/favicon.ico"
 }
