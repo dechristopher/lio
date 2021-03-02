@@ -18,8 +18,18 @@ var (
 	charset     = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789"
 	charsetFull = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
 	seededRand  = rand.New(rand.NewSource(time.Now().UnixNano()))
-	naughty     = loadNaughty()
+	naughty     []string
 )
+
+func init() {
+	go loadNaughty()
+}
+
+// loadNaughtyAsync runs the loadNaughty function
+// but it should be called asynchronously on init
+func loadNaughtyAsync() {
+	naughty = loadNaughty()
+}
 
 // loadNaughty loads the naughty list on boot
 func loadNaughty() []string {
