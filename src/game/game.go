@@ -32,9 +32,10 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 	}
 
 	g := OctadGame{
-		ID:    config.Channel,
-		Game:  game,
-		Clock: clock.NewClock(config.White, config.Black, config.Control),
+		ID:     config.Channel,
+		Game:   game,
+		ToMove: game.Position().Turn(),
+		Clock:  clock.NewClock(config.White, config.Black, config.Control),
 	}
 
 	// create map if not exists

@@ -58,6 +58,7 @@ func HandleGame(m proto.Message) proto.Message {
 				break
 			}
 		}
+		g.ToMove = g.Game.Position().Turn()
 		response.Body = genGameUpdate(g)
 		if genGameState(g) != "0" {
 			go func() {
