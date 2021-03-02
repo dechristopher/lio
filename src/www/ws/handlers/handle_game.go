@@ -46,7 +46,7 @@ func HandleGame(m proto.Message) proto.Message {
 				}
 				bm := g.Game.ValidMoves()
 				if len(bm) > 0 {
-					r := rand.New(rand.NewSource(42069))
+					r := rand.New(rand.NewSource(time.Now().UnixNano()))
 					err = g.Game.Move(bm[r.Int31n(int32(len(bm)))])
 					if err != nil {
 						response.Error = "002"
