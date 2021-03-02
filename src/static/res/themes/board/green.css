@@ -20,3 +20,16 @@
 .green .og-wrap coords.files > coord:nth-child(even) {
 	color: #93AF6C;
 }
+
+.green square.last-move {
+	background-color: rgba(0,155,199,0.41);
+}
+
+.green square.move-dest {
+	background: radial-gradient(rgba(20,85,30,0.5) 19%, rgba(0,0,0,0) 20%);
+	pointer-events: auto;
+}
+
+.green square.selected {
+	background-color: rgba(20,85,30,0.5);
+}
