@@ -59,6 +59,24 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 		Root:   strictFs{static},
 		MaxAge: 86400,
 	}))
+
+	// set browser id cookie
+	// TODO rebuild this every time someone logs in
+	r.Use(func(c *fiber.Ctx) error {
+		if c.Cookies("bid") == "" {
+			c.Cookie(&fiber.Cookie{
+				Name:     "bid",
+				Value:    util.GenerateCode(16, true),
+				Path:     "/",
+				Domain:   "",
+				MaxAge:   0,
+				Secure:   env.IsProd(),
+				HTTPOnly: false,
+				SameSite: "Strict",
+			})
+		}
+		return c.Next()
+	})
 }
 
 // NotFound wires the final 404 handler after all other

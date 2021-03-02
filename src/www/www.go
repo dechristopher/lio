@@ -1,61 +1,84 @@
 package www
 
 import (
+	"embed"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html"
 	"github.com/gofiber/websocket/v2"
 
+	"github.com/dechristopher/lioctad/env"
+	"github.com/dechristopher/lioctad/str"
+	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www/handlers"
 	"github.com/dechristopher/lioctad/www/middleware"
+	"github.com/dechristopher/lioctad/www/ws"
 )
 
-// WireHandlers builds all of the websocket and http routes
-// into the fiber app context
-func WireHandlers(r *fiber.App, staticFs http.FileSystem) {
+var (
+	viewsFs  http.FileSystem
+	staticFs http.FileSystem
 
-	// websocket upgrade intermediate route
-	// catches anything under /ws/** and allows the
-	// websocket connection through "allowed" local
-	r.Use("/ws", func(c *fiber.Ctx) error {
-		// IsWebSocketUpgrade returns true if the client
-		// requested upgrade to the WebSocket protocol.
-		if websocket.IsWebSocketUpgrade(c) {
-			c.Locals("allowed", true)
-			return c.Next()
-		}
-		return fiber.ErrUpgradeRequired
+	// fiber html template engine
+	engine *html.Engine
+)
+
+func Serve(views, static embed.FS) {
+	viewsFs = util.PickFS(env.IsDev(), views, "./views")
+	staticFs = util.PickFS(env.IsDev(), static, "./static")
+	engine = html.NewFileSystem(viewsFs, ".html")
+
+	// enable template engine reloading on dev
+	engine.Reload(env.IsDev())
+
+	r := fiber.New(fiber.Config{
+		Prefork:               false,
+		ServerHeader:          "lioctad.org",
+		StrictRouting:         false,
+		CaseSensitive:         true,
+		ErrorHandler:          nil,
+		DisableStartupMessage: true,
+		Views:                 engine,
 	})
 
+	// wire up all route handlers
+	wireHandlers(r, staticFs)
+
+	// Graceful shutdown with SIGINT
+	// SIGTERM and others will hard kill
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		_ = <-c
+		util.Info(str.CMain, str.MShutdown)
+		_ = r.Shutdown()
+	}()
+
+	util.Info(str.CMain, str.MStarted, util.TimeSinceBoot(),
+		env.GetEnv(), util.GetPort(), "none")
+
+	if err := r.Listen(util.GetListenPort()); err != nil {
+		log.Println(err)
+	}
+
+	// Exit cleanly
+	util.Info(str.CMain, str.MExit)
+	os.Exit(0)
+}
+
+// wireHandlers builds all of the websocket and http routes
+// into the fiber app context
+func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
+
+	// ws upgrade endpoint catch-all
+	r.Use("/ws", ws.UpgradeHandler)
+
 	// websocket connection listener
-	r.Get("/ws/:id", websocket.New(func(c *websocket.Conn) {
-		// c.Locals is added to the *websocket.Conn
-		log.Println(c.Locals("allowed"))  // true
-		log.Println(c.Params("id"))       // 123
-		log.Println(c.Query("v"))         // 1.0
-		log.Println(c.Cookies("session")) // ""
-
-		// websocket.Conn bindings
-		// https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
-		var (
-			mt  int
-			msg []byte
-			err error
-		)
-		for {
-			if mt, msg, err = c.ReadMessage(); err != nil {
-				log.Println("read:", err)
-				break
-			}
-			log.Printf("recv: %s", msg)
-
-			if err = c.WriteMessage(mt, msg); err != nil {
-				log.Println("write:", err)
-				break
-			}
-		}
-	}))
+	r.Get("/ws/:chan", websocket.New(ws.ConnHandler))
 
 	// sub-router with compression enabled
 	sub := r.Group("/")
