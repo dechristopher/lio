@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"math/rand"
+	"time"
 
 	"github.com/dechristopher/octad"
 
@@ -57,6 +58,22 @@ func HandleGame(m proto.Message) proto.Message {
 			}
 		}
 		response.Body = genGameUpdate(g)
+		if genGameState(g) != "0" {
+			go func() {
+				t := time.NewTimer(time.Second * 1)
+				<-t.C
+				g, _ = game.NewOctadGame(game.OctadGameConfig{
+					White: "123",
+					Black: "456",
+					Control: clock.TimeControl{
+						Time:      2,
+						Increment: 1,
+					},
+					OFEN:    "",
+					Channel: m.Channel,
+				})
+			}()
+		}
 	}
 
 	return response
