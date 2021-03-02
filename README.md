@@ -1,4 +1,6 @@
 # [lioctad.org](https://lioctad.org)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dechristopher/lio)](https://goreportcard.com/github.com/dechristopher/lio)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://raw.githubusercontent.com/dechristopher/lio/master/LICENSE)
 
 Lioctad (li[bre] octad) is a free online octad game server focused on [realtime](https://lioctad.org/games) gameplay and ease of use.
 
