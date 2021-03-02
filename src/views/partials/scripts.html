@@ -172,6 +172,7 @@
 						ofen: message.b[1],
 						lastMove: getLastMove(JSON.parse(message.b[3])),
 						turnColor: message.b[2] === "w" ? "white" : "black",
+						check: message.b[5] === "1",
 						movable: {
 							free: false,
 							dests: allMoves(JSON.parse(message.b[4]))
@@ -182,6 +183,7 @@
 						ofen: message.b[1],
 						lastMove: getLastMove(JSON.parse(message.b[3])),
 						turnColor: message.b[2] === "w" ? "white" : "black",
+						check: message.b[5] === "1",
 						movable: {
 							free: false
 						}

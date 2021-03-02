@@ -15,6 +15,7 @@ func GenResponse(m proto.Message) proto.Message {
 	message := proto.Message{}
 	message.Time = util.MilliTime()
 	message.Command = m.Command
+	message.Channel = m.Channel
 	message.Body = make([]string, 0)
 	return message
 }

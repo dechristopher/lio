@@ -51,10 +51,10 @@ func HandleGame(m proto.Message) proto.Message {
 					if err != nil {
 						response.Error = "002"
 					}
-					break
 				} else {
 					response.Body = genGameUpdate(g)
 				}
+				break
 			}
 		}
 		response.Body = genGameUpdate(g)
@@ -80,13 +80,22 @@ func HandleGame(m proto.Message) proto.Message {
 }
 
 func genGameUpdate(g *game.OctadGame) []string {
+	g.Game.Position()
 	return []string{
 		genGameState(g),
 		g.Game.Position().String(),
 		g.Game.Position().Turn().String(),
 		g.AllMovesJSON(),
 		g.LegalMovesJSON(),
+		isChecked(g),
 	}
+}
+
+func isChecked(g *game.OctadGame) string {
+	if g.Game.Position().InCheck() {
+		return "1"
+	}
+	return "0"
 }
 
 func genGameState(g *game.OctadGame) string {
