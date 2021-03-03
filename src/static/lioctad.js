@@ -9,11 +9,14 @@ capSound.volume = 1;
 let og = Octadground(document.getElementById('game'), {
 	highlight: {
 		lastMove: true,
-		check: true
+		check: true,
 	},
 	movable: {
 		free: false,
-		color: 'white'
+		color: 'white',
+	},
+	selectable: {
+		enabled: false,
 	},
 	events: {
 		move: (orig, dest, capturedPiece) => {
@@ -22,7 +25,18 @@ let og = Octadground(document.getElementById('game'), {
 			} else {
 				moveSound.play();
 			}
-			sendGameMove(orig + dest);
+
+			let promo = "";
+			if (og.state.pieces.get(dest).role === "pawn") {
+				let destPiece = og.state.pieces.get(dest);
+				if (destPiece.color === "white" && dest[1] === "4") {
+					promo = 'q';
+				} else if (destPiece.color === "white" && dest[1] === "1") {
+					promo = 'q';
+				}
+			}
+
+			sendGameMove(orig + dest + promo);
 		}
 	}
 });
@@ -102,7 +116,7 @@ const incrBackoff = () => {
 
 /**
  * Send a JSON stringified command over the websocket
- * @param command
+ * @param command - command object
  */
 const send = (command) => {
 	if (ws && ws.readyState === WebSocket.OPEN) {
@@ -132,7 +146,8 @@ const sendGameUpdateRequest = () => {
 };
 
 /**
- * Sends a game connect message, requesting up to date game state
+ * Sends a game move in Universal Octad Interface format
+ * @param move - UOI move string
  */
 const sendGameMove = (move) => {
 	send(buildCommand(2, ["1", move]))
@@ -210,6 +225,11 @@ const parseResponse = (raw) => {
 	// console.log('state', og.state);
 };
 
+/**
+ * Return a map of all legal moves
+ * @param moves - raw moves object
+ * @returns {Map<string, string>}
+ */
 const allMoves = (moves) => {
 	let allMoves = new Map();
 	Object.entries(moves).forEach(([s1, dests]) => {
@@ -218,6 +238,11 @@ const allMoves = (moves) => {
 	return allMoves;
 }
 
+/**
+ * Return the most recent game move for last move highlighting
+ * @param moves - ordered list of all moves
+ * @returns {[string, string]|*[]}
+ */
 const getLastMove = (moves) => {
 	if (moves && moves.length > 0) {
 		const move = moves[moves.length - 1]
