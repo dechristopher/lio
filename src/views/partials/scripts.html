@@ -9,7 +9,7 @@
 	capSound.volume = 1;
 
 	// create game board
-	var og = Octadground(document.getElementById('game'), {
+	let og = Octadground(document.getElementById('game'), {
 		highlight: {
 			lastMove: true,
 			check: true
@@ -31,7 +31,7 @@
 		}
 	});
 
-	let ws;
+	let ws, ka;
 	let backoff = 0;
 
 	// connect on page load
@@ -58,6 +58,7 @@
 		ws.onclose = () => {
 			console.warn("Lost connection to lioctad.org");
 			ws = null;
+			clearInterval(ka);
 			disableBoard();
 			reconnect();
 		};
@@ -74,6 +75,9 @@
 		backoff = 0;
 		sendHello();
 		sendGameUpdateRequest();
+		setInterval(() => {
+      sendKeepAlive();
+    }, 30000)
 	};
 
 	/**
@@ -106,7 +110,14 @@
 		if (ws) {
 			ws.send(JSON.stringify(command));
 		}
-	};
+  };
+
+  /**
+   * Sends a keep-alive message, requesting the socket stay open
+   */
+  const sendKeepAlive = () => {
+	  send(buildCommand(0, ["alive"]))
+  };
 
 	/**
 	 * Sends a hello message, requesting up to date information
@@ -197,6 +208,7 @@
 			default:
 				return;
 		}
+
 		// console.log('state', og.state);
 	};
 
