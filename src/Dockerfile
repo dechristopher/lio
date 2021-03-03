@@ -11,9 +11,6 @@ FROM scratch
 
 WORKDIR /
 COPY --from=build /build/lioctad lioctad
-# Temporary until gofiber merges:
-# https://github.com/gofiber/fiber/pull/1189
-COPY --from=build /build/static/res/ico/favicon.ico favicon.ico
 
 EXPOSE 4444
 ENTRYPOINT ["/lioctad"]
