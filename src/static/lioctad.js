@@ -27,7 +27,7 @@ let og = Octadground(document.getElementById('game'), {
 			}
 
 			let promo = "";
-			if (og.state.pieces.get(dest).role === "pawn") {
+			if (og.state.pieces.get(dest) && og.state.pieces.get(dest).role === "pawn") {
 				let destPiece = og.state.pieces.get(dest);
 				if (destPiece.color === "white" && dest[1] === "4") {
 					promo = 'q';
