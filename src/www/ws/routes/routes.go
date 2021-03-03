@@ -9,9 +9,9 @@ import (
 // Map protocol commands to command handlers
 var (
 	Map = map[int]func(m proto.Message) proto.Message{
-		proto.CommandError:   common.Unimplemented,
-		proto.CommandGoodbye: common.Unimplemented,
-		proto.CommandHello:   handlers.HandleHello,
-		proto.CommandGame:    handlers.HandleGame,
+		proto.CommandError:     common.Unimplemented,
+		proto.CommandKeepAlive: handlers.HandleKeepAlive,
+		proto.CommandHello:     handlers.HandleHello,
+		proto.CommandGame:      handlers.HandleGame,
 	}
 )

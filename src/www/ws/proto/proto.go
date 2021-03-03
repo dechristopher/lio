@@ -2,10 +2,10 @@ package proto
 
 // Command enums for websocket messages
 const (
-	CommandError   = -1
-	CommandGoodbye = 0
-	CommandHello   = 1
-	CommandGame    = 2
+	CommandError     = -1
+	CommandKeepAlive = 0
+	CommandHello     = 1
+	CommandGame      = 2
 )
 
 // Message is a struct representing a websocket control message
