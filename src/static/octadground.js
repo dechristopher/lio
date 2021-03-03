@@ -272,24 +272,26 @@ var Octadground = (function () {
 	    const destPos = util.key2pos(dest);
 	    if ((origPos[1] !== 0 && origPos[1] !== 3) || origPos[1] !== destPos[1])
 	        return false;
-	    if (origPos[0] === 4 && !state.pieces.has(dest)) {
-	        if (destPos[0] === 6)
-	            dest = util.pos2key([3, destPos[1]]);
-	        else if (destPos[0] === 2)
+	    if (origPos[0] === 1 && state.pieces.has(dest)) {
+	        if (destPos[0] === 0)
 	            dest = util.pos2key([0, destPos[1]]);
+	        else if (destPos[0] === 2)
+	            dest = util.pos2key([2, destPos[1]]);
+	        else if (destPos[0] === 3)
+	            dest = util.pos2key([3, destPos[1]]);
 	    }
-	    const rook = state.pieces.get(dest);
-	    if (!rook || rook.color !== king.color || rook.role !== 'rook')
+	    const piece = state.pieces.get(dest);
+	    if (!piece || piece.color !== king.color || (piece.role !== 'pawn' && piece.role !== 'knight'))
 	        return false;
 	    state.pieces.delete(orig);
 	    state.pieces.delete(dest);
 	    if (origPos[0] < destPos[0]) {
-	        state.pieces.set(util.pos2key([6, destPos[1]]), king);
-	        state.pieces.set(util.pos2key([5, destPos[1]]), rook);
+	        state.pieces.set(util.pos2key([2, destPos[1]]), king);
+	        state.pieces.set(util.pos2key([1, destPos[1]]), piece);
 	    }
 	    else {
-	        state.pieces.set(util.pos2key([2, destPos[1]]), king);
-	        state.pieces.set(util.pos2key([3, destPos[1]]), rook);
+	        state.pieces.set(util.pos2key([0, destPos[1]]), king);
+	        state.pieces.set(util.pos2key([1, destPos[1]]), piece);
 	    }
 	    return true;
 	}
@@ -650,7 +652,7 @@ var Octadground = (function () {
 	        board.setSelected(state, state.selected);
 	    if (!state.animation.duration || state.animation.duration < 100)
 	        state.animation.enabled = false;
-	    if (!state.movable.rookCastle && state.movable.dests) {
+	    if (!state.movable.pieceCastle && state.movable.dests) {
 	        const rank = state.movable.color === 'white' ? '1' : '4', kingStartPos = ('e' + rank), dests = state.movable.dests.get(kingStartPos), king = state.pieces.get(kingStartPos);
 	        if (!dests || !king || king.role !== 'king')
 	            return;
@@ -1234,7 +1236,7 @@ var Octadground = (function () {
 	            color: 'both',
 	            showDests: true,
 	            events: {},
-	            rookCastle: true,
+	            pieceCastle: true,
 	        },
 	        premovable: {
 	            enabled: true,
