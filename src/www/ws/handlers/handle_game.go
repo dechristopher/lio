@@ -45,15 +45,15 @@ func HandleGame(m proto.Message) proto.Message {
 					response.Error = "001"
 					break
 				}
-				bm := g.Game.ValidMoves()
-				if len(bm) > 0 {
-					r := rand.New(rand.NewSource(time.Now().UnixNano()))
-					err = g.Game.Move(bm[r.Int31n(int32(len(bm)))])
-					if err != nil {
-						response.Error = "002"
+				if g.Game.Outcome() == octad.NoOutcome {
+					bm := g.Game.ValidMoves()
+					if len(bm) > 0 {
+						r := rand.New(rand.NewSource(time.Now().UnixNano()))
+						err = g.Game.Move(bm[r.Int31n(int32(len(bm)))])
+						if err != nil {
+							response.Error = "002"
+						}
 					}
-				} else {
-					response.Body = genGameUpdate(g)
 				}
 				break
 			}
