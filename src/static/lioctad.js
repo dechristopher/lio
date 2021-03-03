@@ -23,7 +23,6 @@ let og = Octadground(document.getElementById('game'), {
 				moveSound.play();
 			}
 			sendGameMove(orig + dest);
-			console.log(orig, dest, capturedPiece);
 		}
 	}
 });
