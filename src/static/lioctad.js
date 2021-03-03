@@ -106,7 +106,7 @@ const incrBackoff = () => {
  * @param command
  */
 const send = (command) => {
-	if (ws) {
+	if (ws && ws.readyState === WebSocket.OPEN) {
 		ws.send(JSON.stringify(command));
 	}
 };
