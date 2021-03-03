@@ -5,7 +5,7 @@
 
 # remove and prune old stack
 docker stack rm lio-prod
-docker image prune -f --all
+docker image prune -f
 
 # rebuild lioctad container
 cd ../src && docker build -t lioctad:latest -f Dockerfile .
