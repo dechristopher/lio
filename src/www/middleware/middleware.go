@@ -49,7 +49,7 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 
 	// Predefined route for favicon at root of domain
 	r.Use(favicon.New(favicon.Config{
-		File:       "./res/ico/favicon.ico",
+		File:       "res/ico/favicon.ico",
 		FileSystem: static,
 	}))
 
