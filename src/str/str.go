@@ -18,18 +18,22 @@ const (
 
 // (C) Log caller names
 const (
-	CMain    = "LIOInit"
-	CLogging = "Logging"
-	CPickFS  = "PickFS"
-	CWS      = "WS"
+	CMain   = "LIO"
+	CLog    = "Log"
+	CPickFS = "FSys"
+	CTool   = "Tool"
+	CWS     = "WS"
+	CWSC    = "WSCm"
+	CHMov   = "HMov"
 )
 
 // (E) Error messages
 const (
-	ELogFail = "failed to log error=%s msg=%+v"
-	EWSRead  = "read err: %s"
-	EWSWrite = "read err: %s"
-	EWSNoBid = "no bid: %s"
+	ELogFail       = "failed to log error=%s msg=%+v"
+	EWSRead        = "read err: %s"
+	EWSWrite       = "write err: meta=%+v error=%s"
+	EWSNoBid       = "no bid: %s"
+	EMoveUnmarshal = "failed to parse move: move=%+v error=%s"
 )
 
 // (U) User-facing error messages and codes
@@ -47,6 +51,7 @@ const (
 const (
 	DPickFSOS = "selected OS - %s"
 	DPickFSEm = "selected embedded - %s"
+	DNaughty  = "loaded naughty.txt: %d words"
 	DWSRecv   = "ws recv: %+v"
 	DWSSend   = "ws send: %+v"
 )

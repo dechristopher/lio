@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/dechristopher/lioctad/str"
 )
 
 var (
@@ -22,7 +24,7 @@ var (
 )
 
 func init() {
-	go loadNaughty()
+	go loadNaughtyAsync()
 }
 
 // loadNaughtyAsync runs the loadNaughty function
@@ -38,6 +40,7 @@ func loadNaughty() []string {
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
+	Debug(str.CTool, str.DNaughty, len(lines))
 	return lines
 }
 
