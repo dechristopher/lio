@@ -42,6 +42,7 @@ const ()
 // (M) Standard info log messages
 const (
 	MDevMode  = "!! DEVELOPER MODE !!"
+	MInit     = "starting %s"
 	MStarted  = "started in %s [env: %s][http: %s][health: %s]"
 	MShutdown = "shutting down"
 	MExit     = "exit"
