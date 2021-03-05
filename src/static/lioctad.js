@@ -267,7 +267,6 @@ const doMove= (orig, dest) => {
  * @param san
  */
 const playSound = (san) => {
-	console.log("SOUND");
 	if (san.includes("x")) {
 		capSound.play();
 	} else {
