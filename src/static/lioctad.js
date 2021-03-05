@@ -170,6 +170,7 @@ const parseResponse = (raw) => {
 	switch (message.t) {
 		case "m": // move happened
 			if (!message.d.m) {
+				move = 1;
 				document.getElementById("info").innerHTML = ""
 					+ "FREE, ONLINE OCTAD COMING SOON!";
 			}
