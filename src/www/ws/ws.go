@@ -106,7 +106,7 @@ func ConnHandler(c *websocket.Conn) {
 		lock.Lock()
 		// acquire socket lock, write bytes, and release lock
 		if err = c.WriteMessage(mt, resp); err != nil {
-			util.Error(str.CWS, str.EWSWrite, err.Error())
+			util.Error(str.CWS, str.EWSWrite, resp, err.Error())
 			break
 		}
 		lock.Unlock()
