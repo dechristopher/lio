@@ -135,8 +135,11 @@ func getSAN(g *game.OctadGame, calc bool) string {
 	if !calc {
 		return ""
 	}
-	pos := g.Game.Positions()[len(g.Game.Positions())-1]
+	pos := g.Game.Positions()[len(g.Game.Positions())-2]
 	move := g.Game.Moves()[len(g.Game.Moves())-1]
+
+	util.Debug(str.CHMov, "position: %s %+v", pos.String(), pos.ValidMoves())
+	util.Debug(str.CHMov, "computer move: %s %s", move.String(), move.Promo())
 	return octad.AlgebraicNotation{}.Encode(pos, move)
 }
 
