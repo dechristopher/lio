@@ -25,7 +25,6 @@ func Unicast(d []byte, meta SocketMeta) {
 // Broadcast sends a message to all connected sockets within the
 // channel that this message originated from
 func Broadcast(d []byte, meta SocketMeta) {
-	util.Debug(str.CHMov, "broadcast")
 	for bid, _ := range meta.Sockets[meta.Channel] {
 		meta.BID = bid
 		go Unicast(d, meta)
