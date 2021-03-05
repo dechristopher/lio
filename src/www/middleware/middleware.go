@@ -34,7 +34,7 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: corsOrigins(),
+		AllowOrigins: util.CorsOrigins(),
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
@@ -85,15 +85,6 @@ func NotFound(r *fiber.App) {
 		return util.HandleTemplate(c, "404",
 			"404", nil, 404)
 	})
-}
-
-// corsOrigins returns the proper CORS origin configuration
-// for the current environment
-func corsOrigins() string {
-	if env.IsProd() {
-		return "https://lioctad.org"
-	}
-	return "https://localhost:4444, https://dev.lioctad.org"
 }
 
 func logFormat() string {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/dechristopher/lioctad/env"
 )
 
 var (
@@ -37,4 +39,13 @@ func GetPort() string {
 // GetListenPort returns the colon-formatted listen port
 func GetListenPort() string {
 	return fmt.Sprintf(":%s", GetPort())
+}
+
+// CorsOrigins returns the proper CORS origin configuration
+// for the current environment
+func CorsOrigins() string {
+	if env.IsProd() {
+		return "https://lioctad.org"
+	}
+	return "http://localhost:4444, https://dev.lioctad.org"
 }
