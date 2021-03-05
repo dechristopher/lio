@@ -7,7 +7,7 @@
 cd ~/octadground && git pull && yarn run dist
 
 # copy dist into lioctad res directory
-cd ~/lioctad/src && cp ~/octadground/dist/octadground.js ./static/res
+cd ~/lioctad/src && cp ~/octadground/dist/octadground.js ./static
 
 # remove and prune old stack
 docker stack rm lio-prod
