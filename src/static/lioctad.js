@@ -7,7 +7,7 @@ moveSound.volume = 1;
 const capSound = new Audio("/res/sfx/capture.ogg");
 capSound.volume = 1;
 const endSound = new Audio("/res/sfx/end.ogg");
-endSound.volume = 1;
+endSound.volume = 0.75;
 
 // create game board
 let og = Octadground(document.getElementById('game'), {
