@@ -1,9 +1,13 @@
+let ws, ka, backoff = 0, move = 1;
+
 const logMe = () => console.log(`© 2021 lioctad.org`);
 
 const moveSound = new Audio("/res/sfx/move.ogg");
 moveSound.volume = 1;
 const capSound = new Audio("/res/sfx/capture.ogg");
 capSound.volume = 1;
+const endSound = new Audio("/res/sfx/end.ogg");
+endSound.volume = 1;
 
 // create game board
 let og = Octadground(document.getElementById('game'), {
@@ -14,35 +18,25 @@ let og = Octadground(document.getElementById('game'), {
 	movable: {
 		free: false,
 		color: 'white',
+		events: {
+			after: (orig, dest, meta) => {
+				if (meta.captured) {
+					capSound.play();
+				} else {
+					moveSound.play();
+				}
+			}
+		}
 	},
 	selectable: {
 		enabled: false,
 	},
 	events: {
 		move: (orig, dest, capturedPiece) => {
-			if (capturedPiece) {
-				capSound.play();
-			} else {
-				moveSound.play();
-			}
-
-			let promo = "";
-			if (og.state.pieces.get(dest) && og.state.pieces.get(dest).role === "pawn") {
-				let destPiece = og.state.pieces.get(dest);
-				if (destPiece.color === "white" && dest[1] === "4") {
-					promo = 'q';
-				} else if (destPiece.color === "white" && dest[1] === "1") {
-					promo = 'q';
-				}
-			}
-
-			sendGameMove(orig + dest + promo);
+			doMove(orig, dest);
 		}
 	}
 });
-
-let ws, ka;
-let backoff = 0;
 
 // connect on page load
 window.addEventListener('load', () => {
@@ -85,11 +79,10 @@ const connect = () => {
  */
 const connected = () => {
 	backoff = 0;
-	sendHello();
-	sendGameUpdateRequest();
-	setInterval(() => {
+	sendBoardUpdateRequest();
+	ka = setInterval(() => {
 		sendKeepAlive();
-	}, 30000)
+	}, 3000);
 };
 
 /**
@@ -108,7 +101,7 @@ const reconnect = () => {
 const incrBackoff = () => {
 	if (backoff === 0) {
 		backoff = 1;
-	} else if (backoff <= 8) {
+	} else if (backoff <= 4) {
 		backoff *= 2;
 	}
 	console.log("Waiting " + backoff + " seconds to retry...");
@@ -120,7 +113,7 @@ const incrBackoff = () => {
  */
 const send = (command) => {
 	if (ws && ws.readyState === WebSocket.OPEN) {
-		ws.send(JSON.stringify(command));
+		ws.send(command);
 	}
 };
 
@@ -128,44 +121,39 @@ const send = (command) => {
  * Sends a keep-alive message, requesting the socket stay open
  */
 const sendKeepAlive = () => {
-	send(buildCommand(0, ["alive"]))
+	send(null);
 };
 
 /**
- * Sends a hello message, requesting up to date information
+ * Sends an empty move message to prompt a response with board info
  */
-const sendHello = () => {
-	send(buildCommand(1, []))
-};
-
-/**
- * Sends a game connect message, requesting up to date game state
- */
-const sendGameUpdateRequest = () => {
-	send(buildCommand(2, ["0"]))
+const sendBoardUpdateRequest = () => {
+	send(buildCommand("m", {a: 0}));
 };
 
 /**
  * Sends a game move in Universal Octad Interface format
  * @param move - UOI move string
+ * @param num - move number
  */
-const sendGameMove = (move) => {
-	send(buildCommand(2, ["1", move]))
+const sendGameMove = (move, num) => {
+	send(buildCommand("m", {
+		u: move,
+		a: num
+	}));
 };
 
 /**
- * Build command struct
- * @param commandType - command type
- * @param params - array of command parameters and components
+ * Build socket message
+ * @param tag - message tag
+ * @param data - message payload data
  */
-const buildCommand = (commandType, params) => {
-	let command = {};
-
-	command.t = Date.now();
-	command.c = commandType;
-	command.b = params;
-
-	return command;
+const buildCommand = (tag, data) => {
+	let m = {
+		t: tag,
+		d: data,
+	}
+	return JSON.stringify(m);
 };
 
 /**
@@ -173,56 +161,42 @@ const buildCommand = (commandType, params) => {
  * @param raw - the raw message JSON string
  */
 const parseResponse = (raw) => {
+	if (!raw) {
+		return
+	}
+
 	let message = JSON.parse(raw);
 
-	// console.log(message);
-
-	switch (message.c) {
-		case -1:
-			// Error handle!
-			break;
-		case 0:
-			break;
-		case 1:
-			og.set({
-				movable: {
-					free: true
-				}
-			})
-			break;
-		case 2: // game update
-			if (message.b[0] === "0") {
-				og.set({
-					ofen: message.b[1],
-					lastMove: getLastMove(JSON.parse(message.b[3])),
-					turnColor: message.b[2] === "w" ? "white" : "black",
-					check: message.b[5] === "1",
-					movable: {
-						free: false,
-						dests: allMoves(JSON.parse(message.b[4]))
-					}
-				});
-			} else {
-				og.set({
-					ofen: message.b[1],
-					lastMove: getLastMove(JSON.parse(message.b[3])),
-					turnColor: message.b[2] === "w" ? "white" : "black",
-					check: message.b[5] === "1",
-					movable: {
-						free: false
-					}
-				});
-				document.getElementById("info").innerHTML = "GAME OVER!";
-				setTimeout(() => {
-					location.reload();
-				}, 2000)
+	switch (message.t) {
+		case "m": // move happened
+			if (!message.d.m) {
+				document.getElementById("info").innerHTML = ""
+					+ "FREE, ONLINE OCTAD COMING SOON!";
 			}
+			const ofenParts = message.d.o.split(' ');
+			og.set({
+				ofen: ofenParts[0],
+				lastMove: getLastMove(message.d.m),
+				turnColor: ofenParts[1] === "w" ? "white" : "black",
+				check: message.d.k,
+				movable: {
+					free: false,
+					dests: allMoves(message.d.v),
+				}
+			});
+			if (message.d.s) {
+				playSound(message.d.s)
+			}
+			// perform pre-move if set
+			og.playPremove();
+			break;
+		case "g": // game over
+			document.getElementById("info").innerHTML = message.d.s;
+			endSound.play();
 			break;
 		default:
 			return;
 	}
-
-	// console.log('state', og.state);
 };
 
 /**
@@ -232,9 +206,11 @@ const parseResponse = (raw) => {
  */
 const allMoves = (moves) => {
 	let allMoves = new Map();
-	Object.entries(moves).forEach(([s1, dests]) => {
-		allMoves.set(s1, dests);
-	});
+	if (!!moves) {
+		Object.entries(moves).forEach(([s1, dests]) => {
+			allMoves.set(s1, dests);
+		});
+	}
 	return allMoves;
 }
 
@@ -245,11 +221,11 @@ const allMoves = (moves) => {
  */
 const getLastMove = (moves) => {
 	if (moves && moves.length > 0) {
-		const move = moves[moves.length - 1]
+		const move = moves[moves.length - 1];
 		return [
 			move.substring(0, 2),
 			move.substring(2, 4)
-		]
+		];
 	}
 	return [];
 }
@@ -263,5 +239,38 @@ const disableBoard = () => {
 			free: false,
 			dests: new Map(),
 		}
-	})
+	});
 };
+
+/**
+ * Perform move from origin to destination square and prompt for promotion
+ * @param orig - origin square
+ * @param dest - destination square
+ */
+const doMove= (orig, dest) => {
+	let promo = "";
+	if (og.state.pieces.get(dest) && og.state.pieces.get(dest).role === "pawn") {
+		let destPiece = og.state.pieces.get(dest);
+		// TODO prompt for promo piece type
+		if (destPiece.color === "white" && dest[1] === "4") {
+			promo = 'q';
+		} else if (destPiece.color === "white" && dest[1] === "1") {
+			promo = 'q';
+		}
+	}
+
+	sendGameMove(orig + dest + promo, move);
+	move++;
+}
+/**
+ * Play sounds for incoming moves based on the SAN for the move
+ * @param san
+ */
+const playSound = (san) => {
+	console.log("SOUND");
+	if (san.includes("x")) {
+		capSound.play();
+	} else {
+		moveSound.play();
+	}
+}

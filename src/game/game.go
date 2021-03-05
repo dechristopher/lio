@@ -47,7 +47,8 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 	return &g, nil
 }
 
-// LegalMoves returns all legal moves in a string array
+// LegalMoves returns all legal moves in a map of origin square
+// to all legal destination squares
 func (g *OctadGame) LegalMoves() map[string][]string {
 	legalMoves := make(map[string][]string)
 	for _, move := range g.Game.ValidMoves() {
@@ -70,19 +71,15 @@ func (g *OctadGame) LegalMovesJSON() string {
 	return string(j)
 }
 
-// AllMovesJSON returns a JSON formatted array of all moves in
-// the game so far
-func (g *OctadGame) AllMovesJSON() string {
+// AllMoves returns a list of all moves to have
+// happened in the game so far
+func (g *OctadGame) AllMoves() []string {
 	moves := g.Game.Moves()
 	allMoves := make([]string, 0)
 	for _, move := range moves {
 		allMoves = append(allMoves, move.String())
 	}
-	j, err := json.Marshal(allMoves)
-	if err != nil {
-		return ""
-	}
-	return string(j)
+	return allMoves
 }
 
 // genGame creates a new game, optionally from an ofen
