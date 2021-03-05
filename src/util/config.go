@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	// Version of lio
 	Version = "v0.1.1"
 
 	// BootTime is set the instant everything comes online

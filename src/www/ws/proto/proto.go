@@ -75,7 +75,7 @@ type MessageMove struct {
 	ProtoVersion int         `json:"pv,omitempty"` // protocol version for data type
 }
 
-// Move number acknowledgement
+// MoveAckPayload is the move number acknowledgement
 type MoveAckPayload int
 
 // ClockPayload is a wire representation of the current state of a game's clock

@@ -25,7 +25,7 @@ func Unicast(d []byte, meta SocketMeta) {
 // Broadcast sends a message to all connected sockets within the
 // channel that this message originated from
 func Broadcast(d []byte, meta SocketMeta) {
-	for bid, _ := range meta.Sockets[meta.Channel] {
+	for bid := range meta.Sockets[meta.Channel] {
 		meta.BID = bid
 		go Unicast(d, meta)
 	}
@@ -34,7 +34,7 @@ func Broadcast(d []byte, meta SocketMeta) {
 // BroadcastEx sends a message to all connected sockets within the
 // channel that this message originated from except the originator
 func BroadcastEx(d []byte, meta SocketMeta) {
-	for bid, _ := range meta.Sockets[meta.Channel] {
+	for bid := range meta.Sockets[meta.Channel] {
 		if bid != meta.BID {
 			go Unicast(d, SocketMeta{
 				Sockets: meta.Sockets,
