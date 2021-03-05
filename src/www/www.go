@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 	"github.com/gofiber/websocket/v2"
 
@@ -76,6 +77,9 @@ func Serve(views, static embed.FS) {
 // wireHandlers builds all of the websocket and http routes
 // into the fiber app context
 func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
+
+	// recover from panics
+	r.Use(recover.New())
 
 	// ws upgrade endpoint catch-all
 	r.Use("/ws", ws.UpgradeHandler)
