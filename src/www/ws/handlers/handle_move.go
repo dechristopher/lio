@@ -121,7 +121,6 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 				// this means the octad library has a bug
 				panic(err)
 			}
-			util.Debug(str.CHMov, "made computer move")
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
 
@@ -160,7 +159,6 @@ func checkGameOver(g *game.OctadGame, meta common.SocketMeta) {
 				OFEN:    "",
 				Channel: meta.Channel,
 			})
-			util.Debug(str.CHMov, "resetting board")
 			common.Broadcast(current(g, false), meta)
 		}()
 	}
