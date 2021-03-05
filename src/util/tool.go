@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	//go:embed naughty.txt
+	//go:embed data/naughty.txt
 	naughtyFile string
 )
 
