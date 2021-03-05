@@ -57,7 +57,7 @@ func printLog(severity, format, caller, message string, args ...interface{}) {
 			Message:  fmt.Sprintf(message, args...),
 		}
 		if out, err := json.Marshal(logMessage); err != nil {
-			Error(str.CLogging, str.ELogFail, err.Error(), logMessage)
+			Error(str.CLog, str.ELogFail, err.Error(), logMessage)
 		} else {
 			fmt.Printf("%s\n", out)
 		}
