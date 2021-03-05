@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	Version = "v0.1.1"
+
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
 

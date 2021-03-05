@@ -29,6 +29,8 @@ var (
 
 // Serve all public endpoints
 func Serve(views, static embed.FS) {
+	util.Info(str.CMain, str.MInit, util.Version)
+
 	viewsFs = util.PickFS(env.IsDev(), views, "./views")
 	staticFs = util.PickFS(env.IsDev(), static, "./static")
 	engine = html.NewFileSystem(viewsFs, ".html")
