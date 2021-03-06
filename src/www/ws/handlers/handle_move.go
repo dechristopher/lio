@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/dechristopher/octad"
@@ -146,6 +147,9 @@ func getSAN(g *game.OctadGame, calc bool) string {
 func checkGameOver(g *game.OctadGame, meta common.SocketMeta) {
 	// restart game if over
 	if g.Game.Outcome() != octad.NoOutcome {
+		// record game result
+		gcp := *g
+		go recordGame(gcp)
 		// broadcast game over message
 		common.Broadcast(gameOverMessage(g), meta)
 		// set up the board and broadcast state
@@ -236,4 +240,20 @@ func getWinnerString(statusId int) string {
 		return "b"
 	}
 	return "d"
+}
+
+func recordGame(g game.OctadGame) {
+	pgn := g.Game.String()
+	parts := strings.Split(pgn, " ")
+
+	full := "[Event \"Lioctad Test Match\"]\n" +
+		"[Site \"https://lioctad.org\"]\n" +
+		"[Date \"" + g.Start.Format("2006.01.02") + "\"]\n" +
+		"[Round \"1\"]\n" +
+		"[White \"Lioctad Test Players\"]\n" +
+		"[Black \"Lioctad Random Computer\"]\n" +
+		"[Result \"" + parts[len(parts)-1] + "\"]\n" +
+		"[Time \"" + g.Start.Format("15:04:05") + "\"]" + pgn
+
+	util.Debug("PGN", full)
 }
