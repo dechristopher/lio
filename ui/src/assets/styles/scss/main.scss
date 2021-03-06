@@ -15,3 +15,7 @@ p, a, span {
 code {
   @apply font-mono;
 }
+
+html, body {
+  @apply bg-gray-100;
+}

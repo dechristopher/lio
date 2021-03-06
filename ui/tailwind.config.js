@@ -10,7 +10,7 @@ module.exports = {
     extend: {
       fontFamily: {
         heading: ['Poppins', ...defaultTheme.fontFamily.sans],
-        body: ['Noto Sans JP', 'Noto Sans', ...defaultTheme.fontFamily.serif],
+        body: ['Noto Sans', 'Noto Sans JP',  ...defaultTheme.fontFamily.serif],
         mono: [...defaultTheme.fontFamily.mono],
       }
     },

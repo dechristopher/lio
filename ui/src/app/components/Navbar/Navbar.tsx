@@ -3,7 +3,6 @@ import {useHistory} from "react-router-dom";
 import {Transition} from "@headlessui/react";
 
 import LogoPrimary from "@assets/images/logo.svg";
-import LogoAlt from "@assets/images/logo-alt.svg";
 import {useOutsideClick} from "@/src/utils/hooks/useOutsideClick";
 import {DesktopNavLink} from "@app/components/Navbar/desktop/DesktopNavLink";
 import {MobileNavbarMenu} from "@app/components/Navbar/mobile/MobileNavbarMenu";
@@ -39,8 +38,8 @@ export const Navbar: FC<NavbarProps> = (props) => {
 								menuButtonRef={mobileMenuBtnRef}
 							/>
 							<div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => history.push("/")}>
-								<LogoAlt className="block md:hidden h-8 w-8" />
-								<LogoPrimary className="hidden md:block h-12 w-48 mt-1" />
+								{/*<LogoAlt className="block md:hidden h-8 w-8" />*/}
+								<LogoPrimary className="h-12 w-48 mt-1" />
 							</div>
 							<div className="hidden md:ml-6 md:flex md:space-x-8">
 								<DesktopNavLink to="/play" active={props.pathname === "/play"}>Play</DesktopNavLink>
@@ -51,12 +50,12 @@ export const Navbar: FC<NavbarProps> = (props) => {
 						</div>
 						<div className="flex items-center">
 							<div className="flex-shrink-0">
-								<button type="button" className="relative inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+								<button type="button" className="relative inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-500 shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400">
 									{/* Heroicon name: solid/plus */}
 									<svg className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
 										<path d="M17 17L12.3333 12.3333M13.8889 8.44444C13.8889 11.4513 11.4513 13.8889 8.44444 13.8889C5.43756 13.8889 3 11.4513 3 8.44444C3 5.43756 5.43756 3 8.44444 3C11.4513 3 13.8889 5.43756 13.8889 8.44444Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
 									</svg>
-									<span>Find Game</span>
+									<span>Find game</span>
 								</button>
 							</div>
 							<div className="hidden md:ml-4 md:flex-shrink-0 md:flex md:items-center">
@@ -118,7 +117,7 @@ export const Navbar: FC<NavbarProps> = (props) => {
 			</div>
 
 			{/* Mobile menu, show/hide based on menu state. */}
-			<div className="md:hidden absolute w-screen z-10" style={{top: "4.25rem"}} id="mobile-menu">
+			<div className="md:hidden absolute w-screen z-10 top-0" id="mobile-menu">
 				<MobileNavbarMenu {...props} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={mobileMenuRef} />
 			</div>
 		</nav>
