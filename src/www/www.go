@@ -99,6 +99,14 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// JSON service health / status handler
 	r.Get("/lio", handlers.StatusHandler)
 
+	//r.Get("/*", func(c *fiber.Ctx) error {
+	//	err := c.Status(200).SendFile("dist/index.html")
+	//	if err != nil {
+	//		return err
+	//	}
+	//	return nil
+	//})
+
 	// Custom 404 page
 	middleware.NotFound(r)
 }
