@@ -67,8 +67,6 @@ func ConnHandler(c *websocket.Conn) {
 
 	defer killSocket(c, channel, bid)
 
-	util.Debug(str.CWS, "ref: %s", c.Locals("ref"))
-
 	for {
 		if mt, b, err = c.ReadMessage(); err != nil {
 			util.Error(str.CWS, str.EWSRead, err.Error())
