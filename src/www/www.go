@@ -96,6 +96,9 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// home handler
 	r.Get("/", handlers.IndexHandler)
 
+	// JSON service health / status handler
+	r.Get("/lio", handlers.StatusHandler)
+
 	// Custom 404 page
 	middleware.NotFound(r)
 }
