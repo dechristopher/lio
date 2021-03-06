@@ -94,19 +94,17 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	middleware.WireMiddleware(sub, staticFs)
 
 	// home handler
+	// TODO not needed once we default SPAHandler
 	r.Get("/", handlers.IndexHandler)
 
 	// JSON service health / status handler
 	r.Get("/lio", handlers.StatusHandler)
 
-	//r.Get("/*", func(c *fiber.Ctx) error {
-	//	err := c.Status(200).SendFile("dist/index.html")
-	//	if err != nil {
-	//		return err
-	//	}
-	//	return nil
-	//})
+	// return static index.html for all other paths and
+	// let React handle 404s so we get nice error pages
+	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
 
 	// Custom 404 page
+	// TODO not needed once we default SPAHandler
 	middleware.NotFound(r)
 }
