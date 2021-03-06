@@ -195,6 +195,8 @@ const parseResponse = (raw) => {
 			document.getElementById("info").innerHTML = message.d.s;
 			endSound.play();
 			break;
+		case "c":
+			document.getElementById("crowd").innerHTML = message.d.s;
 		default:
 			return;
 	}
