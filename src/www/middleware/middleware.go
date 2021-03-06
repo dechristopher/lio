@@ -53,7 +53,7 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 		FileSystem: static,
 	}))
 
-	// Serve static files from /static/res preventing directory listings
+	// Serve static files from /static preventing directory listings
 	r.Use(filesystem.New(filesystem.Config{
 		Root:   strictFs{static},
 		MaxAge: 86400,
