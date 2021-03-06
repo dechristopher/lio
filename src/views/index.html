@@ -1,7 +1,11 @@
-{{ template "partials/head" .PageName }}
+{{ template "partials/head" . }}
 <body>
 <div class="c">
+  {{ if eq .Env "dev" }}
+    <i>DEV.LIOCTAD.ORG</i>
+  {{ else }}
   <i>LIOCTAD.ORG</i>
+  {{ end }}
   {{ template "partials/game"}}
   <span class="sm" id="info">FREE, ONLINE OCTAD COMING SOON!</span>
   <span class="sm"><span id="crowd">0</span> CONNECTED</span>
