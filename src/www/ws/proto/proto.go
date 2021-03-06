@@ -16,18 +16,6 @@ const (
 	GameOverTag PayloadTag = "g"
 )
 
-// MessageOld is a struct representing a websocket control message
-type MessageOld struct {
-	Time      int64    `json:"t"`
-	Channel   string   `json:"ch"`
-	Command   int      `json:"c"`
-	Body      []string `json:"b"`
-	UserID    string   `json:"u,omitempty"`
-	BrowserID int      `json:"i,omitempty"`
-	GameID    string   `json:"g,omitempty"`
-	Error     string   `json:"e,omitempty"`
-}
-
 // Message represents our websocket protocol messages container
 type Message struct {
 	Tag          string      `json:"t"`            // message type tag
