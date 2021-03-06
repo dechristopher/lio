@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -17,8 +18,8 @@ import (
 )
 
 var (
-	// Map[channel][userID] -> websocket connection
-	sockets = make(map[string]map[string]common.Socket)
+	// Map[channel] -> SockMap (map[string]Socket)
+	chanMap = make(map[string]common.SockMap)
 )
 
 // UpgradeHandler catches anything under /ws/** and allows
@@ -54,20 +55,25 @@ func ConnHandler(c *websocket.Conn) {
 	bid := c.Cookies("bid")
 	channel := c.Params("chan")
 
-	// Keep track of all sockets for off-rpc broadcasts
-	if sockets[channel] == nil {
-		sockets[channel] = make(map[string]common.Socket)
+	// Keep track of all chanMap for off-rpc broadcasts
+	// Create a new SockMap and track it under the channel key
+	if chanMap[channel].C == nil {
+		chanMap[channel] = common.NewSockMap(channel)
+		go crowdHandler(channel)
 	}
 
+	// track this socket in the corresponding SockMap
 	lock := &sync.Mutex{}
-	sockets[channel][c.Cookies("bid")] = common.Socket{
+	chanMap[channel].Track(bid, common.Socket{
 		Connection: c,
 		Mutex:      lock,
-	}
+	})
 
+	// UnTrack this socket when it disconnects
 	defer killSocket(c, channel, bid)
 
 	for {
+		// read raw incoming messages from socket
 		if mt, b, err = c.ReadMessage(); err != nil {
 			util.Error(str.CWS, str.EWSRead, err.Error())
 			break
@@ -92,7 +98,7 @@ func ConnHandler(c *websocket.Conn) {
 
 		// route message to proper handler and await response
 		resp := routes.Map[proto.PayloadTag(tag)](b, common.SocketMeta{
-			Sockets: sockets,
+			Sockets: chanMap,
 			BID:     bid,
 			Channel: channel,
 			MT:      mt,
@@ -111,10 +117,29 @@ func ConnHandler(c *websocket.Conn) {
 	}
 }
 
+// crowdHandler monitors chanMap on a channel and emits crowd message
+// broadcasts to everyone in the channel
+func crowdHandler(channel string) {
+	meta := common.SocketMeta{
+		Sockets: chanMap,
+		Channel: channel,
+		MT:      1,
+	}
+	for {
+		e := <-chanMap[channel].C
+		msg := fmt.Sprintf(`{"t":"c","d":{"s":%d}}`, e)
+		common.Broadcast([]byte(msg), meta)
+	}
+}
+
 // killSocket closes the websocket connection and removes the socket
-// reference from the sockets map
+// reference from the chanMap map
 func killSocket(conn *websocket.Conn, channel string, bid string) {
-	delete(sockets[channel], bid)
+	chanMap[channel].UnTrack(bid)
+	// free up memory in chanMap if the SockMap is empty
+	if chanMap[channel].Empty() {
+		delete(chanMap, channel)
+	}
 	_ = conn.Close()
 }
 

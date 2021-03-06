@@ -56,7 +56,7 @@ type Socket struct {
 // SocketMeta contains all relevant information about the message
 // data received by a websocket handler
 type SocketMeta struct {
-	Sockets map[string]map[string]Socket
+	Sockets map[string]SockMap
 	Channel string
 	BID     string
 	MT      int
