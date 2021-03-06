@@ -186,7 +186,7 @@ const parseResponse = (raw) => {
 				}
 			});
 			if (message.d.s) {
-				playSound(message.d.s)
+				playSound(message.d.s);
 			}
 			// perform pre-move if set
 			og.playPremove();
@@ -213,7 +213,7 @@ const allMoves = (moves) => {
 		});
 	}
 	return allMoves;
-}
+};
 
 /**
  * Return the most recent game move for last move highlighting
@@ -229,7 +229,7 @@ const getLastMove = (moves) => {
 		];
 	}
 	return [];
-}
+};
 
 /**
  * Disable board if disconnected
@@ -262,7 +262,8 @@ const doMove= (orig, dest) => {
 
 	sendGameMove(orig + dest + promo, move);
 	move++;
-}
+};
+
 /**
  * Play sounds for incoming moves based on the SAN for the move
  * @param san
@@ -273,4 +274,4 @@ const playSound = (san) => {
 	} else {
 		moveSound.play();
 	}
-}
+};
