@@ -46,10 +46,11 @@
        "@/*": ["./*"],
        "@app/*": ["./src/app/*"],
        "@assets/*": ["./src/assets/*"],
+       "@utils/*": ["./src/utils/*"],
        "@app:components/*": ["./src/app/components/*"],
        "@app:containers/*": ["./src/app/containers/*"],
        "@app:views/*": ["./src/app/views/*"],
-       "@components/*": ["./src/components/*"],
+       "@components/*": ["./src/components/*"]
      },
     // "rootDirs": [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */
 
@@ -72,7 +73,7 @@
     // "emitDecoratorMetadata": true,         /* Enables experimental support for emitting type metadata for decorators. */
 
     /* Advanced Options */
-    "forceConsistentCasingInFileNames": true, /* Disallow inconsistently-cased references to the same file. */
+    "forceConsistentCasingInFileNames": true  /* Disallow inconsistently-cased references to the same file. */
   },
   "include": ["src/**/*"],
   "exclude": ["**/node_modules", "**/.*/"]
