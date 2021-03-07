@@ -49,13 +49,14 @@ services:
         - "traefik.http.routers.public-http.rule=HostRegexp(`{domain:.*}`)"
         - "traefik.http.routers.public-http.middlewares=http-to-https"
         - "traefik.http.services.traefik.loadbalancer.server.port=443"
-      #        - "traefik.http.routers.traefik.entrypoints=traefik"
-      #        - "traefik.http.routers.traefik.rule=HostRegexp(`{domain:.*}`)"
     networks:
       - traefik-public
+      - lioctad-dev
       - lioctad
 
 networks:
+  lioctad-dev:
+    external: true
   lioctad:
     external: true
   traefik-public:

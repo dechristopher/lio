@@ -1,0 +1,62 @@
+version: "3.7"
+
+x-default-opts:
+  &default-opts
+  logging:
+    options:
+      max-size: "10m"
+
+# Restart Policy Options
+x-restart_policy:
+  &restart_policy
+  restart_policy:
+    condition: on-failure
+    max_attempts: 3
+
+secrets:
+  dev_lio_obj_endpoint:
+    external: true
+  dev_lio_obj_bucket_pgn:
+      external: true
+  dev_lio_obj_access:
+    external: true
+  dev_lio_obj_secret:
+      external: true
+
+services:
+  lioctad:
+    <<: *default-opts
+    image: "lioctad:${COMMIT_HASH}"
+    volumes:
+      - /etc/ssl/certs:/etc/ssl/certs:ro
+    secrets:
+      - dev_lio_obj_endpoint
+      - dev_lio_obj_bucket_pgn
+      - dev_lio_obj_access
+      - dev_lio_obj_secret
+    deploy:
+      <<: *restart_policy
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.lioctad.tls=true"
+        - "traefik.http.routers.lioctad.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.lioctad.entrypoints=https"
+        - "traefik.http.routers.lioctad.rule=Host(`dev.lioctad.org`)"
+        - "traefik.http.routers.lioctad.tls.domains[0].main=dev.lioctad.org"
+        - "traefik.http.services.lioctad.loadbalancer.server.port=4444"
+    environment:
+      DEPLOY: "dev"
+      PORT: 4444
+    networks:
+      - lioctad-dev
+
+networks:
+  lioctad-dev:
+    external: true
+  traefik-public:
+    external: true

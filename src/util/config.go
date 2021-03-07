@@ -28,7 +28,7 @@ var (
 func ReadSecretFallback(name string) string {
 	secret, err := ReadSecret(name)
 	if err != nil {
-		return os.Getenv(strings.ToUpper(name))
+		return os.Getenv(strings.ToUpper(devPrefix() + name))
 	}
 
 	return secret
@@ -36,7 +36,7 @@ func ReadSecretFallback(name string) string {
 
 // ReadSecret will read a secret string from a file
 func ReadSecret(name string) (string, error) {
-	f, err := os.Open("/run/secrets/" + name)
+	f, err := os.Open("/run/secrets/" + devPrefix() + name)
 	if err != nil {
 		return "", err
 	}
@@ -47,6 +47,14 @@ func ReadSecret(name string) (string, error) {
 	}
 
 	return string(secret), nil
+}
+
+// devPrefix returns dev_ only on dev environments
+func devPrefix() string {
+	if env.IsDev() {
+		return "dev_"
+	}
+	return ""
 }
 
 // IsDebugFlag returns true if a given debug flag is enabled in this instance
