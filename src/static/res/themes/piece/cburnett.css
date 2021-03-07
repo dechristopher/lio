@@ -4,36 +4,82 @@
 .cburnett .og-wrap piece.pawn.white {
 	background-image: url('/res/img/cburnett/wP.svg');
 }
+
 .cburnett .og-wrap piece.bishop.white {
 	background-image: url('/res/img/cburnett/wB.svg');
 }
+
 .cburnett .og-wrap piece.knight.white {
 	background-image: url('/res/img/cburnett/wN.svg');
 }
+
 .cburnett .og-wrap piece.rook.white {
 	background-image: url('/res/img/cburnett/wR.svg');
 }
+
 .cburnett .og-wrap piece.queen.white {
 	background-image: url('/res/img/cburnett/wQ.svg');
 }
+
 .cburnett .og-wrap piece.king.white {
 	background-image: url('/res/img/cburnett/wK.svg');
 }
+
 .cburnett .og-wrap piece.pawn.black {
 	background-image: url('/res/img/cburnett/bP.svg');
 }
+
 .cburnett .og-wrap piece.bishop.black {
 	background-image: url('/res/img/cburnett/bB.svg');
 }
+
 .cburnett .og-wrap piece.knight.black {
 	background-image: url('/res/img/cburnett/bN.svg');
 }
+
 .cburnett .og-wrap piece.rook.black {
 	background-image: url('/res/img/cburnett/bR.svg');
 }
+
 .cburnett .og-wrap piece.queen.black {
 	background-image: url('/res/img/cburnett/bQ.svg');
 }
+
 .cburnett .og-wrap piece.king.black {
 	background-image: url('/res/img/cburnett/bK.svg');
+}
+
+/*
+ * Promotion piece theme
+ */
+.cburnett .promo-piece.queen.white {
+	background-image: url('/res/img/cburnett/wQ.svg');
+}
+
+.cburnett .promo-piece.rook.white {
+	background-image: url('/res/img/cburnett/wR.svg');
+}
+
+.cburnett .promo-piece.bishop.white {
+	background-image: url('/res/img/cburnett/wB.svg');
+}
+
+.cburnett .promo-piece.knight.white {
+	background-image: url('/res/img/cburnett/wN.svg');
+}
+
+.cburnett .promo-piece.queen.black {
+	background-image: url('/res/img/cburnett/bQ.svg');
+}
+
+.cburnett .promo-piece.rook.black {
+	background-image: url('/res/img/cburnett/bR.svg');
+}
+
+.cburnett .promo-piece.bishop.black {
+	background-image: url('/res/img/cburnett/bB.svg');
+}
+
+.cburnett .promo-piece.knight.black {
+	background-image: url('/res/img/cburnett/bN.svg');
 }
