@@ -9,5 +9,6 @@ require (
 	github.com/gofiber/websocket/v2 v2.0.2
 	github.com/joho/godotenv v1.3.0
 	github.com/looplab/fsm v0.2.0
+	github.com/minio/minio-go/v7 v7.0.10
 	github.com/valyala/fastjson v1.6.3
 )
