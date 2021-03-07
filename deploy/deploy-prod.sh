@@ -10,7 +10,7 @@ export COMMIT_HASH=$(git rev-parse --short HEAD)
 # built beforehand in the dev deploy script.
 
 # update stack with new container
-cd ../deploy && docker stack deploy -c lioctad-stack.yml lio-prod
+cd ../deploy && docker stack deploy -c lio-prod-stack.yml lio-prod
 
 # watch the magic
 watch docker service ls
