@@ -13,6 +13,16 @@ x-restart_policy:
     condition: on-failure
     max_attempts: 3
 
+secrets:
+  lio_obj_endpoint:
+    external: true
+  lio_obj_bucket:
+      external: true
+  lio_obj_access:
+    external: true
+  lio_obj_secret:
+      external: true
+
 services:
   lioctad:
     <<: *default-opts
