@@ -27,9 +27,9 @@ export const Navbar: FC<NavbarProps> = (props) => {
 	})
 
 	return (
-		<nav className="bg-white relative">
+		<nav className="bg-white">
 			<div className="fixed top-0 w-screen bg-white z-20 shadow">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
 					<div className="flex justify-between h-16">
 						<div className="flex">
 							<MobileNavbarMenuButton
@@ -117,7 +117,7 @@ export const Navbar: FC<NavbarProps> = (props) => {
 			</div>
 
 			{/* Mobile menu, show/hide based on menu state. */}
-			<div className="md:hidden absolute w-screen z-10 top-0" id="mobile-menu">
+			<div className="md:hidden absolute w-screen z-10 top-16" id="mobile-menu">
 				<MobileNavbarMenu {...props} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={mobileMenuRef} />
 			</div>
 		</nav>
