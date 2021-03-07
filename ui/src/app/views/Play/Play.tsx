@@ -2,6 +2,7 @@ import React, {FC} from "react";
 import {TopPlayersList} from "@app/components/TopPlayersList/TopPlayersList";
 import {AppStats} from "@app/components/AppStats/AppStats";
 import Tabs from "@app/components/Tabs/Tabs";
+import {Card} from "@components/Card/Card";
 
 export const PlayView: FC = () => {
 	return (
@@ -24,12 +25,12 @@ export const PlayView: FC = () => {
 						</div>
 
 						{/* Game variants */}
-						<div className="rounded-lg h-96 mt-8 md:mt-0 bg-white">
+						<Card noPad>
 								<Tabs>
-									<Tabs.Tab title="Play Rated Game" content="Rated Game Presets" />
-									<Tabs.Tab title="Create Game" content="Custom Game Options" />
+									<Tabs.Tab title="Play Rated Game" content={<div className="h-96">Rated Game Presets</div>} />
+									<Tabs.Tab title="Create Game" content={<div className="h-96">Custom Game Options</div>} />
 								</Tabs>
-						</div>
+						</Card>
 
 						{/* Custom games */}
 						<div className="border-2 border-black border-dashed rounded-lg h-96 mt-8">

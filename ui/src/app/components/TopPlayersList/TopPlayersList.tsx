@@ -1,6 +1,7 @@
 import React, {FC} from "react";
 import classNames from "classnames";
 import {List} from "@components/List/List";
+import {Card} from "@components/Card/Card";
 
 
 interface TempPlayerType {
@@ -11,16 +12,24 @@ interface TempPlayerType {
 
 export const TopPlayersList: FC = () => {
 	const tempData: TempPlayerType[] = [
-		{ username: "uptonmdlkjasndlkasndl", elo: Math.round(Math.random() * (1800)) + 700, state: "online" },
-		{ username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline" },
-		{ username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "online" },
-		{ username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline" },
-		{ username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "online" },
-		{ username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline" },
+		{username: "uptonmdlkjasndlkasndl", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
 	]
 
 	return (
-		<div className="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
+		<Card noPad footer={
+			<div className="px-4 py-2 sm:px-2">
+				<button
+					type="button"
+					className="w-full items-center px-2.5 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400">
+					View all
+				</button>
+			</div>
+		}>
 			<div className="px-4 py-4 sm:px-6">
 				<h1 className="text-2xl text-center" style={{fontWeight: 500}}>Top Players</h1>
 			</div>
@@ -36,7 +45,7 @@ export const TopPlayersList: FC = () => {
 										"bg-green-500": record.state === "online",
 										"bg-transparent": record.state === "offline",
 										"border-2 border-gray-300": record.state === "offline",
-									})} />
+									})}/>
 									<p className="text-md text-gray-500 overflow-hidden overflow-ellipsis">
 										{record.username}
 									</p>
@@ -49,13 +58,6 @@ export const TopPlayersList: FC = () => {
 					)}
 				/>
 			</div>
-			<div className="px-4 py-2 sm:px-2">
-				<button
-					type="button"
-	        className="w-full items-center px-2.5 py-1.5 border border-transparent text-sm font-medium rounded shadow-sm text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400">
-					View all
-				</button>
-			</div>
-		</div>
+		</Card>
 	)
 }
