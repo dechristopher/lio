@@ -1,5 +1,6 @@
 import React, {FC} from "react";
 import {TopPlayersList} from "@app/components/TopPlayersList/TopPlayersList";
+import Tabs from "@app/components/Tabs/Tabs";
 
 export const PlayView: FC = () => {
 	return (
@@ -16,22 +17,30 @@ export const PlayView: FC = () => {
 					<div className="absolute inset-0 py-6 px-2 sm:px-4 lg:px-4">
 					{/* <!-- Start main area--> */}
 
+						{/* Online player stats */}
 						<div className="border-2 border-black border-dashed rounded-lg h-16 flex md:hidden">
 							Online Player Stats
 						</div>
 
-						<div className="border-2 border-black border-dashed rounded-lg h-96 mt-8 md:mt-0">
-								Variant Selector
+						{/* Game variants */}
+						<div className="rounded-lg h-96 mt-8 md:mt-0 bg-white">
+								<Tabs>
+									<Tabs.Tab title="Play Rated Game" content="Rated Game Presets" />
+									<Tabs.Tab title="Create Game" content="Custom Game Options" />
+								</Tabs>
 						</div>
 
+						{/* Custom games */}
 						<div className="border-2 border-black border-dashed rounded-lg h-96 mt-8">
 							Custom Games
 						</div>
 
+						{/* Top players */}
 						<div className="block md:hidden mt-8 md:mt-0">
 							<TopPlayersList />
 						</div>
 
+						{/* Footer */}
 						<div className="border-2 border-black border-dashed rounded-lg h-16 flex md:hidden mt-8 md:mt-0">
 							Footer
 						</div>
