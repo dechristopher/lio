@@ -257,7 +257,9 @@ const doMove= (orig, dest) => {
 		// TODO prompt for promo piece type
 		if (destPiece.color === "white" && dest[1] === "4") {
 			promo = 'q';
-		} else if (destPiece.color === "white" && dest[1] === "1") {
+			// document.getElementById("promo-shade-xx").classList.remove('hidden');
+			// document.getElementById("promo-xx").classList.remove('hidden');
+		} else if (destPiece.color === "black" && dest[1] === "1") {
 			promo = 'q';
 		}
 	}
