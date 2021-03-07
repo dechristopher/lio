@@ -3,6 +3,7 @@ import {TopPlayersList} from "@app/components/TopPlayersList/TopPlayersList";
 import {AppStats} from "@app/components/AppStats/AppStats";
 import Tabs from "@app/components/Tabs/Tabs";
 import {Card} from "@components/Card/Card";
+import {Footer} from "@app/components/Footer/Footer";
 
 export const PlayView: FC = () => {
 	return (
@@ -14,7 +15,7 @@ export const PlayView: FC = () => {
 					</h2>
 				</div>
 			</div>
-			<div className="flex-1 relative z-0 flex -mt-28">
+			<div className="flex-1 relative z-0 flex -mt-36">
 				<main className="flex-1 relative z-0 focus:outline-none space-y-8" tabIndex={0}>
 					<div className="absolute inset-0 py-6 px-2 sm:px-4 lg:px-4">
 					{/* <!-- Start main area--> */}
@@ -25,26 +26,28 @@ export const PlayView: FC = () => {
 						</div>
 
 						{/* Game variants */}
-						<Card noPad>
-								<Tabs>
-									<Tabs.Tab title="Play Rated Game" content={<div className="h-96">Rated Game Presets</div>} />
-									<Tabs.Tab title="Create Game" content={<div className="h-96">Custom Game Options</div>} />
-								</Tabs>
-						</Card>
+						<div className="mt-6 md:mt-0">
+							<Card noPad>
+									<Tabs>
+										<Tabs.Tab title="Play Rated Game" content={<div className="h-96">Rated Game Presets</div>} />
+										<Tabs.Tab title="Create Game" content={<div className="h-96">Custom Game Options</div>} />
+									</Tabs>
+							</Card>
+						</div>
 
 						{/* Custom games */}
-						<div className="border-2 border-black border-dashed rounded-lg h-96 mt-8">
+						<div className="border-2 border-black border-dashed rounded-lg h-96 mt-6">
 							Custom Games
 						</div>
 
 						{/* Top players */}
-						<div className="block md:hidden mt-8 md:mt-0">
+						<div className="block md:hidden mt-6 md:mt-0">
 							<TopPlayersList />
 						</div>
 
 						{/* Footer */}
-						<div className="border-2 border-black border-dashed rounded-lg h-16 flex md:hidden mt-8 md:mt-0">
-							Footer
+						<div className="block md:hidden mt-6 pb-8 md:mt-0 md:pb-0">
+							<Footer />
 						</div>
 					{/* <!-- End main area --> */}
 					</div>
@@ -56,9 +59,7 @@ export const PlayView: FC = () => {
 
 						<AppStats />
 
-						<div className="border-2 border-black border-dashed rounded-lg h-16">
-							Footer
-						</div>
+						<Footer />
 					</div>
 					{/* <!-- End secondary column --> */}
 				</aside>

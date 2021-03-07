@@ -9,7 +9,8 @@ export interface CardProps {
 }
 
 /**
- * @description Card - Shared component implementing the TailwindUI Card spec
+ * Card is a shared component implementing the TailwindUI Card spec.
+ *
  * @see https://tailwindui.com/components/application-ui/layout/panels
  *
  * @param {CardProps} props - The full prop spec for the card component
@@ -18,9 +19,12 @@ export interface CardProps {
  * within the container of the card
  * @param {ReactNode} props.footer - The optional react node placed at the bottom of the card
  * @param {boolean} props.noPad - The optional boolean to omit card padding if supplied by the
- * content's margin or other source.
+ * content's margin or other source
  *
- * @returns {JSX.Element} Card - The formatted Card JSX.Element
+ * @returns {Element} Card - The formatted Card JSX.Element
+ *
+ * @example
+ * <Card noPad>Hello World</Card>
  */
 export const Card: FC<CardProps> = props => {
 	return (

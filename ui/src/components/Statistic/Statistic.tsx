@@ -1,5 +1,6 @@
 import React, {FC} from "react";
 import classNames from "classnames";
+import {toNumberWithCommas} from "@utils/shared";
 
 export type StatisticOrientation =
 	| "left"
@@ -14,7 +15,8 @@ export interface StatisticProps {
 }
 
 /**
- * @description Statistic is a shared component implementing the TailwindUI Statistic spec
+ * Statistic is a shared component implementing the TailwindUI Statistic spec.
+ *
  * @see https://tailwindui.com/components/application-ui/data-display/stats
  *
  * @param {StatisticProps} props - The full prop spec for the Statistic component
@@ -23,12 +25,15 @@ export interface StatisticProps {
  * @param {boolean} props.loading - The current loading status of the statistic (used to render spinner)
  * @param {StatisticOrientation} props.orientation - The desired text alignment of the statistic (default = left)
  *
- * @returns {JSX.Element} Statistic - The formatted Statistic JSX.Element
+ * @returns {Element} Statistic - The formatted Statistic JSX.Element
+ *
+ * @example
+ * <Statistic title="Players Online" value={10000} />
  */
 export const Statistic: FC<StatisticProps> = props => {
 	return (
 		<div>
-			<div className="flex justify-between items-center px-2 py-3 sm:p-4">
+			<div className="flex justify-between items-center p-4">
 				<dt className={classNames("text-base font-normal text-gray-900", {
 					"text-center": props.orientation === "center",
 					"text-right": props.orientation === "right"
@@ -44,7 +49,7 @@ export const Statistic: FC<StatisticProps> = props => {
 						"text-center": props.orientation === "center",
 						"text-right": props.orientation === "right"
 					})}>
-						{props.value}
+						{toNumberWithCommas(props.value)}
 					</div>
 				</dd>
 			</div>
