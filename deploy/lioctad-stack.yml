@@ -16,7 +16,7 @@ x-restart_policy:
 secrets:
   lio_obj_endpoint:
     external: true
-  lio_obj_bucket:
+  lio_obj_bucket_pgn:
       external: true
   lio_obj_access:
     external: true
