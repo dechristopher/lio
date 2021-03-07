@@ -2,7 +2,9 @@ package util
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dechristopher/lioctad/env"
@@ -20,6 +22,32 @@ var (
 	// DebugFlags holds all active, parsed debug flags
 	DebugFlags []string
 )
+
+// ReadSecretFallback attempts to read a secret from the secrets
+// path, returns environment variable of same name if error
+func ReadSecretFallback(name string) string {
+	secret, err := ReadSecret(name)
+	if err != nil {
+		return os.Getenv(strings.ToUpper(name))
+	}
+
+	return secret
+}
+
+// ReadSecret will read a secret string from a file
+func ReadSecret(name string) (string, error) {
+	f, err := os.Open("/run/secrets/" + name)
+	if err != nil {
+		return "", err
+	}
+
+	secret, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+
+	return string(secret), nil
+}
 
 // IsDebugFlag returns true if a given debug flag is enabled in this instance
 func IsDebugFlag(flag string) bool {
