@@ -27,6 +27,8 @@ services:
   lioctad:
     <<: *default-opts
     image: "lioctad:latest"
+    volumes:
+      - /etc/ssl/certs:/etc/ssl/certs:ro
     secrets:
       - lio_obj_endpoint
       - lio_obj_bucket_pgn
