@@ -27,6 +27,11 @@ services:
   lioctad:
     <<: *default-opts
     image: "lioctad:latest"
+    secrets:
+      - lio_obj_endpoint
+      - lio_obj_bucket_pgn
+      - lio_obj_access
+      - lio_obj_secret
     deploy:
       <<: *restart_policy
       replicas: 3
