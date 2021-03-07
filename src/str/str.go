@@ -25,15 +25,18 @@ const (
 	CWS     = "WS"
 	CWSC    = "WSCm"
 	CHMov   = "HMov"
+	CStor   = "Stor"
 )
 
 // (E) Error messages
 const (
 	ELogFail       = "failed to log error=%s msg=%+v"
+	EStoreInit     = "failed to init object store error=%s"
 	EWSRead        = "read err: %s"
 	EWSWrite       = "write err: meta=%+v error=%s"
 	EWSNoBid       = "no bid: %s"
 	EMoveUnmarshal = "failed to parse move: move=%+v error=%s"
+	ERecord        = "failed to record game error=%s"
 )
 
 // (U) User-facing error messages and codes
@@ -53,6 +56,7 @@ const (
 	DPickFSOS = "selected OS - %s"
 	DPickFSEm = "selected embedded - %s"
 	DNaughty  = "loaded naughty.txt: %d words"
+	DStoreOk  = "object store online"
 	DWSRecv   = "ws recv: %+v"
 	DWSSend   = "ws send: %+v"
 )

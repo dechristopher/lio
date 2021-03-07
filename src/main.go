@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/dechristopher/lioctad/env"
+	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www"
@@ -46,5 +47,6 @@ func init() {
 // main does the things
 func main() {
 	_ = godotenv.Load()
+	go store.Up()
 	www.Serve(views, static)
 }
