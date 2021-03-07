@@ -1,4 +1,4 @@
-import React, {FC} from "react";
+import React, {FC, useState} from "react";
 import classNames from "classnames";
 import {List} from "@components/List/List";
 import {Card} from "@components/Card/Card";
@@ -11,17 +11,24 @@ interface TempPlayerType {
 }
 
 export const TopPlayersList: FC = () => {
-	const tempData: TempPlayerType[] = [
-		{username: "uptonmdlkjasndlkasndl", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
-		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
-		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
-		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
-		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
-		{username: "uptonm", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
-	]
+	const [tempData] = useState<TempPlayerType[]>([
+		{username: "DrNykterstein", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{username: "Konevlad", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{username: "Zhigalko_Sergei", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{username: "djamir", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{username: "nihalsarin2004", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{username: "catask", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+	])
 
 	return (
-		<Card noPad footer={
+		<Card
+			noPad
+			header={
+				<div className="px-4 py-4 sm:px-6">
+					<h1 className="text-2xl text-center" style={{fontWeight: 500}}>Top Players</h1>
+				</div>
+			}
+      footer={
 			<div className="px-4 py-2 sm:px-2">
 				<button
 					type="button"
@@ -30,13 +37,10 @@ export const TopPlayersList: FC = () => {
 				</button>
 			</div>
 		}>
-			<div className="px-4 py-4 sm:px-6">
-				<h1 className="text-2xl text-center" style={{fontWeight: 500}}>Top Players</h1>
-			</div>
 			<div className="px-4 py-5 sm:p-6">
 				<List<TempPlayerType>
 					dataSource={tempData}
-					sort={(a, b) => a.elo - b.elo}
+					sort={(a, b) => b.elo - a.elo}
 					renderItem={(record) => (
 						<li className="py-4">
 							<div className="flex justify-between items-center space-x-4 max-w-full">
