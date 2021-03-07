@@ -43,13 +43,13 @@ services:
         order: start-first
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.lioctad.tls=true"
-        - "traefik.http.routers.lioctad.tls.certresolver=letsencrypt"
-        - "traefik.http.routers.lioctad.entrypoints=https"
-        - "traefik.http.routers.lioctad.rule=Host(`lioctad.org`,`www.lioctad.org`)"
-        - "traefik.http.routers.lioctad.tls.domains[0].main=lioctad.org"
-        - "traefik.http.routers.lioctad.tls.domains[0].sans=www.lioctad.org"
-        - "traefik.http.services.lioctad.loadbalancer.server.port=4444"
+        - "traefik.http.routers.lioctad-prod.tls=true"
+        - "traefik.http.routers.lioctad-prod.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.lioctad-prod.entrypoints=https"
+        - "traefik.http.routers.lioctad-prod.rule=Host(`lioctad.org`,`www.lioctad.org`)"
+        - "traefik.http.routers.lioctad-prod.tls.domains[0].main=lioctad.org"
+        - "traefik.http.routers.lioctad-prod.tls.domains[0].sans=www.lioctad.org"
+        - "traefik.http.services.lioctad-prod.loadbalancer.server.port=4444"
     environment:
       DEPLOY: "prod"
       PORT: 4444
