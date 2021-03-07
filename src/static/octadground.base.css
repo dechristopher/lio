@@ -1,7 +1,75 @@
+.gcon {
+  height: 320px;
+  width: 320px;
+}
+
+.gwrap {
+  position: relative;
+}
+
+.promo-shade {
+  z-index: 10;
+  width: 320px;
+  height: 320px;
+  position: absolute;
+  background-color: rgba(50, 50, 50, 0.6);
+}
+
+.promo-shade.hidden {
+  display: none;
+}
+
+.promo {
+  z-index: 11;
+  position: absolute;
+}
+
+.promo.ra {
+  padding-left: 0;
+}
+
+.promo.rb {
+  padding-left: 80px;
+}
+
+.promo.rc {
+  padding-left: 160px;
+}
+
+.promo.rd {
+  padding-left: 240px;
+}
+
+.promo.hidden {
+  display: none;
+}
+
+.promo-piece {
+  width: 74px;
+  height: 74px;
+  background-color: #b7b7a3;
+  background-size: 74px;
+  background-position: center;
+  -webkit-transition: all 200ms ease-in-out;
+  -ms-transition: all 200ms ease-in-out;
+  transition: all 200ms ease-in-out;
+  box-sizing: border-box;
+  border: 2px solid black;
+  margin: 3px 4px 6px 3px;
+}
+
+.promo-piece:hover {
+  background-color: #a5b0b8;
+  background-size: 80px;
+  -webkit-transition: all 200ms ease-in-out;
+  -ms-transition: all 200ms ease-in-out;
+  transition: all 200ms ease-in-out;
+}
+
 .og-wrap {
   width: 320px;
   height: 320px;
-  position: relative;
+  position: absolute;
   display: block;
 }
 
