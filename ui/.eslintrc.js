@@ -1,4 +1,3 @@
-const path = require('path');
 module.exports = {
     parser: '@typescript-eslint/parser', // Specifies the ESLint parser
     plugins: ['@typescript-eslint', 'react', "jsdoc"],
@@ -11,7 +10,6 @@ module.exports = {
         'plugin:react/recommended'
     ],
     parserOptions: {
-        project: path.resolve(__dirname, './tsconfig.json'),
         tsconfigRootDir: __dirname,
         ecmaVersion: 2018, // Allows for the parsing of modern ECMAScript features
         sourceType: 'module', // Allows for the use of imports
@@ -41,7 +39,7 @@ module.exports = {
         "@typescript-eslint/no-namespace": "off",
         "jsdoc/check-access": 1, // Recommended
         "jsdoc/check-alignment": 1, // Recommended
-        "jsdoc/check-examples": 1,
+        "jsdoc/check-examples": 0,
         "jsdoc/check-indentation": 1,
         "jsdoc/check-line-alignment": 1,
         "jsdoc/check-param-names": 1, // Recommended
@@ -61,7 +59,7 @@ module.exports = {
         "jsdoc/require-description": 1,
         "jsdoc/require-description-complete-sentence": 1,
         "jsdoc/require-example": 1,
-        "jsdoc/require-file-overview": 1,
+        "jsdoc/require-file-overview": 0,
         "jsdoc/require-hyphen-before-param-description": 1,
         "jsdoc/require-jsdoc": 1, // Recommended
         "jsdoc/require-param": 1, // Recommended
