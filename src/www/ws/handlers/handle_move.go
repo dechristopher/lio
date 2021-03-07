@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/game"
+	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www/ws/common"
@@ -256,4 +258,17 @@ func recordGame(g game.OctadGame) {
 		"[Time \"" + g.Start.Format("15:04:05") + "\"]" + pgn
 
 	util.Debug("PGN", full)
+
+	// year/month/day/HH:MM:SSTZ-(inserted-time-unix).pgn
+	key := fmt.Sprintf("%s/%s/%s/%s-%d.pgn",
+		g.Start.Format("2006"),
+		g.Start.Format("01"),
+		g.Start.Format("02"),
+		g.Start.Format("15:04:05Z07:00"),
+		time.Now().UnixNano())
+
+	err := store.PutObject(store.PGNBucket, key, []byte(full))
+	if err != nil {
+		util.Error(str.CHMov, str.ERecord, err.Error())
+	}
 }
