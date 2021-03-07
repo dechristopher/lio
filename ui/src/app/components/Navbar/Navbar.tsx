@@ -38,8 +38,8 @@ export const Navbar: FC<NavbarProps> = (props) => {
 								menuButtonRef={mobileMenuBtnRef}
 							/>
 							<div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => history.push("/")}>
-								{/*<LogoAlt className="block md:hidden h-8 w-8" />*/}
-								<LogoPrimary className="h-12 w-48 mt-1" />
+								<LogoPrimary className="block md:hidden h-12 w-36 mt-2" />
+								<LogoPrimary className="hidden md:block h-12 w-48 mt-1" />
 							</div>
 							<div className="hidden md:ml-6 md:flex md:space-x-8">
 								<DesktopNavLink to="/play" active={props.pathname === "/play"}>Play</DesktopNavLink>

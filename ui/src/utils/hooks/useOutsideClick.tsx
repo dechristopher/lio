@@ -1,7 +1,9 @@
+/* istanbul ignore file */
 import {RefObject, useEffect} from "react";
 
 type Event = MouseEvent | TouchEvent;
 
+//@TODO: Test this hook
 export function useOutsideClick<T extends HTMLElement = HTMLElement>(
 	ref: RefObject<T> | RefObject<T>[],
 	handler: (event: Event) => void

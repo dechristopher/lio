@@ -10,6 +10,7 @@ type BColors = keyof typeof bgColors;
 type BIntensities = keyof typeof bgColors[BColors];
 export type BorderColors = typeof borderColors[BColors][BIntensities];
 
+/* istanbul ignore next */
 export const bgColors = {
     green: {
         100: "bg-green-100",
@@ -49,6 +50,7 @@ export const bgColors = {
     }
 }
 
+/* istanbul ignore next */
 export const textColors = {
     green: {
         100: "text-green-100",
@@ -112,6 +114,7 @@ export const textColors = {
     }
 }
 
+/* istanbul ignore next */
 export const borderColors = {
     green: {
         100: "border-green-100",

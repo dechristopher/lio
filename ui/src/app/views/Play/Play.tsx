@@ -1,5 +1,6 @@
 import React, {FC} from "react";
 import {TopPlayersList} from "@app/components/TopPlayersList/TopPlayersList";
+import {AppStats} from "@app/components/AppStats/AppStats";
 import Tabs from "@app/components/Tabs/Tabs";
 
 export const PlayView: FC = () => {
@@ -18,8 +19,8 @@ export const PlayView: FC = () => {
 					{/* <!-- Start main area--> */}
 
 						{/* Online player stats */}
-						<div className="border-2 border-black border-dashed rounded-lg h-16 flex md:hidden">
-							Online Player Stats
+						<div className="block md:hidden">
+							<AppStats />
 						</div>
 
 						{/* Game variants */}
@@ -52,9 +53,7 @@ export const PlayView: FC = () => {
 					<div className="absolute inset-0 py-6 px-2 sm:px-4 lg:px-4 space-y-8">
 						<TopPlayersList />
 
-						<div className="border-2 border-black border-dashed rounded-lg h-16">
-							Online Player Stats
-						</div>
+						<AppStats />
 
 						<div className="border-2 border-black border-dashed rounded-lg h-16">
 							Footer
