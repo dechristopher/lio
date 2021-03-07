@@ -4,6 +4,7 @@ import {AppStats} from "@app/components/AppStats/AppStats";
 import Tabs from "@app/components/Tabs/Tabs";
 import {Card} from "@components/Card/Card";
 import {Footer} from "@app/components/Footer/Footer";
+import {CustomGames} from "@app/components/CustomGames/CustomGames";
 
 export const PlayView: FC = () => {
 	return (
@@ -36,8 +37,8 @@ export const PlayView: FC = () => {
 						</div>
 
 						{/* Custom games */}
-						<div className="border-2 border-black border-dashed rounded-lg h-96 mt-6">
-							Custom Games
+						<div className="mt-6">
+							<CustomGames />
 						</div>
 
 						{/* Top players */}

@@ -5,6 +5,7 @@ import {Card} from "@components/Card/Card";
 
 
 interface TempPlayerType {
+	id: number;
 	username: string;
 	elo: number;
 	state: "online" | "offline";
@@ -12,12 +13,12 @@ interface TempPlayerType {
 
 export const TopPlayersList: FC = () => {
 	const [tempData] = useState<TempPlayerType[]>([
-		{username: "DrNykterstein", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
-		{username: "Konevlad", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
-		{username: "Zhigalko_Sergei", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
-		{username: "djamir", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
-		{username: "nihalsarin2004", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
-		{username: "catask", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{id: 1, username: "DrNykterstein", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{id: 2, username: "Konevlad", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{id: 3, username: "Zhigalko_Sergei", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{id: 4, username: "djamir", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
+		{id: 5, username: "nihalsarin2004", elo: Math.round(Math.random() * (1800)) + 700, state: "online"},
+		{id: 6, username: "catask", elo: Math.round(Math.random() * (1800)) + 700, state: "offline"},
 	])
 
 	return (
@@ -42,7 +43,7 @@ export const TopPlayersList: FC = () => {
 					dataSource={tempData}
 					sort={(a, b) => b.elo - a.elo}
 					renderItem={(record) => (
-						<li className="py-4">
+						<li key={record.id} className="py-4">
 							<div className="flex justify-between items-center space-x-4 max-w-full">
 								<div className="flex justify-start items-center space-x-4 min-w-0">
 									<span className={classNames("h-3 w-3 rounded-full", {
