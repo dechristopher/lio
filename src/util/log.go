@@ -43,7 +43,7 @@ func Error(caller, message string, args ...interface{}) {
 // printLog prints logs to stdout in the proper format
 // Standard in developer mode and JSON in deploy mode
 func printLog(severity, format, caller, message string, args ...interface{}) {
-	if env.GetEnv() == env.Dev {
+	if env.GetEnv() == env.Local {
 		// increase padding as we see longer callers
 		if len(caller) > str.CPadding {
 			str.CPadding = len(caller)

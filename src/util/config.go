@@ -51,7 +51,7 @@ func ReadSecret(name string) (string, error) {
 
 // devPrefix returns dev_ only on dev environments
 func devPrefix() string {
-	if env.IsDev() {
+	if !env.IsProd() {
 		return "dev_"
 	}
 	return ""

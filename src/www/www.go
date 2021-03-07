@@ -32,12 +32,12 @@ var (
 func Serve(views, static embed.FS) {
 	util.Info(str.CMain, str.MInit, util.Version)
 
-	viewsFs = util.PickFS(env.IsDev(), views, "./views")
-	staticFs = util.PickFS(env.IsDev(), static, "./static")
+	viewsFs = util.PickFS(env.IsLocal(), views, "./views")
+	staticFs = util.PickFS(env.IsLocal(), static, "./static")
 	engine = html.NewFileSystem(viewsFs, ".html")
 
 	// enable template engine reloading on dev
-	engine.Reload(env.IsDev())
+	engine.Reload(env.IsLocal())
 
 	r := fiber.New(fiber.Config{
 		Prefork:               false,

@@ -21,7 +21,7 @@ func IndexHandler(c *fiber.Ctx) error {
 // requests that don't hit WS, API or static assets directly
 func SPAHandlerInit(staticFs http.FileSystem) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		if len(cachedIndex) == 0 || env.IsDev() {
+		if len(cachedIndex) == 0 || !env.IsProd() {
 			file, err := staticFs.Open("index.html")
 			if err != nil {
 				return err

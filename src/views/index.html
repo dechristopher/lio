@@ -3,8 +3,10 @@
 <div class="c">
   {{ if eq .Env "dev" }}
     <i>DEV.LIOCTAD.ORG</i>
+  {{ else if eq .Env "local" }}
+    <i>LOCAL.LIOCTAD.ORG</i>
   {{ else }}
-  <i>LIOCTAD.ORG</i>
+    <i>LIOCTAD.ORG</i>
   {{ end }}
   {{ template "partials/game"}}
   <span class="sm" id="info">FREE, ONLINE OCTAD COMING SOON!</span>

@@ -39,7 +39,7 @@ func init() {
 		return
 	}
 
-	if env.IsDev() {
+	if !env.IsProd() {
 		util.Debug(str.CMain, str.MDevMode)
 	}
 }

@@ -8,16 +8,20 @@ type Env string
 const (
 	// Prod is the production environment at https://lioctad.org
 	Prod Env = "prod"
-	// Dev is the dev environment at https://dev.lioctad.org or localhost
+	// Dev is the dev environment at https://dev.lioctad.org
 	Dev Env = "dev"
+	// Local is the dev environment at localhost
+	Local Env = "local"
 )
 
 // GetEnv returns the current environment
 func GetEnv() Env {
 	if os.Getenv("DEPLOY") == "prod" {
 		return Prod
+	} else if os.Getenv("DEPLOY") == "dev" {
+		return Dev
 	}
-	return Dev
+	return Local
 }
 
 // IsProd returns true if the current environment is production
@@ -27,5 +31,11 @@ func IsProd() bool {
 
 // IsDev returns true if the current environment is not production
 func IsDev() bool {
-	return !IsProd()
+	return GetEnv() == Dev
+}
+
+// IsDev returns true if the current environment is not a
+// cluster deployed environment
+func IsLocal() bool {
+	return GetEnv() == Local
 }

@@ -69,7 +69,7 @@ func WireMiddleware(r fiber.Router, static http.FileSystem) {
 				Path:     "/",
 				Domain:   "",
 				MaxAge:   0,
-				Secure:   env.IsProd(),
+				Secure:   !env.IsLocal(),
 				HTTPOnly: false,
 				SameSite: "Strict",
 			})
