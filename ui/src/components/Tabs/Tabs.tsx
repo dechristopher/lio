@@ -1,6 +1,6 @@
 import React, {Children, FC, ReactNode, useState} from 'react';
 import classNames from "classnames";
-import {Tab, TabProps} from "@app/components/Tabs/Tab";
+import {Tab, TabProps} from "@components/Tabs/Tab";
 
 interface TabsProps {
     children: ReactNode | ReactNode[];
@@ -14,7 +14,9 @@ interface ITabProps extends FC<TabsProps> {
  * A collection of tabs where each tab maintains it's own content.
  *
  * @param {ITabProps} props - Component props.
+ *
  * @returns {Element} - Tabs component.
+ *
  * @example
  * <Tabs />
  *  <Tabs.Tab title="example title" content="example content"/>
@@ -49,18 +51,18 @@ const Tabs: ITabProps = (props) => {
                                 onClick={() => setSelectedTab(key)}
                                 className={
                                     classNames(
-                                "w-full",
+                                        "w-full",
                                         "py-4",
                                         "px-1",
                                         "text-center",
                                         "border-b-2",
                                         "font-medium",
                                         "text-sm",
-                                            {
-                                                "border-green-500 text-green-500": key === selectedTab,
-                                                "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300": key !== selectedTab
-                                            }
-                                )}>
+                                        {
+                                            "border-green-500 text-green-500": key === selectedTab,
+                                            "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300": key !== selectedTab
+                                        }
+                                    )}>
                                 {tabTitle}
                             </a>
                         })}

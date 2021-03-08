@@ -2,12 +2,12 @@ type BGColors = keyof typeof bgColors;
 type BGIntensities = keyof typeof bgColors[BGColors];
 export type BackGroundColors = typeof bgColors[BGColors][BGIntensities];
 
-type TColors = keyof typeof bgColors;
-type TIntensities = keyof typeof bgColors[TColors];
+type TColors = keyof typeof textColors;
+type TIntensities = keyof typeof textColors[TColors];
 export type TextColors = typeof textColors[TColors][TIntensities];
 
-type BColors = keyof typeof bgColors;
-type BIntensities = keyof typeof bgColors[BColors];
+type BColors = keyof typeof borderColors;
+type BIntensities = keyof typeof borderColors[BColors];
 export type BorderColors = typeof borderColors[BColors][BIntensities];
 
 /* istanbul ignore next */
@@ -47,6 +47,18 @@ export const bgColors = {
         800: "bg-gray-800",
         900: "bg-gray-900",
         1000: "bg-gray-1000",
+    },
+    purple: {
+        100: "bg-purple-100",
+        200: "bg-purple-200",
+        300: "bg-purple-300",
+        400: "bg-purple-400",
+        500: "bg-purple-500",
+        600: "bg-purple-600",
+        700: "bg-purple-700",
+        800: "bg-purple-800",
+        900: "bg-purple-900",
+        1000: "bg-purple-1000",
     }
 }
 

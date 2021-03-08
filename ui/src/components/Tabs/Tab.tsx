@@ -11,14 +11,16 @@ export type TabProps = {
  * @param {TabProps} props - Tab props.
  * @param {ReactNode} props.title - Title of the tab.
  * @param {ReactNode} props.content - Content of the tab.
+ *
  * @returns {Element} - Tab component.
+ *
  * @example
  * <Tabs.Tab title="example title" content="example content"/>
  */
 export const Tab: FC<TabProps> = (props) => {
     return (
-        <div>
+        <>
             {props.content}
-        </div>
+        </>
     )
 }
