@@ -24,7 +24,7 @@ interface GameVariantCardProps {
  * @param {CSSProperties} props.style - card CSS style
  * @param {string} props.className - card class names
  * @param {BorderColors} props.borderColor - card border colors
- * @param {borderRadius} props.borderRadius - card border radius
+ * @param {number} props.borderRadius - card border radius
  *
  * @returns {Element} - game variant card component
  *

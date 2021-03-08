@@ -1,12 +1,12 @@
 import React, {FC} from "react";
 import {TopPlayersList} from "@app/components/TopPlayersList/TopPlayersList";
 import {AppStats} from "@app/components/AppStats/AppStats";
-import Tabs from "@app/components/Tabs/Tabs";
 import {Card} from "@components/Card/Card";
 import {Footer} from "@app/components/Footer/Footer";
 import {CustomGames} from "@app/components/CustomGames/CustomGames";
 import {RatedGameTab} from "@app/components/GameTabs/RatedGameTab";
 import {CreateGameTab} from "@app/components/GameTabs/CreateGameTab";
+import Tabs from "@components/Tabs/Tabs";
 
 export const PlayView: FC = () => {
 	return (
