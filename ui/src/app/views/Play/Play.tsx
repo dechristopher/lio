@@ -5,6 +5,8 @@ import Tabs from "@app/components/Tabs/Tabs";
 import {Card} from "@components/Card/Card";
 import {Footer} from "@app/components/Footer/Footer";
 import {CustomGames} from "@app/components/CustomGames/CustomGames";
+import {RatedGameTab} from "@app/components/GameTabs/RatedGameTab";
+import {CreateGameTab} from "@app/components/GameTabs/CreateGameTab";
 
 export const PlayView: FC = () => {
 	return (
@@ -29,10 +31,16 @@ export const PlayView: FC = () => {
 						{/* Game variants */}
 						<div className="mt-6 md:mt-0">
 							<Card noPad>
-									<Tabs>
-										<Tabs.Tab title="Play Rated Game" content={<div className="h-96">Rated Game Presets</div>} />
-										<Tabs.Tab title="Create Game" content={<div className="h-96">Custom Game Options</div>} />
-									</Tabs>
+								<Tabs>
+									<Tabs.Tab
+										title="Play Rated Game"
+										content={<RatedGameTab />}
+									/>
+									<Tabs.Tab
+										title="Create Game"
+										content={<CreateGameTab />}
+									/>
+								</Tabs>
 							</Card>
 						</div>
 
