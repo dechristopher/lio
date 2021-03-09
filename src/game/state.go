@@ -20,6 +20,8 @@ const (
 	BlackWinsTimeout
 )
 
+// NewStateMachine returns a new finite state machine that helps
+// to control the state flow of a game of octad on the site
 func NewStateMachine() *fsm.FSM {
 	return fsm.NewFSM(
 		"",

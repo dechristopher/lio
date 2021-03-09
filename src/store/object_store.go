@@ -16,8 +16,10 @@ var objectStoreAccessKeyID string
 var objectStoreSecretAccessKey string
 var objectStoreEndpoint string
 
+// PGNBucket is the name of the game PGN storage bucket
 var PGNBucket string
 
+// C is the object storage client instance
 var C *minio.Client
 
 // Up brings online the connection to the object store

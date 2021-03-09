@@ -24,18 +24,18 @@ func GetEnv() Env {
 	return Local
 }
 
-// IsProd returns true if the current environment is production
+// IsProd returns true if the current deployed environment is production
 func IsProd() bool {
 	return GetEnv() == Prod
 }
 
-// IsDev returns true if the current environment is not production
+// IsDev returns true if the current deployed environment is not production
 func IsDev() bool {
 	return GetEnv() == Dev
 }
 
-// IsDev returns true if the current environment is not a
-// cluster deployed environment
+// IsLocal returns true if the current environment is not a
+// cluster-deployed environment
 func IsLocal() bool {
 	return GetEnv() == Local
 }
