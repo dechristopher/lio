@@ -26,6 +26,7 @@ const (
 	CWSC    = "WSCm"
 	CHMov   = "HMov"
 	CStor   = "Stor"
+	CProt   = "Prot"
 )
 
 // (E) Error messages
@@ -37,6 +38,7 @@ const (
 	EWSNoBid       = "no bid: %s"
 	EMoveUnmarshal = "failed to parse move: move=%+v error=%s"
 	ERecord        = "failed to record game error=%s"
+	EProtoMarshal  = "failed to marshal protocol message error=%s"
 )
 
 // (U) User-facing error messages and codes
