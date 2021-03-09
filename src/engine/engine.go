@@ -22,6 +22,10 @@ import "github.com/dechristopher/octad"
  * - depth limiting for capping rating
  */
 
+type materialValues = map[octad.Color]float64
+
+// PieceVals contains the material evaluation value
+// of each piece type in octad
 var PieceVals = map[octad.PieceType]float64{
 	octad.King:        100,
 	octad.Queen:       9,
@@ -39,7 +43,7 @@ func Evaluate(situation *octad.Game) float64 {
 	squareMap := situation.Position().Board().SquareMap()
 
 	// calculate material values
-	material := make(map[octad.Color]float64)
+	material := make(materialValues)
 	for _, piece := range squareMap {
 		material[piece.Color()] += PieceVals[piece.Type()]
 	}
