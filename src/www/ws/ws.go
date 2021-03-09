@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
@@ -127,10 +126,12 @@ func crowdHandler(channel string) {
 		Channel: channel,
 		MT:      1,
 	}
+	var spectators int
 	for {
-		e := <-chanMap[channel].C
-		msg := fmt.Sprintf(`{"t":"c","d":{"s":%d}}`, e)
-		common.Broadcast([]byte(msg), meta)
+		spectators = <-chanMap[channel].C
+		proto.CrowdPayload{
+			Spec: spectators,
+		}.Broadcast(meta)
 	}
 }
 
