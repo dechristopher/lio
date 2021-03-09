@@ -11,6 +11,7 @@ import (
 	"github.com/valyala/fastjson"
 
 	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lioctad/engine"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
@@ -63,6 +64,8 @@ func HandleMove(m []byte, meta common.SocketMeta) []byte {
 				// bad if this happens
 				return nil
 			}
+
+			util.Debug(str.CHMov, "eval: %f", engine.Evaluate(g.Game))
 
 			ok = true
 			go makeComputerMove(g, meta)
@@ -124,6 +127,9 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 				// this means the octad library has a bug
 				panic(err)
 			}
+
+			util.Debug(str.CHMov, "eval: %f", engine.Evaluate(g.Game))
+
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
 
