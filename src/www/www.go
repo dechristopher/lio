@@ -32,17 +32,17 @@ var (
 func Serve(views, static embed.FS) {
 	util.Info(str.CMain, str.MInit, util.Version)
 
+	// make filesystem location decision based on environment
 	viewsFs = util.PickFS(env.IsLocal(), views, "./views")
 	staticFs = util.PickFS(env.IsLocal(), static, "./static")
+	// populate template engine from views filesystem
 	engine = html.NewFileSystem(viewsFs, ".html")
 
 	// enable template engine reloading on dev
 	engine.Reload(env.IsLocal())
 
 	r := fiber.New(fiber.Config{
-		Prefork:               false,
-		ServerHeader:          "lioctad.org",
-		StrictRouting:         false,
+		ServerHeader:          "lioctad.org " + util.Version,
 		CaseSensitive:         true,
 		ErrorHandler:          nil,
 		DisableStartupMessage: true,
@@ -65,6 +65,7 @@ func Serve(views, static embed.FS) {
 	util.Info(str.CMain, str.MStarted, util.TimeSinceBoot(),
 		env.GetEnv(), util.GetPort(), "none")
 
+	// listen for connections on primary listening port
 	if err := r.Listen(util.GetListenPort()); err != nil {
 		log.Println(err)
 	}
@@ -77,7 +78,6 @@ func Serve(views, static embed.FS) {
 // wireHandlers builds all of the websocket and http routes
 // into the fiber app context
 func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
-
 	// recover from panics
 	r.Use(recover.New())
 
@@ -87,7 +87,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// websocket connection listener
 	r.Get("/ws/:chan", websocket.New(ws.ConnHandler))
 
-	// sub-router with compression enabled
+	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")
 
 	// wire up all middleware components
