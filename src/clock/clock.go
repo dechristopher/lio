@@ -114,8 +114,8 @@ func (c *Clock) Flagged() bool {
 // State returns the current clock state
 func (c *Clock) State() State {
 	return State{
-		BlackTime: c.blackTime,
-		WhiteTime: c.whiteTime,
+		BlackTime: ClockTime{c.blackTime},
+		WhiteTime: ClockTime{c.whiteTime},
 		IsBlack:   c.isBlack,
 		IsPaused:  c.clockPaused,
 		Victor:    c.victor,

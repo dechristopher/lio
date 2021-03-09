@@ -106,8 +106,8 @@ func current(g *game.OctadGame, addLast bool) []byte {
 func currentClock(g *game.OctadGame) proto.ClockPayload {
 	state := g.Clock.State()
 	return proto.ClockPayload{
-		Black: int64(state.BlackTime / clock.Centi),
-		White: int64(state.WhiteTime / clock.Centi),
+		Black: state.BlackTime.Centi(),
+		White: state.WhiteTime.Centi(),
 		Lag:   0,
 	}
 }

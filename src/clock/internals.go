@@ -33,11 +33,19 @@ const (
 	White
 )
 
+type ClockTime struct {
+	t time.Duration
+}
+
+func (t ClockTime) Centi() int64 {
+	return int64(t.t / Centi)
+}
+
 // State represents the current state of the Clock
 type State struct {
-	BlackTime time.Duration `json:"b"`
-	WhiteTime time.Duration `json:"w"`
-	IsBlack   bool          `json:"t"`
-	IsPaused  bool          `json:"p"`
-	Victor    Victor        `json:"v"`
+	BlackTime ClockTime `json:"b"`
+	WhiteTime ClockTime `json:"w"`
+	IsBlack   bool      `json:"t"`
+	IsPaused  bool      `json:"p"`
+	Victor    Victor    `json:"v"`
 }
