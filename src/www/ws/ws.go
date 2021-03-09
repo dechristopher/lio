@@ -17,9 +17,11 @@ import (
 	"github.com/valyala/fastjson"
 )
 
+// ChannelDirectory is a map[channel] -> SockMap (map[string]Socket)
+type ChannelDirectory = map[string]common.SockMap
+
 var (
-	// Map[channel] -> SockMap (map[string]Socket)
-	chanMap = make(map[string]common.SockMap)
+	chanMap = make(ChannelDirectory)
 )
 
 // UpgradeHandler catches anything under /ws/** and allows
