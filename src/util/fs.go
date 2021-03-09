@@ -11,8 +11,8 @@ import (
 
 // PickFS returns either an embedded FS or an on-disk FS for the
 // given directory path
-func PickFS(useOS bool, e embed.FS, dir string) http.FileSystem {
-	if useOS {
+func PickFS(useDisk bool, e embed.FS, dir string) http.FileSystem {
+	if useDisk {
 		Debug(str.CPickFS, str.DPickFSOS, dir)
 		return http.Dir(dir)
 	}
