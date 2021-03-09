@@ -1,5 +1,12 @@
 package proto
 
+import (
+	"encoding/json"
+
+	"github.com/dechristopher/lioctad/str"
+	"github.com/dechristopher/lioctad/util"
+)
+
 // PayloadTag defines the message payload data type
 type PayloadTag string
 
@@ -86,4 +93,21 @@ type GameOverPayload struct {
 	StatusID int          `json:"i"`
 	Status   string       `json:"s"`
 	Clock    ClockPayload `json:"c,omitempty"`
+}
+
+// Marshal encodes the given message and payload into JSON
+func (m *Message) Marshal() ([]byte, error) {
+	return json.Marshal(&m)
+}
+
+// Please returns the marshaled text as a byte[], hoping it doesn't fail
+func (m *Message) Please() []byte {
+	b, err := m.Marshal()
+	if err != nil {
+		util.Error(str.CProt, str.EProtoMarshal, err)
+		// we've got problems if these messages fail to marshal
+		panic(err)
+	}
+
+	return b
 }
