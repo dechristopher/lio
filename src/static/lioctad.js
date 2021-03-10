@@ -1,4 +1,5 @@
 let ws, ka, backoff = 0, move = 1;
+let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingDelay = 3000;
 
 const logMe = () => console.log(`© 2021 lioctad.org`);
 
@@ -69,6 +70,7 @@ const connect = () => {
 		console.warn("Lost connection to lioctad.org");
 		ws = null;
 		clearInterval(ka);
+		clearInterval(pingRunner);
 		disableBoard();
 		reconnect();
 	};
@@ -84,6 +86,7 @@ const connect = () => {
 const connected = () => {
 	backoff = 0;
 	sendBoardUpdateRequest();
+	schedulePing(500);
 	ka = setInterval(() => {
 		sendKeepAlive();
 	}, 3000);
@@ -136,6 +139,41 @@ const sendBoardUpdateRequest = () => {
 };
 
 /**
+ * Schedule a ping message after the specified delay
+ * @param delay - delay in ms to wait before pinging
+ */
+const schedulePing = (delay) => {
+	clearTimeout(pingRunner);
+	pingRunner = setTimeout(ping, delay)
+};
+
+/**
+ * Send a ping immediately
+ */
+const ping = () => {
+	try {
+		send(JSON.stringify({"pi": 1}));
+		lastPingTime = Date.now();
+	} catch (e) {
+		console.debug(e, true);
+	}
+};
+
+/**
+ * Handle pong response, calculating latency
+ */
+const pong = () => {
+	schedulePing(pingDelay);
+	const currentLag = Math.min(Date.now() - lastPingTime, 10000);
+	pongCount++;
+
+	// average first few pings and then move to weighted moving average
+	const weight = pongCount > 4 ? 0.1 : 1 / pongCount;
+	latency += weight * (currentLag - latency);
+	document.getElementById("lat").innerHTML = latency.toFixed(1);
+};
+
+/**
  * Sends a game move in Universal Octad Interface format
  * @param move - UOI move string
  * @param num - move number
@@ -170,6 +208,12 @@ const parseResponse = (raw) => {
 	}
 
 	let message = JSON.parse(raw);
+
+	// handle pongs
+	if (message.po && message.po === 1) {
+		pong();
+		return;
+	}
 
 	switch (message.t) {
 		case "m": // move happened
@@ -255,7 +299,7 @@ const disableBoard = () => {
  * @param orig - origin square
  * @param dest - destination square
  */
-const doMove= (orig, dest) => {
+const doMove = (orig, dest) => {
 	let promo = "";
 	if (og.state.pieces.get(dest) && og.state.pieces.get(dest).role === "pawn") {
 		let destPiece = og.state.pieces.get(dest);
