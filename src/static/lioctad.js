@@ -2,12 +2,25 @@ let ws, ka, backoff = 0, move = 1;
 
 const logMe = () => console.log(`© 2021 lioctad.org`);
 
-const moveSound = new Audio("/res/sfx/move.ogg");
-moveSound.volume = 1;
-const capSound = new Audio("/res/sfx/capture.ogg");
-capSound.volume = 1;
-const endSound = new Audio("/res/sfx/end.ogg");
-endSound.volume = 0.75;
+const moveSound = new Howl({
+	src: ["/res/sfx/move.ogg"],
+	preload: true,
+	autoplay: true,
+	html5: true,
+	volume: 1.0
+});
+
+const capSound = new Howl({
+	src: ["/res/sfx/capture.ogg"],
+	preload: true,
+	volume: 1.0
+});
+
+const endSound = new Howl({
+	src: ["/res/sfx/end.ogg"],
+	preload: true,
+	volume: 0.6
+});
 
 // create game board
 let og = Octadground(document.getElementById('game'), {
@@ -17,16 +30,7 @@ let og = Octadground(document.getElementById('game'), {
 	},
 	movable: {
 		free: false,
-		color: 'white',
-		events: {
-			after: (orig, dest, meta) => {
-				if (meta.captured) {
-					capSound.play();
-				} else {
-					moveSound.play();
-				}
-			}
-		}
+		color: 'white'
 	},
 	selectable: {
 		enabled: false,
@@ -197,6 +201,7 @@ const parseResponse = (raw) => {
 			break;
 		case "c":
 			document.getElementById("crowd").innerHTML = message.d.s;
+			break;
 		default:
 			return;
 	}
