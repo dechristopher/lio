@@ -20,7 +20,7 @@ export const PlayView: FC = () => {
 			</div>
 			<div className="flex-1 relative z-0 flex -mt-36">
 				<main className="flex-1 relative z-0 focus:outline-none space-y-8" tabIndex={0}>
-					<div className="absolute inset-0 py-6 px-2 sm:px-4 lg:px-4">
+					<div className="absolute inset-x-0 top-0 py-6 px-2 sm:px-4 lg:px-4">
 					{/* <!-- Start main area--> */}
 
 						{/* Online player stats */}
