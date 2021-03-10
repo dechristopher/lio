@@ -40,16 +40,36 @@ var PieceVals = map[octad.PieceType]float64{
 // with positive meaning white winning, negative meaning black
 // winning, and zero being a completely drawn game
 func Evaluate(situation *octad.Game) float64 {
+	switch situation.Outcome() {
+	case octad.WhiteWon:
+		return 100000
+	case octad.BlackWon:
+		return -100000
+	case octad.Draw:
+		return 0
+	default: // continue evaluation if no outcome
+		break
+	}
+
 	squareMap := situation.Position().Board().SquareMap()
 
-	// calculate material values
+	// calculate material values and piece position values
 	material := make(materialValues)
-	for _, piece := range squareMap {
+	posVals := make(materialValues)
+	for square, piece := range squareMap {
 		material[piece.Color()] += PieceVals[piece.Type()]
+		// calc piece position vals for pieces with square tables
+		if PieceSquareTables[piece.Color()][piece.Type()] != nil {
+			posVals[piece.Color()] +=
+				PieceSquareTables[piece.Color()][piece.Type()][square]
+		}
 	}
 
 	// material difference
 	md := material[octad.White] - material[octad.Black]
 
-	return md
+	// positional value difference
+	pd := posVals[octad.White] - posVals[octad.Black]
+
+	return md + pd
 }
