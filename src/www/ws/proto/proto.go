@@ -31,6 +31,16 @@ type Message struct {
 	ProtoVersion int         `json:"pv,omitempty"` // protocol version for data type
 }
 
+// PingMessage is used to determine socket latency to server
+type PingMessage struct {
+	Ping string `json:"pi"`
+}
+
+// PongMessage is the response to the PingMessage
+type PongMessage struct {
+	Pong string `json:"po"`
+}
+
 // OFENPayloadVersion represents the current proto version of the OFENPayload
 const OFENPayloadVersion = 1
 
