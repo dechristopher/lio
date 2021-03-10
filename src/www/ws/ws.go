@@ -81,6 +81,12 @@ func ConnHandler(c *websocket.Conn) {
 			break
 		}
 
+		if fastjson.GetInt(b, "pi") == 1 {
+			// write pong message asap and continue
+			_ = c.WriteMessage(mt, proto.Pong())
+			continue
+		}
+
 		// TODO improve safety of heartbeats to prevent DoS
 		if len(b) == 4 {
 			// write heartbeat ack asap and continue
