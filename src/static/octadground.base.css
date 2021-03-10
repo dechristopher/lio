@@ -1,6 +1,8 @@
 .gcon {
   height: 320px;
   width: 320px;
+  /* temp */
+  box-shadow: 0 0 10px 0;
 }
 
 .gwrap {
