@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 
+	"github.com/dechristopher/lioctad/env"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www/ws/common"
@@ -154,6 +155,10 @@ func validTag(tag string) bool {
 
 // okOrigin approves a websocket connection if it comes from an origin we trust
 func okOrigin(c *fiber.Ctx) bool {
+	if env.IsLocal() {
+		return true
+	}
+
 	origin := c.Context().Request.Header.Peek("Origin")
 	return strings.Contains(util.CorsOrigins(), string(origin))
 }
