@@ -85,8 +85,8 @@ func HandleMove(m []byte, meta common.SocketMeta) []byte {
 	checkGameOver(g, meta)
 
 	// broadcast move to everyone and send response back to player
-	common.BroadcastEx(current(g, false), meta)
-	return current(g, false)
+	common.BroadcastEx(current(g, true), meta)
+	return current(g, true)
 }
 
 func current(g *game.OctadGame, addLast bool) []byte {
@@ -114,10 +114,10 @@ func currentClock(g *game.OctadGame) proto.ClockPayload {
 
 func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// sleep at least 750ms up to 2250ms
+	// sleep at least 1000ms up to 2250ms
 	time.Sleep(time.Millisecond*
-		time.Duration(r.Intn(1000)) +
-		time.Duration(750))
+		time.Duration(r.Intn(1250)) +
+		time.Duration(1000))
 
 	if g.Game.Outcome() == octad.NoOutcome {
 		moves := g.Game.ValidMoves()
@@ -144,12 +144,16 @@ func getSAN(g *game.OctadGame, calc bool) string {
 	if !calc {
 		return ""
 	}
-	pos := g.Game.Positions()[len(g.Game.Positions())-2]
-	move := g.Game.Moves()[len(g.Game.Moves())-1]
+	if len(g.Game.Positions()) > 1 {
+		pos := g.Game.Positions()[len(g.Game.Positions())-2]
+		move := g.Game.Moves()[len(g.Game.Moves())-1]
 
-	util.Debug(str.CHMov, "position: %s %+v", pos.String(), pos.ValidMoves())
-	util.Debug(str.CHMov, "computer move: %s %s", move.String(), move.Promo())
-	return octad.AlgebraicNotation{}.Encode(pos, move)
+		util.Debug(str.CHMov, "position: %s %+v", pos.String(), pos.ValidMoves())
+		util.Debug(str.CHMov, "computer move: %s %s", move.String(), move.Promo())
+		return octad.AlgebraicNotation{}.Encode(pos, move)
+	}
+
+	return ""
 }
 
 func checkGameOver(g *game.OctadGame, meta common.SocketMeta) {
