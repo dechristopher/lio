@@ -3,11 +3,11 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=5">
   {{ if eq .Env "dev" }}
-    <title>DEV • lioctad.org • {{ .PageName }}</title>
+  <title>DEV • lioctad.org • {{ .PageName }}</title>
   {{ else if eq .Env "local" }}
-    <title>LOCAL • lioctad.org • {{ .PageName }}</title>
+  <title>LOCAL • lioctad.org • {{ .PageName }}</title>
   {{ else }}
-    <title>lioctad.org • {{ .PageName }}</title>
+  <title>lioctad.org • {{ .PageName }}</title>
   {{ end }}
   <link rel="apple-touch-icon" sizes="180x180" href="/res/ico/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/res/ico/favicon-32x32.png">
@@ -30,46 +30,48 @@
   <link rel="stylesheet" href="/res/themes/board/green.css">
   <link rel="stylesheet" href="/res/themes/piece/cburnett.css">
   <style>
-	  body {
-		  margin: 0;
-		  font-size: large;
-		  font-family: 'LM', sans-serif;
-		  text-align: center;
-		  display: flex;
-		  flex-direction: row;
-		  justify-content: center;
-	  }
+      body {
+          margin: 0;
+          height: 90vh;
+          font-size: large;
+          font-family: 'LM', sans-serif;
+          text-align: center;
+          display: flex;
+          flex-direction: row;
+          justify-content: center;
+          align-items: center;
+          background-color: #f1d8b8;
+      }
 
-    span.sm {
-	    cursor: default;
-	    font-size: 0.75em;
-    }
+      span.sm {
+          cursor: default;
+          font-size: 0.75em;
+      }
 
-	  span {
-		  cursor: pointer;
-	  }
+      span {
+          cursor: pointer;
+      }
 
-	  .c {
-      margin-top: 16px;
-		  display: flex;
-		  flex-direction: column;
-		  align-items: center
-	  }
+      .c {
+          display: flex;
+          flex-direction: column;
+          align-items: center
+      }
 
-    .mtb8 {
-        margin: 8px 0 8px 0;
-    }
+      .mtb8 {
+          margin: 8px 0 8px 0;
+      }
 
-	  .t404 {
-		  font-size: 52px;
-	  }
+      .t404 {
+          font-size: 52px;
+      }
 
-	  @font-face {
-		  font-family: 'LM';
-		  src: url('/res/font/lm.woff2') format('woff2'),
-		  url('/res/font/lm.woff') format('woff');
-		  font-weight: normal;
-		  font-style: normal;
-	  }
+      @font-face {
+          font-family: 'LM';
+          src: url('/res/font/lm.woff2') format('woff2'),
+          url('/res/font/lm.woff') format('woff');
+          font-weight: normal;
+          font-style: normal;
+      }
   </style>
 </head>
