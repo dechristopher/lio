@@ -129,7 +129,7 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 				panic(err)
 			}
 
-			util.Debug(str.CHMov, "eval: %f, move: %s", searchMove.Eval, searchMove.Move)
+			util.Debug(str.CHMov, "eval: %f, move: %+v", searchMove.Eval, searchMove.Move)
 
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
