@@ -9,8 +9,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
+	"github.com/dechristopher/lioctad/systems"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www"
 )
@@ -27,10 +27,12 @@ func init() {
 	// set boot time immediately
 	util.BootTime = time.Now()
 
+	// parse command line flags
 	isHealthCheck := flag.Bool(str.FHealth, false, str.FHealthUsage)
 	util.DebugFlagPtr = flag.String(str.FDebugFlags, "", str.FDebugFlagsUsage)
 	flag.Parse()
 
+	// parse out debug flags from command line options
 	util.DebugFlags = strings.Split(*util.DebugFlagPtr, ",")
 
 	// run health check if told
@@ -40,13 +42,19 @@ func init() {
 	}
 
 	if !env.IsProd() {
+		// print development mode warning
 		util.Debug(str.CMain, str.MDevMode)
 	}
 }
 
 // main does the things
 func main() {
+	// load .env if any
 	_ = godotenv.Load()
-	go store.Up()
+
+	// asynchronously initialize subsystems
+	go systems.Run()
+
+	// serve primary http endpoints
 	www.Serve(views, static)
 }
