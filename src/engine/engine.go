@@ -98,7 +98,7 @@ func Search(situation octad.Game, depth int) MoveEval {
 				"pos: %+v, move: %+v", situation, move))
 		}
 
-		eval := minimaxAB(situation, *move, isWhite,
+		eval := minimaxAB(situation, *move, !isWhite,
 			depth, math.Inf(-1), math.Inf(1))
 
 		situation.UndoMove()
