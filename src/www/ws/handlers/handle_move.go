@@ -215,8 +215,8 @@ func genDrawState(g *game.OctadGame) (int, string) {
 		return 5, "DRAWN BY AGREEMENT"
 	case octad.ThreefoldRepetition:
 		return 6, "DRAWN BY REPETITION"
-	case octad.FiftyMoveRule:
-		return 11, "DRAWN DUE TO 50 MOVE RULE"
+	case octad.TwentyFiveMoveRule:
+		return 11, "DRAWN DUE TO 25 MOVE RULE"
 	default:
 		return -1, ""
 	}
