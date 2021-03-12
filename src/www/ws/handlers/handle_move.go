@@ -41,7 +41,7 @@ func HandleMove(m []byte, meta common.SocketMeta) []byte {
 
 	// quickly return board state on new connection
 	if fastjson.GetInt(m, "d", "a") == 0 {
-		return current(g, false)
+		return current(g, true)
 	}
 
 	var msg proto.MessageMove
