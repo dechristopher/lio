@@ -3,6 +3,8 @@ import {GameVariantCard} from "@components/GameVariantCard/GameVariantCard";
 import {bgColors, textColors} from "@utils/styles/colors";
 import {GameVariantText} from "@components/GameVariantCard/GameVariantText";
 import {FontWeights} from "@utils/constants";
+import {ModalContextActions, useModalContext} from "@app/contexts/ModalContext";
+import {GameOptions, GameTypes} from "@app/components/ModalContent/GameOptions";
 
 /**
  * Content for the create game tab.
@@ -18,6 +20,8 @@ import {FontWeights} from "@utils/constants";
  *  </Tabs>
  */
 export const CreateGameTab: FC = () => {
+    const [, modalDispatch] = useModalContext()
+
     return (
         <div className="grid lg:grid-cols-3 grid-cols-1 gap-6 w-full p-6">
             {/* Play Online */}
@@ -25,6 +29,12 @@ export const CreateGameTab: FC = () => {
                 className="w-full"
                 bgColor={bgColors.yellow["300"]}
                 textColor={textColors.black["1000"]}
+                onClick={() => {
+                    modalDispatch({
+                        type: ModalContextActions.SetContent,
+                        payload: <GameOptions gameType={GameTypes.PlayOnline} />
+                    })
+                }}
             >
                 <GameVariantText
                     timeControl="Play Online"
@@ -36,6 +46,12 @@ export const CreateGameTab: FC = () => {
                 className="w-full"
                 bgColor={bgColors.green["500"]}
                 textColor={textColors.black["1000"]}
+                onClick={() => {
+                    modalDispatch({
+                        type: ModalContextActions.SetContent,
+                        payload: <GameOptions gameType={GameTypes.PlayAFriend} />
+                    })
+                }}
             >
                 <GameVariantText
                     timeControl="Play a Friend"
@@ -47,6 +63,12 @@ export const CreateGameTab: FC = () => {
                 className="w-full"
                 bgColor={bgColors.green["500"]}
                 textColor={textColors.black["1000"]}
+                onClick={() => {
+                    modalDispatch({
+                        type: ModalContextActions.SetContent,
+                        payload: <GameOptions gameType={GameTypes.PlayComputer} />
+                    })
+                }}
             >
                 <GameVariantText
                     timeControl="Play the Computer"

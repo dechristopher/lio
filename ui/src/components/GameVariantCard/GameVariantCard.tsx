@@ -11,6 +11,7 @@ interface GameVariantCardProps {
     className?: string;
     borderColor?: BorderColors;
     borderRadius?: number;
+    onClick?: () => void;
 }
 
 /**
@@ -59,6 +60,7 @@ export const GameVariantCard: FC<GameVariantCardProps> = (props) => {
                 borderRadius: props.borderRadius,
                 ...props.style
             }}
+            onClick={props.onClick}
         >
             {children}
         </div>

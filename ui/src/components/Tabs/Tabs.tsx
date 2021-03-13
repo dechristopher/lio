@@ -13,9 +13,9 @@ interface ITabProps extends FC<TabsProps> {
 /**
  * A collection of tabs where each tab maintains it's own content.
  *
- * @param {ITabProps} props - Component props.
+ * @param {ITabProps} props - component props
  *
- * @returns {Element} - Tabs component.
+ * @returns {Element} - tabs component
  *
  * @example
  * <Tabs />

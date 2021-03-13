@@ -8,11 +8,11 @@ export type TabProps = {
 /**
  * A single tab which displays it's own content within a <Tabs> component.
  *
- * @param {TabProps} props - Tab props.
- * @param {ReactNode} props.title - Title of the tab.
- * @param {ReactNode} props.content - Content of the tab.
+ * @param {TabProps} props - tab props
+ * @param {ReactNode} props.title - title of the tab
+ * @param {ReactNode} props.content - content of the tab
  *
- * @returns {Element} - Tab component.
+ * @returns {Element} - tab component
  *
  * @example
  * <Tabs.Tab title="example title" content="example content"/>
