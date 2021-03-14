@@ -4,7 +4,7 @@ import {bgColors, textColors} from "@utils/styles/colors";
 import {GameVariantText} from "@components/GameVariantCard/GameVariantText";
 import {FontWeights} from "@utils/constants";
 import {ModalContextActions, useModalContext} from "@app/contexts/ModalContext";
-import {GameOptions, GameTypes} from "@app/components/ModalContent/GameOptions";
+import {GameOptions, GameModes} from "@app/components/ModalContent/GameOptions";
 
 /**
  * Content for the create game tab.
@@ -32,7 +32,7 @@ export const CreateGameTab: FC = () => {
                 onClick={() => {
                     modalDispatch({
                         type: ModalContextActions.SetContent,
-                        payload: <GameOptions gameType={GameTypes.PlayOnline} />
+                        payload: <GameOptions gameMode={GameModes.PlayOnline} />
                     })
                 }}
             >
@@ -49,7 +49,7 @@ export const CreateGameTab: FC = () => {
                 onClick={() => {
                     modalDispatch({
                         type: ModalContextActions.SetContent,
-                        payload: <GameOptions gameType={GameTypes.PlayAFriend} />
+                        payload: <GameOptions gameMode={GameModes.PlayAFriend} />
                     })
                 }}
             >
@@ -66,7 +66,7 @@ export const CreateGameTab: FC = () => {
                 onClick={() => {
                     modalDispatch({
                         type: ModalContextActions.SetContent,
-                        payload: <GameOptions gameType={GameTypes.PlayComputer} />
+                        payload: <GameOptions gameMode={GameModes.PlayComputer} />
                     })
                 }}
             >

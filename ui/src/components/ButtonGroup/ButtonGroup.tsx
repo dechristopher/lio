@@ -1,8 +1,10 @@
 import React, {Children, cloneElement, FC, ReactNode} from 'react';
 import {Button, ButtonProps} from "@components/Button/Button";
+import classNames from "classnames";
 
 interface ButtonGroupProps {
     children: ReactNode | ReactNode[];
+    className?: string;
 }
 
 interface IButtonGroupProps extends FC<ButtonGroupProps> {
@@ -67,7 +69,12 @@ export const ButtonGroup: IButtonGroupProps = (props) => {
     }
 
     return (
-        <span className="relative z-0 inline-flex shadow-sm rounded-md">
+        <span className={classNames(
+            "relative z-0 inline-flex shadow-sm rounded-md",
+            {
+                [props.className as string]: true
+            }
+        )}>
             {children}
         </span>
     )
@@ -88,6 +95,10 @@ ButtonGroup.propTypes = {
 
         return error;
     }
+}
+
+ButtonGroup.defaultProps = {
+    className: ""
 }
 
 ButtonGroup.Button = Button;

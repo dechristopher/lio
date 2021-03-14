@@ -1,0 +1,7 @@
+/* Fade-out effect */
+.select-options-hidden
+{
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0s .15s, opacity .15s linear;
+}

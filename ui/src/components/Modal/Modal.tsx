@@ -5,6 +5,7 @@ interface ModalProps {
     isOpen: boolean;
     content: ReactNode;
     footerContent?: ReactNode;
+    hugContents?: boolean;
 }
 
 export const Modal: FC<ModalProps> = (props) => {
@@ -12,7 +13,7 @@ export const Modal: FC<ModalProps> = (props) => {
 
     return props.isOpen ? (
         <div className="fixed z-30 inset-0 overflow-y-auto">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className={"flex items-end justify-center min-h-screen px-4 pb-20 text-center sm:block sm:p-0"}>
                 {/* Overlay */}
                 <div className="fixed inset-0 transition-opacity" aria-hidden="true">
                     <div className="absolute inset-0 bg-gray-500 opacity-75"/>
@@ -22,9 +23,18 @@ export const Modal: FC<ModalProps> = (props) => {
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
                 {/* Modal container */}
-                <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-headline">
+                <div
+                    style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        margin: 0,
+                        transform: "translate(-50%, -50%)",
+                        overflow: "visible"
+                    }}
+                    className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:align-middle sm:max-w-lg sm:w-full sm:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-headline">
                     {/* Close button */}
-                    <div className="hidden sm:block absolute top-0 right-0 pt-4 pr-4">
+                    <div className="block absolute top-0 right-0 pt-4 pr-4">
                         <button
                             type="button"
                             onClick={() => {

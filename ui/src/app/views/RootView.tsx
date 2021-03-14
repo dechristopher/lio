@@ -37,6 +37,7 @@ export const RootViewContent: FC<RootViewProps> = () => {
             <Modal
                 isOpen={modalContext.content !== undefined}
                 content={modalContext.content}
+                hugContents
                 footerContent={
                     <>
                         <button type="button"

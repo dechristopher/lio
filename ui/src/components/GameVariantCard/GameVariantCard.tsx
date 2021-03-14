@@ -53,7 +53,7 @@ export const GameVariantCard: FC<GameVariantCardProps> = (props) => {
                 textColor,
                 borderColor,
                 props.className,
-                "flex justify-center items-center"
+                "flex justify-center items-center cursor-pointer"
             )}
             style={{
                 height,
