@@ -27,6 +27,7 @@ const (
 	CHMov   = "HMov"
 	CStor   = "Stor"
 	CProt   = "Prot"
+	CEval   = "Eval"
 )
 
 // (E) Error messages
