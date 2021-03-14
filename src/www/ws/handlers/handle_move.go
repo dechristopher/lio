@@ -64,7 +64,7 @@ func HandleMove(m []byte, meta common.SocketMeta) []byte {
 				return nil
 			}
 
-			util.Debug(str.CHMov, "eval: %f", engine.Evaluate(*g.Game))
+			util.Debug(str.CHMov, "player move eval: %2f", engine.Evaluate(*g.Game))
 
 			ok = true
 			go makeComputerMove(g, meta)
@@ -119,9 +119,9 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 	//	time.Duration(1000))
 
 	if g.Game.Outcome() == octad.NoOutcome {
-		moves := g.Game.ValidMoves()
-		if len(moves) > 0 {
-			searchMove := engine.Search(*g.Game, 6)
+		if len(g.Game.ValidMoves()) > 0 {
+			searchMove := engine.Search(*g.Game, 3)
+			util.Debug(str.CHMov, "engine eval: %2f, move: %+v", searchMove.Eval, searchMove.Move)
 			err := g.Game.Move(&searchMove.Move)
 			//err := g.Game.Move(moves[r.Int31n(int32(len(moves)))])
 			if err != nil {
@@ -129,7 +129,7 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 				panic(err)
 			}
 
-			util.Debug(str.CHMov, "eval: %f, move: %+v", searchMove.Eval, searchMove.Move)
+			util.Debug(str.CHMov, "computer move eval: %2f", engine.Evaluate(*g.Game))
 
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
