@@ -14,13 +14,37 @@ type PieceTypeTable = map[octad.PieceType]PieceSquareTable
 // all piece types for both colors
 var PieceSquareTables = map[octad.Color]PieceTypeTable{
 	octad.White: {
+		octad.King:   WhiteKingTable,
 		octad.Pawn:   WhitePawnTable,
 		octad.Knight: WhiteKnightTable,
+		octad.Bishop: BishopTable,
+		octad.Rook:   RookTable,
+		octad.Queen:  QueenTable,
 	},
 	octad.Black: {
+		octad.King:   BlackKingTable,
 		octad.Pawn:   BlackPawnTable,
 		octad.Knight: BlackKnightTable,
+		octad.Bishop: BishopTable,
+		octad.Rook:   RookTable,
+		octad.Queen:  QueenTable,
 	},
+}
+
+// WhiteKingTable is the piece square table for the white king
+var WhiteKingTable = PieceSquareTable{
+	octad.A4: 2, octad.B4: 1, octad.C4: 1, octad.D4: 2,
+	octad.A3: 4, octad.B3: 3, octad.C3: 3, octad.D3: 4,
+	octad.A2: 5, octad.B2: 4, octad.C2: 4, octad.D2: 5,
+	octad.A1: 2, octad.B1: 2, octad.C1: 2, octad.D1: 2,
+}
+
+// BlackKingTable is the piece square table for the black king
+var BlackKingTable = PieceSquareTable{
+	octad.A4: 2, octad.B4: 2, octad.C4: 2, octad.D4: 2,
+	octad.A3: 5, octad.B3: 4, octad.C3: 4, octad.D3: 5,
+	octad.A2: 4, octad.B2: 3, octad.C2: 3, octad.D2: 4,
+	octad.A1: 2, octad.B1: 1, octad.C1: 1, octad.D1: 2,
 }
 
 // WhitePawnTable is the piece square table for white pawns
@@ -53,4 +77,28 @@ var BlackKnightTable = PieceSquareTable{
 	octad.A3: 2, octad.B3: 10, octad.C3: 7, octad.D3: 2,
 	octad.A2: 2, octad.B2: 7, octad.C2: 8, octad.D2: 2,
 	octad.A1: 1, octad.B1: 2, octad.C1: 2, octad.D1: 1,
+}
+
+// WhiteBishopTable is the piece square table for bishops
+var BishopTable = PieceSquareTable{
+	octad.A4: 10, octad.B4: 3, octad.C4: 3, octad.D4: 10,
+	octad.A3: 3, octad.B3: 5, octad.C3: 5, octad.D3: 3,
+	octad.A2: 3, octad.B2: 5, octad.C2: 5, octad.D2: 3,
+	octad.A1: 10, octad.B1: 3, octad.C1: 3, octad.D1: 10,
+}
+
+// RookTable is the piece square table for rooks
+var RookTable = PieceSquareTable{
+	octad.A4: 10, octad.B4: 8, octad.C4: 8, octad.D4: 10,
+	octad.A3: 8, octad.B3: 3, octad.C3: 3, octad.D3: 8,
+	octad.A2: 8, octad.B2: 3, octad.C2: 3, octad.D2: 8,
+	octad.A1: 10, octad.B1: 8, octad.C1: 8, octad.D1: 10,
+}
+
+// RookTable is the piece square table for queens
+var QueenTable = PieceSquareTable{
+	octad.A4: 10, octad.B4: 5, octad.C4: 5, octad.D4: 10,
+	octad.A3: 5, octad.B3: 8, octad.C3: 8, octad.D3: 5,
+	octad.A2: 5, octad.B2: 8, octad.C2: 8, octad.D2: 5,
+	octad.A1: 10, octad.B1: 5, octad.C1: 5, octad.D1: 10,
 }
