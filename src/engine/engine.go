@@ -21,10 +21,9 @@ import (
  *   - king
  *     - king safety (legal moves)
  *
- * - basic minimax search
- *   - alpha-beta pruning
- *
- * - depth limiting for capping rating
+ * X basic minimax search
+ *   X alpha-beta pruning
+ *   X depth limiting for capping rating
  */
 
 type materialValues = map[octad.Color]float64
