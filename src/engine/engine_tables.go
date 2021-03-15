@@ -79,7 +79,7 @@ var BlackKnightTable = PieceSquareTable{
 	octad.A1: 1, octad.B1: 2, octad.C1: 2, octad.D1: 1,
 }
 
-// WhiteBishopTable is the piece square table for bishops
+// BishopTable is the piece square table for bishops
 var BishopTable = PieceSquareTable{
 	octad.A4: 10, octad.B4: 3, octad.C4: 3, octad.D4: 10,
 	octad.A3: 3, octad.B3: 5, octad.C3: 5, octad.D3: 3,
@@ -95,7 +95,7 @@ var RookTable = PieceSquareTable{
 	octad.A1: 10, octad.B1: 8, octad.C1: 8, octad.D1: 10,
 }
 
-// RookTable is the piece square table for queens
+// QueenTable is the piece square table for queens
 var QueenTable = PieceSquareTable{
 	octad.A4: 10, octad.B4: 5, octad.C4: 5, octad.D4: 10,
 	octad.A3: 5, octad.B3: 8, octad.C3: 8, octad.D3: 5,
