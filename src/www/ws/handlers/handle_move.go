@@ -64,7 +64,7 @@ func HandleMove(m []byte, meta common.SocketMeta) []byte {
 				return nil
 			}
 
-			util.Debug(str.CHMov, "player move eval: %2f", engine.Evaluate(*g.Game))
+			util.Debug(str.CHMov, "player move eval: %2f", engine.Evaluate(g.Game))
 
 			ok = true
 			go makeComputerMove(g, meta)
@@ -112,24 +112,18 @@ func currentClock(g *game.OctadGame) proto.ClockPayload {
 }
 
 func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
-	//r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// sleep at least 1000ms up to 2250ms
-	//time.Sleep(time.Millisecond*
-	//	time.Duration(r.Intn(1250)) +
-	//	time.Duration(1000))
-
 	if g.Game.Outcome() == octad.NoOutcome {
 		if len(g.Game.ValidMoves()) > 0 {
-			searchMove := engine.Search(*g.Game, 3)
-			util.Debug(str.CHMov, "engine eval: %2f, move: %+v", searchMove.Eval, searchMove.Move)
+			searchMove := engine.Search(g.Game.Position().String(),
+				9, engine.MinimaxAB)
 			err := g.Game.Move(&searchMove.Move)
-			//err := g.Game.Move(moves[r.Int31n(int32(len(moves)))])
 			if err != nil {
-				// this means the octad library has a bug
+				// this means there is a bug in the engine or in the octad lib
 				panic(err)
 			}
 
-			util.Debug(str.CHMov, "computer move eval: %2f", engine.Evaluate(*g.Game))
+			util.Debug(str.CHMov, "engine eval: %s (%2f)", searchMove.Move.String(), searchMove.Eval)
+			util.Debug(str.CHMov, "computer move eval: %2f", engine.Evaluate(g.Game))
 
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
