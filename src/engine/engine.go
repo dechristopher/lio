@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/dechristopher/octad"
-	"github.com/pkg/errors"
 )
 
 /*
@@ -43,7 +42,7 @@ var PieceVals = map[octad.PieceType]float64{
 // Evaluate returns a numerical evaluation of a game situation
 // with positive meaning white winning, negative meaning black
 // winning, and zero being a completely drawn game
-func Evaluate(situation octad.Game) float64 {
+func Evaluate(situation *octad.Game) float64 {
 	switch situation.Outcome() {
 	case octad.WhiteWon:
 		return math.Inf(1)
@@ -78,126 +77,34 @@ func Evaluate(situation octad.Game) float64 {
 	return md + pd
 }
 
-// Search returns the best move after running a search algorithm
-// on the given position to the given depth
-func Search(situation octad.Game, depth int) MoveEval {
-	isWhite := situation.Position().Turn() == octad.White
-
-	bestMoveEval := defBestMoveBlack
-	if isWhite {
-		bestMoveEval = defBestMoveWhite
-	}
-
-	var bestMove MoveEval
-
-	for _, move := range situation.ValidMoves() {
-		err := situation.Move(move)
-		if err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", situation, move))
-		}
-
-		eval := minimaxAB(situation, *move, !isWhite,
-			depth, math.Inf(-1), math.Inf(1))
-
-		situation.UndoMove()
-
-		if (isWhite && eval.Eval >= bestMoveEval.Eval) ||
-			(!isWhite && eval.Eval <= bestMoveEval.Eval) {
-			bestMoveEval = eval
-			bestMove = MoveEval{
-				Eval: eval.Eval,
-				Move: *move,
-			}
-		}
-	}
-
-	return bestMove
-}
-
-// MoveEval is a struct containing a move and
-// its evaluation according to the engine
 type MoveEval struct {
 	Eval float64
 	Move octad.Move
 }
 
-var defBestMoveWhite = MoveEval{
-	Eval: math.Inf(-1),
-}
+type SearchAlg int
 
-var defBestMoveBlack = MoveEval{
-	Eval: math.Inf(1),
-}
+const MinimaxAB SearchAlg = 0
+const NegamaxAB SearchAlg = 1
 
-// minimaxAB is a recursive minimax search implementation that
-// uses alpha-beta pruning to perform search tree cutting and
-// subsequently improve the maximum depth we can search in a
-// reasonable amount of time
-func minimaxAB(
-	node octad.Game,
-	lastMove octad.Move,
-	isMaxi bool,
-	depth int,
-	alpha, beta float64,
-) MoveEval {
-	if depth == 0 {
-		return MoveEval{
-			Eval: Evaluate(node),
-			Move: lastMove,
-		}
+// Search returns the best move after running a search algorithm
+// on the given position to the given depth
+func Search(ofen string, depth int, alg SearchAlg) MoveEval {
+	o, err := octad.OFEN(ofen)
+	if err != nil {
+		panic(err)
 	}
 
-	moves := node.ValidMoves()
-	var bestMove MoveEval
-
-	// perform calculations as white (maximizing player)
-	if isMaxi {
-		bestMove = defBestMoveWhite
-		for _, move := range moves {
-			err := node.Move(move)
-			if err != nil {
-				panic(errors.WithMessagef(err,
-					"pos: %+v, move: %+v", node, move))
-			}
-
-			thisMove := minimaxAB(node, *move, !isMaxi, depth-1, alpha, beta)
-			if thisMove.Eval > bestMove.Eval {
-				bestMove = thisMove
-			}
-
-			node.UndoMove()
-
-			alpha = math.Max(alpha, bestMove.Eval)
-
-			if beta <= alpha {
-				break
-			}
-		}
-		return bestMove
+	situation, err := octad.NewGame(o)
+	if err != nil {
+		panic(err)
 	}
 
-	// perform calculations as black (minimizing player)
-	bestMove = defBestMoveBlack
-	for _, move := range moves {
-		err := node.Move(move)
-		if err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", node, move))
-		}
-
-		thisMove := minimaxAB(node, *move, !isMaxi, depth-1, alpha, beta)
-		if thisMove.Eval < bestMove.Eval {
-			bestMove = thisMove
-		}
-
-		node.UndoMove()
-
-		beta = math.Min(beta, bestMove.Eval)
-
-		if beta <= alpha {
-			break
-		}
+	if alg == MinimaxAB {
+		return searchMinimaxAB(situation, depth)
+	} else if alg == NegamaxAB {
+		return searchNegamaxAB(situation, depth)
 	}
-	return bestMove
+
+	panic("invalid search algorithm")
 }
