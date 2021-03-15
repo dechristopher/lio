@@ -10,6 +10,12 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
+// colorMulti is a negation constant map used in negamax
+var colorMulti = map[octad.Color]int{
+	octad.White: 1,
+	octad.Black: -1,
+}
+
 // searchNegamaxAB is the root for negamax with alpha-beta pruning
 func searchNegamaxAB(situation *octad.Game, depth int) MoveEval {
 	color := colorMulti[situation.Position().Turn()]
@@ -45,12 +51,7 @@ func searchNegamaxAB(situation *octad.Game, depth int) MoveEval {
 	}
 }
 
-var colorMulti = map[octad.Color]int{
-	octad.White: 1,
-	octad.Black: -1,
-}
-
-// negamax algorithm implementation with no pruning or deepening
+// negamaxAB is the negamax algorithm implementation with alpha-beta pruning
 func negamaxAB(node *octad.Game, move *octad.Move, depth int, alpha, beta float64, toMove int) float64 {
 	moves := node.ValidMoves()
 

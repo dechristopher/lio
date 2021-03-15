@@ -19,7 +19,6 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	}
 
 	var bestMove MoveEval
-
 	moves := situation.ValidMoves()
 
 	for _, move := range moves {
@@ -46,6 +45,8 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 		}
 	}
 
+	// pick first legal move if no move found better than
+	// the completely losing default evaluation
 	if bestMove.Move.String() == "a1a1" {
 		bestMove.Move = *moves[0]
 		bestMove.Eval = bestMoveEval
@@ -73,6 +74,7 @@ func minimaxAB(
 	return mmABMin(node, move, depth, math.Inf(-1), math.Inf(1))
 }
 
+// mmABMax is the maximizing routine for minimax with alpha-beta pruning
 func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64) float64 {
 	moves := node.ValidMoves()
 
@@ -111,6 +113,7 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 	return alpha
 }
 
+// mmABMax is the minimizing routine for minimax with alpha-beta pruning
 func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64) float64 {
 	moves := node.ValidMoves()
 
