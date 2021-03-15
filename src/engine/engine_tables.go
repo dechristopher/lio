@@ -81,24 +81,24 @@ var BlackKnightTable = PieceSquareTable{
 
 // BishopTable is the piece square table for bishops
 var BishopTable = PieceSquareTable{
-	octad.A4: 10, octad.B4: 3, octad.C4: 3, octad.D4: 10,
-	octad.A3: 3, octad.B3: 5, octad.C3: 5, octad.D3: 3,
-	octad.A2: 3, octad.B2: 5, octad.C2: 5, octad.D2: 3,
-	octad.A1: 10, octad.B1: 3, octad.C1: 3, octad.D1: 10,
+	octad.A4: 6, octad.B4: 3, octad.C4: 3, octad.D4: 6,
+	octad.A3: 3, octad.B3: 10, octad.C3: 10, octad.D3: 3,
+	octad.A2: 3, octad.B2: 10, octad.C2: 10, octad.D2: 3,
+	octad.A1: 6, octad.B1: 3, octad.C1: 3, octad.D1: 6,
 }
 
 // RookTable is the piece square table for rooks
 var RookTable = PieceSquareTable{
-	octad.A4: 10, octad.B4: 8, octad.C4: 8, octad.D4: 10,
-	octad.A3: 8, octad.B3: 3, octad.C3: 3, octad.D3: 8,
-	octad.A2: 8, octad.B2: 3, octad.C2: 3, octad.D2: 8,
-	octad.A1: 10, octad.B1: 8, octad.C1: 8, octad.D1: 10,
+	octad.A4: 8, octad.B4: 8, octad.C4: 8, octad.D4: 8,
+	octad.A3: 8, octad.B3: 8, octad.C3: 8, octad.D3: 8,
+	octad.A2: 8, octad.B2: 8, octad.C2: 8, octad.D2: 8,
+	octad.A1: 8, octad.B1: 8, octad.C1: 8, octad.D1: 8,
 }
 
 // QueenTable is the piece square table for queens
 var QueenTable = PieceSquareTable{
-	octad.A4: 10, octad.B4: 5, octad.C4: 5, octad.D4: 10,
-	octad.A3: 5, octad.B3: 8, octad.C3: 8, octad.D3: 5,
-	octad.A2: 5, octad.B2: 8, octad.C2: 8, octad.D2: 5,
-	octad.A1: 10, octad.B1: 5, octad.C1: 5, octad.D1: 10,
+	octad.A4: 8, octad.B4: 8, octad.C4: 8, octad.D4: 8,
+	octad.A3: 8, octad.B3: 9, octad.C3: 9, octad.D3: 8,
+	octad.A2: 8, octad.B2: 9, octad.C2: 9, octad.D2: 8,
+	octad.A1: 8, octad.B1: 8, octad.C1: 8, octad.D1: 8,
 }
