@@ -14,94 +14,73 @@ func orderMoves(situation *octad.Game) []octad.Move {
 		movesLeft = append(movesLeft, *m)
 	}
 
-	var tempMoves []octad.Move
+	var checks []octad.Move
+	var captures []octad.Move
+	var promotions []octad.Move
+	var queen []octad.Move
+	var rbn []octad.Move
+	var castles []octad.Move
+	var king []octad.Move
+	var other []octad.Move
 
-	// add checks
 	for _, m := range movesLeft {
+		// add checks
 		if m.HasTag(octad.Check) {
-			ordered = append(ordered, m)
+			checks = append(checks, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add captures
-	for _, m := range movesLeft {
+		// add captures
 		if m.HasTag(octad.Capture) {
-			ordered = append(ordered, m)
+			captures = append(captures, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add promotions
-	for _, m := range movesLeft {
+		// add promotions
 		if m.Promo() != octad.NoPieceType {
-			ordered = append(ordered, m)
+			promotions = append(promotions, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add queen moves
-	for _, m := range movesLeft {
 		piece := situation.Position().Board().Piece(m.S1()).Type()
+
+		// add queen moves
 		if piece == octad.Queen {
-			ordered = append(ordered, m)
+			queen = append(queen, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add rook, bishop, knight moves
-	for _, m := range movesLeft {
-		piece := situation.Position().Board().Piece(m.S1()).Type()
+		// add rook, bishop, knight moves
 		if piece == octad.Rook || piece == octad.Bishop || piece == octad.Knight {
-			ordered = append(ordered, m)
+			rbn = append(rbn, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add castles
-	for _, m := range movesLeft {
+		// add castles
 		if m.HasTag(octad.KnightCastle) ||
 			m.HasTag(octad.ClosePawnCastle) ||
 			m.HasTag(octad.FarPawnCastle) {
-			ordered = append(ordered, m)
+			castles = append(castles, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add king moves
-	for _, m := range movesLeft {
-		piece := situation.Position().Board().Piece(m.S1()).Type()
+		// add king moves
 		if piece == octad.King {
-			ordered = append(ordered, m)
+			king = append(king, m)
 			continue
 		}
-		tempMoves = append(tempMoves, m)
-	}
-	movesLeft = tempMoves
-	tempMoves = []octad.Move{}
 
-	// add all other moves
-	for _, m := range movesLeft {
-		ordered = append(ordered, m)
+		other = append(other, m)
 	}
+
+	ordered = append(ordered, checks...)
+	ordered = append(ordered, captures...)
+	ordered = append(ordered, promotions...)
+	ordered = append(ordered, queen...)
+	ordered = append(ordered, rbn...)
+	ordered = append(ordered, castles...)
+	ordered = append(ordered, king...)
+	ordered = append(ordered, other...)
 
 	return ordered
 }
