@@ -30,12 +30,12 @@ type materialValues = map[octad.Color]float64
 // PieceVals contains the material evaluation value
 // of each piece type in octad
 var PieceVals = map[octad.PieceType]float64{
-	octad.King:        100,
-	octad.Queen:       9,
-	octad.Rook:        5,
-	octad.Bishop:      3.1,
-	octad.Knight:      3,
-	octad.Pawn:        1,
+	octad.King:        1000,
+	octad.Queen:       90,
+	octad.Rook:        50,
+	octad.Bishop:      31,
+	octad.Knight:      30,
+	octad.Pawn:        10,
 	octad.NoPieceType: 0,
 }
 
@@ -43,16 +43,26 @@ var PieceVals = map[octad.PieceType]float64{
 // with positive meaning white winning, negative meaning black
 // winning, and zero being a completely drawn game
 func Evaluate(situation *octad.Game) float64 {
+	color := situation.Position().Turn()
+
 	switch situation.Outcome() {
 	case octad.WhiteWon:
-		return math.Inf(1)
-	case octad.BlackWon:
+		if color == octad.White {
+			return math.Inf(1)
+		}
 		return math.Inf(-1)
+	case octad.BlackWon:
+		if color == octad.White {
+			return math.Inf(-1)
+		}
+		return math.Inf(1)
 	case octad.Draw:
-		return 0
+		return 0.0
 	default: // continue evaluation if no outcome
 		break
 	}
+
+	eval := 0.0
 
 	squareMap := situation.Position().Board().SquareMap()
 
@@ -69,10 +79,10 @@ func Evaluate(situation *octad.Game) float64 {
 	}
 
 	// material difference
-	md := material[octad.White] - material[octad.Black]
+	eval += material[color] - material[color.Other()]
 
 	// positional value difference
-	pd := posVals[octad.White] - posVals[octad.Black]
+	eval += posVals[color] - posVals[color.Other()]
 
-	return md + pd
+	return eval
 }
