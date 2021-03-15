@@ -19,16 +19,16 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	}
 
 	var bestMove MoveEval
-	moves := situation.ValidMoves()
+	moves := orderMoves(situation)
 
 	for _, move := range moves {
-		err := situation.Move(move)
+		err := situation.Move(&move)
 		if err != nil {
 			panic(errors.WithMessagef(err,
 				"pos: %+v, move: %+v", situation, move))
 		}
 
-		eval := minimaxAB(situation, move, isWhite, depth)
+		eval := minimaxAB(situation, &move, !isWhite, depth)
 
 		util.Debug(str.CEval, "root eval: %s (%2f)",
 			move.String(), eval)
@@ -40,7 +40,7 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 			bestMoveEval = eval
 			bestMove = MoveEval{
 				Eval: eval,
-				Move: *move,
+				Move: move,
 			}
 		}
 	}
@@ -48,7 +48,7 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	// pick first legal move if no move found better than
 	// the completely losing default evaluation
 	if bestMove.Move.String() == "a1a1" {
-		bestMove.Move = *moves[0]
+		bestMove.Move = moves[0]
 		bestMove.Eval = bestMoveEval
 	}
 
@@ -80,8 +80,8 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 
 	if depth == 0 || len(moves) == 0 {
 		eval := Evaluate(node)
-		util.Debug(str.CEval, "minimax: d0: MAX move=%s eval=%2f",
-			lastMove.String(), eval)
+		//util.Debug(str.CEval, "minimax: d0: MAX move=%s eval=%2f",
+		//	lastMove.String(), eval)
 		return eval
 	}
 
@@ -96,8 +96,8 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 		eval := mmABMin(node, move, depth-1, alpha, beta)
 		node.UndoMove()
 
-		util.Debug(str.CEval, "minimax: d%d: MAX move=%s eval=%2f",
-			depth, move.String(), eval)
+		//util.Debug(str.CEval, "minimax: d%d: MAX move=%s eval=%2f",
+		//	depth, move.String(), eval)
 
 		if eval >= beta {
 			return beta
@@ -107,8 +107,8 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 		}
 	}
 
-	util.Debug(str.CEval, "minimax: d%d: MAX best eval=%2f",
-		depth, alpha)
+	//util.Debug(str.CEval, "minimax: d%d: MAX best eval=%2f",
+	//	depth, alpha)
 
 	return alpha
 }
@@ -118,9 +118,9 @@ func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 	moves := node.ValidMoves()
 
 	if depth == 0 || len(moves) == 0 {
-		eval := Evaluate(node)
-		util.Debug(str.CEval, "minimax: d0: MIN move=%s eval=%2f",
-			lastMove.String(), eval)
+		eval := -Evaluate(node)
+		//util.Debug(str.CEval, "minimax: d0: MIN move=%s eval=%2f",
+		//	lastMove.String(), eval)
 		return eval
 	}
 
@@ -135,8 +135,8 @@ func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 		eval := mmABMax(node, move, depth-1, alpha, beta)
 		node.UndoMove()
 
-		util.Debug(str.CEval, "minimax: d%d: MIN move=%s eval=%2f",
-			depth, move.String(), eval)
+		//util.Debug(str.CEval, "minimax: d%d: MIN move=%s eval=%2f",
+		//	depth, move.String(), eval)
 
 		if eval <= alpha {
 			return alpha
@@ -146,8 +146,8 @@ func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 		}
 	}
 
-	util.Debug(str.CEval, "minimax: d%d: MIN best eval=%2f",
-		depth, beta)
+	//util.Debug(str.CEval, "minimax: d%d: MIN best eval=%2f",
+	//	depth, beta)
 
 	return beta
 }
