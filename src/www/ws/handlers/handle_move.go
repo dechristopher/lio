@@ -115,7 +115,7 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
 	if g.Game.Outcome() == octad.NoOutcome {
 		if len(g.Game.ValidMoves()) > 0 {
 			searchMove := engine.Search(g.Game.Position().String(),
-				9, engine.MinimaxAB)
+				5, engine.MinimaxAB)
 			err := g.Game.Move(&searchMove.Move)
 			if err != nil {
 				// this means there is a bug in the engine or in the octad lib
