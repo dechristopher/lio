@@ -91,7 +91,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	sub := r.Group("/")
 
 	// wire up all middleware components
-	middleware.WireMiddleware(sub, staticFs)
+	middleware.Wire(sub, staticFs)
 
 	// home handler
 	// TODO not needed once we default SPAHandler
