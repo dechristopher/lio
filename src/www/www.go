@@ -16,6 +16,7 @@ import (
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www/handlers"
+	"github.com/dechristopher/lioctad/www/handlers/api"
 	"github.com/dechristopher/lioctad/www/middleware"
 	"github.com/dechristopher/lioctad/www/ws"
 )
@@ -103,6 +104,12 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// return static index.html for all other paths and
 	// let React handle 404s so we get nice error pages
 	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
+
+	// group for /api routes
+	apiGroup := sub.Group("/api")
+
+	// wire all of the api handlers
+	api.Wire(apiGroup)
 
 	// Custom 404 page
 	// TODO not needed once we default SPAHandler
