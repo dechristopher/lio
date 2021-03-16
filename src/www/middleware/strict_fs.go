@@ -13,9 +13,14 @@ type strictFs struct {
 
 // Open only allows existing files to be pulled, not directories
 func (sfs strictFs) Open(path string) (http.File, error) {
+	// decode spaces back into path
 	if strings.Contains(path, "%20") {
 		path = strings.Replace(path, "%20", " ", -1)
 	}
+
+	// trim trailing slashes to avoid invalid path errors
+	// in fiber's filesystem middleware
+	path = strings.TrimSuffix(path, "/")
 
 	f, err := sfs.fs.Open(path)
 	if err != nil {
