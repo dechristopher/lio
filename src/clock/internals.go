@@ -5,9 +5,9 @@ import "time"
 // TimeControl stores the start time per player
 // and information about the game's increment or delay
 type TimeControl struct {
-	Time      time.Duration // time in seconds
-	Increment time.Duration // seconds gained after each move
-	Delay     time.Duration // seconds before time starts to decrement
+	Time      time.Duration `json:"t"` // time in seconds
+	Increment time.Duration `json:"i"` // seconds gained after each move
+	Delay     time.Duration `json:"d"` // seconds before time starts to decrement
 	// TODO extra time after x time passes?
 	// TODO Bronstein delay?
 }
