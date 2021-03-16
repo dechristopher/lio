@@ -1,7 +1,11 @@
 package engine
 
 import (
+	"fmt"
+
 	"github.com/dechristopher/octad"
+
+	"github.com/dechristopher/lioctad/util"
 )
 
 // MoveEval contains the best move and the evaluation of the best sequence
@@ -40,4 +44,27 @@ func Search(ofen string, depth int, alg SearchAlg) MoveEval {
 	}
 
 	panic("invalid search algorithm")
+}
+
+// TestEngine runs a quick test of the engine for a given ofen
+// at the given depth and prints all moves and positions
+func TestEngine(ofen string, depth int) {
+	//ofen := "K3/2kq/4/4 b - - 15 7"
+	//ofen := "4/k1KP/4/4 w - - 0 2"
+	o, _ := octad.OFEN(ofen)
+	game, _ := octad.NewGame(o)
+
+	util.Debug("", game.Position().String())
+	fmt.Print(game.Position().Board().Draw())
+
+	for game.Outcome() == octad.NoOutcome {
+		move := Search(game.Position().String(), depth, MinimaxAB)
+		_ = game.Move(&move.Move)
+
+		util.Debug("", move.Move.String())
+		util.Debug("", game.Position().String())
+		fmt.Print(game.Position().Board().Draw())
+	}
+
+	util.Debug("", game.Outcome().String())
 }
