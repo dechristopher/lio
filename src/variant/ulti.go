@@ -9,7 +9,7 @@ var ZeroFiveUlti = Variant{
 	Time:  ZeroFiveUltiTC,
 }
 
-// FiveZeroHyperTC is the zero second, five second delay ulti time control
+// ZeroFiveUltiTC is the zero second, five second delay ulti time control
 var ZeroFiveUltiTC = clock.TimeControl{
 	Time:      0,
 	Increment: 0,
