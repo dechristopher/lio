@@ -20,7 +20,7 @@ import (
 )
 
 // HandleMove processes game update messages
-func HandleMove(m []byte, meta common.SocketMeta) []byte {
+func HandleMove(m []byte, meta common.SocketContext) []byte {
 	if game.Games[meta.Channel] == nil {
 		_, err := game.NewOctadGame(game.OctadGameConfig{
 			White: "123",
@@ -111,7 +111,7 @@ func currentClock(g *game.OctadGame) proto.ClockPayload {
 	}
 }
 
-func makeComputerMove(g *game.OctadGame, meta common.SocketMeta) {
+func makeComputerMove(g *game.OctadGame, meta common.SocketContext) {
 	if g.Game.Outcome() == octad.NoOutcome {
 		if len(g.Game.ValidMoves()) > 0 {
 			searchMove := engine.Search(g.Game.Position().String(),
@@ -148,7 +148,7 @@ func getSAN(g *game.OctadGame, calc bool) string {
 	return ""
 }
 
-func checkGameOver(g *game.OctadGame, meta common.SocketMeta) {
+func checkGameOver(g *game.OctadGame, meta common.SocketContext) {
 	// restart game if over
 	if g.Game.Outcome() != octad.NoOutcome {
 		// record game result

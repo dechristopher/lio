@@ -15,6 +15,6 @@ func (c *CrowdPayload) Marshal() []byte {
 
 // Broadcast will send a Crowd message to all sockets connected
 // to the channel within the meta given
-func (c CrowdPayload) Broadcast(meta common.SocketMeta) {
+func (c CrowdPayload) Broadcast(meta common.SocketContext) {
 	common.Broadcast(c.Marshal(), meta)
 }

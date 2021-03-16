@@ -105,7 +105,7 @@ func ConnHandler(c *websocket.Conn) {
 		}
 
 		// route message to proper handler and await response
-		resp := routes.Map[proto.PayloadTag(tag)](b, common.SocketMeta{
+		resp := routes.Map[proto.PayloadTag(tag)](b, common.SocketContext{
 			Sockets: chanMap,
 			BID:     bid,
 			Channel: channel,
@@ -128,7 +128,7 @@ func ConnHandler(c *websocket.Conn) {
 // crowdHandler monitors chanMap on a channel and emits crowd message
 // broadcasts to everyone in the channel
 func crowdHandler(channel string) {
-	meta := common.SocketMeta{
+	meta := common.SocketContext{
 		Sockets: chanMap,
 		Channel: channel,
 		MT:      1,

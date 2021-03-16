@@ -8,7 +8,7 @@ import (
 
 // wsRoutes is a type that tracks websocket handlers and the
 // message types that they correspond with
-type wsRoutes = map[proto.PayloadTag]func(m []byte, meta common.SocketMeta) []byte
+type wsRoutes = map[proto.PayloadTag]func(m []byte, meta common.SocketContext) []byte
 
 // Map protocol commands to command handlers
 var (

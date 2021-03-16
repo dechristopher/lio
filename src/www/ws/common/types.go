@@ -53,9 +53,9 @@ type Socket struct {
 	Mutex      *sync.Mutex
 }
 
-// SocketMeta contains all relevant information about the message
+// SocketContext contains all relevant information about the message
 // data received by a websocket handler
-type SocketMeta struct {
+type SocketContext struct {
 	Sockets map[string]SockMap
 	Channel string
 	BID     string
