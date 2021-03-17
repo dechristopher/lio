@@ -67,3 +67,12 @@ func (c Channel) SubscribeOnce(fn func(e Event)) error {
 	}
 	return bus.SubscribeOnce(string(c), fn)
 }
+
+// Subscribe subscribes the given handler function to the
+// given channel and is removed on process termination
+func (c Channel) Subscribe(fn func(e Event)) error {
+	for ready == false {
+		time.Sleep(time.Millisecond * 5)
+	}
+	return bus.Subscribe(string(c), fn)
+}
