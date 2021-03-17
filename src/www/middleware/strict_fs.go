@@ -30,11 +30,13 @@ func (sfs strictFs) Open(path string) (http.File, error) {
 		path = strings.TrimSuffix(path, "/")
 	}
 
+	// open file directly if it exists
 	f, err := sfs.fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
+	// prevent directory listings, only show index file if any
 	s, err := f.Stat()
 	if err == nil && s.IsDir() {
 		index := strings.TrimSuffix(path, "/") + "/index.html"
