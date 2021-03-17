@@ -1,6 +1,10 @@
 package variant
 
-import "github.com/dechristopher/lioctad/clock"
+import (
+	"time"
+
+	"github.com/dechristopher/lioctad/clock"
+)
 
 // ZeroFiveUlti is the zero second, five second delay ulti variant
 var ZeroFiveUlti = Variant{
@@ -11,7 +15,7 @@ var ZeroFiveUlti = Variant{
 
 // ZeroFiveUltiTC is the zero second, five second delay ulti time control
 var ZeroFiveUltiTC = clock.TimeControl{
-	Time:      0,
-	Increment: 0,
-	Delay:     5,
+	Time:      clock.ToCTime(time.Second * 0),
+	Increment: clock.ToCTime(time.Second * 0),
+	Delay:     clock.ToCTime(time.Second * 5),
 }

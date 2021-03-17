@@ -1,6 +1,10 @@
 package variant
 
-import "github.com/dechristopher/lioctad/clock"
+import (
+	"time"
+
+	"github.com/dechristopher/lioctad/clock"
+)
 
 // OneZeroRapid is the one minute, zero second increment rapid variant
 var OneZeroRapid = Variant{
@@ -11,8 +15,8 @@ var OneZeroRapid = Variant{
 
 // OneZeroRapidTC is the one minute, zero second increment rapid time control
 var OneZeroRapidTC = clock.TimeControl{
-	Time:      60,
-	Increment: 0,
+	Time:      clock.ToCTime(time.Second * 60),
+	Increment: clock.ToCTime(time.Second * 0),
 }
 
 // OneTwoRapid is the one minute, two second increment rapid variant
@@ -24,6 +28,6 @@ var OneTwoRapid = Variant{
 
 // OneTwoRapidTC is the one minute, two second increment rapid time control
 var OneTwoRapidTC = clock.TimeControl{
-	Time:      60,
-	Increment: 2,
+	Time:      clock.ToCTime(time.Second * 60),
+	Increment: clock.ToCTime(time.Second * 2),
 }

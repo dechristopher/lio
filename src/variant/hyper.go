@@ -1,6 +1,10 @@
 package variant
 
-import "github.com/dechristopher/lioctad/clock"
+import (
+	"time"
+
+	"github.com/dechristopher/lioctad/clock"
+)
 
 // FiveZeroHyper is the five second, zero second increment hyper variant
 var FiveZeroHyper = Variant{
@@ -11,6 +15,6 @@ var FiveZeroHyper = Variant{
 
 // FiveZeroHyperTC is the five second, zero second increment hyper time control
 var FiveZeroHyperTC = clock.TimeControl{
-	Time:      5,
-	Increment: 0,
+	Time:      clock.ToCTime(time.Second * 5),
+	Increment: clock.ToCTime(time.Second * 0),
 }

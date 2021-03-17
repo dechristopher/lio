@@ -1,6 +1,10 @@
 package variant
 
-import "github.com/dechristopher/lioctad/clock"
+import (
+	"time"
+
+	"github.com/dechristopher/lioctad/clock"
+)
 
 // QuarterZeroBullet is the 15 second, zero second increment bullet variant
 var QuarterZeroBullet = Variant{
@@ -11,8 +15,8 @@ var QuarterZeroBullet = Variant{
 
 // QuarterZeroBulletTC is the 15 second, zero second increment bullet time control
 var QuarterZeroBulletTC = clock.TimeControl{
-	Time:      15,
-	Increment: 0,
+	Time:      clock.ToCTime(time.Second * 15),
+	Increment: clock.ToCTime(time.Second * 0),
 }
 
 // QuarterOneBullet is the 15 second, one second increment bullet variant
@@ -24,6 +28,6 @@ var QuarterOneBullet = Variant{
 
 // QuarterOneBulletTC is the 15 second, one second increment bullet time control
 var QuarterOneBulletTC = clock.TimeControl{
-	Time:      15,
-	Increment: 1,
+	Time:      clock.ToCTime(time.Second * 15),
+	Increment: clock.ToCTime(time.Second * 1),
 }
