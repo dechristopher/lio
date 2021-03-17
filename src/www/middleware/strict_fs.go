@@ -21,6 +21,7 @@ func (sfs strictFs) Open(path string) (http.File, error) {
 	path, err := url.QueryUnescape(path)
 	if err != nil {
 		util.Error(str.CFS, str.EFSDecode, path, err.Error())
+		return nil, err
 	}
 
 	// trim trailing slashes to avoid invalid path errors
