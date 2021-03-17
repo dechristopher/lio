@@ -14,12 +14,12 @@ func Unimplemented(_ []byte, _ SocketContext) []byte {
 // the message originated from
 func Unicast(d []byte, meta SocketContext) {
 	meta.Sockets[meta.Channel].Get(meta.BID).Mutex.Lock()
+	defer meta.Sockets[meta.Channel].Get(meta.BID).Mutex.Unlock()
 	err := meta.Sockets[meta.Channel].Get(meta.BID).
 		Connection.WriteMessage(meta.MT, d)
 	if err != nil {
 		util.Error(str.CWSC, str.EWSWrite, meta, err)
 	}
-	meta.Sockets[meta.Channel].Get(meta.BID).Mutex.Unlock()
 }
 
 // Broadcast sends a message to all connected sockets within the
