@@ -9,5 +9,5 @@ import (
 // RatingPoolsHandler returns a list of all active rating
 // pools, containing their time controls and their names
 func RatingPoolsHandler(c *fiber.Ctx) error {
-	return c.JSON(pools.RatingPools)
+	return c.Status(200).JSON(pools.RatingPools)
 }
