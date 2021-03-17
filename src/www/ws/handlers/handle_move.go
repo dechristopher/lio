@@ -64,7 +64,8 @@ func HandleMove(m []byte, meta common.SocketContext) []byte {
 				return nil
 			}
 
-			util.Debug(str.CHMov, "player move eval: %2f", engine.Evaluate(g.Game))
+			util.Debug(str.CHMov, "player move eval: %2f",
+				engine.Evaluate(g.Game))
 
 			ok = true
 			go makeComputerMove(g, meta)
@@ -118,12 +119,15 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketContext) {
 				5, engine.MinimaxAB)
 			err := g.Game.Move(&searchMove.Move)
 			if err != nil {
-				// this means there is a bug in the engine or in the octad lib
+				// this means there is a bug in either
+				// the engine or in the octad lib
 				panic(err)
 			}
 
-			util.Debug(str.CHMov, "engine eval: %s (%2f)", searchMove.Move.String(), searchMove.Eval)
-			util.Debug(str.CHMov, "computer move eval: %2f", engine.Evaluate(g.Game))
+			util.Debug(str.CHMov, "engine eval: %s (%2f)",
+				searchMove.Move.String(), searchMove.Eval)
+			util.Debug(str.CHMov, "computer move eval: %2f",
+				engine.Evaluate(g.Game))
 
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
