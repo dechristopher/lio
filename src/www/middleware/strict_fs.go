@@ -2,7 +2,11 @@ package middleware
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/dechristopher/lioctad/str"
+	"github.com/dechristopher/lioctad/util"
 )
 
 // strictFs is a Custom strict filesystem implementation to
@@ -13,9 +17,10 @@ type strictFs struct {
 
 // Open only allows existing files to be pulled, not directories
 func (sfs strictFs) Open(path string) (http.File, error) {
-	// decode spaces back into path
-	if strings.Contains(path, "%20") {
-		path = strings.Replace(path, "%20", " ", -1)
+	// url decode path to support encoded characters
+	path, err := url.QueryUnescape(path)
+	if err != nil {
+		util.Error(str.CFS, str.EFSDecode, path, err.Error())
 	}
 
 	// trim trailing slashes to avoid invalid path errors

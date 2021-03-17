@@ -13,7 +13,7 @@ import (
 // given directory path
 func PickFS(useDisk bool, e embed.FS, dir string) http.FileSystem {
 	if useDisk {
-		Debug(str.CPickFS, str.DPickFSOS, dir)
+		Debug(str.CFS, str.DPickFSOS, dir)
 		return http.Dir(dir)
 	}
 
@@ -22,6 +22,6 @@ func PickFS(useDisk bool, e embed.FS, dir string) http.FileSystem {
 		panic(err)
 	}
 
-	Debug(str.CPickFS, str.DPickFSEm, dir)
+	Debug(str.CFS, str.DPickFSEm, dir)
 	return http.FS(efs)
 }

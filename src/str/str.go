@@ -18,22 +18,23 @@ const (
 
 // (C) Log caller names
 const (
-	CMain   = "LIO"
-	CLog    = "Log"
-	CPickFS = "FSys"
-	CTool   = "Tool"
-	CWS     = "WS"
-	CWSC    = "WSCm"
-	CHMov   = "HMov"
-	CStor   = "Stor"
-	CProt   = "Prot"
-	CEval   = "Eval"
+	CMain = "LIO"
+	CLog  = "Log"
+	CFS   = "FSys"
+	CTool = "Tool"
+	CWS   = "WS"
+	CWSC  = "WSCm"
+	CHMov = "HMov"
+	CStor = "Stor"
+	CProt = "Prot"
+	CEval = "Eval"
 )
 
 // (E) Error messages
 const (
 	ELogFail       = "failed to log error=%s msg=%+v"
 	EStoreInit     = "failed to init object store error=%s"
+	EFSDecode      = "failed to decode path in strictFS path=%s error=%s"
 	EWSRead        = "read err: %s"
 	EWSWrite       = "write err: meta=%+v error=%s"
 	EWSNoBid       = "no bid: %s"
