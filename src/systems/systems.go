@@ -11,6 +11,8 @@ import (
 
 var pub *bus.Publisher
 
+// Up brings up the systems publisher and sends a test message
+// verifying that the bus has come online after some time
 func Up() {
 	pub = bus.NewPublisher("sys", bus.SystemChannel)
 	time.Sleep(time.Millisecond * 500)
