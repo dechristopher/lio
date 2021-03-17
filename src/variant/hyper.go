@@ -8,7 +8,7 @@ import (
 
 // FiveZeroHyper is the five second, zero second increment hyper variant
 var FiveZeroHyper = Variant{
-	Name:  ":05 + 0",
+	Name:  ":05 + 0 Hyper",
 	Group: HyperGroup,
 	Time:  FiveZeroHyperTC,
 }

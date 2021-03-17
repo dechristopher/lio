@@ -8,7 +8,7 @@ import (
 
 // ZeroFiveUlti is the zero second, five second delay ulti variant
 var ZeroFiveUlti = Variant{
-	Name:  ":00 ~5",
+	Name:  ":00 ~5 Ulti",
 	Group: UltiGroup,
 	Time:  ZeroFiveUltiTC,
 }
