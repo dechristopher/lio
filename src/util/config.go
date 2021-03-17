@@ -84,5 +84,7 @@ func CorsOrigins() string {
 	if env.IsProd() {
 		return "https://lioctad.org"
 	}
-	return "http://localhost:4444, https://dev.lioctad.org"
+	return "http://localhost:4444, " +
+		"http://localhost:8080, " +
+		"https://dev.lioctad.org"
 }
