@@ -2,9 +2,11 @@ package engine
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/dechristopher/octad"
 
+	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/util"
 )
 
@@ -24,6 +26,12 @@ const MinimaxAB SearchAlg = 0
 // NegamaxAB selects negamax with alpha-beta pruning
 const NegamaxAB SearchAlg = 1
 
+// Channel is the engine monitoring bus channel
+const Channel bus.Channel = "lio:engine"
+
+// pub is the engine publisher
+var pub = bus.NewPublisher("engine", Channel)
+
 // Search returns the best move after running a search algorithm
 // on the given position to the given depth
 func Search(ofen string, depth int, alg SearchAlg) MoveEval {
@@ -32,18 +40,32 @@ func Search(ofen string, depth int, alg SearchAlg) MoveEval {
 		panic(err)
 	}
 
+	// build out game state from ofen
 	situation, err := octad.NewGame(o)
 	if err != nil {
 		panic(err)
 	}
 
+	var eval MoveEval
+
+	// publish search starting message
+	pub.Publish(ofen, alg)
+
+	start := time.Now()
+
+	// run selected search algorithm
 	if alg == MinimaxAB {
-		return searchMinimaxAB(situation, depth)
+		eval = searchMinimaxAB(situation, depth)
 	} else if alg == NegamaxAB {
-		return searchNegamaxAB(situation, depth)
+		eval = searchNegamaxAB(situation, depth)
+	} else {
+		panic("invalid search algorithm")
 	}
 
-	panic("invalid search algorithm")
+	// publish time taken, ofen, alg, and eval to engine channel
+	pub.Publish(time.Since(start).Seconds(), ofen, alg, eval)
+
+	return eval
 }
 
 // TestEngine runs a quick test of the engine for a given ofen
