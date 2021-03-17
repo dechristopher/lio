@@ -26,6 +26,7 @@ const (
 	CWSC  = "WSCm"
 	CHMov = "HMov"
 	CStor = "Stor"
+	CBus  = "Bus"
 	CProt = "Prot"
 	CEval = "Eval"
 )
@@ -61,6 +62,7 @@ const (
 	DPickFSEm = "selected embedded - %s"
 	DNaughty  = "loaded naughty.txt: %d words"
 	DStoreOk  = "object store online"
+	DBusOk    = "event bus online"
 	DWSRecv   = "ws recv: %+v"
 	DWSSend   = "ws send: %+v"
 )
