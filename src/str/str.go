@@ -29,6 +29,7 @@ const (
 	CBus  = "Bus"
 	CProt = "Prot"
 	CEval = "Eval"
+	CEng  = "Eng"
 )
 
 // (E) Error messages
@@ -58,13 +59,15 @@ const (
 
 // (D) Debug log messages
 const (
-	DPickFSOS = "selected OS - %s"
-	DPickFSEm = "selected embedded - %s"
-	DNaughty  = "loaded naughty.txt: %d words"
-	DStoreOk  = "object store online"
-	DBusOk    = "event bus online"
-	DWSRecv   = "ws recv: %+v"
-	DWSSend   = "ws send: %+v"
+	DPickFSOS  = "selected OS - %s"
+	DPickFSEm  = "selected embedded - %s"
+	DNaughty   = "loaded naughty.txt: %d words"
+	DStoreOk   = "object store online"
+	DBusOk     = "event bus online"
+	DWSRecv    = "ws recv: %+v"
+	DWSSend    = "ws send: %+v"
+	DEngStart  = "eng start: ofen=%s alg=%d"
+	DEngSearch = "eng search: sec=%.3f ofen=%s alg=%d eval=%+v"
 )
 
 // (T) Test messages
