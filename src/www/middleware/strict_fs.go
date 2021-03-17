@@ -20,7 +20,9 @@ func (sfs strictFs) Open(path string) (http.File, error) {
 
 	// trim trailing slashes to avoid invalid path errors
 	// in fiber's filesystem middleware
-	path = strings.TrimSuffix(path, "/")
+	if path != "/" {
+		path = strings.TrimSuffix(path, "/")
+	}
 
 	f, err := sfs.fs.Open(path)
 	if err != nil {
