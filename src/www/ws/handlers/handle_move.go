@@ -9,12 +9,12 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/valyala/fastjson"
 
-	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/engine"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lioctad/variant"
 	"github.com/dechristopher/lioctad/www/ws/common"
 	"github.com/dechristopher/lioctad/www/ws/proto"
 )
@@ -23,12 +23,9 @@ import (
 func HandleMove(m []byte, meta common.SocketContext) []byte {
 	if game.Games[meta.Channel] == nil {
 		_, err := game.NewOctadGame(game.OctadGameConfig{
-			White: "123",
-			Black: "456",
-			Control: clock.TimeControl{
-				Time:      2,
-				Increment: 1,
-			},
+			White:   "123",
+			Black:   "456",
+			Control: variant.HalfOneBlitzTC,
 			Channel: meta.Channel,
 		})
 
@@ -165,12 +162,9 @@ func checkGameOver(g *game.OctadGame, meta common.SocketContext) {
 			t := time.NewTimer(time.Second * 2)
 			<-t.C
 			g, _ = game.NewOctadGame(game.OctadGameConfig{
-				White: "123",
-				Black: "456",
-				Control: clock.TimeControl{
-					Time:      2,
-					Increment: 1,
-				},
+				White:   "123",
+				Black:   "456",
+				Control: variant.HalfOneBlitzTC,
 				OFEN:    "",
 				Channel: meta.Channel,
 			})

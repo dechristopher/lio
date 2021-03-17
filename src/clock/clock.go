@@ -39,8 +39,8 @@ func NewClock(player1, player2 string, tc TimeControl) *Clock {
 		isBlack:        false,
 		delayExpired:   false,
 		clockPaused:    true,
-		blackTime:      tc.Time,
-		whiteTime:      tc.Time,
+		blackTime:      tc.Time.t,
+		whiteTime:      tc.Time.t,
 		timeControl:    tc,
 		ControlChannel: make(chan Command),
 		StateChannel:   make(chan State),
@@ -57,8 +57,8 @@ func (c *Clock) Start() {
 	c.ticker = time.NewTicker(Centi)
 
 	go func() {
-		if c.timeControl.Delay != 0 {
-			c.timer = time.NewTimer(c.timeControl.Delay)
+		if c.timeControl.Delay.t != 0 {
+			c.timer = time.NewTimer(c.timeControl.Delay.t)
 		} else {
 			// default to true for immediate decrement
 			c.timer = time.NewTimer(time.Hour)
@@ -73,7 +73,7 @@ func (c *Clock) Start() {
 				c.delayExpired = true
 				// clean up clock if it somehow persists through
 				// the hour and ticks over.
-				if c.timeControl.Delay == 0 {
+				if c.timeControl.Delay.t == 0 {
 					log.Printf("WARNING: cleanup not working")
 					return
 				}
