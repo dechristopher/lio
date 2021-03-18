@@ -1,12 +1,18 @@
 import React, {FC} from 'react'
-import {FontWeights} from "@utils/constants";
+import {FontSizes, FontWeights} from "@utils/constants";
 import classNames from "classnames";
+import {textColors, TextColors} from "@utils/styles/colors";
 
 interface GameVariantTextProps {
     timeControl: string;
     variantName?: string;
+    nameOnSameLine?: boolean;
+    className?: string;
+    timeControlFontSize?: FontSizes;
+    variantNameFontSize?: FontSizes;
     timeControlFontWeight?: FontWeights
     variantNameFontWeight?: FontWeights;
+    textColor?: TextColors;
 }
 
 /**
@@ -30,20 +36,27 @@ interface GameVariantTextProps {
  */
 export const GameVariantText: FC<GameVariantTextProps> = (props) => {
     return (
-        <div className="flex flex-col text-center md:p-4">
+        <div className={classNames(
+            "flex flex-col text-center md:p-4",
+            props.className
+        )}>
             <span className={
                 classNames(
-                    "text-4xl",
-                    props.timeControlFontWeight
+                    props.timeControlFontSize,
+                    props.timeControlFontWeight,
+                    props.textColor
                 )}
             >
-                {props.timeControl}
+                {props.nameOnSameLine && props.variantName ?
+                    `${props.timeControl} ${props.variantName}` :
+                    props.timeControl}
             </span>
-            {props.variantName ?
+            {props.variantName && !props.nameOnSameLine ?
                 <span className={
                     classNames(
-                        "text-2xl",
-                        props.variantNameFontWeight
+                        props.variantNameFontSize,
+                        props.variantNameFontWeight,
+                        props.textColor
                     )}>
                     {props.variantName}
                 </span> : null}
@@ -52,6 +65,9 @@ export const GameVariantText: FC<GameVariantTextProps> = (props) => {
 }
 
 GameVariantText.defaultProps = {
-    timeControlFontWeight: FontWeights.semibold,
-    variantNameFontWeight: FontWeights.semibold
+    textColor: textColors.black["1000"],
+    timeControlFontSize: FontSizes.FourXL,
+    variantNameFontSize: FontSizes.TwoXL,
+    timeControlFontWeight: FontWeights.SemiBold,
+    variantNameFontWeight: FontWeights.SemiBold
 }

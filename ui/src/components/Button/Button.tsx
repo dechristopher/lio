@@ -9,6 +9,7 @@ export interface ButtonProps {
     roundRightSide?: boolean;
     roundSides?: boolean;
     onClick?: () => void;
+    disabled?: boolean;
     style?: CSSProperties;
     bgColor?: BackGroundColors;
     selectedColor?: BackGroundColors;
@@ -41,6 +42,7 @@ export interface ButtonProps {
 export const Button: FC<ButtonProps> = (props) => {
     return (
         <button
+            disabled={props.disabled}
             type="button"
             onClick={props.onClick}
             style={props.style}
@@ -60,23 +62,18 @@ export const Button: FC<ButtonProps> = (props) => {
                 "focus:ring-1",
                 "focus:ring-indigo-500",
                 "focus:border-indigo-500",
-                props.bgColor,
                 props.className,
                 {
-                    "-ml-px": props.removeLeftMargin
+                    "-ml-px": props.removeLeftMargin,
+                    "rounded-l-md": props.roundLeftSide || props.roundSides,
+                    "rounded-r-md": props.roundRightSide|| props.roundSides,
+                    [props.selectedColor as string]: props.selected,
+                    [bgColors.gray["200"]]: props.disabled,
+                    [props.bgColor as string]: !props.disabled
                 },
-                {
-                    "rounded-l-md": props.roundLeftSide || props.roundSides
-                },
-                {
-                    "rounded-r-md": props.roundRightSide|| props.roundSides
-                },
-                {
-                    [props.selectedColor as string]: props.selected
-                },
-                {
-                    "hover:bg-gray-50": !props.selected
-                }
+                // {
+                //     "hover:bg-gray-50": !props.selected
+                // }
             )}>
             {props.children}
         </button>

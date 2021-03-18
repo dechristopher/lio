@@ -12,6 +12,7 @@ export const Footer: FC = () => {
 			<a className="whitespace-no-wrap px-2" href="https://github.com/dechristopher/lio">Source Code</a>
 			<a className="whitespace-no-wrap px-2" href="https://github.com/dechristopher/lio/issues">Report an Issue</a>
 			<a className="whitespace-no-wrap px-2" href="https://github.com/dechristopher/lio/releases">Changelog</a>
+			<a className="whitespace-no-wrap px-2" href="https://status.lioctad.org/">Status</a>
 		</div>
 	)
 }

@@ -6,48 +6,41 @@ import SplitPiece from "@assets/images/pieces/Split.svg";
 import BlackPiece from "@assets/images/pieces/Black.svg";
 import {bgColors} from "@utils/styles/colors";
 import {Button} from "@components/Button/Button";
+import {ModalContextActions, useModalContext} from "@app/contexts/ModalContext";
+import {PreGame} from "@app/components/ModalContent/PreGame";
+import {RatedGame} from "@app/querys/FetchRatedPools";
+import {ColorOptions, GameModes, GameTypes, Times} from "@utils/constants";
 
-export enum GameModes {
-    PlayOnline,
-    PlayAFriend,
-    PlayComputer
-}
+const GameTimes = [
+    Times.Zero,
+    Times.Five,
+    Times.Fifteen,
+    Times.Thirty,
+    Times.OneMin,
+    Times.ThreeMin,
+    Times.FiveMin,
+    Times.TenMin
+]
 
-enum GameTypes {
-    RATED = "Rated",
-    CASUAL = "Casual"
-}
+const GameIncrements = [
+    Times.Zero,
+    Times.One,
+    Times.Three,
+    Times.Five,
+    Times.Ten,
+    Times.Fifteen,
+    Times.Thirty
+]
 
-enum GameTimes {
-    Zero = "0:00",
-    Five = "0:05",
-    Fifteen = "0:15",
-    Thirty = "0:30",
-    OneMin = "1:00",
-    ThreeMin = "3:00",
-    FiveMin = "5:00",
-    TenMin = "10:00"
-}
-
-enum GameIncrements {
-    Zero = "0:00",
-    One = "0:01",
-    Three = "0:03",
-    Five = "0:05",
-    Ten = "0:10",
-    Fifteen = "0:15",
-    Thirty = "0:30",
-}
-
-enum GameDelays {
-    Zero = "0:00",
-    One = "0:01",
-    Three = "0:03",
-    Five = "0:05",
-    Ten = "0:10",
-    Fifteen = "0:15",
-    Thirty = "0:30",
-}
+const GameDelays = [
+    Times.Zero,
+    Times.One,
+    Times.Three,
+    Times.Five,
+    Times.Ten,
+    Times.Fifteen,
+    Times.Thirty
+]
 
 enum ComputerDifficulties {
     One = "1",
@@ -60,13 +53,6 @@ enum ComputerDifficulties {
     Eight = "8",
     Nine = "9",
     Ten = "10",
-}
-
-enum ColorOptions {
-    White,
-    Black,
-    Random
-
 }
 
 enum ButtonActions {
@@ -90,13 +76,24 @@ interface GameOptionsProps {
 }
 
 export const GameOptions: FC<GameOptionsProps> = (props) => {
+    const [, modalDispatch] = useModalContext()
+
     const [gameType, setGameType] = useState<GameTypes | undefined>(undefined)
-    const [,setGameTime] = useState<GameTimes | undefined>(GameTimes.Zero)
-    const [,setGameIncrement] = useState<GameIncrements | undefined>(GameIncrements.Zero)
-    const [,setGameDelay] = useState<GameDelays | undefined>(GameDelays.Zero)
-    const [,setComputerDifficulty] = useState<ComputerDifficulties | undefined>(ComputerDifficulties.One)
-    const [selectedColor,setSelectedColor] = useState<ColorOptions | undefined>(undefined)
+    const [gameTime, setGameTime] = useState<Times>(GameTimes[0])
+    const [gameIncrement, setGameIncrement] = useState<Times>(GameIncrements[0])
+    const [gameDelay, setGameDelay] = useState<Times>(GameDelays[0])
+    const [, setComputerDifficulty] = useState<ComputerDifficulties | undefined>(ComputerDifficulties.One)
+    const [selectedColor, setSelectedColor] = useState<ColorOptions | undefined>(undefined)
     const [buttonAction, setButtonAction] = useState<ButtonActions>(ButtonActions.StartGame)
+    const [gameSettings, setGameSettings] = useState<RatedGame>({
+        name: formatGameTime(gameTime, gameIncrement, gameDelay),
+        group: "",
+        time: {
+            t: gameTime,
+            i: gameIncrement,
+            d: gameDelay
+        }
+    })
 
     useEffect(() => {
         switch (props.gameMode) {
@@ -110,69 +107,95 @@ export const GameOptions: FC<GameOptionsProps> = (props) => {
         }
     }, [props.gameMode])
 
+    useEffect(() => {
+        setGameSettings({
+            ...gameSettings,
+            name: formatGameTime(gameTime, gameIncrement, gameDelay),
+            time: {
+                t: gameTime,
+                i: gameIncrement,
+                d: gameDelay
+            }
+        })
+    }, [gameTime, gameIncrement, gameDelay])
+
+    // prevents the user from proceeding if they need to choose required options
+    const isButtonDisabled = () => {
+        if (gameTime === Times.Zero && gameIncrement === Times.Zero && gameDelay === Times.Zero) {
+            return true
+        } else if (props.gameMode === GameModes.PlayOnline) {
+            return gameType === undefined;
+        } else if ([GameModes.PlayAFriend, GameModes.PlayComputer].includes(props.gameMode)) {
+            return selectedColor === undefined
+        }
+
+        return true
+    }
+
     return (
-            <div className="mt-8 text-center sm:mt-0 sm:text-left w-full">
-                <h3 className="text-2xl leading-6 font-medium text-gray-900 text-center" id="modal-headline">
-                    Game Options
-                </h3>
-                <div className="mt-4 flex flex-col justify-center items-center">
+        <div className="mt-8 text-center sm:mt-0 sm:text-left w-full">
+            <h3 className="text-2xl leading-6 font-medium text-gray-900 text-center" id="modal-headline">
+                Game Options
+            </h3>
+            <div className="mt-4 flex flex-col justify-center items-center">
 
-                    {/* Game type */}
-                    {props.gameMode === GameModes.PlayOnline ?
-                        <ButtonGroup>
-                            <ButtonGroup.Button
-                                selected={gameType === GameTypes.RATED}
-                                selectedColor={gameTypeSelectedColor}
-                                onClick={() => setGameType(GameTypes.RATED)}
-                            >
-                                {GameTypes.RATED}
-                            </ButtonGroup.Button>
-                            <ButtonGroup.Button
-                                selected={gameType === GameTypes.CASUAL}
-                                selectedColor={gameTypeSelectedColor}
-                                onClick={() => setGameType(GameTypes.CASUAL)}
-                            >
-                                {GameTypes.CASUAL}
-                            </ButtonGroup.Button>
-                        </ButtonGroup> : null}
+                {/* Game type */}
+                {props.gameMode === GameModes.PlayOnline ?
+                    <ButtonGroup>
+                        <ButtonGroup.Button
+                            selected={gameType === GameTypes.RATED}
+                            selectedColor={gameTypeSelectedColor}
+                            onClick={() => setGameType(GameTypes.RATED)}
+                        >
+                            {GameTypes.RATED}
+                        </ButtonGroup.Button>
+                        <ButtonGroup.Button
+                            selected={gameType === GameTypes.CASUAL}
+                            selectedColor={gameTypeSelectedColor}
+                            onClick={() => setGameType(GameTypes.CASUAL)}
+                        >
+                            {GameTypes.CASUAL}
+                        </ButtonGroup.Button>
+                    </ButtonGroup> : null}
 
-                    {/* Time controls + difficulty */}
+                {/* Time controls + difficulty */}
+                <div className={`flex ${optionPadding}`}>
+                    <Select
+                        className={selectPadding}
+                        label="Time"
+                        selectOptions={Object.values(GameTimes)}
+                        onSelect={(value) => setGameTime(value as Times)}
+                    />
+                    <Select
+                        label="Increment"
+                        selectOptions={Object.values(GameIncrements)}
+                        onSelect={(value) => setGameIncrement(value as Times)}
+                    />
+                </div>
+
+                {[GameModes.PlayAFriend, GameModes.PlayComputer].includes(props.gameMode) ?
                     <div className={`flex ${optionPadding}`}>
                         <Select
                             className={selectPadding}
-                            label="Time"
-                            selectOptions={Object.values(GameTimes)}
-                            onSelect={(value) => setGameTime(value as GameTimes)}
+                            label="Delay"
+                            selectOptions={Object.values(GameDelays)}
+                            onSelect={(value) => setGameDelay(value as Times)}
                         />
-                        <Select
-                            label="Increment"
-                            selectOptions={Object.values(GameIncrements)}
-                            onSelect={(value) => setGameIncrement(value as GameIncrements)}
-                        />
-                    </div>
-
-                    {[GameModes.PlayAFriend, GameModes.PlayComputer].includes(props.gameMode) ?
-                        <div className={`flex ${optionPadding}`}>
-                            <Select
-                                className={selectPadding}
-                                label="Delay"
-                                selectOptions={Object.values(GameDelays)}
-                                onSelect={(value) => setGameDelay(value as GameDelays)}
-                            />
-                            {props.gameMode === GameModes.PlayComputer ?
+                        {props.gameMode === GameModes.PlayComputer ?
                             <Select
                                 label="Difficulty"
                                 selectOptions={Object.values(ComputerDifficulties)}
                                 onSelect={(value) => setComputerDifficulty(value as ComputerDifficulties)}
                             /> : null}
-                        </div> : null}
+                    </div> : null}
 
-                    {/* Color selection */}
+                {/* Color selection */}
+                {props.gameMode === GameModes.PlayOnline ? null :
                     <ButtonGroup className={`${optionPadding}`}>
                         <ButtonGroup.Button
                             style={pieceButtonStyle}
                             selected={selectedColor === ColorOptions.White}
-                                selectedColor={gameTypeSelectedColor}
+                            selectedColor={gameTypeSelectedColor}
                             onClick={() => setSelectedColor(ColorOptions.White)}
                         >
                             <WhitePiece
@@ -182,7 +205,7 @@ export const GameOptions: FC<GameOptionsProps> = (props) => {
                         <ButtonGroup.Button
                             style={pieceButtonStyle}
                             selected={selectedColor === ColorOptions.Random}
-                                selectedColor={gameTypeSelectedColor}
+                            selectedColor={gameTypeSelectedColor}
                             onClick={() => setSelectedColor(ColorOptions.Random)}
                         >
                             <SplitPiece
@@ -192,28 +215,70 @@ export const GameOptions: FC<GameOptionsProps> = (props) => {
                         <ButtonGroup.Button
                             style={pieceButtonStyle}
                             selected={selectedColor === ColorOptions.Black}
-                                selectedColor={gameTypeSelectedColor}
+                            selectedColor={gameTypeSelectedColor}
                             onClick={() => setSelectedColor(ColorOptions.Black)}
                         >
                             <BlackPiece
                                 style={pieceStyle}
                             />
                         </ButtonGroup.Button>
-                    </ButtonGroup>
+                    </ButtonGroup>}
 
-                    {/* Action button */}
-                    <Button
-                        className="mt-8"
-                        roundSides
-                        bgColor={
-                            buttonAction === ButtonActions.FindGame ?
-                                bgColors.yellow["300"] :
-                                bgColors.green["400"]
-                        }
-                    >
-                        {buttonAction}
-                    </Button>
-                </div>
+                {/* Action button */}
+                <Button
+                    roundSides
+                    className="mt-8 px-8 py-2"
+                    disabled={isButtonDisabled()}
+                    onClick={() => {
+                        modalDispatch({
+                            type: ModalContextActions.SetContent,
+                            payload: <PreGame
+                                gameMode={props.gameMode}
+                                gameType={gameSettings}
+                            />
+                        })
+                    }}
+                    bgColor={
+                        buttonAction === ButtonActions.FindGame ?
+                            bgColors.yellow["300"] :
+                            bgColors.green["400"]
+                    }
+                >
+                    {buttonAction}
+                </Button>
             </div>
+        </div>
     )
+}
+
+/**
+ * Formats the current time settings to `<minutes>:<seconds> + <increment> ~<delay>`.
+ *
+ * @param {Times} gameTime - game time
+ * @param {Times} gameIncrement - game increment
+ * @param {Times} gameDelay - game delay
+ * @returns {string} formatted game time settings
+ *
+ * @example
+ * formatGameTime(30, 3, 0)
+ */
+const formatGameTime = (
+    gameTime: Times,
+    gameIncrement: Times,
+    gameDelay: Times
+): string => {
+    const mins = Math.floor(gameTime / 60);
+    const seconds = gameTime % 60;
+
+    // if seconds is greater than 10, show as is
+    // else prepend a 0 to the front
+    const time = seconds >= 10 ? `${mins}:${seconds}` : `${mins}:0${seconds}`
+
+    if (gameDelay === Times.Zero) {
+        return `${time} + ${gameIncrement}`
+    } else if (gameIncrement === Times.Zero) {
+        return `${time} ~${gameDelay}`
+    }
+
+    return `${time} + ${gameIncrement} ~${gameDelay}`
 }

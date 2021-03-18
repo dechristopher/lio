@@ -10,6 +10,7 @@ import * as plugins from './plugins';
 import * as rules from './rules';
 import {isDevServer, isProd, rootDir} from './utils/env';
 import {arrayFilterEmpty} from './utils/helpers';
+import Dotenv from 'dotenv-webpack';
 
 export default {
     context: __dirname,
@@ -55,11 +56,18 @@ export default {
         plugins.forkTsCheckerWebpackPlugin,
         plugins.esLintPlugin,
         plugins.copyPlugin,
+        new Dotenv()
+        // new webpack.ProvidePlugin({
+        //     process: 'process/browser',
+        // }),
     ]),
     resolve: {
         plugins: [new TsconfigPathsPlugin()],
         extensions: ['.tsx', '.ts', '.js', '.jsx'],
         modules: [ path.resolve( rootDir, "src" ), "node_modules" ],
+        // fallback: {
+        //     fs: false
+        // }
     },
     optimization,
 };

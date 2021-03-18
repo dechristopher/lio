@@ -2,9 +2,9 @@ import React, {FC} from 'react'
 import {GameVariantCard} from "@components/GameVariantCard/GameVariantCard";
 import {bgColors, textColors} from "@utils/styles/colors";
 import {GameVariantText} from "@components/GameVariantCard/GameVariantText";
-import {FontWeights} from "@utils/constants";
+import {FontWeights, GameModes} from "@utils/constants";
 import {ModalContextActions, useModalContext} from "@app/contexts/ModalContext";
-import {GameOptions, GameModes} from "@app/components/ModalContent/GameOptions";
+import {GameOptions} from "@app/components/ModalContent/GameOptions";
 
 /**
  * Content for the create game tab.
@@ -38,7 +38,7 @@ export const CreateGameTab: FC = () => {
             >
                 <GameVariantText
                     timeControl="Play Online"
-                    timeControlFontWeight={FontWeights.medium}
+                    timeControlFontWeight={FontWeights.Medium}
                 />
             </GameVariantCard>
             {/* Play a Friend */}
@@ -55,7 +55,7 @@ export const CreateGameTab: FC = () => {
             >
                 <GameVariantText
                     timeControl="Play a Friend"
-                    timeControlFontWeight={FontWeights.medium}
+                    timeControlFontWeight={FontWeights.Medium}
                 />
             </GameVariantCard>
             {/* Play the Computer */}
@@ -72,7 +72,7 @@ export const CreateGameTab: FC = () => {
             >
                 <GameVariantText
                     timeControl="Play the Computer"
-                    timeControlFontWeight={FontWeights.medium}
+                    timeControlFontWeight={FontWeights.Medium}
                 />
             </GameVariantCard>
         </div>
