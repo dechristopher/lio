@@ -6,10 +6,14 @@ import (
 
 	"github.com/dechristopher/octad"
 
+	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/clock"
 
 	"github.com/looplab/fsm"
 )
+
+// Channel is the engine monitoring bus channel
+const Channel bus.Channel = "lio:game"
 
 var (
 	// Games is an in-memory cache of all active games

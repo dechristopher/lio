@@ -9,6 +9,7 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/valyala/fastjson"
 
+	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/engine"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/store"
@@ -18,6 +19,8 @@ import (
 	"github.com/dechristopher/lioctad/www/ws/common"
 	"github.com/dechristopher/lioctad/www/ws/proto"
 )
+
+var pub = bus.NewPublisher("game", game.Channel)
 
 // HandleMove processes game update messages
 func HandleMove(m []byte, meta common.SocketContext) []byte {
@@ -61,8 +64,13 @@ func HandleMove(m []byte, meta common.SocketContext) []byte {
 				return nil
 			}
 
-			util.Debug(str.CHMov, "player move eval: %2f",
-				engine.Evaluate(g.Game))
+			eval := engine.Evaluate(g.Game)
+
+			// publish move to broadcast channel
+			pub.Publish(mov.String(), g.Game.OFEN(), eval)
+
+			util.DebugFlag("eng", str.CHMov, "player move eval: %2f",
+				eval)
 
 			ok = true
 			go makeComputerMove(g, meta)
@@ -121,10 +129,15 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketContext) {
 				panic(err)
 			}
 
-			util.Debug(str.CHMov, "engine eval: %s (%2f)",
+			eval := engine.Evaluate(g.Game)
+
+			// publish move to broadcast channel
+			pub.Publish(searchMove.Move.String(), g.Game.OFEN(), eval)
+
+			util.DebugFlag("eng", str.CHMov, "engine eval: %s (%2f)",
 				searchMove.Move.String(), searchMove.Eval)
-			util.Debug(str.CHMov, "computer move eval: %2f",
-				engine.Evaluate(g.Game))
+			util.DebugFlag("eng", str.CHMov, "computer move eval: %2f",
+				eval)
 
 			// broadcast move to all players
 			common.Broadcast(current(g, true), meta)
