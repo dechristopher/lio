@@ -33,7 +33,7 @@ export type RatedPoolsRes = {
  */
 export const FetchRatedPools = (): Promise<RatedGame[]> => {
     return new Promise((resolve, reject) => {
-        const url = `http://${BaseURL}/api/pools`;
+        const url = `${BaseURL}/api/pools`;
         const req = new Request(url)
 
         fetch(req, {})

@@ -1,8 +1,9 @@
 import {bgColors} from "@utils/styles/colors";
 
+// The base URL when making API requests
 export const BaseURL = process.env.NODE_ENV === "development" ?
-    process.env.DEV_API_URL :
-    process.env.PROD_API_URL;
+    `http://${process.env.DEV_BASE_URL}` :
+    `https://${process.env.PROD_BASE_URL}`;
 
 // The rated pools that we have defined
 export enum GamePools {
@@ -22,6 +23,7 @@ export const PoolsOrder = [
     GamePools.Ulti
 ]
 
+// Button colors for the various pools
 export const PoolColors = {
     [GamePools.Bullet]: bgColors.yellow["300"],
     [GamePools.Blitz]: bgColors.green["500"],
@@ -30,6 +32,7 @@ export const PoolColors = {
     [GamePools.Ulti]: bgColors.purple["400"],
 }
 
+// Times available for the game setting dropdowns
 export enum Times {
     Zero = 0,
     One = 1,
@@ -44,18 +47,21 @@ export enum Times {
     TenMin = 600
 }
 
+// Colors options for the game settings
 export enum ColorOptions {
     White,
     Black,
     Random
 }
 
+// Types of games
 export enum GameModes {
     PlayOnline,
     PlayAFriend,
     PlayComputer
 }
 
+// Flavours of online custom games
 export enum GameTypes {
     RATED = "Rated",
     CASUAL = "Casual"

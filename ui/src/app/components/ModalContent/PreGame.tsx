@@ -5,6 +5,7 @@ import {bgColors, textColors} from "@utils/styles/colors";
 import {Button} from "@components/Button/Button";
 import {GameInvite} from "@app/components/GameInvite/GameInvite";
 import {RatedGame} from "@app/querys/FetchRatedPools";
+import {Spinner} from "@components/Spinner/Spinner";
 
 const optionPadding = "pt-4";
 
@@ -26,8 +27,7 @@ export const PreGame: FC<PreGameProps> = (props) => {
                     "Waiting for Opponent"}
             </h3>
 
-            {/* Loading spinner */}
-            <div className="lds-dual-ring mt-6"/>
+            <Spinner className="mt-6"/>
 
             <GameVariantText
                 className={`${optionPadding}`}
