@@ -56,7 +56,6 @@ type Channel string
 // Predefined bus channels
 const (
 	SystemChannel Channel = "lio:sys"
-	GameChannel   Channel = "lio:game"
 )
 
 // SubscribeOnce subscribes to the given channel and is removed
