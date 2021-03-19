@@ -25,8 +25,8 @@ type Event struct {
 // Publisher is a struct representing a
 // named publisher to a channel
 type Publisher struct {
-	Name string
-	Channel
+	Name    string
+	Channel Channel
 }
 
 // NewPublisher returns a new Publisher instance
