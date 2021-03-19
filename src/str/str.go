@@ -29,7 +29,8 @@ const (
 	CBus  = "Bus"
 	CProt = "Prot"
 	CEval = "Eval"
-	CEng  = "Eng"
+	CEng  = "Engi"
+	CGme  = "Game"
 )
 
 // (E) Error messages
@@ -68,6 +69,7 @@ const (
 	DWSSend    = "ws send: %+v"
 	DEngStart  = "eng start: ofen=%s alg=%d"
 	DEngSearch = "eng search: sec=%.3f ofen=%s alg=%d eval=%+v"
+	DGameMove  = "game move: move=%s new_ofen=%s eval=%.3f"
 )
 
 // (T) Test messages
