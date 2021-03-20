@@ -43,7 +43,12 @@ func (s SockMap) Get(bid string) Socket {
 
 // Empty returns true if the SockMap is tracking no connected sockets
 func (s SockMap) Empty() bool {
-	return len(s.sockets) == 0
+	return s.Length() == 0
+}
+
+// Length returns the number of actively connected sockets
+func (s SockMap) Length() int {
+	return len(s.sockets)
 }
 
 // Socket is a struct combining a websocket connection and a mutex lock
