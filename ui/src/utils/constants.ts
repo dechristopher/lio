@@ -1,5 +1,8 @@
 import {bgColors} from "@utils/styles/colors";
 
+console.assert(process.env.DEV_BASE_URL, "Missing env variable: DEV_BASE_URL")
+console.assert(process.env.PROD_BASE_URL, "Missing env variable: PROD_BASE_URL")
+
 // The base URL when making API requests
 export const BaseURL = process.env.NODE_ENV === "development" ?
     `http://${process.env.DEV_BASE_URL}` :
