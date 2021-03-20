@@ -1,3 +1,4 @@
+import {ReadyState} from "react-use-websocket";
 import {bgColors} from "@utils/styles/colors";
 
 console.assert(process.env.DEV_BASE_URL, "Missing env variable: DEV_BASE_URL")
@@ -7,6 +8,15 @@ console.assert(process.env.PROD_BASE_URL, "Missing env variable: PROD_BASE_URL")
 export const BaseURL = process.env.NODE_ENV === "development" ?
     `http://${process.env.DEV_BASE_URL}` :
     `https://${process.env.PROD_BASE_URL}`;
+
+// React-use-websockets states
+export const WebSocketConnectionStatuses: Record<ReadyState, string> = {
+    [ReadyState.CONNECTING]: 'Connecting',
+    [ReadyState.OPEN]: 'Open',
+    [ReadyState.CLOSING]: 'Closing',
+    [ReadyState.CLOSED]: 'Closed',
+    [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
+};
 
 // The rated pools that we have defined
 export enum GamePools {
