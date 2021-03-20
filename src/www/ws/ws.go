@@ -21,7 +21,7 @@ import (
 type ChannelDirectory = map[string]common.SockMap
 
 var (
-	chanMap = make(ChannelDirectory)
+	ChanMap = make(ChannelDirectory)
 )
 
 // UpgradeHandler catches anything under /ws/** and allows
@@ -57,16 +57,16 @@ func ConnHandler(c *websocket.Conn) {
 	bid := c.Cookies("bid")
 	channel := c.Params("chan")
 
-	// Keep track of all chanMap for off-rpc broadcasts
+	// Keep track of all ChanMap for off-rpc broadcasts
 	// Create a new SockMap and track it under the channel key
-	if chanMap[channel].C == nil {
-		chanMap[channel] = common.NewSockMap(channel)
+	if ChanMap[channel].C == nil {
+		ChanMap[channel] = common.NewSockMap(channel)
 		go crowdHandler(channel)
 	}
 
 	// track this socket in the corresponding SockMap
 	lock := &sync.Mutex{}
-	chanMap[channel].Track(bid, common.Socket{
+	ChanMap[channel].Track(bid, common.Socket{
 		Connection: c,
 		Mutex:      lock,
 	})
@@ -106,7 +106,7 @@ func ConnHandler(c *websocket.Conn) {
 
 		// route message to proper handler and await response
 		resp := routes.Map[proto.PayloadTag(tag)](b, common.SocketContext{
-			Sockets: chanMap,
+			Sockets: ChanMap,
 			BID:     bid,
 			Channel: channel,
 			MT:      mt,
@@ -125,17 +125,17 @@ func ConnHandler(c *websocket.Conn) {
 	}
 }
 
-// crowdHandler monitors chanMap on a channel and emits crowd message
+// crowdHandler monitors ChanMap on a channel and emits crowd message
 // broadcasts to everyone in the channel
 func crowdHandler(channel string) {
 	meta := common.SocketContext{
-		Sockets: chanMap,
+		Sockets: ChanMap,
 		Channel: channel,
 		MT:      1,
 	}
 	var spectators int
 	for {
-		spectators = <-chanMap[channel].C
+		spectators = <-ChanMap[channel].C
 		proto.CrowdPayload{
 			Spec: spectators,
 		}.Broadcast(meta)
@@ -143,12 +143,12 @@ func crowdHandler(channel string) {
 }
 
 // killSocket closes the websocket connection and removes the socket
-// reference from the chanMap map
+// reference from the ChanMap map
 func killSocket(conn *websocket.Conn, channel string, bid string) {
-	chanMap[channel].UnTrack(bid)
-	// free up memory in chanMap if the SockMap is empty
-	if chanMap[channel].Empty() {
-		delete(chanMap, channel)
+	ChanMap[channel].UnTrack(bid)
+	// free up memory in ChanMap if the SockMap is empty
+	if ChanMap[channel].Empty() {
+		delete(ChanMap, channel)
 	}
 	_ = conn.Close()
 }
