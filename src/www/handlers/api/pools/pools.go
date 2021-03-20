@@ -1,4 +1,4 @@
-package api
+package pools
 
 import (
 	"github.com/gofiber/fiber/v2"
