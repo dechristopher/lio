@@ -25,6 +25,7 @@ export const MobileNavbarMenu: FC<MobileNavbarProps> = (props) => {
 			<div className="bg-white shadow" ref={props.menuRef}>
 				<div className="pt-2 pb-3 space-y-1">
 					{/* Current: "bg-green-50 border-green-500 text-green-700", Default: "border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700" */}
+					<MobileNavLink to="/demo" active={props.pathname === "/demo"}>Demo</MobileNavLink>
 					<MobileNavLink to="/play" active={props.pathname === "/play"}>Play</MobileNavLink>
 					<MobileNavLink to="/learn" active={props.pathname === "/learn"}>Learn</MobileNavLink>
 					<MobileNavLink to="/watch" active={props.pathname === "/watch"}>Watch</MobileNavLink>

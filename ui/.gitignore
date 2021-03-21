@@ -2,3 +2,4 @@ dist/
 dist/*
 dist/**
 coverage/**
+webpack.config.parsed.json

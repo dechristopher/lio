@@ -12,7 +12,7 @@ export const BaseURL = process.env.NODE_ENV === "development" ?
 // The base websocket URL
 export const BaseWsURL = process.env.NODE_ENV === "development" ?
     `ws://${process.env.DEV_BASE_URL}/ws` :
-    `ws://${process.env.PROD_BASE_URL}/ws`;
+    `wss://${process.env.PROD_BASE_URL}/ws`;
 
 // React-use-websockets states
 export const WebSocketConnectionStatuses: Record<ReadyState, string> = {

@@ -3,7 +3,6 @@ import {
     cssLoader,
     cssLoaderItems,
     cssModulesSupportLoaderItems,
-    lessLoader,
     miniCssExtractLoader,
     postCssLoader,
     resolveUrlLoader,
@@ -13,31 +12,13 @@ import {
 /** css **/
 export const cssRule = {
     test: /\.css$/,
-    use: [miniCssExtractLoader, postCssLoader, resolveUrlLoader, cssLoader],
-};
-
-/** less **/
-export const lessModulesRule = {
-    test: /\.module.less$/,
-    use: arrayFilterEmpty([
-        ...cssModulesSupportLoaderItems,
+    use: [
+        miniCssExtractLoader,
+        cssLoader,
         postCssLoader,
         resolveUrlLoader,
-        lessLoader,
-    ]),
+    ],
 };
-export const lessRule = {
-    test: /\.less$/,
-    exclude: /\.module.less$/,
-    use: arrayFilterEmpty([
-        ...cssLoaderItems,
-        postCssLoader,
-        resolveUrlLoader,
-        lessLoader,
-    ]),
-};
-
-export const lessRules = [lessModulesRule, lessRule];
 
 /** sass **/
 export const sassModulesRule = {
@@ -55,9 +36,9 @@ export const sassRule = {
     exclude: /\.module.scss$/,
     use: arrayFilterEmpty([
         ...cssLoaderItems,
+        ...sassLoaderItems,
         postCssLoader,
         resolveUrlLoader,
-        ...sassLoaderItems,
     ]),
 };
 

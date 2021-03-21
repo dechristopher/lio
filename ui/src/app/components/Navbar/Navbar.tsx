@@ -42,6 +42,7 @@ export const Navbar: FC<NavbarProps> = (props) => {
 								<LogoPrimary className="hidden md:block h-12 w-48 mt-1" />
 							</div>
 							<div className="hidden md:ml-6 md:flex md:space-x-8">
+								<DesktopNavLink to="/demo" active={props.pathname === "/demo"}>Demo</DesktopNavLink>
 								<DesktopNavLink to="/play" active={props.pathname === "/play"}>Play</DesktopNavLink>
 								<DesktopNavLink to="/learn" active={props.pathname === "/learn"}>Learn</DesktopNavLink>
 								<DesktopNavLink to="/watch" active={props.pathname === "/watch"}>Watch</DesktopNavLink>

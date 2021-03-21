@@ -44,7 +44,6 @@ export default {
             rules.fontsRule,
             rules.cssRule,
             rules.hmrRule,
-            ...rules.lessRules,
             ...rules.sassRules,
             ...rules.svgRules,
         ]),

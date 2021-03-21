@@ -5,7 +5,7 @@ import {Navbar} from "@app/components/Navbar/Navbar";
 export const NavbarContainer: FC = () => {
 	const location = useLocation();
 
-	console.log(location);
+	// console.log(location);
 
 	return (
 		<Navbar pathname={location.pathname}/>

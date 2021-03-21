@@ -165,3 +165,19 @@ export const borderColors = {
         1000: "border-gray-1000",
     }
 }
+
+export class BGColor {
+    private color: BackGroundColors;
+
+    constructor(color: BGColors, intensity: BGIntensities = 600) {
+        this.color = bgColors[color][intensity]
+    }
+
+    getColor(): BackGroundColors {
+        return this.color;
+    }
+
+    setColor(color: BGColors, intensity: BGIntensities = 600): void {
+        this.color = bgColors[color][intensity]
+    }
+}

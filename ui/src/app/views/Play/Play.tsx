@@ -7,6 +7,7 @@ import {CustomGames} from "@app/components/CustomGames/CustomGames";
 import {RatedGameTab} from "@app/components/GameTabs/RatedGameTab";
 import {CreateGameTab} from "@app/components/GameTabs/CreateGameTab";
 import Tabs from "@components/Tabs/Tabs";
+import {ContentContainer} from "@app/containers/ContentContainer";
 import {FetchSiteStats, SiteStats} from "@app/queries/FetchSiteStats";
 
 const initSiteStats: SiteStats = {
@@ -41,7 +42,7 @@ export const PlayView: FC = () => {
 	}, [])
 
 	return (
-		<div className="mt-16 w-screen flex flex-col items-stretch overflow-x-hidden overflow-y-auto" style={{height: "calc(100vh - 4rem)"}}>
+		<ContentContainer>
 			<div className="md:flex md:items-center md:justify-between pt-8 pb-36 bg-green-500 shadow-lg">
 				<div className="px-6 flex-1 min-w-0">
 					<h2 className="text-4xl font-bold leading-12 text-white">
@@ -104,6 +105,6 @@ export const PlayView: FC = () => {
 					{/* <!-- End secondary column --> */}
 				</aside>
 			</div>
-		</div>
+		</ContentContainer>
 	)
 }
