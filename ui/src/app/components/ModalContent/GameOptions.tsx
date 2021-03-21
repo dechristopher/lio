@@ -8,7 +8,7 @@ import {bgColors} from "@utils/styles/colors";
 import {Button} from "@components/Button/Button";
 import {ModalContextActions, useModalContext} from "@app/contexts/ModalContext";
 import {PreGame} from "@app/components/ModalContent/PreGame";
-import {RatedGame} from "@app/querys/FetchRatedPools";
+import {RatedGame} from "@app/queries/FetchRatedPools";
 import {ColorOptions, GameModes, GameTypes, Times} from "@utils/constants";
 
 const GameTimes = [

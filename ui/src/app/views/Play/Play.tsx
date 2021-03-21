@@ -1,4 +1,4 @@
-import React, {FC} from "react";
+import React, {FC, useEffect, useState} from "react";
 import {TopPlayersList} from "@app/components/TopPlayersList/TopPlayersList";
 import {AppStats} from "@app/components/AppStats/AppStats";
 import {Card} from "@components/Card/Card";
@@ -7,8 +7,39 @@ import {CustomGames} from "@app/components/CustomGames/CustomGames";
 import {RatedGameTab} from "@app/components/GameTabs/RatedGameTab";
 import {CreateGameTab} from "@app/components/GameTabs/CreateGameTab";
 import Tabs from "@components/Tabs/Tabs";
+import {FetchSiteStats, SiteStats} from "@app/queries/FetchSiteStats";
+
+const initSiteStats: SiteStats = {
+	playerCount: 0,
+	activeGames: 0
+}
 
 export const PlayView: FC = () => {
+	const [siteStats, setSiteStats] = useState<SiteStats>(initSiteStats)
+
+	/**
+	 * Fetch site stats when this component mounts.
+	 */
+	useEffect(() => {
+		const fetchAndSetSiteStats = () => {
+			FetchSiteStats()
+				.then(stats => setSiteStats(stats))
+		}
+
+		// initial call to get site stats
+		fetchAndSetSiteStats();
+
+		// run fetchAndSetSiteStats every 5 minutes
+		const intervalId = setInterval(() => {
+			fetchAndSetSiteStats()
+		}, 300000)
+
+		// clear the set interval when the component unmounts
+		return () => {
+			clearInterval(intervalId)
+		}
+	}, [])
+
 	return (
 		<div className="mt-16 w-screen flex flex-col items-stretch overflow-x-hidden overflow-y-auto" style={{height: "calc(100vh - 4rem)"}}>
 			<div className="md:flex md:items-center md:justify-between pt-8 pb-36 bg-green-500 shadow-lg">
@@ -25,7 +56,7 @@ export const PlayView: FC = () => {
 
 						{/* Online player stats */}
 						<div className="block md:hidden">
-							<AppStats />
+							<AppStats stats={siteStats} />
 						</div>
 
 						{/* Game variants */}
@@ -66,7 +97,7 @@ export const PlayView: FC = () => {
 					<div className="absolute inset-0 py-6 px-2 sm:px-4 lg:px-4 space-y-8">
 						<TopPlayersList />
 
-						<AppStats />
+						<AppStats stats={siteStats} />
 
 						<Footer />
 					</div>

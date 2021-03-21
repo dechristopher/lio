@@ -1,10 +1,14 @@
-import React, {FC, useState} from "react";
+import React, {FC} from "react";
 import {Card} from "@components/Card/Card";
 import {Statistic} from "@components/Statistic/Statistic";
+import {SiteStats} from "@app/queries/FetchSiteStats";
 
-export const AppStats: FC = () => {
-	const [playersOnline] = useState(Math.round(Math.random() * 3000) + 1000)
-	const [activeGames] = useState(Math.round(Math.random() * 1500) + 1000)
+interface AppStatsProps {
+	stats: SiteStats
+}
+
+export const AppStats: FC<AppStatsProps> = (props) => {
+	const { playerCount, activeGames } = props.stats
 
 	return (
 		<Card noPad>
@@ -12,7 +16,7 @@ export const AppStats: FC = () => {
 				<Statistic
 					orientation="center"
 					title="Players Online"
-					value={playersOnline}
+					value={playerCount}
 				/>
 				<Statistic
 					orientation="center"

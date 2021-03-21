@@ -2,7 +2,7 @@ import React, {FC, useEffect, useState} from 'react';
 import {GameVariantCard} from "@components/GameVariantCard/GameVariantCard";
 import {textColors} from "@utils/styles/colors";
 import {GameVariantText} from "@components/GameVariantCard/GameVariantText";
-import {FetchRatedPools, RatedGame} from "@app/querys/FetchRatedPools";
+import {FetchRatedPools, RatedGame} from "@app/queries/FetchRatedPools";
 import {GameModes, GamePools, PoolColors} from "@utils/constants";
 import {ModalContextActions, useModalContext} from "@app/contexts/ModalContext";
 import {PreGame} from "@app/components/ModalContent/PreGame";

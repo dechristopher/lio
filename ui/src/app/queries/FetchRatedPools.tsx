@@ -12,7 +12,7 @@ export type RatedGame = {
 }
 
 // Response returned by the backend.
-export type RatedPoolsRes = {
+type RatedPoolsRes = {
     [GamePools.Bullet]: RatedGame[],
     [GamePools.Blitz]: RatedGame[],
     [GamePools.Rapid]: RatedGame[],

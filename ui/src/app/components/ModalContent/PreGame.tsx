@@ -5,7 +5,7 @@ import {FontSizes, GameModes, WebSocketConnectionStatuses} from "@utils/constant
 import {bgColors, textColors} from "@utils/styles/colors";
 import {Button} from "@components/Button/Button";
 import {GameInvite} from "@app/components/GameInvite/GameInvite";
-import {RatedGame} from "@app/querys/FetchRatedPools";
+import {RatedGame} from "@app/queries/FetchRatedPools";
 import {Spinner} from "@components/Spinner/Spinner";
 
 const optionPadding = "pt-4";
