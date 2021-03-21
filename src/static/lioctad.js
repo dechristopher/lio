@@ -254,7 +254,7 @@ const parseResponse = (raw) => {
 /**
  * Return a map of all legal moves
  * @param moves - raw moves object
- * @returns {Map<string, string>}
+ * @returns {Map<string, string[]>}
  */
 const allMoves = (moves) => {
 	let allMoves = new Map();
