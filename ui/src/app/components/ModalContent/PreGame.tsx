@@ -1,7 +1,7 @@
 import React, {FC, useEffect, useState} from 'react';
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import {GameVariantText} from "@components/GameVariantCard/GameVariantText";
-import {FontSizes, GameModes, WebSocketConnectionStatuses} from "@utils/constants";
+import {BaseWsURL, FontSizes, GameModes, WebSocketConnectionStatuses} from "@utils/constants";
 import {bgColors, textColors} from "@utils/styles/colors";
 import {Button} from "@components/Button/Button";
 import {GameInvite} from "@app/components/GameInvite/GameInvite";
@@ -19,7 +19,7 @@ export const PreGame: FC<PreGameProps> = (props) => {
     const lastSpaceIdx = props.gameType.name.lastIndexOf(" ");
 
     // TODO: change to proper WS channel for game queues
-    const [socketURL] = useState("wss://echo.websocket.org")
+    const [socketURL] = useState(`${BaseWsURL}/ABC123`)
 
     const {
         sendMessage,
