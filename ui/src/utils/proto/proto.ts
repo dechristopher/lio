@@ -58,6 +58,11 @@ export class WsPayloadBaseClass<Serialized, Deserialized> {
 	}
 }
 
+export type SocketResponse = {
+	t: MessageTag;
+	d: PayloadMap[MessageTag];
+}
+
 interface SocketMessage {
 	t: MessageTag;   // message tag
 	d: unknown;     // message data
@@ -65,8 +70,10 @@ interface SocketMessage {
 
 /**
  * Build socket message
- * @param tag - message tag
- * @param data - message payload data
+ *
+ * @param {MessageTag} tag - message tag
+ * @param {PayloadMap[MessageTag]} data - message payload data
+ * @returns {string} - socket message
  */
 export const BuildSocketMessage = (tag: MessageTag, data: PayloadMap[MessageTag]): string => {
 	const m: SocketMessage = {
@@ -75,5 +82,3 @@ export const BuildSocketMessage = (tag: MessageTag, data: PayloadMap[MessageTag]
 	}
 	return JSON.stringify(m);
 };
-
-// BuildSocketMessage(MessageTag.OFENTag, new OFENPayload())
