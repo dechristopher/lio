@@ -21,7 +21,7 @@ export class CrowdPayload extends WsPayloadBaseClass<CrowdPayloadSerialized, Cro
 		this.data = this.deserialize(data);
 	}
 
-	static deserialize(data: CrowdPayloadSerialized): CrowdPayloadDeserialized {
+	public deserialize(data: CrowdPayloadSerialized): CrowdPayloadDeserialized {
 		return {
 			Black: data.b,
 			White: data.w,

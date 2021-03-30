@@ -36,7 +36,7 @@ export class MovePayload extends WsPayloadBaseClass<MovePayloadSerialized, MoveP
 		this.data = this.deserialize(data);
 	}
 
-	static deserialize(data: MovePayloadSerialized): MovePayloadDeserialized {
+	public deserialize(data: MovePayloadSerialized): MovePayloadDeserialized {
 		return {
 			Clock: data.c,
 			OFEN: data.o,
