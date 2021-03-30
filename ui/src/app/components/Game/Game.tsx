@@ -1,12 +1,39 @@
 import React, {FC, useEffect, useRef, useState} from "react";
 import {Game as GameController} from "@components/Game";
 import useWebSocket, {ReadyState} from "react-use-websocket";
-import {BaseWsURL, WebSocketConnectionStatuses} from "@utils/constants";
-import {BuildSocketMessage, MessageTag, Payload, SocketResponse} from "@utils/proto/proto";
+import {BaseWsURL} from "@utils/constants";
+import {BuildSocketMessage, MessageTag, SocketResponse} from "@utils/proto/proto";
 import {MovePayload} from "@utils/proto/game/move";
+import {OctadgroundProps} from "react-octadground/octadground";
+import {Howl} from 'howler'
+import {CrowdPayload, CrowdPayloadSerialized} from "@utils/proto/crowd/crowd";
 
 const logMe = () => console.log(`© 2021 lioctad.org`);
 
+const soundPath = "../../../assets/sfx/"
+
+const moveSound = new Howl({
+	src: [`${soundPath}move.ogg`],
+	preload: true,
+	autoplay: true,
+	html5: true,
+	volume: 1.0
+});
+
+const capSound = new Howl({
+	src: [`${soundPath}capture.ogg`],
+	preload: true,
+	volume: 1.0
+});
+
+const endSound = new Howl({
+	src: [`${soundPath}end.ogg`],
+	preload: true,
+	volume: 0.6
+});
+
+// TODO better way to do this than initialize an entire class?
+// we only need to send {a: 0}
 const boardUpdateReqPayload = new MovePayload({
 	c: {
 		Black: 0,
@@ -23,6 +50,25 @@ const boardUpdateReqPayload = new MovePayload({
 	v: new Map<string, string[]>(),
 	a: 0
 })
+
+const initialGameState: OctadgroundProps = {
+	ofen: "",
+	highlight: {
+		lastMove: true,
+		check: true,
+	},
+	movable: {
+		free: false,
+		color: 'white',
+	},
+	selectable: {
+		enabled: false
+	},
+	onMove: (orig: any, dest: any) => {
+		console.log(`Orig: ${orig} DEST: ${dest}`)
+		// doMove(orig, dest)
+	}
+}
 
 interface PingState {
 	pingRunner?: NodeJS.Timeout;   // interval to calculate ping
@@ -44,16 +90,17 @@ export const Game: FC = () => {
 	const [ka, setKa] = useState<NodeJS.Timeout | undefined>(undefined)	// keep-alive interval id
 	const [backoff, setBackoff] = useState<number>(0);           			// incremental backoff
 	const [pingState, setPingState] = useState<PingState>(initialPingState);  		// internal ping state
-	const [move, setMove] = useState<number>(0)
+	const [, setMove] = useState<number>(0) // TODO add move
+	const [gameState, setGameState] = useState<OctadgroundProps>(initialGameState)
+	const [numConnected, setNumConnected] = useState<number>(0)
 	const didUnmount = useRef(false);
 
 	const connected = () => {
+		console.log("connected")
 		setBackoff(0);
 		sendBoardUpdateRequest();
 		schedulePing(500);
-		setKa(setInterval(() => {
-			sendKeepAlive();
-		}, 3000))
+		scheduleKeepAlive(3000)
 	}
 
 	const {
@@ -72,7 +119,8 @@ export const Game: FC = () => {
 			}
 			disableBoard();
 		},
-		onError: () => {
+		onError: (event) => {
+			console.error("Error", event)
 		},
 		onMessage: (event) => {
 			parseResponse(event.data);
@@ -89,31 +137,86 @@ export const Game: FC = () => {
 		reconnectInterval: backoff,
 	})
 
+	/**
+	 * Refresh our intervals whenever readyState changes so that they
+	 * get access to the freshest state.
+	 */
+	useEffect(() => {
+		console.debug("useEffect - refresh intervals")
+		schedulePing(pingState.pingDelay)
+		scheduleKeepAlive(3000)
+	}, [readyState])
+
+	/**
+	 * Log when we first mount, update the reconnection.
+	 */
 	useEffect(() => {
 		logMe();
 
-		// updates the ref used by the websocket re-connection handler
+		// updates the ref used by the websocket reconnection handler
 		return () => {
 			didUnmount.current = true;
 		};
 	}, [])
 
-
+	// DEBUG
 	useEffect(() => {
-		console.log(`Web socket connection status: ${WebSocketConnectionStatuses[readyState]}`)
-
-		if (readyState === ReadyState.OPEN) {
-			sendMessage("Hello!")
-		}
-	}, [readyState])
-
-	useEffect(() => {
-		console.log(`Last message: ${lastMessage}`)
+		console.debug(`Last message: ${lastMessage?.data}`)
 	}, [lastMessage])
 
 	/**
-	 * Determine what to do with received responses
-	 * @param raw - the raw message JSON string
+	 * Return the most recent game move for last move highlighting.
+	 *
+	 * @param {string[]} moves - ordered list of all moves
+	 * @returns {[string, string]|*[]} - most recent move
+	 */
+	const getLastMove = (moves: string[]) => {
+		if (moves && moves.length > 0) {
+			const move = moves[moves.length - 1];
+			return [
+				move.substring(0, 2),
+				move.substring(2, 4)
+			];
+		}
+
+		return [];
+	};
+
+	/**
+	 * Return a map of all legal moves.
+	 *
+	 * @param {Map<string, string[]>} moves - raw moves object
+	 * @returns {Map<string, string[]>} - all legal moves
+	 */
+	const allMoves = (moves: Map<string, string[]>) => {
+		const allMoves = new Map();
+
+		if (!!moves) {
+			Object.entries(moves).forEach(([s1, dests]) => {
+				allMoves.set(s1, dests);
+			});
+		}
+
+		return allMoves;
+	};
+
+	/**
+	 * Play sounds for incoming moves based on the SAN for the move.
+	 *
+	 * @param {string} san - SAN for the last move
+	 */
+	const playSound = (san: string) => {
+		if (san.includes("x")) {
+			capSound.play();
+		} else {
+			moveSound.play();
+		}
+	};
+
+	/**
+	 * Determine what to do with received responses.
+	 *
+	 * @param {string} raw - the raw message JSON string
 	 */
 	const parseResponse = (raw: string) => {
 		if (!raw) {
@@ -123,53 +226,115 @@ export const Game: FC = () => {
 		const message = JSON.parse(raw) as SocketResponse;
 
 		// handle pongs
-		// if (message.po && message.po === 1) {
-		// 	pong();
-		// 	return;
-		// }
+		// @ts-ignore TODO need to implement ping/pong payload
+		if (message.po && message.po === 1) {
+			pong();
+			return;
+		}
 
 		switch (message.t) {
 			case MessageTag.MoveTag: // move happened
+				console.log("MOVE MESSAGE", message)
 				// TODO: is this the best way to do this?
-				const data = message.d as MovePayload;
+				const movePayload = message.d as MovePayload;
 
-				if (!data.get().Moves) {
+				if (!movePayload.get().Moves) {
 					setMove(1)
 					// document.getElementById("info").innerHTML = ""
 					// 	+ "FREE, ONLINE OCTAD COMING SOON!";
 				}
-				const ofenParts = data.get().OFEN.split(' ');
-				// og.set({
-				// 	ofen: ofenParts[0],
-				// 	lastMove: getLastMove(message.d.m),
-				// 	turnColor: ofenParts[1] === "w" ? "white" : "black",
-				// 	check: message.d.k,
-				// 	movable: {
-				// 		free: false,
-				// 		dests: allMoves(message.d.v),
-				// 	}
-				// });
-				if (data.get().SAN) {
-					playSound(data.get().SAN);
+				const ofenParts = movePayload.get().OFEN.split(' ');
+
+				setGameState(s => ({
+					...s,
+					ofen: ofenParts[0],
+					lastMove: getLastMove(movePayload.get().Moves),
+					turnColor: ofenParts[1] === "w" ? "white" : "black",
+					check: movePayload.get().Check,
+					movable: {
+						free: false,
+						dests: allMoves(movePayload.get().ValidMoves)
+					}
+				}))
+
+				if (movePayload.get().SAN) {
+					playSound(movePayload.get().SAN);
 				}
 				// perform pre-move if set
-				// og.playPremove();
+				// gameState.playPremove();
 				break;
 			case MessageTag.GameOverTag: // game over
+				console.log("GAME OVER MESSAGE", message)
 				// document.getElementById("info").innerHTML = message.d.s;
 				endSound.play();
 				break;
 			case MessageTag.CrowdTag:
-				// document.getElementById("crowd").innerHTML = message.d.s;
+				console.log("CROWD MESSAGE", message)
+				// const crowdPayload = message.d as CrowdPayload;
+				const cp = new CrowdPayload(message.d as CrowdPayloadSerialized)
+
+				setNumConnected(cp.get().Spec)
 				break;
 			default:
 				return;
 		}
 	};
 
+	// /**
+	//  * Perform move from origin to destination square and prompt for promotion
+	//  * @param orig - origin square
+	//  * @param dest - destination square
+	//  */
+	// const doMove = (orig, dest) => {
+	// 	let promo = "";
+	// 	if (gameState.state.pieces.get(dest) && gameState.state.pieces.get(dest).role === "pawn") {
+	// 		let destPiece = og.state.pieces.get(dest);
+	// 		// TODO prompt for promo piece type
+	// 		if (destPiece.color === "white" && dest[1] === "4") {
+	// 			promo = 'q';
+	// 			// document.getElementById("promo-shade-xx").classList.remove('hidden');
+	// 			// document.getElementById("promo-xx").classList.remove('hidden');
+	// 		} else if (destPiece.color === "black" && dest[1] === "1") {
+	// 			promo = 'q';
+	// 		}
+	// 	}
+	//
+	// 	sendGameMove(orig + dest + promo, move);
+	// 	setMove(s => s++)
+	// };
 
 	/**
-	 * Increment the backoff time so we don't flood the backend
+	 // * Sends a game move in Universal Octad Interface format
+	 // * @param move - UOI move string
+	 // * @param num - move number
+	 */
+	// const sendGameMove = (move: string, num: number) => {
+	// 	const gameMove = new MovePayload({
+	// 		a: 0,
+	// 		c: {
+	// 			Black: 0,
+	// 			White: 0,
+	// 			Lag: 0
+	// 		},
+	// 		k: false,
+	// 		l: 0,
+	// 		m: [],
+	// 		n: num,
+	// 		o: "",
+	// 		s: "",
+	// 		u: move,
+	// 		v: new Map<string, string[]>([])
+	// 	})
+	//
+	// 	send(BuildSocketMessage(
+	// 		MessageTag.MoveTag,
+	// 		gameMove
+	// 	));
+	// };
+
+
+	/**
+	 * Increment the backoff time so we don't flood the backend.
 	 */
 	const incrBackoff = () => {
 		if (backoff === 0) {
@@ -177,34 +342,37 @@ export const Game: FC = () => {
 		} else if (backoff <= 4000) {
 			setBackoff(s => s * 2)
 		}
+
 		console.log("Waiting " + backoff + " seconds to retry...");
 	};
 
 	/**
-	 * Disable board if disconnected
+	 * Disable board if disconnected.
 	 */
 	const disableBoard = () => {
-		// TODO: implement
-		// og.set({
-		// 	movable: {
-		// 		free: false,
-		// 		dests: new Map(),
-		// 	}
-		// });
+		setGameState(s => ({
+			...s,
+			movable: {
+				free: false,
+				dests: new Map()
+			}
+		}))
 	};
 
 	/**
-	 * Sends a keep-alive message, requesting the socket stay open
+	 * Sends a keep-alive message, requesting the socket stay open.
 	 */
 	const sendKeepAlive = () => {
+		console.debug("sendKeepAlive")
 		send("null");
 	};
 
 	/**
-	 * Send a ping immediately
+	 * Send a ping immediately.
 	 */
 	const ping = () => {
 		try {
+			console.debug("ping")
 			send(JSON.stringify({"pi": 1}));
 			setPingState(s => ({
 				...s,
@@ -216,10 +384,38 @@ export const Game: FC = () => {
 	};
 
 	/**
-	 * Schedule a ping message after the specified delay
-	 * @param delay - delay in ms to wait before pinging
+	 * Handle pong response, calculate latency.
+	 */
+	const pong = () => {
+		console.debug("pong")
+		const { pingDelay, lastPingTime, pongCount, latency } = pingState
+		const newPongCount = pongCount + 1;
+
+		// schedule the next ping
+		schedulePing(pingDelay);
+		const currentLag = Math.min(Date.now() - (lastPingTime || 0), 10000);
+
+		// average first few pings and then move to weighted moving average
+		const weight = newPongCount > 4 ? 0.1 : 1 / newPongCount;
+
+		// console.log(`Weight * (currentLag - latency)`)
+		// console.log(`${weight} * (${currentLag} - ${latency})`)
+
+		setPingState(s => ({
+			...s,
+			pongCount: newPongCount,
+			latency: s.latency + weight * (currentLag - latency)
+		}))
+	};
+
+	/**
+	 * Schedule a ping message after the specified delay.
+	 *
+	 * @param {number} delay - delay in ms to wait before pinging
 	 */
 	const schedulePing = (delay: number) => {
+		console.debug("schedulePing")
+		// clear the old interval if it exists
 		if (pingState.pingRunner) {
 			clearInterval(pingState.pingRunner);
 		}
@@ -231,9 +427,25 @@ export const Game: FC = () => {
 	};
 
 	/**
+	 * Schedule a keep alive message after the specified delay.
+	 *
+	 * @param {number} delay - delay in ms to wait before sending a keep alive
+	 */
+	const scheduleKeepAlive = (delay: number) => {
+		console.debug("scheduleKeepAlive")
+		// clear the old interval if it exists
+		if (ka) {
+			clearInterval(ka);
+		}
+
+		setKa(setInterval(sendKeepAlive, delay))
+	};
+
+	/**
 	 * Sends an empty move message to prompt a response with board info.
 	 */
 	const sendBoardUpdateRequest = () => {
+		console.debug("sendBoardUpdateRequest")
 		send(BuildSocketMessage(MessageTag.MoveTag, boardUpdateReqPayload));
 	};
 
@@ -243,16 +455,30 @@ export const Game: FC = () => {
 	 * @param {string} command - websocket command
 	 */
 	const send = (command: string) => {
-		if (readyState === WebSocket.OPEN) {
+		if (readyState === ReadyState.OPEN) {
+			console.log(`send - ${command}`)
 			sendMessage(command);
 		}
 	};
 
 
 	return (
-		<div className="mt-16 w-screen flex justify-center items-center overflow-hidden"
-		     style={{height: "calc(100vh - 4rem)"}}>
-			<GameController/>
+		<div
+			className="mt-16 w-screen flex justify-center items-center overflow-hidden"
+			style={{height: "calc(100vh - 4rem)"}}>
+			<div>
+				<GameController
+					gameState={gameState}
+				/>
+
+				<div className="text-center flex flex-col">
+					<span className="sm" id="info">FREE, ONLINE OCTAD COMING SOON!</span>
+					<span className="sm">
+					<span id="crowd">{numConnected}</span> CONNECTED
+					[LAG <span id="lat">{pingState.latency.toFixed(1)}</span><span className="unit">MS</span>]
+					</span>
+				</div>
+			</div>
 		</div>
 	);
 }
