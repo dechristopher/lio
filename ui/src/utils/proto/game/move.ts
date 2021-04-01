@@ -15,7 +15,7 @@ interface MovePayloadDeserialized {
 	Ack: number;                        // a
 }
 
-interface MovePayloadSerialized {
+export interface MovePayloadSerialized {
 	c: ClockPayload;            // Clock
 	o: string;                  // OFEN
 	s: string;                  // SAN

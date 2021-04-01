@@ -2,11 +2,12 @@ import React, {FC, useEffect, useRef, useState} from "react";
 import {Game as GameController} from "@components/Game";
 import useWebSocket, {ReadyState} from "react-use-websocket";
 import {BaseWsURL} from "@utils/constants";
-import {BuildSocketMessage, MessageTag, SocketResponse} from "@utils/proto/proto";
-import {MovePayload} from "@utils/proto/game/move";
+import {BuildSocketMessage, ClockPayload, MessageTag, SocketResponse} from "@utils/proto/proto";
+import {MovePayload, MovePayloadSerialized} from "@utils/proto/game/move";
 import {OctadgroundProps} from "react-octadground/octadground";
 import {Howl} from 'howler'
 import {CrowdPayload, CrowdPayloadSerialized} from "@utils/proto/crowd/crowd";
+import {GameOverPayload, GameOverPayloadSerialized} from "@utils/proto/crowd/game_over";
 
 const logMe = () => console.log(`© 2021 lioctad.org`);
 
@@ -32,14 +33,16 @@ const endSound = new Howl({
 	volume: 0.6
 });
 
+const initialClockState: ClockPayload = {
+	Black: 0,
+	White: 0,
+	Lag: 0
+}
+
 // TODO better way to do this than initialize an entire class?
 // we only need to send {a: 0}
 const boardUpdateReqPayload = new MovePayload({
-	c: {
-		Black: 0,
-		White: 0,
-		Lag: 0
-	},
+	c: initialClockState,
 	k: false,
 	l: 0,
 	m: [],
@@ -64,10 +67,6 @@ const initialGameState: OctadgroundProps = {
 	selectable: {
 		enabled: false
 	},
-	onMove: (orig: any, dest: any) => {
-		console.log(`Orig: ${orig} DEST: ${dest}`)
-		// doMove(orig, dest)
-	}
 }
 
 interface PingState {
@@ -90,10 +89,18 @@ export const Game: FC = () => {
 	const [ka, setKa] = useState<NodeJS.Timeout | undefined>(undefined)	// keep-alive interval id
 	const [backoff, setBackoff] = useState<number>(0);           			// incremental backoff
 	const [pingState, setPingState] = useState<PingState>(initialPingState);  		// internal ping state
-	const [, setMove] = useState<number>(0) // TODO add move
-	const [gameState, setGameState] = useState<OctadgroundProps>(initialGameState)
+	const [move, setMove] = useState<number>(0) // TODO add move
+	const [gameState, setGameState] = useState<OctadgroundProps>({
+		...initialGameState
+	})
+	const [clock, setClock] = useState<ClockPayload>(initialClockState)
 	const [numConnected, setNumConnected] = useState<number>(0)
+	const [infoContent, setInfoContent] = useState<string>("FREE, ONLINE OCTAD COMING SOON!")
 	const didUnmount = useRef(false);
+
+	useEffect(() => {
+		console.log("useEffect - gameState", gameState)
+	}, [JSON.stringify(gameState)] )
 
 	const connected = () => {
 		console.log("connected")
@@ -235,13 +242,11 @@ export const Game: FC = () => {
 		switch (message.t) {
 			case MessageTag.MoveTag: // move happened
 				console.log("MOVE MESSAGE", message)
-				// TODO: is this the best way to do this?
-				const movePayload = message.d as MovePayload;
+				const movePayload = new MovePayload(message.d as MovePayloadSerialized)
 
 				if (!movePayload.get().Moves) {
 					setMove(1)
-					// document.getElementById("info").innerHTML = ""
-					// 	+ "FREE, ONLINE OCTAD COMING SOON!";
+					setInfoContent("FREE, ONLINE OCTAD COMING SOON!")
 				}
 				const ofenParts = movePayload.get().OFEN.split(' ');
 
@@ -254,8 +259,10 @@ export const Game: FC = () => {
 					movable: {
 						free: false,
 						dests: allMoves(movePayload.get().ValidMoves)
-					}
+					},
 				}))
+
+				setClock(movePayload.get().Clock)
 
 				if (movePayload.get().SAN) {
 					playSound(movePayload.get().SAN);
@@ -265,12 +272,14 @@ export const Game: FC = () => {
 				break;
 			case MessageTag.GameOverTag: // game over
 				console.log("GAME OVER MESSAGE", message)
-				// document.getElementById("info").innerHTML = message.d.s;
+				const gameOverPayload = new GameOverPayload(message.d as GameOverPayloadSerialized)
+
+				setInfoContent(gameOverPayload.get().Status)
 				endSound.play();
 				break;
 			case MessageTag.CrowdTag:
 				console.log("CROWD MESSAGE", message)
-				// const crowdPayload = message.d as CrowdPayload;
+
 				const cp = new CrowdPayload(message.d as CrowdPayloadSerialized)
 
 				setNumConnected(cp.get().Spec)
@@ -280,58 +289,60 @@ export const Game: FC = () => {
 		}
 	};
 
-	// /**
-	//  * Perform move from origin to destination square and prompt for promotion
-	//  * @param orig - origin square
-	//  * @param dest - destination square
-	//  */
-	// const doMove = (orig, dest) => {
-	// 	let promo = "";
-	// 	if (gameState.state.pieces.get(dest) && gameState.state.pieces.get(dest).role === "pawn") {
-	// 		let destPiece = og.state.pieces.get(dest);
-	// 		// TODO prompt for promo piece type
-	// 		if (destPiece.color === "white" && dest[1] === "4") {
-	// 			promo = 'q';
-	// 			// document.getElementById("promo-shade-xx").classList.remove('hidden');
-	// 			// document.getElementById("promo-xx").classList.remove('hidden');
-	// 		} else if (destPiece.color === "black" && dest[1] === "1") {
-	// 			promo = 'q';
-	// 		}
-	// 	}
-	//
-	// 	sendGameMove(orig + dest + promo, move);
-	// 	setMove(s => s++)
-	// };
+	/**
+	 * Perform move from origin to destination square and prompt for promotion.
+	 *
+	 * @param {string} orig - origin square
+	 * @param {string} dest - destination square
+	 */
+	const doMove = (orig: string, dest: string) => {
+		const promo = "";
+
+		console.log("doMove - gameState", gameState)
+
+		// if (gameState.state.pieces.get(dest) && gameState.state.pieces.get(dest).role === "pawn") {
+		// 	let destPiece = og.state.pieces.get(dest);
+		// 	// TODO prompt for promo piece type
+		// 	if (destPiece.color === "white" && dest[1] === "4") {
+		// 		promo = 'q';
+		// 		// document.getElementById("promo-shade-xx").classList.remove('hidden');
+		// 		// document.getElementById("promo-xx").classList.remove('hidden');
+		// 	} else if (destPiece.color === "black" && dest[1] === "1") {
+		// 		promo = 'q';
+		// 	}
+		// }
+
+		sendGameMove(orig + dest + promo, move);
+		setMove(s => s++)
+	};
 
 	/**
-	 // * Sends a game move in Universal Octad Interface format
-	 // * @param move - UOI move string
-	 // * @param num - move number
+	 * Sends a game move in Universal Octad Interface format.
+	 *
+	 * @param {string} move - UOI move string
+	 * @param {string} num - move number
 	 */
-	// const sendGameMove = (move: string, num: number) => {
-	// 	const gameMove = new MovePayload({
-	// 		a: 0,
-	// 		c: {
-	// 			Black: 0,
-	// 			White: 0,
-	// 			Lag: 0
-	// 		},
-	// 		k: false,
-	// 		l: 0,
-	// 		m: [],
-	// 		n: num,
-	// 		o: "",
-	// 		s: "",
-	// 		u: move,
-	// 		v: new Map<string, string[]>([])
-	// 	})
-	//
-	// 	send(BuildSocketMessage(
-	// 		MessageTag.MoveTag,
-	// 		gameMove
-	// 	));
-	// };
+	const sendGameMove = (move: string, num: number) => {
+		const gameMove = new MovePayload({
+			a: 0,
+			c: clock,
+			k: gameState.check as boolean,
+			l: pingState.latency,
+			m: [],
+			n: num,
+			o: gameState.ofen,
+			s: "",
+			u: move,
+			v: new Map<string, string[]>([])
+		})
 
+		console.log("sendGameMove", gameMove)
+
+		send(BuildSocketMessage(
+			MessageTag.MoveTag,
+			gameMove
+		));
+	};
 
 	/**
 	 * Increment the backoff time so we don't flood the backend.
@@ -445,8 +456,8 @@ export const Game: FC = () => {
 	 * Sends an empty move message to prompt a response with board info.
 	 */
 	const sendBoardUpdateRequest = () => {
-		console.debug("sendBoardUpdateRequest")
-		send(BuildSocketMessage(MessageTag.MoveTag, boardUpdateReqPayload));
+		console.log("sendBoardUpdateRequest", readyState === ReadyState.OPEN)
+		sendMessage(BuildSocketMessage(MessageTag.MoveTag, boardUpdateReqPayload));
 	};
 
 	/**
@@ -456,7 +467,6 @@ export const Game: FC = () => {
 	 */
 	const send = (command: string) => {
 		if (readyState === ReadyState.OPEN) {
-			console.log(`send - ${command}`)
 			sendMessage(command);
 		}
 	};
@@ -469,10 +479,11 @@ export const Game: FC = () => {
 			<div>
 				<GameController
 					gameState={gameState}
+					onMove={doMove}
 				/>
 
 				<div className="text-center flex flex-col">
-					<span className="sm" id="info">FREE, ONLINE OCTAD COMING SOON!</span>
+					<span className="sm" id="info">{infoContent}</span>
 					<span className="sm">
 					<span id="crowd">{numConnected}</span> CONNECTED
 					[LAG <span id="lat">{pingState.latency.toFixed(1)}</span><span className="unit">MS</span>]

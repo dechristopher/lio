@@ -5,6 +5,7 @@ import {OctadgroundProps} from "react-octadground/octadground";
 
 export interface GameProps {
 	gameState: OctadgroundProps;
+	onMove: (orig: string, dest: string) => void;
 }
 
 export const Game: FC<GameProps> = props => {
@@ -22,6 +23,7 @@ export const Game: FC<GameProps> = props => {
 				height="38vw"
 				width="38vw"
 				{...props.gameState}
+				onMove={props.onMove}
 			/>
 			{/*<Clock*/}
 			{/*	elo={1400}*/}

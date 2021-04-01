@@ -10,7 +10,7 @@ interface GameOverPayloadDeserialized {
 
 
 // GameOverPayload contains data regarding the outcome of the game
-interface GameOverPayloadSerialized {
+export interface GameOverPayloadSerialized {
 	w: string;          // `json:"w"`
 	i: number;          // `json:"i"`
 	s: string;          // `json:"s"`
