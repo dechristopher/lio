@@ -1,7 +1,7 @@
 import {WsPayloadBaseClass} from "@utils/proto/proto";
 
-type MoveAckPayloadSerialized = number;
-type MoveAckPayloadDeserialized = number;
+export type MoveAckPayloadSerialized = number;
+export type MoveAckPayloadDeserialized = number;
 
 export class MoveAckPayload extends WsPayloadBaseClass<MoveAckPayloadSerialized, MoveAckPayloadDeserialized> {
 	private data: MoveAckPayloadDeserialized;

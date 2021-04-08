@@ -3,29 +3,29 @@ import {ClockPayload, WsPayloadBaseClass} from "@utils/proto/proto";
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
 interface MovePayloadDeserialized {
-	Clock: ClockPayload;                // c
-	OFEN: string;                       // o
-	SAN: string;                        // s
+	Clock?: ClockPayload;                // c
+	OFEN?: string;                       // o
+	SAN?: string;                        // s
 	UOI: string;                        // u
-	MoveNum: number;                    // n
-	Check: boolean;                     // k
-	Moves: string[];                    // m
-	ValidMoves: Map<string, string[]>;  // v
-	Latency: number;                    // l
+	MoveNum?: number;                    // n
+	Check?: boolean;                     // k
+	Moves?: string[];                    // m
+	ValidMoves?: Map<string, string[]>;  // v
+	Latency?: number;                    // l
 	Ack: number;                        // a
 }
 
 export interface MovePayloadSerialized {
-	c: ClockPayload;            // Clock
-	o: string;                  // OFEN
-	s: string;                  // SAN
+	c?: ClockPayload;            // Clock
+	o?: string;                  // OFEN
+	s?: string;                  // SAN
 	u: string;                  // UOI
-	n: number;                  // MoveNum
-	k: boolean;                 // Check
-	m: string[];                // Moves
-	v: Map<string, string[]>;   // Valid Moves
-	l: number;                  // Latency
-	a: number;                  // Ack
+	n?: number;                  // MoveNum
+	k?: boolean;                 // Check
+	m?: string[];                // Moves
+	v?: Map<string, string[]>;   // Valid Moves
+	l?: number;                  // Latency
+	a: number; 					// Acknowledgement
 }
 
 export class MovePayload extends WsPayloadBaseClass<MovePayloadSerialized, MovePayloadDeserialized> {

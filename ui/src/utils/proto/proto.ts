@@ -1,8 +1,8 @@
-import {OFENPayload} from "@utils/proto/watch/ofen";
-import {MovePayload} from "@utils/proto/game/move";
-import {CrowdPayload} from "@utils/proto/crowd/crowd"
-import {MoveAckPayload} from "@utils/proto/game/move_ack";
-import {GameOverPayload} from "@utils/proto/crowd/game_over";
+import {OFENPayload, OFENPayloadSerialized} from "@utils/proto/watch/ofen";
+import {MovePayload, MovePayloadSerialized} from "@utils/proto/game/move";
+import {CrowdPayload, CrowdPayloadSerialized} from "@utils/proto/crowd/crowd"
+import {MoveAckPayload, MoveAckPayloadSerialized} from "@utils/proto/game/move_ack";
+import {GameOverPayload, GameOverPayloadSerialized} from "@utils/proto/crowd/game_over";
 
 export enum MessageTag {
 	OFENTag = "o",    // OFENTag is the message type tag for the OFENPayload
@@ -24,7 +24,14 @@ export type Payload =
 	| MovePayload
 	| MoveAckPayload
 	| CrowdPayload
-	| GameOverPayload
+	| GameOverPayload;
+
+type SerializedPayloads =
+	| OFENPayloadSerialized
+	| MovePayloadSerialized
+	| MoveAckPayloadSerialized
+	| CrowdPayloadSerialized
+	| GameOverPayloadSerialized
 
 interface PayloadMap extends Record<MessageTag, Payload> {
 	[MessageTag.OFENTag]: OFENPayload;
@@ -60,12 +67,12 @@ export class WsPayloadBaseClass<Serialized, Deserialized> {
 
 export type SocketResponse = {
 	t: MessageTag;
-	d: unknown;
+	d: SerializedPayloads;
 }
 
 interface SocketMessage {
 	t: MessageTag;   // message tag
-	d: unknown;     // message data
+	d: SerializedPayloads;     // message data
 }
 
 /**
@@ -79,7 +86,7 @@ interface SocketMessage {
 export const BuildSocketMessage = (tag: MessageTag, data: PayloadMap[MessageTag]): string => {
 	const m: SocketMessage = {
 		t: tag,
-		d: data.get()
+		d: data.serialize()
 	}
 
 	return JSON.stringify(m);

@@ -93,7 +93,7 @@ export const Game: FC = () => {
 	const [gameState, setGameState] = useState<OctadgroundProps>({
 		...initialGameState
 	})
-	const [clock, setClock] = useState<ClockPayload>(initialClockState)
+	const [,setClock] = useState<ClockPayload>(initialClockState)
 	const [numConnected, setNumConnected] = useState<number>(0)
 	const [infoContent, setInfoContent] = useState<string>("FREE, ONLINE OCTAD COMING SOON!")
 	const didUnmount = useRef(false);
@@ -248,24 +248,31 @@ export const Game: FC = () => {
 					setMove(1)
 					setInfoContent("FREE, ONLINE OCTAD COMING SOON!")
 				}
-				const ofenParts = movePayload.get().OFEN.split(' ');
 
-				setGameState(s => ({
-					...s,
-					ofen: ofenParts[0],
-					lastMove: getLastMove(movePayload.get().Moves),
-					turnColor: ofenParts[1] === "w" ? "white" : "black",
-					check: movePayload.get().Check,
-					movable: {
-						free: false,
-						dests: allMoves(movePayload.get().ValidMoves)
-					},
-				}))
+				const { OFEN, Moves, ValidMoves, Clock, SAN, Check } = movePayload.get();
 
-				setClock(movePayload.get().Clock)
+				if (OFEN) {
+					const ofenParts = OFEN.split(' ');
 
-				if (movePayload.get().SAN) {
-					playSound(movePayload.get().SAN);
+					setGameState(s => ({
+						...s,
+						ofen: ofenParts[0],
+						lastMove: Moves ? getLastMove(Moves) : [],
+						turnColor: ofenParts[1] === "w" ? "white" : "black",
+						check: Check,
+						movable: {
+							free: false,
+							dests: ValidMoves ? allMoves(ValidMoves) : new Map()
+						},
+					}))
+				}
+
+				if (Clock) {
+					setClock(Clock)
+				}
+
+				if (SAN) {
+					playSound(SAN);
 				}
 				// perform pre-move if set
 				// gameState.playPremove();
@@ -324,14 +331,7 @@ export const Game: FC = () => {
 	 */
 	const sendGameMove = (move: string, num: number) => {
 		const gameMove = new MovePayload({
-			a: 0,
-			c: clock,
-			k: gameState.check as boolean,
-			l: pingState.latency,
-			m: [],
-			n: num,
-			o: gameState.ofen,
-			s: "",
+			a: num,
 			u: move,
 			v: new Map<string, string[]>([])
 		})
