@@ -333,8 +333,7 @@ export const Game: FC = () => {
 		const gameMove = new MovePayload({
 			a: num,
 			u: move,
-			v: new Map<string, string[]>([])
-		})
+		});
 
 		console.log("sendGameMove", gameMove)
 
