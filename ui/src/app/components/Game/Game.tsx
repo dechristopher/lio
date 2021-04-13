@@ -39,18 +39,9 @@ const initialClockState: ClockPayload = {
 	Lag: 0
 }
 
-// TODO better way to do this than initialize an entire class?
-// we only need to send {a: 0}
+// empty message to prompt a response with board info
 const boardUpdateReqPayload = new MovePayload({
-	c: initialClockState,
-	k: false,
-	l: 0,
-	m: [],
-	n: 0,
-	o: "",
-	s: "",
 	u: "",
-	v: new Map<string, string[]>(),
 	a: 0
 })
 
@@ -70,12 +61,12 @@ const initialGameState: OctadgroundProps = {
 }
 
 interface PingState {
-	pingRunner?: NodeJS.Timeout;   // interval to calculate ping
-	pingRunnerId?: number;
-	lastPingTime?: number; // time in seconds of last ping
-	latency: number;      // avg latency between pings
-	pongCount: number;    // qty of pong responses
-	pingDelay: number;    // amount of time between sending ping requests
+	pingRunner?: NodeJS.Timeout;   	// interval to calculate ping
+	pingRunnerId?: number; 			// ID of the runner's interval
+	lastPingTime?: number; 			// time in seconds of last ping
+	latency: number;      			// avg latency between pings
+	pongCount: number;    			// qty of pong responses
+	pingDelay: number;    			// amount of time between sending ping requests
 }
 
 const initialPingState: PingState = {
@@ -89,7 +80,7 @@ export const Game: FC = () => {
 	const [ka, setKa] = useState<NodeJS.Timeout | undefined>(undefined)	// keep-alive interval id
 	const [backoff, setBackoff] = useState<number>(0);           			// incremental backoff
 	const [pingState, setPingState] = useState<PingState>(initialPingState);  		// internal ping state
-	const [move, setMove] = useState<number>(0) // TODO add move
+	const [move, setMove] = useState<number>(0)
 	const [gameState, setGameState] = useState<OctadgroundProps>({
 		...initialGameState
 	})
@@ -98,10 +89,9 @@ export const Game: FC = () => {
 	const [infoContent, setInfoContent] = useState<string>("FREE, ONLINE OCTAD COMING SOON!")
 	const didUnmount = useRef(false);
 
-	useEffect(() => {
-		console.log("useEffect - gameState", gameState)
-	}, [JSON.stringify(gameState)] )
-
+	/**
+	 * Sets intervals and request board info when the websocket connects.
+	 */
 	const connected = () => {
 		console.log("connected")
 		setBackoff(0);
@@ -110,22 +100,30 @@ export const Game: FC = () => {
 		scheduleKeepAlive(3000)
 	}
 
+	/**
+	 * Clear intervals and disables the board when the websocket connection
+	 * is lost.
+	 */
+	const onClose = () => {
+		console.warn("Lost connection to lioctad.org");
+		if (ka) {
+			clearInterval(ka);
+		}
+
+		if (pingState.pingRunner) {
+			clearInterval(pingState.pingRunner);
+		}
+
+		disableBoard();
+	}
+
 	const {
 		sendMessage,
 		lastMessage,
 		readyState
 	} = useWebSocket(socketURL, {
 		onOpen: connected,
-		onClose: () => {
-			console.warn("Lost connection to lioctad.org");
-			if (ka) {
-				clearInterval(ka);
-			}
-			if (pingState.pingRunner) {
-				clearInterval(pingState.pingRunner);
-			}
-			disableBoard();
-		},
+		onClose: onClose,
 		onError: (event) => {
 			console.error("Error", event)
 		},
@@ -243,13 +241,13 @@ export const Game: FC = () => {
 			case MessageTag.MoveTag: // move happened
 				console.log("MOVE MESSAGE", message)
 				const movePayload = new MovePayload(message.d as MovePayloadSerialized)
+				const { OFEN, Moves, ValidMoves, Clock, SAN, Check } = movePayload.get();
 
-				if (!movePayload.get().Moves) {
+
+				if (!Moves) {
 					setMove(1)
 					setInfoContent("FREE, ONLINE OCTAD COMING SOON!")
 				}
-
-				const { OFEN, Moves, ValidMoves, Clock, SAN, Check } = movePayload.get();
 
 				if (OFEN) {
 					const ofenParts = OFEN.split(' ');
@@ -274,7 +272,7 @@ export const Game: FC = () => {
 				if (SAN) {
 					playSound(SAN);
 				}
-				// perform pre-move if set
+				// todo: perform pre-move if set
 				// gameState.playPremove();
 				break;
 			case MessageTag.GameOverTag: // game over
@@ -286,7 +284,6 @@ export const Game: FC = () => {
 				break;
 			case MessageTag.CrowdTag:
 				console.log("CROWD MESSAGE", message)
-
 				const cp = new CrowdPayload(message.d as CrowdPayloadSerialized)
 
 				setNumConnected(cp.get().Spec)
@@ -303,9 +300,9 @@ export const Game: FC = () => {
 	 * @param {string} dest - destination square
 	 */
 	const doMove = (orig: string, dest: string) => {
+		console.debug("doMove - gameState", gameState)
 		const promo = "";
 
-		console.log("doMove - gameState", gameState)
 
 		// if (gameState.state.pieces.get(dest) && gameState.state.pieces.get(dest).role === "pawn") {
 		// 	let destPiece = og.state.pieces.get(dest);
@@ -334,8 +331,6 @@ export const Game: FC = () => {
 			a: num,
 			u: move,
 		});
-
-		console.log("sendGameMove", gameMove)
 
 		send(BuildSocketMessage(
 			MessageTag.MoveTag,
@@ -407,9 +402,6 @@ export const Game: FC = () => {
 
 		// average first few pings and then move to weighted moving average
 		const weight = newPongCount > 4 ? 0.1 : 1 / newPongCount;
-
-		// console.log(`Weight * (currentLag - latency)`)
-		// console.log(`${weight} * (${currentLag} - ${latency})`)
 
 		setPingState(s => ({
 			...s,
