@@ -25,7 +25,7 @@ export class GameOverPayload extends WsPayloadBaseClass<GameOverPayloadSerialize
 		this.data = this.deserialize(data);
 	}
 
-	static deserialize(data: GameOverPayloadSerialized): GameOverPayloadDeserialized {
+	public deserialize(data: GameOverPayloadSerialized): GameOverPayloadDeserialized {
 		return {
 			Winner: data.w,
 			StatusID: data.i,

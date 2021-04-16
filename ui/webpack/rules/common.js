@@ -4,25 +4,25 @@
 import {babelLoader} from './useLoaderRuleItems';
 import path from "path"
 
-console.log(path.resolve("./src/tw.ts"))
-
-/**
- * @see https://github.com/thien-do/typed.tw/tree/master/webpack-loader
- */
-const ttwLoader = {
-    loader: "typed-tailwind-loader",
-    options: { config: path.resolve("./tw.ts") },
-};
-
 /**
  * @see https://webpack.js.org/guides/typescript/#loader
+ * @see https://github.com/thien-do/typed.tw/tree/master/webpack-loader
  */
 export const typescriptRule = {
     test: /\.tsx?$/,
-    //loader: 'ts-loader',
-    use: ["ts-loader", ttwLoader],
     exclude: /node_modules/,
+    use: [
+        {
+            loader: "ts-loader",
+            options: {transpileOnly: true}
+        },
+        {
+            loader: "typed-tailwind-loader",
+            options: { config: path.resolve("./tw.ts") }
+        }
+    ],
 };
+
 /**
  * @see https://webpack.js.org/loaders/babel-loader
  */
