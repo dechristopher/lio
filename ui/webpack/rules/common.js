@@ -4,11 +4,20 @@
 import {babelLoader} from './useLoaderRuleItems';
 
 /**
+ * @see https://github.com/thien-do/typed.tw/tree/master/webpack-loader
+ */
+const ttwLoader = {
+    loader: "typed-tailwind-loader",
+    options: { config: path.resolve("./src/tw.ts") },
+};
+
+/**
  * @see https://webpack.js.org/guides/typescript/#loader
  */
 export const typescriptRule = {
     test: /\.tsx?$/,
-    loader: 'ts-loader',
+    //loader: 'ts-loader',
+    use: ["ts-loader", ttwLoader],
     options: {
         transpileOnly: true,
     },
