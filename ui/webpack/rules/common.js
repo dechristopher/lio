@@ -2,13 +2,16 @@
  * Created by: Andrey Polyakov (andrey@polyakov.im)
  */
 import {babelLoader} from './useLoaderRuleItems';
+import path from "path"
+
+console.log(path.resolve("./src/tw.ts"))
 
 /**
  * @see https://github.com/thien-do/typed.tw/tree/master/webpack-loader
  */
 const ttwLoader = {
     loader: "typed-tailwind-loader",
-    options: { config: path.resolve("./src/tw.ts") },
+    options: { config: path.resolve("./tw.ts") },
 };
 
 /**
@@ -18,9 +21,6 @@ export const typescriptRule = {
     test: /\.tsx?$/,
     //loader: 'ts-loader',
     use: ["ts-loader", ttwLoader],
-    options: {
-        transpileOnly: true,
-    },
     exclude: /node_modules/,
 };
 /**

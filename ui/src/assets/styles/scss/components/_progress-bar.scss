@@ -1,5 +1,5 @@
 .progress-bar {
-  @extend .w-full, .h-4, .bg-gray-100;
+  @extend .w-full, .bg-gray-100, .h-4 !optional;
   &__inner {
     @extend .w-full, .h-full;
     transition: width 1s ease-in-out;
