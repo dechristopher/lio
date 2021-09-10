@@ -10,7 +10,7 @@ export interface GameProps {
 
 export const Game: FC<GameProps> = props => {
 	return (
-		<div className="flex flex-col" style={{width: "38vw"}}>
+		<div className="flex flex-col mx-auto" style={{width: "38vw"}}>
 			{/*<Clock*/}
 			{/*	elo={1400}*/}
 			{/*	score={1.5}*/}

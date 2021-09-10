@@ -462,7 +462,6 @@ export const Game: FC = () => {
 		}
 	};
 
-
 	return (
 		<div
 			className="mt-16 w-screen flex justify-center items-center overflow-hidden"

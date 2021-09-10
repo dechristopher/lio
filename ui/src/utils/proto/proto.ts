@@ -41,6 +41,8 @@ interface PayloadMap extends Record<MessageTag, Payload> {
 	[MessageTag.GameOverTag]: GameOverPayload;
 }
 
+type MessageData = PayloadMap[MessageTag]
+
 export class WsPayloadBaseClass<Serialized, Deserialized> {
 	constructor(_: Serialized) {
 		if (new.target === WsPayloadBaseClass) {
@@ -79,11 +81,11 @@ interface SocketMessage {
  * Build socket message.
  *
  * @param {MessageTag} tag - message tag
- * @param {PayloadMap[MessageTag]} data - message payload data
+ * @param {MessageData} data - message payload data
  *
  * @returns {string} - socket message
  */
-export const BuildSocketMessage = (tag: MessageTag, data: PayloadMap[MessageTag]): string => {
+export const BuildSocketMessage = (tag: MessageTag, data: MessageData ): string => {
 	const m: SocketMessage = {
 		t: tag,
 		d: data.serialize()
