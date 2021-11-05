@@ -64,16 +64,24 @@ func Evaluate(situation *octad.Game) float64 {
 
 	eval := 0.0
 
+	if situation.Position().InCheck() {
+		if color == octad.White {
+			eval -= 1000
+		} else {
+			eval += 1000
+		}
+	}
+
 	squareMap := situation.Position().Board().SquareMap()
 
 	// calculate material values and piece position values
 	material := make(materialValues)
-	posVals := make(materialValues)
+	posValues := make(materialValues)
 	for square, piece := range squareMap {
 		material[piece.Color()] += PieceVals[piece.Type()]
-		// calc piece position vals for pieces with square tables
+		// calc piece position values for pieces with square tables
 		if PieceSquareTables[piece.Color()][piece.Type()] != nil {
-			posVals[piece.Color()] +=
+			posValues[piece.Color()] +=
 				PieceSquareTables[piece.Color()][piece.Type()][square]
 		}
 	}
@@ -82,7 +90,7 @@ func Evaluate(situation *octad.Game) float64 {
 	eval += material[color] - material[color.Other()]
 
 	// positional value difference
-	eval += posVals[color] - posVals[color.Other()]
+	eval += posValues[color] - posValues[color.Other()]
 
 	return eval
 }
