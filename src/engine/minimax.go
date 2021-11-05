@@ -2,6 +2,7 @@ package engine
 
 import (
 	"math"
+	"sync"
 
 	"github.com/dechristopher/octad"
 	"github.com/pkg/errors"
@@ -9,6 +10,15 @@ import (
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
+
+type minimaxABParams struct {
+	situation octad.Game
+	move      octad.Move
+	isWhite   bool
+	depth     int
+	evalChan  chan MoveEval
+	wg        *sync.WaitGroup
+}
 
 // searchMinimaxAB is the root for minimax with alpha-beta pruning
 func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
@@ -21,27 +31,33 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	var bestMove MoveEval
 	moves := orderMoves(situation)
 
+	evaluations := make(chan MoveEval, len(moves))
+	wg := &sync.WaitGroup{}
+
+	// run search for each legal move in parallel
 	for _, move := range moves {
-		err := situation.Move(&move)
-		if err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", situation, move))
-		}
+		wg.Add(1)
+		go minimaxABAsync(minimaxABParams{
+			situation: *situation,
+			move:      move,
+			isWhite:   isWhite,
+			depth:     depth,
+			evalChan:  evaluations,
+			wg:        wg,
+		})
+	}
 
-		eval := minimaxAB(situation, &move, !isWhite, depth)
+	// wait for evaluation routines to finish
+	go func() {
+		wg.Wait()
+		close(evaluations)
+	}()
 
-		util.DebugFlag("eng", str.CEval, "root eval: %s (%2f)",
-			move.String(), eval)
-
-		situation.UndoMove()
-
-		if (isWhite && eval > bestMoveEval) ||
-			(!isWhite && eval < bestMoveEval) {
-			bestMoveEval = eval
-			bestMove = MoveEval{
-				Eval: eval,
-				Move: move,
-			}
+	for evaluation := range evaluations {
+		if (isWhite && evaluation.Eval > bestMoveEval) ||
+			(!isWhite && evaluation.Eval < bestMoveEval) {
+			bestMoveEval = evaluation.Eval
+			bestMove = evaluation
 		}
 	}
 
@@ -56,6 +72,27 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 		bestMove.Move.String(), bestMove.Eval, situation.Position().String())
 
 	return bestMove
+}
+
+// minimaxABAsync is a parallel wrapper for minimaxAB
+func minimaxABAsync(params minimaxABParams) {
+	defer params.wg.Done()
+
+	err := params.situation.Move(&params.move)
+	if err != nil {
+		panic(errors.WithMessagef(err,
+			"pos: %+v, move: %+v", params.situation, params.move))
+	}
+
+	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth)
+
+	util.DebugFlag("eng", str.CEval, "root eval: %s (%2f)",
+		params.move.String(), eval)
+
+	params.evalChan <- MoveEval{
+		Eval: eval,
+		Move: params.move,
+	}
 }
 
 // minimaxAB is a recursive minimax search implementation that
