@@ -76,7 +76,7 @@ func Serve(views, static embed.FS) {
 	os.Exit(0)
 }
 
-// wireHandlers builds all of the websocket and http routes
+// wireHandlers builds all the websocket and http routes
 // into the fiber app context
 func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// recover from panics

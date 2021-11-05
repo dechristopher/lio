@@ -11,7 +11,7 @@ import (
 
 var pub *bus.Publisher
 
-// Up brings up the systems publisher and sends a test message
+// Up brings the system publisher online and sends a test message
 // verifying that the bus has come online after some time
 func Up() {
 	pub = bus.NewPublisher("sys", bus.SystemChannel)
@@ -26,7 +26,7 @@ var Initializers = []func(){
 	Up,
 }
 
-// Run all of the subsystem initializer functions
+// Run all the subsystem initializer functions
 func Run() {
 	for _, i := range Initializers {
 		go i()

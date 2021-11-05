@@ -44,7 +44,7 @@ func loadNaughty() []string {
 	return lines
 }
 
-// Naughty returns whether or not a given word or phrase is appropriate
+// Naughty returns whether a given word or phrase is appropriate
 func Naughty(in string) bool {
 	check := strings.ToLower(in)
 	for _, word := range naughty {

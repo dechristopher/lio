@@ -10,7 +10,7 @@ import (
 var bus ev.Bus
 var ready = false
 
-// Up brings up the event bus
+// Up brings the event bus online
 func Up() {
 	bus = ev.New()
 	ready = true
@@ -53,7 +53,7 @@ func (p *Publisher) Publish(data ...interface{}) {
 // subscribing to events to the bus
 type Channel string
 
-// Predefined bus channels
+// SystemChannel Predefined bus channels
 const (
 	SystemChannel Channel = "lio:sys"
 )
