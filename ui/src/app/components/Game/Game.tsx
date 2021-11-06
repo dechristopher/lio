@@ -241,23 +241,28 @@ export const Game: FC = () => {
 			case MessageTag.MoveTag: // move happened
 				console.log("MOVE MESSAGE", message)
 				const movePayload = new MovePayload(message.d as MovePayloadSerialized)
-				const { OFEN, Moves, ValidMoves, Clock, SAN, Check } = movePayload.get();
+				const { OFEN, Moves, ValidMoves, Clock, SAN, Check, MoveNum } = movePayload.get();
 
+				// console.log("Move Payload", movePayload.get())
 
 				if (!Moves) {
 					setMove(1)
 					setInfoContent("FREE, ONLINE OCTAD COMING SOON!")
+				} else if (MoveNum) {
+					setMove(MoveNum)
 				}
 
 				if (OFEN) {
 					const ofenParts = OFEN.split(' ');
+
+					console.log("New OFEN", ofenParts[0])
 
 					setGameState(s => ({
 						...s,
 						ofen: ofenParts[0],
 						lastMove: Moves ? getLastMove(Moves) : [],
 						turnColor: ofenParts[1] === "w" ? "white" : "black",
-						check: Check,
+						check: Check ? Check : false,
 						movable: {
 							free: false,
 							dests: ValidMoves ? allMoves(ValidMoves) : new Map()

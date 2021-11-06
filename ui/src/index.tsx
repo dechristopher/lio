@@ -3,7 +3,7 @@ import ReactDOM from "react-dom";
 import { hot } from 'react-hot-loader/root';
 
 import "@assets/styles/scss/main.scss";
-import {RootView} from "@app/views/RootView";
+import {RootView} from "@appv2/views/RootView";
 
 const EntryPointContent: FC = () => {
 	return <RootView />

@@ -45,6 +45,7 @@
      "paths": {
        "@/*": ["./*"],
        "@app/*": ["./src/app/*"],
+       "@appv2/*": ["./src/appv2/*"],
        "@assets/*": ["./src/assets/*"],
        "@utils/*": ["./src/utils/*"],
        "@app:components/*": ["./src/app/components/*"],
