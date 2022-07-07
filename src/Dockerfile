@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.16.0-alpine3.13 AS build
+FROM golang:1.18.3-alpine3.16 AS build
 
 WORKDIR /build
 COPY . .

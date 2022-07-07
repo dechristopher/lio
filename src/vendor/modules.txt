@@ -1,0 +1,140 @@
+# github.com/andybalholm/brotli v1.0.4
+## explicit; go 1.12
+github.com/andybalholm/brotli
+# github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
+## explicit
+github.com/asaskevich/EventBus
+# github.com/dechristopher/octad v1.0.9
+## explicit; go 1.15
+github.com/dechristopher/octad
+# github.com/dustin/go-humanize v1.0.0
+## explicit
+github.com/dustin/go-humanize
+# github.com/fasthttp/websocket v1.5.0
+## explicit; go 1.15
+github.com/fasthttp/websocket
+# github.com/gofiber/fiber/v2 v2.35.0
+## explicit; go 1.16
+github.com/gofiber/fiber/v2
+github.com/gofiber/fiber/v2/internal/bytebufferpool
+github.com/gofiber/fiber/v2/internal/colorable
+github.com/gofiber/fiber/v2/internal/dictpool
+github.com/gofiber/fiber/v2/internal/fasttemplate
+github.com/gofiber/fiber/v2/internal/fwd
+github.com/gofiber/fiber/v2/internal/isatty
+github.com/gofiber/fiber/v2/internal/msgp
+github.com/gofiber/fiber/v2/internal/schema
+github.com/gofiber/fiber/v2/internal/uuid
+github.com/gofiber/fiber/v2/middleware/compress
+github.com/gofiber/fiber/v2/middleware/cors
+github.com/gofiber/fiber/v2/middleware/favicon
+github.com/gofiber/fiber/v2/middleware/filesystem
+github.com/gofiber/fiber/v2/middleware/logger
+github.com/gofiber/fiber/v2/middleware/recover
+github.com/gofiber/fiber/v2/middleware/requestid
+github.com/gofiber/fiber/v2/utils
+# github.com/gofiber/template v1.6.28
+## explicit; go 1.16
+github.com/gofiber/template/html
+github.com/gofiber/template/utils
+# github.com/gofiber/websocket/v2 v2.0.22
+## explicit; go 1.14
+github.com/gofiber/websocket/v2
+# github.com/google/uuid v1.3.0
+## explicit
+github.com/google/uuid
+# github.com/joho/godotenv v1.4.0
+## explicit; go 1.12
+github.com/joho/godotenv
+# github.com/json-iterator/go v1.1.12
+## explicit; go 1.12
+github.com/json-iterator/go
+# github.com/klauspost/compress v1.15.7
+## explicit; go 1.16
+github.com/klauspost/compress/flate
+github.com/klauspost/compress/gzip
+github.com/klauspost/compress/s2
+github.com/klauspost/compress/zlib
+# github.com/klauspost/cpuid/v2 v2.0.14
+## explicit; go 1.15
+github.com/klauspost/cpuid/v2
+# github.com/looplab/fsm v0.3.0
+## explicit; go 1.16
+github.com/looplab/fsm
+# github.com/minio/md5-simd v1.1.2
+## explicit; go 1.14
+github.com/minio/md5-simd
+# github.com/minio/minio-go/v7 v7.0.31
+## explicit; go 1.17
+github.com/minio/minio-go/v7
+github.com/minio/minio-go/v7/pkg/credentials
+github.com/minio/minio-go/v7/pkg/encrypt
+github.com/minio/minio-go/v7/pkg/lifecycle
+github.com/minio/minio-go/v7/pkg/notification
+github.com/minio/minio-go/v7/pkg/replication
+github.com/minio/minio-go/v7/pkg/s3utils
+github.com/minio/minio-go/v7/pkg/set
+github.com/minio/minio-go/v7/pkg/signer
+github.com/minio/minio-go/v7/pkg/sse
+github.com/minio/minio-go/v7/pkg/tags
+# github.com/minio/sha256-simd v1.0.0
+## explicit; go 1.13
+github.com/minio/sha256-simd
+# github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+## explicit
+github.com/modern-go/concurrent
+# github.com/modern-go/reflect2 v1.0.2
+## explicit; go 1.12
+github.com/modern-go/reflect2
+# github.com/pkg/errors v0.9.1
+## explicit
+github.com/pkg/errors
+# github.com/rs/xid v1.4.0
+## explicit; go 1.12
+github.com/rs/xid
+# github.com/savsgio/gotils v0.0.0-20220530130905-52f3993e8d6d
+## explicit; go 1.13
+github.com/savsgio/gotils/strconv
+# github.com/sirupsen/logrus v1.8.1
+## explicit; go 1.13
+github.com/sirupsen/logrus
+# github.com/valyala/bytebufferpool v1.0.0
+## explicit
+github.com/valyala/bytebufferpool
+# github.com/valyala/fasthttp v1.38.0
+## explicit; go 1.15
+github.com/valyala/fasthttp
+github.com/valyala/fasthttp/fasthttputil
+github.com/valyala/fasthttp/reuseport
+github.com/valyala/fasthttp/stackless
+# github.com/valyala/fastjson v1.6.3
+## explicit; go 1.12
+github.com/valyala/fastjson
+github.com/valyala/fastjson/fastfloat
+# github.com/valyala/tcplisten v1.0.0
+## explicit; go 1.12
+github.com/valyala/tcplisten
+# golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
+## explicit; go 1.17
+golang.org/x/crypto/argon2
+golang.org/x/crypto/blake2b
+# golang.org/x/net v0.0.0-20220706163947-c90051bbdb60
+## explicit; go 1.17
+golang.org/x/net/http/httpguts
+golang.org/x/net/idna
+golang.org/x/net/publicsuffix
+# golang.org/x/sys v0.0.0-20220704084225-05e143d24a9e
+## explicit; go 1.17
+golang.org/x/sys/cpu
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# golang.org/x/text v0.3.7
+## explicit; go 1.17
+golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+# gopkg.in/ini.v1 v1.66.6
+## explicit
+gopkg.in/ini.v1

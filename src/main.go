@@ -33,7 +33,9 @@ func init() {
 	flag.Parse()
 
 	// parse out debug flags from command line options
-	util.DebugFlags = strings.Split(*util.DebugFlagPtr, ",")
+	for _, debugFlag := range strings.Split(*util.DebugFlagPtr, ",") {
+		util.DebugFlags[debugFlag] = true
+	}
 
 	// run health check if told
 	if *isHealthCheck {
