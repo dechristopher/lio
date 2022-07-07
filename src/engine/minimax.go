@@ -2,8 +2,11 @@ package engine
 
 import (
 	"math"
+	"math/rand"
 	"sync"
+	"time"
 
+	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/octad"
 	"github.com/pkg/errors"
 
@@ -22,6 +25,10 @@ type minimaxABParams struct {
 
 // searchMinimaxAB is the root for minimax with alpha-beta pruning
 func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
+	// sleep for a random amount of time to make the engine easier to beat,
+	// anywhere from a fraction of a second to 1.25 seconds
+	time.Sleep(clock.Centi * 5 * time.Duration(rand.Intn(25)))
+
 	isWhite := situation.Position().Turn() == octad.White
 	bestMoveEval := math.Inf(1)
 	if isWhite {

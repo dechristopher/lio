@@ -57,6 +57,8 @@ func ConnHandler(c *websocket.Conn) {
 	bid := c.Cookies("bid")
 	channel := c.Params("chan")
 
+	util.Info(str.CWS, str.MWSConn, c.RemoteAddr().String(), bid, channel)
+
 	// Keep track of all ChanMap for off-rpc broadcasts
 	// Create a new SockMap and track it under the channel key
 	if ChanMap[channel].C == nil {
@@ -94,7 +96,7 @@ func ConnHandler(c *websocket.Conn) {
 			continue
 		}
 
-		util.Debug(str.CWS, str.DWSRecv, string(b))
+		util.DebugFlag("ws", str.CWS, str.DWSRecv, string(b))
 
 		// pull message tag for routing decision
 		tag := fastjson.GetString(b, "t")
@@ -113,7 +115,7 @@ func ConnHandler(c *websocket.Conn) {
 		})
 
 		// print response to debug out
-		util.Debug(str.CWS, str.DWSSend, string(resp))
+		util.DebugFlag("ws", str.CWS, str.DWSSend, string(resp))
 
 		lock.Lock()
 		// acquire socket lock, write bytes, and release lock
@@ -145,6 +147,7 @@ func crowdHandler(channel string) {
 // killSocket closes the websocket connection and removes the socket
 // reference from the ChanMap map
 func killSocket(conn *websocket.Conn, channel string, bid string) {
+	util.Info(str.CWS, str.MWSDisc, conn.RemoteAddr(), bid, channel)
 	ChanMap[channel].UnTrack(bid)
 	// free up memory in ChanMap if the SockMap is empty
 	if ChanMap[channel].Empty() {

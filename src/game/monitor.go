@@ -22,5 +22,5 @@ func monitorSub() {
 // monitorGame watches the bus channel and catalogues
 // all game state and moves made for all games
 func monitorGame(e bus.Event) {
-	util.Debug(str.CGme, str.DGameMove, e.Data...)
+	util.DebugFlag("game", str.CGme, str.DGameMove, e.Data...)
 }

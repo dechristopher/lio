@@ -137,7 +137,7 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketContext) {
 	if g.Game.Outcome() == octad.NoOutcome {
 		if len(g.Game.ValidMoves()) > 0 {
 			searchMove := engine.Search(g.Game.Position().String(),
-				7, engine.Random)
+				calcDepth(g), engine.MinimaxAB)
 			err := g.Game.Move(&searchMove.Move)
 			if err != nil {
 				// this means there is a bug in either
@@ -173,6 +173,41 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketContext) {
 			checkGameOver(g, meta)
 		}
 	}
+}
+
+// calcDepth returns the depth the engine should search to
+// based on the remaining time on the clock to try to avoid
+// flagging as much as possible
+func calcDepth(g *game.OctadGame) int {
+	// depth 7 is about the best we can do in a reasonable timeframe
+	// on a good CPU, but it won't work well for bullet
+	var depth int
+
+	switch tc := g.Variant.Control.Time.Centi(); {
+	case tc >= 6000:
+		depth = 8
+	case tc >= 3000:
+		depth = 7
+	case tc >= 1500:
+		depth = 6
+	case tc >= 5:
+		depth = 5
+	default:
+		depth = 4
+	}
+
+	bTime := g.Clock.State().BlackTime
+
+	modifier := float64(bTime.Centi()) / float64(g.Variant.Control.Time.Centi())
+	if modifier > 1.0 {
+		modifier = 1.0
+	}
+
+	depth = int(float64(depth) * modifier)
+
+	util.DebugFlag("engine", str.CEng, "selected depth %d for %s (%.2f%%) time remaining",
+		depth, bTime, modifier)
+	return depth
 }
 
 // getSAN returns the last move in algebraic notation

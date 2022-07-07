@@ -26,6 +26,12 @@ func (t CTime) MarshalJSON() ([]byte, error) {
 		'f', -1, 32)), nil
 }
 
+// String returns the string representation of
+// the internal time.Duration for pretty printing
+func (t CTime) String() string {
+	return t.t.String()
+}
+
 // ToCTime wraps a time.Duration in CTime
 func ToCTime(duration time.Duration) CTime {
 	return CTime{t: duration}
