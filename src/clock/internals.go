@@ -50,6 +50,7 @@ type Command int
 // Clock commands, not many so far
 const (
 	Flip Command = iota
+	Resign
 )
 
 // Victor of the game

@@ -8,12 +8,12 @@ import (
 
 // ZeroFiveUlti is the zero second, five second delay ulti variant
 var ZeroFiveUlti = Variant{
-	Name:  ":00 ~5 Ulti",
-	Group: UltiGroup,
-	Time:  ZeroFiveUltiTC,
+	Name:    ":00 ~5",
+	Group:   UltiGroup,
+	Control: ZeroFiveUltiTC,
 }
 
-// ZeroFiveUltiTC is the zero second, five second delay ulti time control
+// ZeroFiveUltiTC is the zero second, five-second delay ulti time control
 var ZeroFiveUltiTC = clock.TimeControl{
 	Time:      clock.ToCTime(time.Second * 0),
 	Increment: clock.ToCTime(time.Second * 0),

@@ -12,7 +12,7 @@ import (
 
 var (
 	// Version of lio
-	Version = "v0.1.5"
+	Version = "v0.2.0"
 
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
@@ -20,7 +20,7 @@ var (
 	// DebugFlagPtr contains raw debug flags direct from STDIN
 	DebugFlagPtr *string
 	// DebugFlags holds all active, parsed debug flags
-	DebugFlags []string
+	DebugFlags = make(map[string]bool)
 )
 
 // ReadSecretFallback attempts to read a secret from the secrets
@@ -59,13 +59,7 @@ func devPrefix() string {
 
 // IsDebugFlag returns true if a given debug flag is enabled in this instance
 func IsDebugFlag(flag string) bool {
-	for _, f := range DebugFlags {
-		if f == flag {
-			return true
-		}
-	}
-
-	return false
+	return DebugFlags[flag] == true
 }
 
 // GetPort returns the configured primary HTTP port

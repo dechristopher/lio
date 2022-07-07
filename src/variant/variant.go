@@ -4,9 +4,9 @@ import "github.com/dechristopher/lioctad/clock"
 
 // Variant represents a timed octad variant
 type Variant struct {
-	Name  string            `json:"name"`
-	Group Group             `json:"group"`
-	Time  clock.TimeControl `json:"time"`
+	Name    string            `json:"name"`
+	Group   Group             `json:"group"`
+	Control clock.TimeControl `json:"time"`
 }
 
 // Group represents a collection of similar variants

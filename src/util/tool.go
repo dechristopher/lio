@@ -27,7 +27,7 @@ func init() {
 	go loadNaughtyAsync()
 }
 
-// loadNaughtyAsync runs the loadNaughty function
+// loadNaughtyAsync runs the loadNaughty function,
 // but it should be called asynchronously on init
 func loadNaughtyAsync() {
 	naughty = loadNaughty()

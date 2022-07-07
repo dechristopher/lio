@@ -26,6 +26,9 @@ const MinimaxAB SearchAlg = 0
 // NegamaxAB selects negamax with alpha-beta pruning
 const NegamaxAB SearchAlg = 1
 
+// Random move engine
+const Random SearchAlg = 2
+
 // Channel is the engine monitoring bus channel
 const Channel bus.Channel = "lio:engine"
 
@@ -58,6 +61,8 @@ func Search(ofen string, depth int, alg SearchAlg) MoveEval {
 		eval = searchMinimaxAB(situation, depth)
 	} else if alg == NegamaxAB {
 		eval = searchNegamaxAB(situation, depth)
+	} else if alg == Random {
+		eval = randomMove(situation)
 	} else {
 		panic("invalid search algorithm")
 	}

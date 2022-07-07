@@ -10,6 +10,7 @@ import (
 	"github.com/valyala/fastjson"
 
 	"github.com/dechristopher/lioctad/bus"
+	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/engine"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/store"
@@ -28,7 +29,7 @@ func HandleMove(m []byte, meta common.SocketContext) []byte {
 		_, err := game.NewOctadGame(game.OctadGameConfig{
 			White:   "123",
 			Black:   "456",
-			Control: variant.HalfOneBlitzTC,
+			Variant: variant.QuarterOneBullet,
 			Channel: meta.Channel,
 		})
 
@@ -58,8 +59,11 @@ func HandleMove(m []byte, meta common.SocketContext) []byte {
 	// move some time after if applicable
 	for _, mov := range g.Game.ValidMoves() {
 		if mov.String() == move.UOI {
-			err := g.Game.Move(mov)
-			if err != nil {
+			// check to see if the game is over
+			checkGameOver(g, meta)
+
+			errMove := g.Game.Move(mov)
+			if errMove != nil {
 				// bad if this happens
 				return nil
 			}
@@ -69,10 +73,21 @@ func HandleMove(m []byte, meta common.SocketContext) []byte {
 			// publish move to broadcast channel
 			pub.Publish(mov.String(), g.Game.OFEN(), eval)
 
-			util.DebugFlag("eng", str.CHMov, "player move eval: %2f",
-				eval)
+			util.DebugFlag("eng", str.CHMov,
+				"player move eval: %2f", eval)
 
 			ok = true
+
+			// start game clock on first move
+			if g.Clock.State().IsPaused {
+				go g.Clock.Start()
+			}
+
+			util.DebugFlag("clock", str.CClk, "PRE-FLIP")
+			go func() { g.Clock.ControlChannel <- clock.Flip }()
+			util.DebugFlag("clock", str.CClk, "POST-FLIP")
+			<-g.Clock.WhiteAck
+
 			go makeComputerMove(g, meta)
 			break
 		}
@@ -111,9 +126,10 @@ func current(g *game.OctadGame, addLast bool) []byte {
 func currentClock(g *game.OctadGame) proto.ClockPayload {
 	state := g.Clock.State()
 	return proto.ClockPayload{
-		Black: state.BlackTime.Centi(),
-		White: state.WhiteTime.Centi(),
-		Lag:   0,
+		Control: g.Variant.Control.Time.Centi(),
+		Black:   state.BlackTime.Centi(),
+		White:   state.WhiteTime.Centi(),
+		Lag:     0,
 	}
 }
 
@@ -121,12 +137,23 @@ func makeComputerMove(g *game.OctadGame, meta common.SocketContext) {
 	if g.Game.Outcome() == octad.NoOutcome {
 		if len(g.Game.ValidMoves()) > 0 {
 			searchMove := engine.Search(g.Game.Position().String(),
-				7, engine.MinimaxAB)
+				7, engine.Random)
 			err := g.Game.Move(&searchMove.Move)
 			if err != nil {
 				// this means there is a bug in either
 				// the engine or in the octad lib
 				panic(err)
+			}
+
+			if !g.Clock.Flagged() {
+				util.DebugFlag("clock", str.CClk, "PRE-FLIP")
+				go func() { g.Clock.ControlChannel <- clock.Flip }()
+				util.DebugFlag("clock", str.CClk, "POST-FLIP")
+				<-g.Clock.BlackAck
+			} else {
+				// check to see if the game is over
+				checkGameOver(g, meta)
+				return
 			}
 
 			eval := engine.Evaluate(g.Game)
@@ -164,7 +191,17 @@ func getSAN(g *game.OctadGame, calc bool) string {
 
 func checkGameOver(g *game.OctadGame, meta common.SocketContext) {
 	// restart game if over
-	if g.Game.Outcome() != octad.NoOutcome {
+	if g.Game.Outcome() != octad.NoOutcome || g.Clock.Flagged() {
+		// handle flagging
+		if g.Clock.Flagged() {
+			// automatically resign game
+			if g.Clock.State().Victor == clock.White {
+				g.Game.Resign(octad.Black)
+			} else {
+				g.Game.Resign(octad.White)
+			}
+		}
+
 		// record game result
 		gcp := *g
 		go recordGame(gcp)
@@ -177,7 +214,7 @@ func checkGameOver(g *game.OctadGame, meta common.SocketContext) {
 			g, _ = game.NewOctadGame(game.OctadGameConfig{
 				White:   "123",
 				Black:   "456",
-				Control: variant.HalfOneBlitzTC,
+				Variant: variant.QuarterOneBullet,
 				OFEN:    "",
 				Channel: meta.Channel,
 			})
@@ -228,6 +265,10 @@ func genDrawState(g *game.OctadGame) (int, string) {
 }
 
 func genWhiteWinState(g *game.OctadGame) (int, string) {
+	if g.Clock.State().Victor == clock.White {
+		return 1, "WHITE WINS ON TIME"
+	}
+
 	switch g.Game.Method() {
 	case octad.Checkmate:
 		return 1, "WHITE WINS BY CHECKMATE"
@@ -238,6 +279,10 @@ func genWhiteWinState(g *game.OctadGame) (int, string) {
 }
 
 func genBlackWinState(g *game.OctadGame) (int, string) {
+	if g.Clock.State().Victor == clock.Black {
+		return 2, "BLACK WINS ON TIME"
+	}
+
 	switch g.Game.Method() {
 	case octad.Checkmate:
 		return 2, "BLACK WINS BY CHECKMATE"
@@ -258,19 +303,28 @@ func getWinnerString(statusId int) string {
 }
 
 func recordGame(g game.OctadGame) {
+	// get parts for Result field
 	pgn := g.Game.String()
 	parts := strings.Split(pgn, " ")
 
-	full := "[Event \"Lioctad Test Match\"]\n" +
-		"[Site \"https://lioctad.org\"]\n" +
-		"[Date \"" + g.Start.Format("2006.01.02") + "\"]\n" +
-		"[Round \"1\"]\n" +
-		"[White \"Lioctad Test Players\"]\n" +
-		"[Black \"Lioctad Random Computer\"]\n" +
-		"[Result \"" + parts[len(parts)-1] + "\"]\n" +
-		"[Time \"" + g.Start.Format("15:04:05") + "\"]" + pgn
+	// get game state message for Reason field
+	_, state := genGameState(&g)
 
-	util.Debug("PGN", full)
+	// encode PGN tag pairs
+	g.Game.AddTagPair("Event", "Lioctad Test Match")
+	g.Game.AddTagPair("Site", "https://lioctad.org")
+	g.Game.AddTagPair("Date", g.Start.Format("2006.01.02"))
+	g.Game.AddTagPair("Variant", g.Variant.Name)
+	g.Game.AddTagPair("Group", string(g.Variant.Group))
+	g.Game.AddTagPair("White", "Lioctad Test Players")
+	g.Game.AddTagPair("Black", "Lioctad Bot")
+	g.Game.AddTagPair("Result", parts[len(parts)-1])
+	g.Game.AddTagPair("Reason", state)
+	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
+
+	pgn = g.Game.String()
+
+	util.DebugFlag("pgn", "PGN", pgn)
 
 	// year/month/day/HH:MM:SSTZ-(inserted-time-unix).pgn
 	key := fmt.Sprintf("%s/%s/%s/%s-%d.pgn",
@@ -280,7 +334,7 @@ func recordGame(g game.OctadGame) {
 		g.Start.Format("15:04:05Z07:00"),
 		time.Now().UnixNano())
 
-	err := store.PutObject(store.PGNBucket, key, []byte(full))
+	err := store.PutObject(store.PGNBucket, key, []byte(pgn))
 	if err != nil {
 		util.Error(str.CHMov, str.ERecord, err.Error())
 	}

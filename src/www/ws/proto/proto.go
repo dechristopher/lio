@@ -85,9 +85,10 @@ type MoveAckPayload int
 
 // ClockPayload is a wire representation of the current state of a game's clock
 type ClockPayload struct {
-	Black int64 `json:"b"` // black clock in centi-seconds
-	White int64 `json:"w"` // white clock in centi-seconds
-	Lag   int   `json:"l"` // internal server lag in ms
+	Control int64 `json:"tc"` // time control total time
+	Black   int64 `json:"b"`  // black clock in centi-seconds
+	White   int64 `json:"w"`  // white clock in centi-seconds
+	Lag     int   `json:"l"`  // internal server lag in ms
 }
 
 // CrowdPayload contains data about connected players and spectator count
@@ -110,7 +111,7 @@ func (m *Message) Marshal() ([]byte, error) {
 	return json.Marshal(&m)
 }
 
-// Please returns the marshaled text as a byte[], hoping it doesn't fail
+// Please will return the marshaled text as a byte[], hoping it doesn't fail
 func (m *Message) Please() []byte {
 	b, err := m.Marshal()
 	if err != nil {

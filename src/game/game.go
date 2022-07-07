@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/dechristopher/lioctad/variant"
 	"github.com/dechristopher/octad"
 
 	"github.com/dechristopher/lioctad/bus"
@@ -23,14 +24,15 @@ var (
 
 // OctadGame wraps octad game and clock
 type OctadGame struct {
-	ID     string       `json:"i"` // game id
-	Start  time.Time    `json:"t"` // game start time
-	White  string       `json:"w"` // white userid
-	Black  string       `json:"b"` // black userid
-	ToMove octad.Color  `json:"m"` // color to move
-	Game   *octad.Game  // game instance
-	Clock  *clock.Clock // clock instance
-	State  *fsm.FSM     // game state machine
+	ID      string          `json:"i"` // game id
+	Start   time.Time       `json:"t"` // game start time
+	White   string          `json:"w"` // white userid
+	Black   string          `json:"b"` // black userid
+	ToMove  octad.Color     `json:"m"` // color to move
+	Game    *octad.Game     // game instance
+	Variant variant.Variant // octad variant
+	Clock   *clock.Clock    // clock instance
+	State   *fsm.FSM        // game state machine
 }
 
 // NewOctadGame returns a new OctadGame instance from the given configuration
@@ -41,11 +43,12 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 	}
 
 	g := OctadGame{
-		ID:     config.Channel,
-		Start:  time.Now(),
-		Game:   game,
-		ToMove: game.Position().Turn(),
-		Clock:  clock.NewClock(config.White, config.Black, config.Control),
+		ID:      config.Channel,
+		Start:   time.Now(),
+		Game:    game,
+		ToMove:  game.Position().Turn(),
+		Variant: config.Variant,
+		Clock:   clock.NewClock(config.White, config.Black, config.Variant.Control),
 	}
 
 	// create map if not exists

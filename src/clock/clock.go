@@ -4,7 +4,12 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/dechristopher/lioctad/bus"
 )
+
+// Channel is the engine monitoring bus channel
+const Channel bus.Channel = "lio:clock"
 
 // Clock represents the clock for a single game
 type Clock struct {
@@ -15,6 +20,7 @@ type Clock struct {
 	isBlack      bool
 	delayExpired bool
 	clockPaused  bool
+	firstMove    bool
 
 	blackTime time.Duration
 	whiteTime time.Duration
@@ -23,10 +29,14 @@ type Clock struct {
 
 	ControlChannel chan Command
 	StateChannel   chan State
+	WhiteAck       chan bool
+	BlackAck       chan bool
 
 	ticker *time.Ticker // fires per-cs events for decrementing time
 	timer  *time.Timer  // fires an event to represent delay time expiring
-	mutex  sync.Mutex
+	mutex  *sync.Mutex
+
+	publisher *bus.Publisher
 }
 
 // NewClock returns a clock configured for the given players at
@@ -39,14 +49,18 @@ func NewClock(player1, player2 string, tc TimeControl) *Clock {
 		isBlack:        false,
 		delayExpired:   false,
 		clockPaused:    true,
+		firstMove:      true,
 		blackTime:      tc.Time.t,
 		whiteTime:      tc.Time.t,
 		timeControl:    tc,
 		ControlChannel: make(chan Command),
 		StateChannel:   make(chan State),
+		WhiteAck:       make(chan bool),
+		BlackAck:       make(chan bool),
 		ticker:         nil,
 		timer:          nil,
-		mutex:          sync.Mutex{},
+		mutex:          &sync.Mutex{},
+		publisher:      bus.NewPublisher("clock", Channel),
 	}
 }
 
@@ -56,47 +70,62 @@ func (c *Clock) Start() {
 	c.clockPaused = false
 	c.ticker = time.NewTicker(Centi)
 
-	go func() {
-		if c.timeControl.Delay.t != 0 {
-			c.timer = time.NewTimer(c.timeControl.Delay.t)
+	go func(cl *Clock) {
+		c.publisher.Publish("start", c.whiteTime, c.blackTime, c.State())
+		if cl.timeControl.Delay.t != 0 {
+			cl.timer = time.NewTimer(cl.timeControl.Delay.t)
 		} else {
 			// default to true for immediate decrement
-			c.timer = time.NewTimer(time.Hour)
-			c.delayExpired = true
+			cl.timer = time.NewTimer(time.Hour)
+			cl.delayExpired = true
 		}
 		for {
 			select {
-			case cmd := <-c.ControlChannel:
-				log.Printf("Command: %d", cmd)
-				handleCommand(c, cmd)
-			case <-c.timer.C:
-				c.delayExpired = true
+			case cmd := <-cl.ControlChannel:
+				c.mutex.Lock()
+				handleCommand(cl, cmd)
+				c.mutex.Unlock()
+			case <-cl.timer.C:
+				cl.delayExpired = true
 				// clean up clock if it somehow persists through
 				// the hour and ticks over.
-				if c.timeControl.Delay.t == 0 {
+				if cl.timeControl.Delay.t == 0 {
 					log.Printf("WARNING: cleanup not working")
 					return
 				}
-			case <-c.ticker.C:
-				if c.Flagged() {
-					c.ticker.Stop()
-					c.timer.Stop()
-					c.StateChannel <- c.State()
-					log.Printf("Game over, victor: %d", c.victor)
+			case <-cl.ticker.C:
+				if cl.Flagged() {
+					cl.Stop()
 					return
 				}
-				if c.delayExpired {
-					if c.isBlack {
-						c.blackTime -= Centi
+				if cl.delayExpired {
+					if cl.isBlack {
+						cl.blackTime -= Centi
 					} else {
-						c.whiteTime -= Centi
+						cl.whiteTime -= Centi
 					}
 				}
 			}
-			// write state every tick
-			c.StateChannel <- c.State()
 		}
-	}()
+	}(c)
+}
+
+// Stop the clock and write state to state channel
+func (c *Clock) Stop() {
+	c.clockPaused = true
+
+	if c.ticker != nil {
+		c.ticker.Stop()
+	}
+	if c.timer != nil {
+		c.timer.Stop()
+	}
+
+	c.StateChannel <- c.State()
+	close(c.StateChannel)
+	close(c.ControlChannel)
+	close(c.WhiteAck)
+	close(c.BlackAck)
 }
 
 // Flagged returns true if someone wins on time
@@ -113,6 +142,8 @@ func (c *Clock) Flagged() bool {
 
 // State returns the current clock state
 func (c *Clock) State() State {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	return State{
 		BlackTime: CTime{c.blackTime},
 		WhiteTime: CTime{c.whiteTime},

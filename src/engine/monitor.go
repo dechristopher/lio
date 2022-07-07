@@ -23,8 +23,8 @@ func monitorSub() {
 // all engine search output events into a datastore
 func monitorEngine(e bus.Event) {
 	if len(e.Data) == 2 {
-		util.Debug(str.CEng, str.DEngStart, e.Data...)
+		util.DebugFlag("engine", str.CEng, str.DEngStart, e.Data...)
 		return
 	}
-	util.Debug(str.CEng, str.DEngSearch, e.Data...)
+	util.DebugFlag("engine", str.CEng, str.DEngSearch, e.Data...)
 }

@@ -1,7 +1,8 @@
 let ws, ka, backoff = 0, move = 1;
 let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingDelay = 3000;
+let clockTicker, wt, bt;
 
-const logMe = () => console.log(`© 2021 lioctad.org`);
+const logMe = () => console.log(`© 2022 lioctad.org`);
 
 const moveSound = new Howl({
 	src: ["/res/sfx/move.ogg"],
@@ -103,7 +104,7 @@ const reconnect = () => {
 };
 
 /**
- * Increment the backoff time so we don't flood the backend
+ * Increment the backoff time so that we don't flood the backend
  */
 const incrBackoff = () => {
 	if (backoff === 0) {
@@ -115,7 +116,7 @@ const incrBackoff = () => {
 };
 
 /**
- * Send a JSON stringified command over the websocket
+ * Send a JSON string command over the websocket
  * @param command - command object
  */
 const send = (command) => {
@@ -219,9 +220,9 @@ const parseResponse = (raw) => {
 		case "m": // move happened
 			if (!message.d.m) {
 				move = 1;
-				document.getElementById("info").innerHTML = ""
-					+ "FREE, ONLINE OCTAD COMING SOON!";
+				document.getElementById("info").innerHTML = "";
 			}
+
 			const ofenParts = message.d.o.split(' ');
 			og.set({
 				ofen: ofenParts[0],
@@ -233,13 +234,70 @@ const parseResponse = (raw) => {
 					dests: allMoves(message.d.v),
 				}
 			});
+
 			if (message.d.s) {
 				playSound(message.d.s);
 			}
+
+			clearInterval(clockTicker);
+
+			wt = message.d.c.w;
+			bt = message.d.c.b;
+
+			const oppClock = document.getElementById("clockOpponent");
+			const plyClock = document.getElementById("clockPlayer");
+
+			// set clock times
+			const oppTime = oppClock.getElementsByClassName("clockTime")[0];
+			oppTime.innerHTML = timeFormatter(bt);
+			const plyTime = plyClock.getElementsByClassName("clockTime")[0];
+			plyTime.innerHTML= timeFormatter(wt);
+
+			// set time bar progress
+			const oppBar = oppClock.getElementsByClassName("clockProgressBar")[0];
+			oppBar.style.width = barWidth(message.d.c.tc, bt);
+			const plyBar = plyClock.getElementsByClassName("clockProgressBar")[0];
+			plyBar.style.width = barWidth(message.d.c.tc, wt);
+
+			// set clock UI state
+			if (ofenParts[1] === "w") {
+				oppClock.className = 'clockOpponent';
+				plyClock.className = 'clockPlayer active';
+			} else {
+				oppClock.className = 'clockOpponent active';
+				plyClock.className = 'clockPlayer';
+			}
+
+			if (message.d.m) {
+				// centi-second clock interpolator
+				if (ofenParts[1] === "w") {
+					clockTicker = setInterval(() => {
+						if (wt <= 10) {
+							wt = 0;
+						} else {
+							wt -= 10;
+						}
+						plyTime.innerHTML = timeFormatter(wt);
+						plyBar.style.width = barWidth(message.d.c.tc, wt);
+					}, 100);
+				} else {
+					clockTicker = setInterval(() => {
+						if (bt <= 10) {
+							bt = 0;
+						} else {
+							bt -= 10;
+						}
+						oppTime.innerHTML = timeFormatter(bt);
+						oppBar.style.width = barWidth(message.d.c.tc, bt);
+					}, 100);
+				}
+			}
+
 			// perform pre-move if set
 			og.playPremove();
 			break;
 		case "g": // game over
+			clearInterval(clockTicker);
 			document.getElementById("info").innerHTML = message.d.s;
 			endSound.play();
 			break;
@@ -250,6 +308,24 @@ const parseResponse = (raw) => {
 			return;
 	}
 };
+
+const padZero = (time) => `0${time}`.slice(-2);
+
+const timeFormatter = (centiseconds) => {
+	const minutes = centiseconds / 6000 | 0;
+	const seconds = padZero((centiseconds / 100 | 0) % 60);
+	const centi = padZero(`${centiseconds % 100}`.slice(-3));
+
+	if (seconds < 10) {
+		return `${minutes}:${seconds}.${centi}`;
+	} else {
+		return `${minutes}:${seconds}`;
+	}
+}
+
+const barWidth = (timeControl, time) => {
+	return `${Math.min((time / timeControl) * 100, 100)}%`;
+}
 
 /**
  * Return a map of all legal moves

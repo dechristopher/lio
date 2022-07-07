@@ -8,9 +8,9 @@ import (
 
 // QuarterZeroBullet is the 15 second, zero second increment bullet variant
 var QuarterZeroBullet = Variant{
-	Name:  "¼ + 0 Bullet",
-	Group: BulletGroup,
-	Time:  QuarterZeroBulletTC,
+	Name:    "¼ + 0",
+	Group:   BulletGroup,
+	Control: QuarterZeroBulletTC,
 }
 
 // QuarterZeroBulletTC is the 15 second, zero second increment bullet time control
@@ -21,9 +21,9 @@ var QuarterZeroBulletTC = clock.TimeControl{
 
 // QuarterOneBullet is the 15 second, one second increment bullet variant
 var QuarterOneBullet = Variant{
-	Name:  "¼ + 1 Bullet",
-	Group: BulletGroup,
-	Time:  QuarterOneBulletTC,
+	Name:    "¼ + 1",
+	Group:   BulletGroup,
+	Control: QuarterOneBulletTC,
 }
 
 // QuarterOneBulletTC is the 15 second, one second increment bullet time control

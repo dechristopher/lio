@@ -31,6 +31,7 @@ const (
 	CEval = "Eval"
 	CEng  = "Engi"
 	CGme  = "Game"
+	CClk  = "Clck"
 )
 
 // (E) Error messages
@@ -60,16 +61,17 @@ const (
 
 // (D) Debug log messages
 const (
-	DPickFSOS  = "selected OS - %s"
-	DPickFSEm  = "selected embedded - %s"
-	DNaughty   = "loaded naughty.txt: %d words"
-	DStoreOk   = "object store online"
-	DBusOk     = "event bus online"
-	DWSRecv    = "ws recv: %+v"
-	DWSSend    = "ws send: %+v"
-	DEngStart  = "eng start: ofen=%s alg=%d"
-	DEngSearch = "eng search: sec=%.3f ofen=%s alg=%d eval=%+v"
-	DGameMove  = "game move: move=%s new_ofen=%s eval=%.3f"
+	DPickFSOS   = "selected OS - %s"
+	DPickFSEm   = "selected embedded - %s"
+	DNaughty    = "loaded naughty.txt: %d words"
+	DStoreOk    = "object store online"
+	DBusOk      = "event bus online"
+	DWSRecv     = "ws recv: %+v"
+	DWSSend     = "ws send: %+v"
+	DEngStart   = "eng start: ofen=%s alg=%d"
+	DEngSearch  = "eng search: sec=%.3f ofen=%s alg=%d eval=%+v"
+	DGameMove   = "game move: move=%s new_ofen=%s eval=%.3f"
+	DClockEvent = "clock event: type=%d whiteTime=%s blackTime=%s state=%+v"
 )
 
 // (T) Test messages

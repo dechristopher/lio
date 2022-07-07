@@ -101,15 +101,15 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// JSON service health / status handler
 	r.Get("/lio", handlers.StatusHandler)
 
-	// return static index.html for all other paths and
-	// let React handle 404s so we get nice error pages
-	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
-
 	// group for /api routes
 	apiGroup := sub.Group("/api")
 
-	// wire all of the api handlers
+	// wire all the api handlers
 	api.Wire(apiGroup)
+
+	// return static index.html for all other paths and let
+	// React handle 404s so that we get nice error pages
+	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
 
 	// Custom 404 page
 	// TODO not needed once we default SPAHandler

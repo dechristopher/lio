@@ -43,13 +43,18 @@
           background-color: #f1d8b8;
       }
 
-      span.sm {
+      div.sm {
           cursor: default;
-          font-size: 0.75em;
+          font-size: 0.6em;
+      }
+
+      span.sm {
+        cursor: default;
+        font-size: 0.6em;
       }
 
       span {
-          cursor: pointer;
+          cursor: default;
       }
 
       .c {
@@ -62,8 +67,8 @@
           font-size: x-small;
       }
 
-      .mtb8 {
-          margin: 8px 0 8px 0;
+      .mt8 {
+          margin-top: 8px;
       }
 
       .t404 {
@@ -76,6 +81,122 @@
           url('/res/font/lm.woff') format('woff');
           font-weight: normal;
           font-style: normal;
+      }
+
+      .chin {
+        background-color: #cca57b;
+
+        width: 50%;
+        padding: 2px 16px;
+        transform: translateY(-3px);
+
+        border-radius: 0 0 3px 3px;
+        z-index: 100;
+      }
+
+      .chin #info {
+        width: 100%;
+        padding-top: 8px;
+      }
+
+      .clockContainer {
+        display: flex;
+
+        width: 100% !important;
+        background-color: #a8a397;
+        font-family: sans-serif;
+      }
+
+      .active .clockContainer {
+        background-color: #A68D6D;
+      }
+
+      .clockOpponent > .clockContainer {
+        flex-direction: column-reverse;
+
+        border-radius: 3px 3px 0 0;
+      }
+
+      .clockPlayer > .clockContainer {
+        flex-direction: column;
+
+        border-radius: 0 0 3px 3px;
+      }
+
+      .clockContent {
+        padding: 4px;
+        display: flex;
+
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .clockProgress {
+        display: block;
+        position: relative;
+      }
+
+      .clockProgressBar {
+        position: absolute;
+        background-color: #FFF0DB;;
+        height: 4px;
+        width: 100%;
+      }
+
+      .active .clockProgressBar {
+        background-color: #B1EB9A;
+      }
+
+      .clockProgressBg {
+        background-color: #BFAB91;
+        height: 4px;
+        width: 100%;
+      }
+
+      .clockTime {
+        font-size: 28px;
+        color: #FFF0DB;
+        font-weight: 900;
+
+        padding-right: 6px;
+      }
+
+      .active .clockTime {
+        color: #B1EB9A;
+      }
+
+      .clockNameContainer {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        padding-left: 6px;
+      }
+
+      .clockName {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .clockOpponent .clockName:after {
+        content: "OPPONENT";
+      }
+
+      .clockPlayer .clockName:after {
+        color: #FFF;
+        content: "YOU";
+      }
+
+      .clockRating {
+        font-size: 15px;
+        padding-left: 6px;
+      }
+
+      .clockRatingNumber {
+        color: #FFF0DB;
+        font-weight: 600;
+        font-size: 11px;
+        margin-top: 2px;
       }
   </style>
 </head>

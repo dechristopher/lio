@@ -8,12 +8,22 @@
   {{ else }}
   <i>LIOCTAD.ORG</i>
   {{ end }}
-  {{ template "partials/game"}}
-  <span class="sm" id="info">FREE, ONLINE OCTAD COMING SOON!</span>
-  <span class="sm">
-    <span id="crowd">0</span> CONNECTED
-    [LAG <span id="lat">0</span><span class="unit">MS</span>]
-  </span>
+  <div class="gccon mt8">
+    <div id="clockOpponent" class="clockOpponent">
+      {{ template "partials/clock" }}
+    </div>
+    {{ template "partials/game"}}
+    <div id="clockPlayer" class="clockPlayer">
+      {{ template "partials/clock" }}
+    </div>
+  </div>
+  <div class="chin">
+    <div class="info sm">
+      <div id="info"></div>
+      <span id="crowd">0</span> CONNECTED
+      (<span id="lat">0</span><span class="unit">MS</span>)
+    </div>
+  </div>
   {{ template "partials/scripts" }}
 </div>
 </body>

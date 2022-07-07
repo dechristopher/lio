@@ -14,7 +14,7 @@ var cachedIndex []byte
 // IndexHandler executes the home page template
 func IndexHandler(c *fiber.Ctx) error {
 	return util.HandleTemplate(c, "index",
-		"Coming Soon", nil, 200)
+		"Free Online Octad", nil, 200)
 }
 
 // SPAHandlerInit creates the SPA handler to serve index.html for all

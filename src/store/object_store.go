@@ -22,7 +22,7 @@ var PGNBucket string
 // C is the object storage client instance
 var C *minio.Client
 
-// Up brings up the connection to the object store
+// Up brings the connection to the object store online
 func Up() {
 	objectStoreAccessKeyID = util.ReadSecretFallback("lio_obj_access")
 	objectStoreSecretAccessKey = util.ReadSecretFallback("lio_obj_secret")

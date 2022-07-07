@@ -26,14 +26,14 @@ func NewSockMap(channel string) SockMap {
 // and emits an update to the crowd channel
 func (s SockMap) Track(bid string, sock Socket) {
 	s.sockets[bid] = sock
-	s.C <- len(s.sockets)
+	s.C <- s.Length()
 }
 
 // UnTrack removes the given socket from the internal sockets
 // map and emits an update to the crowd channel
 func (s SockMap) UnTrack(bid string) {
 	delete(s.sockets, bid)
-	s.C <- len(s.sockets)
+	s.C <- s.Length()
 }
 
 // Get returns a given Socket by bid
@@ -64,5 +64,5 @@ type SocketContext struct {
 	Sockets map[string]SockMap
 	Channel string
 	BID     string
-	MT      int
+	MT      int // websocket message type
 }
