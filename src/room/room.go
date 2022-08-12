@@ -478,8 +478,8 @@ func (r *Instance) calcDepth(color octad.Color) int {
 
 	depth = int(float64(depth) * modifier)
 
-	util.DebugFlag("engine", str.CEng, "selected depth %d for %s (%.2f%%) time remaining",
-		depth, remaining, modifier)
+	util.DebugFlag("engine", str.CEng, "selected depth %d for game %s (%.2f%%) time remaining",
+		depth, r.ID, modifier*100)
 	return depth
 }
 
