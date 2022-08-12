@@ -1,0 +1,9 @@
+<a href="/" class="nolink">
+  {{ if eq .Env "dev" }}
+  <i>DEV.LIOCTAD.ORG</i>
+  {{ else if eq .Env "local" }}
+  <i>LOCAL.LIOCTAD.ORG</i>
+  {{ else }}
+  <i>LIOCTAD.ORG</i>
+  {{ end }}
+</a>

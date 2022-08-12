@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dechristopher/lioctad/bus"
+	"github.com/dechristopher/lioctad/dispatch"
 	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
@@ -23,6 +24,7 @@ func Up() {
 var Initializers = []func(){
 	bus.Up,
 	store.Up,
+	dispatch.UpEngine,
 	Up,
 }
 

@@ -21,6 +21,22 @@
 	color: #93AF6C;
 }
 
+.green .og-wrap coords.ranks.black > coord:nth-child(odd) {
+	color: #93AF6C;
+}
+
+.green .og-wrap coords.ranks.black > coord:nth-child(even) {
+	color: #FFFFDF;
+}
+
+.green .og-wrap coords.files.black > coord:nth-child(odd) {
+	color: #93AF6C;
+}
+
+.green .og-wrap coords.files.black > coord:nth-child(even) {
+	color: #FFFFDF;
+}
+
 .green square.last-move {
 	background-color: rgba(0,155,199,0.41);
 }

@@ -1,12 +1,14 @@
 package proto
 
-import "github.com/dechristopher/lioctad/www/ws/common"
+import (
+	"github.com/dechristopher/lioctad/channel"
+)
 
 // Marshal fully JSON marshals the CrowdPayload and
 // Wraps it in a Message struct
 func (c *CrowdPayload) Marshal() []byte {
 	message := Message{
-		Tag:  "c",
+		Tag:  string(CrowdTag),
 		Data: c,
 	}
 
@@ -15,6 +17,6 @@ func (c *CrowdPayload) Marshal() []byte {
 
 // Broadcast will send a Crowd message to all sockets connected
 // to the channel within the meta given
-func (c CrowdPayload) Broadcast(meta common.SocketContext) {
-	common.Broadcast(c.Marshal(), meta)
+func (c CrowdPayload) Broadcast(meta channel.SocketContext) {
+	channel.Broadcast(c.Marshal(), meta)
 }

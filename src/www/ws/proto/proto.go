@@ -70,6 +70,9 @@ type MovePayload struct {
 	ValidMoves map[string][]string `json:"v,omitempty"`
 	Latency    int                 `json:"l,omitempty"` // player latency indicator
 	Ack        int                 `json:"a,omitempty"` // move ack from player
+	White      string              `json:"w,omitempty"` // white player id
+	Black      string              `json:"b,omitempty"` // black player id
+	GameStart  bool                `json:"gs,omitempty"`
 }
 
 // MessageMove contains a MovePayload message
@@ -100,10 +103,17 @@ type CrowdPayload struct {
 
 // GameOverPayload contains data regarding the outcome of the game
 type GameOverPayload struct {
-	Winner   string       `json:"w"`
-	StatusID int          `json:"i"`
+	Winner   string       `json:"w,omitempty"`
+	StatusID int          `json:"i,omitempty"`
 	Status   string       `json:"s"`
 	Clock    ClockPayload `json:"c,omitempty"`
+	RoomOver bool         `json:"o,omitempty"`
+}
+
+// RoomPayload returns room state data
+type RoomPayload struct {
+	P1Score int `json:"p1"`
+	P2Score int `json:"p2"`
 }
 
 // Marshal encodes the given message and payload into JSON

@@ -95,7 +95,7 @@ func (c *Clock) Start() {
 				}
 			case <-cl.ticker.C:
 				if cl.Flagged() {
-					cl.Stop()
+					cl.Stop(true)
 					return
 				}
 				if cl.delayExpired {
@@ -110,8 +110,20 @@ func (c *Clock) Start() {
 	}(c)
 }
 
+// Reset the clock times and prepare for another game
+func (c *Clock) Reset() {
+	c.Stop(false)
+	c.blackTime = c.timeControl.Time.t
+	c.whiteTime = c.timeControl.Time.t
+
+	c.ControlChannel = make(chan Command)
+	c.StateChannel = make(chan State)
+	c.WhiteAck = make(chan bool)
+	c.BlackAck = make(chan bool)
+}
+
 // Stop the clock and write state to state channel
-func (c *Clock) Stop() {
+func (c *Clock) Stop(writeState bool) {
 	c.clockPaused = true
 
 	if c.ticker != nil {
@@ -121,7 +133,9 @@ func (c *Clock) Stop() {
 		c.timer.Stop()
 	}
 
-	c.StateChannel <- c.State()
+	if writeState {
+		c.StateChannel <- c.State()
+	}
 	close(c.StateChannel)
 	close(c.ControlChannel)
 	close(c.WhiteAck)

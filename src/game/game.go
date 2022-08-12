@@ -4,23 +4,17 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/dechristopher/lioctad/variant"
 	"github.com/dechristopher/octad"
+	"github.com/google/uuid"
+	"github.com/looplab/fsm"
 
 	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/clock"
-
-	"github.com/looplab/fsm"
+	"github.com/dechristopher/lioctad/variant"
 )
 
 // Channel is the engine monitoring bus channel
 const Channel bus.Channel = "lio:game"
-
-var (
-	// Games is an in-memory cache of all active games
-	// TODO persist in redis or something
-	Games map[string]*OctadGame
-)
 
 // OctadGame wraps octad game and clock
 type OctadGame struct {
@@ -43,19 +37,15 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 	}
 
 	g := OctadGame{
-		ID:      config.Channel,
+		ID:      uuid.NewString(),
 		Start:   time.Now(),
 		Game:    game,
 		ToMove:  game.Position().Turn(),
 		Variant: config.Variant,
 		Clock:   clock.NewClock(config.White, config.Black, config.Variant.Control),
+		White:   config.White,
+		Black:   config.Black,
 	}
-
-	// create map if not exists
-	if Games == nil {
-		Games = make(map[string]*OctadGame)
-	}
-	Games[g.ID] = &g
 
 	return &g, nil
 }
@@ -84,9 +74,9 @@ func (g *OctadGame) LegalMovesJSON() string {
 	return string(j)
 }
 
-// AllMoves returns a list of all moves to have
+// MoveHistory returns a list of all moves to have
 // happened in the game so far
-func (g *OctadGame) AllMoves() []string {
+func (g *OctadGame) MoveHistory() []string {
 	moves := g.Game.Moves()
 	allMoves := make([]string, 0)
 	for _, move := range moves {

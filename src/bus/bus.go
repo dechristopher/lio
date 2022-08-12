@@ -58,9 +58,12 @@ const (
 	SystemChannel Channel = "lio:sys"
 )
 
+// Handler function for event listeners
+type Handler = func(e Event)
+
 // SubscribeOnce subscribes to the given channel and is removed
 // once the given handler function has been executed.
-func (c Channel) SubscribeOnce(fn func(e Event)) error {
+func (c Channel) SubscribeOnce(fn Handler) error {
 	for ready == false {
 		time.Sleep(time.Millisecond * 5)
 	}
@@ -69,9 +72,14 @@ func (c Channel) SubscribeOnce(fn func(e Event)) error {
 
 // Subscribe subscribes the given handler function to the
 // given channel and is removed on process termination
-func (c Channel) Subscribe(fn func(e Event)) error {
+func (c Channel) Subscribe(fn Handler) error {
 	for ready == false {
 		time.Sleep(time.Millisecond * 5)
 	}
 	return bus.Subscribe(string(c), fn)
+}
+
+// Unsubscribe a given handler from the channel
+func (c Channel) Unsubscribe(fn Handler) error {
+	return bus.Unsubscribe(string(c), fn)
 }

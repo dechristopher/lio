@@ -87,16 +87,13 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 
 	// websocket connection listener
 	r.Get("/ws/:chan", websocket.New(ws.ConnHandler))
+	r.Get("/ws/:chan/:type", websocket.New(ws.ConnHandler))
 
 	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")
 
 	// wire up all middleware components
 	middleware.Wire(sub, staticFs)
-
-	// home handler
-	// TODO not needed once we default SPAHandler
-	r.Get("/", handlers.IndexHandler)
 
 	// JSON service health / status handler
 	r.Get("/lio", handlers.StatusHandler)
@@ -106,6 +103,15 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 
 	// wire all the api handlers
 	api.Wire(apiGroup)
+
+	// home handler
+	// TODO not needed once we default SPAHandler
+	r.Get("/", handlers.IndexHandler)
+	r.Get("/:id", handlers.RoomHandler)
+
+	// new room creation routes
+	r.Get("/new/human", handlers.NewRoomHumanHandler)
+	r.Get("/new/robot", handlers.NewRoomRobotHandler)
 
 	// return static index.html for all other paths and let
 	// React handle 404s so that we get nice error pages

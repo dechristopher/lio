@@ -1,12 +1,25 @@
 .gcon {
   height: 320px;
   width: 320px;
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old versions of Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently
+                        supported by Chrome, Edge, Opera and Firefox */
 }
 
 .gccon {
-  /* temp */
   /* box-shadow: 0 0 2px 0;*/
   z-index: 200;
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Old versions of Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently
+                        supported by Chrome, Edge, Opera and Firefox */
 }
 
 .gwrap {
@@ -30,19 +43,19 @@
   position: absolute;
 }
 
-.promo.ra {
+.promo.fa {
   padding-left: 0;
 }
 
-.promo.rb {
+.promo.fb {
   padding-left: 80px;
 }
 
-.promo.rc {
+.promo.fc {
   padding-left: 160px;
 }
 
-.promo.rd {
+.promo.fd {
   padding-left: 240px;
 }
 
@@ -198,13 +211,14 @@ piece.fading {
   display: flex;
   pointer-events: none;
   opacity: 0.8;
-  font-family: "LM", sans-serif;
-  font-size: 9px;
+  font-family: "Poppins", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .og-wrap coords.ranks {
-  left: 4px;
-  top: -20px;
+  left: 0;
+  top: -30px;
   flex-flow: column-reverse;
   height: 100%;
   width: 12px;
@@ -215,8 +229,8 @@ piece.fading {
 }
 
 .og-wrap coords.files {
-  bottom: -4px;
-  left: 24px;
+  bottom: 0;
+  left: 33px;
   flex-flow: row;
   width: 100%;
   height: 16px;

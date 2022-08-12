@@ -28,175 +28,255 @@
         content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
   <link rel="stylesheet" href="octadground.base.css">
   <link rel="stylesheet" href="/res/themes/board/green.css">
-  <link rel="stylesheet" href="/res/themes/piece/cburnett.css">
   <style>
-      body {
-          margin: 0;
-          height: 90vh;
-          font-size: large;
-          font-family: 'LM', sans-serif;
-          text-align: center;
-          display: flex;
-          flex-direction: row;
-          justify-content: center;
-          align-items: center;
-          background-color: #f1d8b8;
-      }
+    body {
+      margin: 0;
+      height: 90vh;
+      font-size: large;
+      font-family: 'Poppins', sans-serif;
+      text-align: center;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      background-color: #f1d8b8;
+    }
 
-      div.sm {
-          cursor: default;
-          font-size: 0.6em;
-      }
+    div.sm {
+      cursor: default;
+      font-size: 0.6em;
+    }
 
-      span.sm {
-        cursor: default;
-        font-size: 0.6em;
-      }
+    span.sm {
+      cursor: default;
+      font-size: 0.6em;
+    }
 
-      span {
-          cursor: default;
-      }
+    span {
+      cursor: default;
+    }
 
-      .c {
-          display: flex;
-          flex-direction: column;
-          align-items: center
-      }
+    i {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
 
-      .unit {
-          font-size: x-small;
-      }
+    .v {
+      font-family: sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+    }
 
-      .mt8 {
-          margin-top: 8px;
-      }
+    .c {
+      display: flex;
+      flex-direction: column;
+      align-items: center
+    }
 
-      .t404 {
-          font-size: 52px;
-      }
+    .unit {
+      font-size: x-small;
+    }
 
-      @font-face {
-          font-family: 'LM';
-          src: url('/res/font/lm.woff2') format('woff2'),
-          url('/res/font/lm.woff') format('woff');
-          font-weight: normal;
-          font-style: normal;
-      }
+    .mt8 {
+      margin-top: 8px;
+    }
 
-      .chin {
-        background-color: #cca57b;
+    .t404 {
+      font-size: 52px;
+    }
 
-        width: 50%;
-        padding: 2px 16px;
-        transform: translateY(-3px);
+    #gameTitle {
+      font-family: 'Poppins',sans-serif;
+      font-weight: bold;
+      font-size: 2em;
+    }
 
-        border-radius: 0 0 3px 3px;
-        z-index: 100;
-      }
+    .chin {
+      background-color: #cca57b;
 
-      .chin #info {
-        width: 100%;
-        padding-top: 8px;
-      }
+      width: 85%;
+      padding: 2px 16px;
+      transform: translateY(-3px);
 
-      .clockContainer {
-        display: flex;
+      border-radius: 0 0 3px 3px;
+      z-index: 100;
+    }
 
-        width: 100% !important;
-        background-color: #a8a397;
-        font-family: sans-serif;
-      }
+    .chin #info {
+      width: 100%;
+      padding-top: 6px;
+    }
 
-      .active .clockContainer {
-        background-color: #A68D6D;
-      }
+    .newGameButtons {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-around;
+      align-items: center;
+      margin: 4px 12px 16px 12px;
+    }
 
-      .clockOpponent > .clockContainer {
-        flex-direction: column-reverse;
+    .nolink {
+      text-decoration: none;
+      color: black;
+    }
 
-        border-radius: 3px 3px 0 0;
-      }
+    a.nolink:visited {
+      color: black;
+    }
 
-      .clockPlayer > .clockContainer {
-        flex-direction: column;
+    .libtn {
+      align-items: center;
+      background-color: #FFFFDF;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: .25rem;
+      box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+      box-sizing: border-box;
+      color: rgba(0, 0, 0, 0.85);
+      cursor: pointer;
+      display: inline-flex;
+      font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      justify-content: center;
+      line-height: 1.25;
+      margin: 0;
+      min-height: 3rem;
+      padding: calc(.175rem - 1px) calc(.8rem - 1px);
+      position: relative;
+      text-decoration: none;
+      transition: all 250ms;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      vertical-align: baseline;
+      width: auto;
+    }
 
-        border-radius: 0 0 3px 3px;
-      }
+    .libtn:hover,
+    .libtn:focus {
+      border-color: rgba(0, 0, 0, 0.15);
+      box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+      color: rgba(0, 0, 0, 0.65);
+    }
 
-      .clockContent {
-        padding: 4px;
-        display: flex;
+    .libtn:hover {
+      transform: translateY(-1px);
+    }
 
-        justify-content: space-between;
-        align-items: center;
-      }
+    .libtn:active {
+      background-color: #F0F0F1;
+      border-color: rgba(0, 0, 0, 0.15);
+      box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
+      color: rgba(0, 0, 0, 0.65);
+      transform: translateY(0);
+    }
 
-      .clockProgress {
-        display: block;
-        position: relative;
-      }
+    .clockContainer {
+      display: flex;
 
-      .clockProgressBar {
-        position: absolute;
-        background-color: #FFF0DB;;
-        height: 4px;
-        width: 100%;
-      }
+      width: 100% !important;
+      background-color: #a8a397;
+      font-family: sans-serif;
+    }
 
-      .active .clockProgressBar {
-        background-color: #B1EB9A;
-      }
+    .active .clockContainer {
+      background-color: #A68D6D;
+    }
 
-      .clockProgressBg {
-        background-color: #BFAB91;
-        height: 4px;
-        width: 100%;
-      }
+    .clockOpponent > .clockContainer {
+      flex-direction: column-reverse;
 
-      .clockTime {
-        font-size: 28px;
-        color: #FFF0DB;
-        font-weight: 900;
+      border-radius: 3px 3px 0 0;
+    }
 
-        padding-right: 6px;
-      }
+    .clockPlayer > .clockContainer {
+      flex-direction: column;
 
-      .active .clockTime {
-        color: #B1EB9A;
-      }
+      border-radius: 0 0 3px 3px;
+    }
 
-      .clockNameContainer {
-        display: flex;
-        justify-content: center;
-        align-items: center;
+    .clockContent {
+      padding: 4px;
+      display: flex;
 
-        padding-left: 6px;
-      }
+      justify-content: space-between;
+      align-items: center;
+    }
 
-      .clockName {
-        font-size: 15px;
-        font-weight: 600;
-      }
+    .clockProgress {
+      display: block;
+      position: relative;
+    }
 
-      .clockOpponent .clockName:after {
-        content: "OPPONENT";
-      }
+    .clockProgressBar {
+      position: absolute;
+      background-color: #FFF0DB;;
+      height: 4px;
+      width: 100%;
+    }
 
-      .clockPlayer .clockName:after {
-        color: #FFF;
-        content: "YOU";
-      }
+    .active .clockProgressBar {
+      background-color: #B1EB9A;
+    }
 
-      .clockRating {
-        font-size: 15px;
-        padding-left: 6px;
-      }
+    .clockProgressBg {
+      background-color: #BFAB91;
+      height: 4px;
+      width: 100%;
+    }
 
-      .clockRatingNumber {
-        color: #FFF0DB;
-        font-weight: 600;
-        font-size: 11px;
-        margin-top: 2px;
-      }
+    .clockTime {
+      font-size: 28px;
+      color: #FFF0DB;
+      font-weight: 900;
+
+      padding-right: 6px;
+    }
+
+    .active .clockTime {
+      color: #B1EB9A;
+    }
+
+    .clockNameContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      padding-left: 6px;
+    }
+
+    .clockName {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .clockOpponent .clockName:after {
+      content: "OPPONENT";
+    }
+
+    .clockPlayer .clockName:after {
+      content: "YOU";
+    }
+
+    .playerWhite {
+      color: #FFF;
+    }
+
+    .playerBlack {
+      color: #000;
+    }
+
+    .clockRating {
+      font-size: 15px;
+      padding-left: 6px;
+    }
+
+    .clockRatingNumber {
+      color: #FFF0DB;
+      font-weight: 600;
+      font-size: 11px;
+      margin-top: 2px;
+    }
   </style>
+  <link rel="stylesheet" href="/res/themes/piece/cburnett.css">
 </head>

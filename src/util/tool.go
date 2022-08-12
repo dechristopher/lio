@@ -55,8 +55,7 @@ func Naughty(in string) bool {
 	return false
 }
 
-// GenerateCode generates a 4 character party join code
-// with naughty safety baked in
+// GenerateCode generates an N character sequence with naughty safety baked in
 func GenerateCode(length int, useFullCharset bool) string {
 	b := make([]byte, length)
 	for {

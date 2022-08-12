@@ -9,16 +9,22 @@ const moveSound = new Howl({
 	preload: true,
 	autoplay: true,
 	html5: true,
-	volume: 1.0
+	volume: 0.9
 });
 
 const capSound = new Howl({
 	src: ["/res/sfx/capture.ogg"],
 	preload: true,
-	volume: 1.0
+	volume: 0.9
 });
 
-const endSound = new Howl({
+const confirmation = new Howl({
+	src: ["/res/sfx/confirmation.ogg"],
+	preload: true,
+	volume: 0.99
+});
+
+const notification = new Howl({
 	src: ["/res/sfx/end.ogg"],
 	preload: true,
 	volume: 0.6
@@ -26,13 +32,14 @@ const endSound = new Howl({
 
 // create game board
 let og = Octadground(document.getElementById('game'), {
+	orientation: document.getElementById('gcon-xx').classList.contains('white') ? 'white' : 'black',
 	highlight: {
 		lastMove: true,
 		check: true,
 	},
 	movable: {
 		free: false,
-		color: 'white'
+		color: document.getElementById('gcon-xx').classList.contains('white') ? 'white' : 'black'
 	},
 	selectable: {
 		enabled: false,
@@ -60,7 +67,7 @@ window.addEventListener('load', () => {
  */
 const connect = () => {
 	ws = new WebSocket(`${location.origin.replace(
-		/^http/, 'ws')}/ws/test`);
+		/^http/, 'ws')}/ws${location.pathname}`);
 
 	ws.onopen = () => {
 		console.log("Connected to lioctad.org");
@@ -218,88 +225,19 @@ const parseResponse = (raw) => {
 
 	switch (message.t) {
 		case "m": // move happened
-			if (!message.d.m) {
-				move = 1;
-				document.getElementById("info").innerHTML = "";
-			}
-
-			const ofenParts = message.d.o.split(' ');
-			og.set({
-				ofen: ofenParts[0],
-				lastMove: getLastMove(message.d.m),
-				turnColor: ofenParts[1] === "w" ? "white" : "black",
-				check: message.d.k,
-				movable: {
-					free: false,
-					dests: allMoves(message.d.v),
-				}
-			});
-
-			if (message.d.s) {
-				playSound(message.d.s);
-			}
-
-			clearInterval(clockTicker);
-
-			wt = message.d.c.w;
-			bt = message.d.c.b;
-
-			const oppClock = document.getElementById("clockOpponent");
-			const plyClock = document.getElementById("clockPlayer");
-
-			// set clock times
-			const oppTime = oppClock.getElementsByClassName("clockTime")[0];
-			oppTime.innerHTML = timeFormatter(bt);
-			const plyTime = plyClock.getElementsByClassName("clockTime")[0];
-			plyTime.innerHTML= timeFormatter(wt);
-
-			// set time bar progress
-			const oppBar = oppClock.getElementsByClassName("clockProgressBar")[0];
-			oppBar.style.width = barWidth(message.d.c.tc, bt);
-			const plyBar = plyClock.getElementsByClassName("clockProgressBar")[0];
-			plyBar.style.width = barWidth(message.d.c.tc, wt);
-
-			// set clock UI state
-			if (ofenParts[1] === "w") {
-				oppClock.className = 'clockOpponent';
-				plyClock.className = 'clockPlayer active';
-			} else {
-				oppClock.className = 'clockOpponent active';
-				plyClock.className = 'clockPlayer';
-			}
-
-			if (message.d.m) {
-				// centi-second clock interpolator
-				if (ofenParts[1] === "w") {
-					clockTicker = setInterval(() => {
-						if (wt <= 10) {
-							wt = 0;
-						} else {
-							wt -= 10;
-						}
-						plyTime.innerHTML = timeFormatter(wt);
-						plyBar.style.width = barWidth(message.d.c.tc, wt);
-					}, 100);
-				} else {
-					clockTicker = setInterval(() => {
-						if (bt <= 10) {
-							bt = 0;
-						} else {
-							bt -= 10;
-						}
-						oppTime.innerHTML = timeFormatter(bt);
-						oppBar.style.width = barWidth(message.d.c.tc, bt);
-					}, 100);
-				}
-			}
-
-			// perform pre-move if set
-			og.playPremove();
+			handleMove(message);
 			break;
 		case "g": // game over
 			clearInterval(clockTicker);
 			document.getElementById("info").innerHTML = message.d.s;
-			endSound.play();
+			notification.play();
+
+			// if room over, redirect home after a second
+			if (message.d.o === true) {
+				setTimeout(() => {
+					window.location.href = "/";
+				}, 3000);
+			}
 			break;
 		case "c":
 			document.getElementById("crowd").innerHTML = message.d.s;
@@ -309,8 +247,162 @@ const parseResponse = (raw) => {
 	}
 };
 
+/**
+ * Returns true if the player is playing white
+ * @param message - move message
+ * @returns {boolean} is white
+ */
+const isPlayerWhite = (message) => {
+	return message.d.w === getCookie('bid');
+};
+
+/**
+ * Returns true if it is currently the player's turn
+ * @param message
+ * @param ofenParts
+ * @returns {boolean} is currently player's turn
+ */
+const isPlayerTurn = (message, ofenParts) => {
+	return (isPlayerWhite(message) && whiteToMove(ofenParts))
+		|| (!isPlayerWhite(message) && !whiteToMove(ofenParts));
+};
+
+/**
+ * Returns true if the player is playing white
+ * @param ofenParts - split OFEN
+ * @returns {boolean} is white's turn
+ */
+const whiteToMove = (ofenParts) => {
+	return ofenParts[1] === 'w';
+};
+
+/**
+ * Handle incoming move messages, update board state, update UI and clocks
+ * @param message
+ */
+const handleMove = (message) => {
+	if (!message.d.m) {
+		move = 1;
+		document.getElementById("info").innerHTML = "";
+	}
+
+	const ofenParts = message.d.o.split(' ');
+	og.set({
+		orientation: message.d.w === getCookie('bid') ? 'white' : 'black',
+		ofen: ofenParts[0],
+		lastMove: getLastMove(message.d.m),
+		turnColor: whiteToMove(ofenParts) ? "white" : "black",
+		check: message.d.k,
+		movable: {
+			free: false,
+			dests: allMoves(message.d.v),
+			color: message.d.w === getCookie('bid') ? 'white' : 'black',
+		}
+	});
+
+	if (message.d.gs) {
+		confirmation.play();
+	}
+
+	if (message.d.s) {
+		playSound(message.d.s);
+	}
+
+	// update UI styles and clock tickers
+	updateUI(message, ofenParts);
+
+	// perform pre-move if set
+	og.playPremove();
+};
+
+/**
+ * updateUI updates UI state, styles and clock tickers
+ * @param message - move message
+ * @param ofenParts - OFEN parts array
+ */
+const updateUI = (message, ofenParts) => {
+	clearInterval(clockTicker);
+
+	wt = message.d.c.w;
+	bt = message.d.c.b;
+
+	const plyClock = document.getElementById("clockPlayer");
+	const oppClock = document.getElementById("clockOpponent");
+
+	const plyTime = plyClock.getElementsByClassName("clockTime")[0];
+	const oppTime = oppClock.getElementsByClassName("clockTime")[0];
+
+	let playerTimeRemaining = isPlayerWhite(message) ? wt : bt;
+	let opponentTimeRemaining = isPlayerWhite(message) ? bt : wt;
+
+	// set clock times
+	plyTime.innerHTML = timeFormatter(playerTimeRemaining);
+	oppTime.innerHTML = timeFormatter(opponentTimeRemaining);
+
+	const plyBar = plyClock.getElementsByClassName("clockProgressBar")[0];
+	const oppBar = oppClock.getElementsByClassName("clockProgressBar")[0];
+
+	// set time bar progress
+	plyBar.style.width = barWidth(message.d.c.tc, playerTimeRemaining);
+	oppBar.style.width = barWidth(message.d.c.tc, opponentTimeRemaining);
+
+	// set clock UI active state
+	if (isPlayerTurn(message, ofenParts)) {
+		plyClock.classList.add('active');
+		oppClock.classList.remove('active');
+	} else {
+		plyClock.classList.remove('active');
+		oppClock.classList.add('active');
+	}
+
+	// set player name colors
+	if (isPlayerWhite(message)) {
+		oppClock.classList.add('playerBlack');
+		oppClock.classList.remove('playerWhite');
+		plyClock.classList.add('playerWhite');
+		plyClock.classList.remove('playerBlack');
+	} else {
+		oppClock.classList.add('playerWhite');
+		oppClock.classList.remove('playerWhite');
+		plyClock.classList.add('playerBlack');
+		plyClock.classList.remove('playerWhite');
+	}
+
+	// only run this when move is provided, otherwise we flip
+	// the clock on regular game updates, which is not intended
+	if (message.d.m) {
+		// reset centi-second clock interpolator to decrement correct player
+		if (isPlayerTurn(message, ofenParts)) {
+			clockTicker = setInterval(() => {
+				if (playerTimeRemaining <= 10) {
+					playerTimeRemaining = 0;
+				} else {
+					playerTimeRemaining -= 10;
+				}
+				plyTime.innerHTML = timeFormatter(playerTimeRemaining);
+				plyBar.style.width = barWidth(message.d.c.tc, playerTimeRemaining);
+			}, 100);
+		} else {
+			clockTicker = setInterval(() => {
+				if (opponentTimeRemaining <= 10) {
+					opponentTimeRemaining = 0;
+				} else {
+					opponentTimeRemaining -= 10;
+				}
+				oppTime.innerHTML = timeFormatter(opponentTimeRemaining);
+				oppBar.style.width = barWidth(message.d.c.tc, opponentTimeRemaining);
+			}, 100);
+		}
+	}
+};
+
 const padZero = (time) => `0${time}`.slice(-2);
 
+/**
+ * Format time in MM:SS.CC
+ * @param centiseconds - number of centi-seconds remaining
+ * @returns {string} formatted time
+ */
 const timeFormatter = (centiseconds) => {
 	const minutes = centiseconds / 6000 | 0;
 	const seconds = padZero((centiseconds / 100 | 0) % 60);
@@ -323,6 +415,13 @@ const timeFormatter = (centiseconds) => {
 	}
 }
 
+/**
+ * Returns a CSS width percentage based on the percentage of
+ * the clock time remaining for the given time control
+ * @param timeControl - time control total centi-seconds
+ * @param time - centi-seconds remaining
+ * @returns {`${number}%`}
+ */
 const barWidth = (timeControl, time) => {
 	return `${Math.min((time / timeControl) * 100, 100)}%`;
 }
@@ -376,22 +475,64 @@ const disableBoard = () => {
  * @param dest - destination square
  */
 const doMove = (orig, dest) => {
-	let promo = "";
 	if (og.state.pieces.get(dest) && og.state.pieces.get(dest).role === "pawn") {
 		let destPiece = og.state.pieces.get(dest);
-		// TODO prompt for promo piece type
-		if (destPiece.color === "white" && dest[1] === "4") {
-			promo = 'q';
-			// document.getElementById("promo-shade-xx").classList.remove('hidden');
-			// document.getElementById("promo-xx").classList.remove('hidden');
-		} else if (destPiece.color === "black" && dest[1] === "1") {
-			promo = 'q';
+		if ((destPiece.color === "white" && dest[1] === "4") || (destPiece.color === "black" && dest[1] === "1")) {
+			document.getElementById("promo-shade-xx").classList.remove('hidden');
+			document.getElementById("promo-xx").classList.remove('hidden');
+
+			// set file for promo bar
+			document.getElementById("promo-xx").classList.add(`f${dest[0]}`);
+
+			// set piece selector colors and event handlers
+			let promoButtons = document.getElementsByClassName('promo-piece');
+			for(let i = 0; i < promoButtons.length; i++) {
+				promoButtons[i].classList.add(destPiece.color);
+
+				if (promoButtons[i].classList.contains("queen")) {
+					promoButtons[i].addEventListener("click", () => doMovePromo(orig, dest, 'q'));
+				} else if (promoButtons[i].classList.contains("rook")) {
+					promoButtons[i].addEventListener("click", () => doMovePromo(orig, dest, 'r'));
+				} else if ((promoButtons[i].classList.contains("bishop"))) {
+					promoButtons[i].addEventListener("click", () => doMovePromo(orig, dest, 'b'));
+				} else if (promoButtons[i].classList.contains("knight")) {
+					promoButtons[i].addEventListener("click", () => doMovePromo(orig, dest, 'n'));
+				}
+			}
+
+			// return early and wait for doMovePromo to run
+			return
 		}
 	}
 
-	sendGameMove(orig + dest + promo, move);
+	sendGameMove(orig + dest, move);
 	move++;
 };
+
+/**
+ * Perform move from origin to destination square with selected promotion
+ * @param orig - origin square
+ * @param dest - destination square
+ * @param promo - code of piece to promote to
+ */
+const doMovePromo = (orig, dest, promo) => {
+	sendGameMove(orig + dest + promo, move);
+	move++;
+
+	// hide promo bar and shade after promotion
+	document.getElementById("promo-shade-xx").classList.add('hidden');
+	document.getElementById("promo-xx").classList.add('hidden');
+
+	// unset file for promo bar
+	document.getElementById("promo-xx").classList.remove(`f${dest[0]}`);
+
+	// unset promo piece color
+	let promoButtons = document.getElementsByClassName('promo-piece');
+	for(let i = 0; i < promoButtons.length; i++) {
+		promoButtons[i].classList.remove('white');
+		promoButtons[i].classList.remove('black');
+	}
+}
 
 /**
  * Play sounds for incoming moves based on the SAN for the move
@@ -403,4 +544,24 @@ const playSound = (san) => {
 	} else {
 		moveSound.play();
 	}
+};
+
+/**
+ * Get cookie by name
+ * @param cname
+ * @returns {string}
+ */
+const getCookie = (cname) => {
+	let name = cname + "=";
+	let ca = document.cookie.split(';');
+	for(let i = 0; i < ca.length; i++) {
+		let c = ca[i];
+		while (c.charAt(0) === ' ') {
+			c = c.substring(1);
+		}
+		if (c.indexOf(name) === 0) {
+			return c.substring(name.length, c.length);
+		}
+	}
+	return "";
 };

@@ -10,5 +10,4 @@ type OctadGameConfig struct {
 	Black   string          `json:"b"` // black userid
 	Variant variant.Variant // octad variant
 	OFEN    string          `json:"o"` // initial ofen
-	Channel string          `json:"c"` // ws game channel
 }

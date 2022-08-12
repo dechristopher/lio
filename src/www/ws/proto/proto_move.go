@@ -4,7 +4,7 @@ package proto
 // Wraps it in a Message struct
 func (m *MovePayload) Marshal() []byte {
 	message := Message{
-		Tag:          "m",
+		Tag:          string(MoveTag),
 		Data:         m,
 		ProtoVersion: MovePayloadVersion,
 	}

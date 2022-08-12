@@ -12,7 +12,7 @@ import (
 
 var (
 	// Version of lio
-	Version = "v0.2.0"
+	Version = "v0.3.0"
 
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
@@ -23,7 +23,7 @@ var (
 	DebugFlags = make(map[string]bool)
 )
 
-// ReadSecretFallback attempts to read a secret from the secrets
+// ReadSecretFallback attempts to read a secret from the secret
 // path, returns environment variable of same name if error
 func ReadSecretFallback(name string) string {
 	secret, err := ReadSecret(name)

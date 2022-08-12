@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/octad"
 	"github.com/pkg/errors"
 
+	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -75,7 +75,7 @@ func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 		bestMove.Eval = bestMoveEval
 	}
 
-	util.DebugFlag("eng", str.CEval, "chose best move: %s (%2f) for OFEN: %s",
+	util.DebugFlag("engine", str.CEval, "chose best move: %s (%2f) for OFEN: %s",
 		bestMove.Move.String(), bestMove.Eval, situation.Position().String())
 
 	return bestMove
@@ -93,7 +93,7 @@ func minimaxABAsync(params minimaxABParams) {
 
 	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth)
 
-	util.DebugFlag("eng", str.CEval, "root eval: %s (%2f)",
+	util.DebugFlag("engine", str.CEval, "root eval: %s (%2f)",
 		params.move.String(), eval)
 
 	params.evalChan <- MoveEval{

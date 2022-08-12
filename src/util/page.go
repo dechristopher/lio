@@ -25,6 +25,7 @@ func HandleTemplate(
 // can be used during page template rendering
 type pageModel struct {
 	Env      env.Env
+	Version  string
 	PageName string
 	Data     interface{}
 }
@@ -33,6 +34,7 @@ type pageModel struct {
 func genPageModel(name string, data interface{}) pageModel {
 	return pageModel{
 		Env:      env.GetEnv(),
+		Version:  Version,
 		PageName: name,
 		Data:     data,
 	}

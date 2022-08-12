@@ -32,6 +32,8 @@ const (
 	CEng  = "Engi"
 	CGme  = "Game"
 	CClk  = "Clck"
+	CRoom = "Room"
+	CChan = "Chan"
 )
 
 // (E) Error messages
@@ -39,6 +41,7 @@ const (
 	ELogFail       = "failed to log error=%s msg=%+v"
 	EStoreInit     = "failed to init object store error=%s"
 	EFSDecode      = "failed to decode path in strictFS path=%s error=%s"
+	EWSConn        = "conn err: %s"
 	EWSRead        = "read err: %s"
 	EWSWrite       = "write err: meta=%+v error=%s"
 	EWSNoBid       = "no bid: %s"
@@ -68,11 +71,12 @@ const (
 	DNaughty    = "loaded naughty.txt: %d words"
 	DStoreOk    = "object store online"
 	DBusOk      = "event bus online"
+	DEngOk      = "engine dispatcher online"
 	DWSRecv     = "ws recv: %+v"
 	DWSSend     = "ws send: %+v"
 	DEngStart   = "eng start: ofen=%s alg=%d"
 	DEngSearch  = "eng search: sec=%.3f ofen=%s alg=%d eval=%+v"
-	DGameMove   = "game move: move=%s new_ofen=%s eval=%.3f"
+	DGameMove   = "game move: move=%s new_ofen=%s"
 	DClockEvent = "clock event: type=%d whiteTime=%s blackTime=%s state=%+v"
 )
 
