@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/dechristopher/lioctad/config"
@@ -42,7 +43,8 @@ func (sfs strictFs) Open(path string) (http.File, error) {
 	// open file directly if it exists
 	f, err := sfs.fs.Open(path)
 	if err != nil {
-		return nil, err
+		// return nothing if we hit an error so that we 404
+		return nil, os.ErrNotExist
 	}
 
 	// prevent directory listings, only show index file if any
