@@ -222,16 +222,25 @@ func (r *Instance) populateGameConfig() {
 
 // Join the room as the second player
 func (r *Instance) Join(bid string) (bool, bool) {
+	// if room established with both players
 	if r.Player1 != "" && r.Player2 != "" {
+		// if player returning, allow back
+		if r.Player1 == bid || r.Player2 == bid {
+			return true, false
+		}
+
+		// otherwise, force into spectator mode
 		return false, true
 	}
 
+	// if player2 joining
 	if r.Player1 != bid {
 		r.Player2 = bid
 		r.Game().Black = bid
 		return true, false
 	}
 
+	// allow P1 back in before P2 joins
 	return r.Player1 == bid, false
 }
 
