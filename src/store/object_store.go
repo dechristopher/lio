@@ -17,8 +17,10 @@ var objectStoreAccessKeyID string
 var objectStoreSecretAccessKey string
 var objectStoreEndpoint string
 
+type Bucket string
+
 // PGNBucket is the name of the game PGN storage bucket
-var PGNBucket string
+var PGNBucket Bucket
 
 // C is the object storage client instance
 var C *minio.Client
@@ -29,7 +31,7 @@ func Up() {
 	objectStoreSecretAccessKey = config.ReadSecretFallback("lio_obj_secret")
 	objectStoreEndpoint = config.ReadSecretFallback("lio_obj_endpoint")
 
-	PGNBucket = config.ReadSecretFallback("lio_obj_bucket_pgn")
+	PGNBucket = Bucket(config.ReadSecretFallback("lio_obj_bucket_pgn"))
 
 	var err error
 
@@ -56,9 +58,9 @@ func Up() {
 }
 
 // GetObject pulls an object from storage as a byte array
-func GetObject(bucket, key string) ([]byte, error) {
+func (b Bucket) GetObject(key string) ([]byte, error) {
 	// pull object from store
-	obj, err := C.GetObject(context.Background(), bucket,
+	obj, err := C.GetObject(context.Background(), string(b),
 		key, minio.GetObjectOptions{})
 
 	if err != nil {
@@ -80,9 +82,9 @@ func GetObject(bucket, key string) ([]byte, error) {
 }
 
 // PutObject inserts an object into storage under the specified key
-func PutObject(bucket, key string, value []byte) error {
+func (b Bucket) PutObject(key string, value []byte) error {
 	reader := bytes.NewReader(value)
-	_, err := C.PutObject(context.Background(), bucket, key,
+	_, err := C.PutObject(context.Background(), string(b), key,
 		reader, int64(len(value)), minio.PutObjectOptions{
 			UserMetadata: nil,
 		})

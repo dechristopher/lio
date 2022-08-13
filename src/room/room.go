@@ -586,7 +586,7 @@ func storeGame(g game.OctadGame) {
 		g.Start.Format("15:04:05Z07:00"),
 		time.Now().UnixNano())
 
-	err := store.PutObject(store.PGNBucket, key, []byte(pgn))
+	err := store.PGNBucket.PutObject(key, []byte(pgn))
 	if err != nil {
 		util.Error(str.CHMov, str.ERecord, err.Error())
 	}
