@@ -2,6 +2,7 @@
   <span class="title"><i>li<span class="green">octad</span>.org</i>
   {{ if eq .Env "dev" }} *dev
   {{ else if eq .Env "local" }} *local
+  {{ else }} *alpha
   {{ end }}
   </span>
 </a>
