@@ -42,7 +42,7 @@ let og = Octadground(document.getElementById('game'), {
 		color: document.getElementById('gcon-xx').classList.contains('white') ? 'white' : 'black'
 	},
 	selectable: {
-		enabled: false,
+		enabled: true,
 	},
 	events: {
 		move: (orig, dest, capturedPiece) => {
