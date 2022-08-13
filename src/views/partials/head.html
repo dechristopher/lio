@@ -35,6 +35,8 @@
       justify-content: center;
       align-items: center;
       background-color: #f1d8b8;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     div.sm {
@@ -47,16 +49,16 @@
       font-size: 0.6em;
     }
 
-    span {
-      cursor: default;
-    }
-
     i {
       font-size: 1.5rem;
       font-weight: 700;
     }
 
     .title {
+      cursor: pointer;
+    }
+
+    .title .green {
       /*color: #0cb986;*/
       color: #0bab7d;
     }
@@ -89,6 +91,7 @@
       font-family: 'Poppins',sans-serif;
       font-weight: bold;
       font-size: 2em;
+      cursor: default;
     }
 
     .chin {
