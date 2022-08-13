@@ -478,14 +478,17 @@ const doMove = (orig, dest) => {
 	if (og.state.pieces.get(dest) && og.state.pieces.get(dest).role === "pawn") {
 		let destPiece = og.state.pieces.get(dest);
 		if ((destPiece.color === "white" && dest[1] === "4") || (destPiece.color === "black" && dest[1] === "1")) {
-			document.getElementById("promo-shade-xx").classList.remove('hidden');
-			document.getElementById("promo-xx").classList.remove('hidden');
+			document.getElementById("promo-shade").classList.remove('hidden');
+
+			let promoBar = document.getElementById("promo-select");
+			promoBar.classList.remove('hidden');
 
 			// set file for promo bar
-			document.getElementById("promo-xx").classList.add(`f${dest[0]}`);
+			promoBar.classList.add(`f${dest[0]}`);
 
 			// set piece selector colors and event handlers
-			let promoButtons = document.getElementsByClassName('promo-piece');
+			let promoButtons = promoBar.getElementsByTagName("piece");
+			console.log(promoButtons);
 			for(let i = 0; i < promoButtons.length; i++) {
 				promoButtons[i].classList.add(destPiece.color);
 
@@ -520,14 +523,18 @@ const doMovePromo = (orig, dest, promo) => {
 	move++;
 
 	// hide promo bar and shade after promotion
-	document.getElementById("promo-shade-xx").classList.add('hidden');
-	document.getElementById("promo-xx").classList.add('hidden');
+	document.getElementById("promo-shade").classList.add('hidden');
+
+	let promoBar = document.getElementById("promo-select");
+
+	// hide promo bar
+	promoBar.classList.add('hidden');
 
 	// unset file for promo bar
-	document.getElementById("promo-xx").classList.remove(`f${dest[0]}`);
+	promoBar.classList.remove(`f${dest[0]}`);
 
 	// unset promo piece color
-	let promoButtons = document.getElementsByClassName('promo-piece');
+	let promoButtons = promoBar.getElementsByTagName("piece");
 	for(let i = 0; i < promoButtons.length; i++) {
 		promoButtons[i].classList.remove('white');
 		promoButtons[i].classList.remove('black');
