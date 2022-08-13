@@ -18,15 +18,15 @@ type RoomTemplatePayload struct {
 
 // RoomHandler executes the room page template
 func RoomHandler(c *fiber.Ctx) error {
-	instance, err := room.Get(c.Params("id"))
-	if err != nil || instance == nil {
+	roomInstance, err := room.Get(c.Params("id"))
+	if err != nil || roomInstance == nil {
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
 	browserId := c.Cookies("bid")
 
 	// signal to room that this player is joining as P2
-	joined, isSpectator := instance.Join(browserId)
+	joined, isSpectator := roomInstance.Join(browserId)
 
 	if isSpectator {
 		// spectator
@@ -39,16 +39,16 @@ func RoomHandler(c *fiber.Ctx) error {
 
 	if joined {
 		var playerColor octad.Color
-		if instance.Player1 == browserId {
-			playerColor = instance.P1Color
+		if roomInstance.Player1 == browserId {
+			playerColor = roomInstance.P1Color
 		} else {
-			playerColor = instance.P1Color.Other()
+			playerColor = roomInstance.P1Color.Other()
 		}
 
 		payload := RoomTemplatePayload{
 			PlayerColor:   playerColor.String(),
 			OpponentColor: playerColor.Other().String(),
-			VariantName:   instance.Game().Variant.Name + " " + string(instance.Game().Variant.Group),
+			VariantName:   roomInstance.Game().Variant.Name + " " + string(roomInstance.Game().Variant.Group),
 		}
 
 		return util.HandleTemplate(c, "room",
@@ -86,7 +86,7 @@ func NewRoomRobotHandler(c *fiber.Ctx) error {
 		P1Color: octad.White,
 		P2Bot:   true,
 		GameConfig: game.OctadGameConfig{
-			Variant: variant.QuarterZeroBullet,
+			Variant: variant.OneTwoRapid,
 		},
 	})
 	if err != nil {
