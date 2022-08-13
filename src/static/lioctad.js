@@ -363,7 +363,7 @@ const updateUI = (message, ofenParts) => {
 		plyClock.classList.remove('playerBlack');
 	} else {
 		oppClock.classList.add('playerWhite');
-		oppClock.classList.remove('playerWhite');
+		oppClock.classList.remove('playerBlack');
 		plyClock.classList.add('playerBlack');
 		plyClock.classList.remove('playerWhite');
 	}
