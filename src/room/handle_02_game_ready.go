@@ -1,6 +1,8 @@
 package room
 
 import (
+	"time"
+
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
@@ -10,8 +12,8 @@ import (
 // handle waiting for white to make first move and start game
 // waits for one minute before timing out and terminating game and room
 func (r *Instance) handleGameReady() {
-	//cleanupTimer := time.NewTimer(time.Second * 30)
-	//defer cleanupTimer.Stop()
+	cleanupTimer := time.NewTimer(time.Second * 30)
+	defer cleanupTimer.Stop()
 
 	// broadcast reset board state to all
 	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{
@@ -66,14 +68,14 @@ func (r *Instance) handleGameReady() {
 			}
 
 			return
-			//case <-cleanupTimer.C:
-			//	// game expired, white timed out making first move
-			//	util.DebugFlag("room", str.CRoom, "[%s] game expired, white timed out making first move, cleaning up", r.ID)
-			//	err := r.event(EventPlayerAbandons)
-			//	if err != nil {
-			//		panic(err)
-			//	}
-			//	return
+		case <-cleanupTimer.C:
+			// game expired, white timed out making first move
+			util.DebugFlag("room", str.CRoom, "[%s] game expired, white timed out making first move, cleaning up", r.ID)
+			err := r.event(EventPlayerAbandons)
+			if err != nil {
+				panic(err)
+			}
+			return
 		}
 	}
 }
