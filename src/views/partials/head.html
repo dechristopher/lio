@@ -2,13 +2,7 @@
   <meta charset="utf-8"/>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=5">
-  {{ if eq .Env "dev" }}
-  <title>DEV • lioctad.org • {{ .PageName }}</title>
-  {{ else if eq .Env "local" }}
-  <title>LOCAL • lioctad.org • {{ .PageName }}</title>
-  {{ else }}
-  <title>lioctad.org • {{ .PageName }}</title>
-  {{ end }}
+  {{ template "partials/doc_title" . }}
   <link rel="apple-touch-icon" sizes="180x180" href="/res/ico/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/res/ico/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/res/ico/favicon-16x16.png">
@@ -26,8 +20,9 @@
         content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
   <meta property="og:description"
         content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
-  <link rel="stylesheet" href="octadground.base.css">
-  <link rel="stylesheet" href="/res/themes/board/green.css">
+  <link rel="stylesheet" href="/octadground{{ .CacheKey }}.base.css">
+  <link rel="stylesheet" href="/res/themes/board/green{{ .CacheKey }}.css">
+  <link rel="stylesheet" href="/res/themes/piece/cburnett{{ .CacheKey }}.css">
   <style>
     body {
       margin: 0;
@@ -59,6 +54,11 @@
     i {
       font-size: 1.5rem;
       font-weight: 700;
+    }
+
+    .title {
+      /*color: #0cb986;*/
+      color: #0bab7d;
     }
 
     .v {
@@ -277,6 +277,13 @@
       font-size: 11px;
       margin-top: 2px;
     }
+
+    .t404 {
+      font-size: 52px;
+    }
+
+    .back {
+      cursor: pointer;
+    }
   </style>
-  <link rel="stylesheet" href="/res/themes/piece/cburnett.css">
 </head>

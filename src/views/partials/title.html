@@ -1,9 +1,9 @@
 <a href="/" class="nolink">
   {{ if eq .Env "dev" }}
-  <i>DEV.LIOCTAD.ORG</i>
+  <span><i>li<span class="title">octad</span>.org</i> *dev</span>
   {{ else if eq .Env "local" }}
-  <i>LOCAL.LIOCTAD.ORG</i>
+  <span><i>li<span class="title">octad</span>.org</i> *local</span>
   {{ else }}
-  <i>LIOCTAD.ORG</i>
+  <span><i>li<span class="title">octad</span>.org</i></span>
   {{ end }}
 </a>

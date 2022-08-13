@@ -21,7 +21,6 @@ const (
 	CMain = "LIO"
 	CLog  = "Log"
 	CFS   = "FSys"
-	CTool = "Tool"
 	CWS   = "WS"
 	CWSC  = "WSCm"
 	CHMov = "HMov"
@@ -60,15 +59,14 @@ const (
 	MStarted  = "started in %s [env: %s][http: %s][health: %s]"
 	MShutdown = "shutting down"
 	MExit     = "exit"
-	MWSConn   = "ws: newconn %s - %s@%s"
-	MWSDisc   = "ws: disconn %s - %s@%s"
+	MWSConn   = "ws: newconn %s - %s @ %s"
+	MWSDisc   = "ws: disconn %s - %s @ %s"
 )
 
 // (D) Debug log messages
 const (
 	DPickFSOS   = "selected OS - %s"
 	DPickFSEm   = "selected embedded - %s"
-	DNaughty    = "loaded naughty.txt: %d words"
 	DStoreOk    = "object store online"
 	DBusOk      = "event bus online"
 	DEngOk      = "engine dispatcher online"
