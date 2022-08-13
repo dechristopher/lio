@@ -32,14 +32,14 @@ const notification = new Howl({
 
 // create game board
 let og = Octadground(document.getElementById('game'), {
-	orientation: document.getElementById('gcon-xx').classList.contains('white') ? 'white' : 'black',
+	orientation: document.getElementById('gcon-xx').classList.contains('w') ? 'white' : 'black',
 	highlight: {
 		lastMove: true,
 		check: true,
 	},
 	movable: {
 		free: false,
-		color: document.getElementById('gcon-xx').classList.contains('white') ? 'white' : 'black'
+		color: document.getElementById('gcon-xx').classList.contains('w') ? 'white' : 'black'
 	},
 	selectable: {
 		enabled: true,
