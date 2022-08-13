@@ -78,7 +78,7 @@ func NewRoomHumanHandler(c *fiber.Ctx) error {
 	return c.Redirect("/" + instance.ID)
 }
 
-func NewRoomRobotHandler(c *fiber.Ctx) error {
+func NewRoomComputerHandler(c *fiber.Ctx) error {
 	bid := c.Cookies("bid")
 
 	instance, err := room.Create(room.Params{
@@ -90,11 +90,11 @@ func NewRoomRobotHandler(c *fiber.Ctx) error {
 		},
 	})
 	if err != nil {
-		util.Error(str.CRoom, "failed to create room via human handler: %s", err.Error())
+		util.Error(str.CRoom, "failed to create room via computer handler: %s", err.Error())
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
-	util.Info(str.CRoom, "user %s created room %s vs human", bid, instance.ID)
+	util.Info(str.CRoom, "user %s created room %s vs computer", bid, instance.ID)
 
 	return c.Redirect("/" + instance.ID)
 }

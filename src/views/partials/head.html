@@ -27,7 +27,6 @@
     body {
       margin: 0;
       height: 90vh;
-      font-size: large;
       font-family: 'Poppins', sans-serif;
       text-align: center;
       display: flex;
@@ -41,12 +40,23 @@
 
     div.sm {
       cursor: default;
-      font-size: 0.6em;
+      font-size: 0.6rem;
+    }
+
+    span {
+      cursor: default;
     }
 
     span.sm {
-      cursor: default;
-      font-size: 0.6em;
+      font-size: 0.6rem;
+    }
+
+    span.md {
+      font-size: 0.7rem;
+    }
+
+    span.lg {
+      font-size: 1rem;
     }
 
     i {
@@ -55,18 +65,18 @@
     }
 
     .title {
-      cursor: pointer;
+      cursor: pointer !important;
       margin-bottom: 4px;
     }
 
     .title .green {
+      cursor: pointer !important;
       /*color: #0cb986;*/
       color: #0bab7d;
     }
 
     .v {
       font-family: sans-serif;
-      font-size: 12px;
       font-weight: 700;
     }
 
@@ -114,9 +124,13 @@
     .newGameButtons {
       display: flex;
       flex-direction: row;
-      justify-content: space-around;
+      justify-content: space-between;
       align-items: center;
       margin: 4px 12px 16px 12px;
+    }
+
+    .newGameButtons .or {
+      font-size: 1.5rem;
     }
 
     .nolink {
@@ -131,7 +145,6 @@
     .libtn {
       align-items: center;
       background-color: #FFFFDF;
-      border: 1px solid rgba(0, 0, 0, 0.1);
       border-radius: .25rem;
       box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
       box-sizing: border-box;
@@ -139,7 +152,7 @@
       cursor: pointer;
       display: inline-flex;
       font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
-      font-size: 16px;
+      font-size: 24px;
       font-weight: 600;
       justify-content: center;
       line-height: 1.25;

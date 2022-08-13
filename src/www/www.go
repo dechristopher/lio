@@ -112,7 +112,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 
 	// new room creation routes
 	r.Get("/new/human", handlers.NewRoomHumanHandler)
-	r.Get("/new/robot", handlers.NewRoomRobotHandler)
+	r.Get("/new/computer", handlers.NewRoomComputerHandler)
 
 	// return static index.html for all other paths and let
 	// React handle 404s so that we get nice error pages

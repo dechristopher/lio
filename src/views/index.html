@@ -5,13 +5,10 @@
     <div class="info sm">
       <div id="info">
         <i>NEW GAME</i><br />
-        <div class="newGameButtons">
-          <a href="/new/human" class="nolink" style="margin-right: 4px"><button class="libtn" role="button">Human</button></a>
-          <a href="/new/robot" class="nolink"><button class="libtn" role="button">Robot</button></a>
-        </div>
+        {{ template "partials/new_game_buttons" . }}
       </div>
     </div>
   </div>
-  <span class="sm v">{{ .Version }}</span>
+  <span class="v md">{{ .Version }}</span>
 </div>
 </body>

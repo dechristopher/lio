@@ -13,11 +13,13 @@ import (
 
 var (
 	// Version of lio
-	Version = "v0.3.2"
+	Version = "v0.3.3"
 
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
 
+	// CacheKey that is injected into static asset URLs to bust
+	// the cache between deploys of the site
 	CacheKey = fmt.Sprintf(".%s",
 		GenerateCode(7, true))
 
