@@ -65,7 +65,7 @@ func NewRoomHumanHandler(c *fiber.Ctx) error {
 		Player1: bid,
 		P1Color: octad.White,
 		GameConfig: game.OctadGameConfig{
-			Variant: variant.QuarterZeroBullet,
+			Variant: variant.OneTwoRapid,
 		},
 	})
 	if err != nil {
