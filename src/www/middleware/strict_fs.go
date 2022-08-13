@@ -36,6 +36,9 @@ func (sfs strictFs) Open(path string) (http.File, error) {
 		path = strings.TrimSuffix(path, "/")
 	}
 
+	// fix accidental double slashes in filename
+	path = strings.Replace(path, "//", "/", -1)
+
 	// open file directly if it exists
 	f, err := sfs.fs.Open(path)
 	if err != nil {
