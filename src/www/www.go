@@ -108,6 +108,17 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// home handler
 	// TODO not needed once we default SPAHandler
 	r.Get("/", handlers.IndexHandler)
+
+	// other pages
+	r.Get("/about", handlers.AboutHandler)
+	r.Get("/about/board", handlers.AboutBoardHandler)
+	r.Get("/about/rules", handlers.AboutRulesHandler)
+	r.Get("/about/misc", handlers.AboutMiscHandler)
+
+	// game database page handler
+	r.Get("/db", handlers.DBHandler)
+
+	// room handler
 	r.Get("/:id", handlers.RoomHandler)
 
 	// new room creation routes

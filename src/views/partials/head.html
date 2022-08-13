@@ -1,315 +1,389 @@
 <head>
-  <meta charset="utf-8"/>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=5">
-  {{ template "partials/doc_title" . }}
-  <link rel="apple-touch-icon" sizes="180x180" href="/res/ico/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/res/ico/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/res/ico/favicon-16x16.png">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="apple-mobile-web-app-title" content="lioctad.org">
-  <meta name="application-name" content="lioctad.org">
-  <meta name="msapplication-TileColor" content="#da532c">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="application-name" content="lioctad.org">
-  <meta property="og:site_name" content="lioctad.org">
-  <meta property="og:title" content="The best free, adless octad server">
-  <meta property="og:url" content="https://lioctad.org">
-  <meta property="og:type" content="website">
-  <meta name="description"
-        content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
-  <meta property="og:description"
-        content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
-  <link rel="stylesheet" href="/octadground{{ .CacheKey }}.base.css">
-  <link rel="stylesheet" href="/res/themes/board/green{{ .CacheKey }}.css">
-  <link rel="stylesheet" href="/res/themes/piece/cburnett{{ .CacheKey }}.css">
-  <style>
-    body {
-      margin: 0;
-      height: 90vh;
-      font-family: 'Poppins', sans-serif;
-      text-align: center;
-      display: flex;
-      flex-direction: row;
-      justify-content: center;
-      align-items: center;
-      background-color: #f1d8b8;
-      user-select: none;
-      -webkit-user-select: none;
+	<meta charset="utf-8"/>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=5">
+	{{ template "partials/doc_title" . }}
+	<link rel="apple-touch-icon" sizes="180x180" href="/res/ico/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/res/ico/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/res/ico/favicon-16x16.png">
+	<link rel="manifest" href="/manifest.json">
+	<meta name="apple-mobile-web-app-title" content="lioctad.org">
+	<meta name="application-name" content="lioctad.org">
+	<meta name="msapplication-TileColor" content="#da532c">
+	<meta name="theme-color" content="#ffffff">
+	<meta name="application-name" content="lioctad.org">
+	<meta property="og:site_name" content="lioctad.org">
+	<meta property="og:title" content="The best free, adless octad server">
+	<meta property="og:url" content="https://lioctad.org">
+	<meta property="og:type" content="website">
+	<meta name="description"
+				content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
+	<meta property="og:description"
+				content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
+	<link rel="stylesheet" href="/octadground{{ .CacheKey }}.base.css">
+	<link rel="stylesheet" href="/res/themes/board/green{{ .CacheKey }}.css">
+	<link rel="stylesheet" href="/res/themes/piece/cburnett{{ .CacheKey }}.css">
+	<style>
+	  body {
+		  margin: 0;
+		  height: 100vh;
+		  font-family: 'Poppins', sans-serif;
+		  text-align: center;
+		  display: flex;
+		  flex-direction: row;
+		  justify-content: center;
+		  align-items: center;
+		  background-color: #f1d8b8;
+		  user-select: none;
+		  -webkit-user-select: none;
+	  }
+
+	  div.sm {
+		  cursor: default;
+		  font-size: 0.6rem;
+	  }
+
+	  span {
+		  cursor: default;
+	  }
+
+	  span.sm {
+		  font-size: 0.6rem;
+	  }
+
+	  span.md {
+		  font-size: 0.75rem;
+	  }
+
+		p.md {
+				font-size: 0.6rem;
+		}
+
+		.m0 {
+				margin: 0;
+		}
+
+	  span.lg {
+		  font-size: 1rem;
+	  }
+
+	  i {
+		  font-size: 1.5rem;
+		  font-weight: 700;
+	  }
+
+	  .title {
+		  cursor: pointer !important;
+		  margin-bottom: 4px;
+	  }
+
+	  .title .green {
+		  cursor: pointer !important;
+		  /*color: #0cb986;*/
+		  color: #0bab7d;
+	  }
+
+	  .prose {
+		  font-size: 0.75rem;
+		  font-weight: 500;
+	  }
+
+	  .bold {
+		  font-weight: 600;
+	  }
+
+		.ul {
+				text-decoration: underline;
+		}
+
+	  .v {
+		  font-family: sans-serif;
+		  font-weight: 700;
+	  }
+
+	  .c {
+		  display: flex;
+		  flex-direction: column;
+		  align-items: center
+	  }
+
+	  .unit {
+		  font-size: x-small;
+	  }
+
+	  .mt8 {
+		  margin-top: 8px;
+	  }
+
+	  .t404 {
+		  font-size: 52px;
+	  }
+
+	  #gameTitle {
+		  font-family: 'Poppins', sans-serif;
+		  font-weight: bold;
+		  font-size: 2em;
+		  cursor: default;
+	  }
+
+	  #about.chin {
+		  text-align: left;
+		  width: 20rem;
+	  }
+
+    #db.chin {
+	    width: 20rem;
     }
 
-    div.sm {
-      cursor: default;
-      font-size: 0.6rem;
-    }
+	  .chin {
+		  background-color: #cca57b;
 
-    span {
-      cursor: default;
-    }
+		  width: 85%;
+		  padding: 2px 16px;
+		  transform: translateY(-3px);
 
-    span.sm {
-      font-size: 0.6rem;
-    }
+		  border-radius: 3px;
+		  z-index: 100;
+	  }
 
-    span.md {
-      font-size: 0.7rem;
-    }
+	  .chin #info {
+		  width: 100%;
+		  padding-top: 6px;
+	  }
 
-    span.lg {
-      font-size: 1rem;
-    }
+	  .buttons {
+		  display: flex;
+		  flex-direction: row;
+		  justify-content: space-between;
+		  align-items: center;
+		  margin: 4px 12px 16px 12px;
+	  }
 
-    i {
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
+	  .aboutButtons {
+		  font-size: 0.8rem;
+		  margin-top: 16px;
+	  }
 
-    .title {
-      cursor: pointer !important;
-      margin-bottom: 4px;
-    }
+	  .buttons .or {
+		  font-size: 1.5rem;
+	  }
 
-    .title .green {
-      cursor: pointer !important;
-      /*color: #0cb986;*/
-      color: #0bab7d;
-    }
+	  .nolink {
+		  text-decoration: none;
+		  color: black;
+	  }
 
-    .v {
-      font-family: sans-serif;
-      font-weight: 700;
-    }
+	  a.nolink:visited {
+		  color: black;
+	  }
 
-    .c {
-      display: flex;
-      flex-direction: column;
-      align-items: center
-    }
+	  .libtn {
+		  align-items: center;
+		  background-color: #FFFFDF;
+		  border-radius: .25rem;
+		  box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+		  box-sizing: border-box;
+		  color: rgba(0, 0, 0, 0.85);
+		  cursor: pointer;
+		  display: inline-flex;
+		  font-family: system-ui, -apple-system, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif;
+		  font-size: 24px;
+		  font-weight: 600;
+		  justify-content: center;
+		  line-height: 1.25;
+		  margin: 0;
+		  min-height: 3rem;
+		  padding: calc(.175rem - 1px) calc(.8rem - 1px);
+		  position: relative;
+		  text-decoration: none;
+		  transition: all 250ms;
+		  user-select: none;
+		  -webkit-user-select: none;
+		  touch-action: manipulation;
+		  vertical-align: baseline;
+		  width: auto;
+	  }
 
-    .unit {
-      font-size: x-small;
-    }
+	  .libtn:hover,
+	  .libtn:focus {
+		  border-color: rgba(0, 0, 0, 0.15);
+		  box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+		  color: rgba(0, 0, 0, 0.65);
+	  }
 
-    .mt8 {
-      margin-top: 8px;
-    }
+	  .libtn:hover {
+		  transform: translateY(-1px);
+	  }
 
-    .t404 {
-      font-size: 52px;
-    }
+	  .libtn:active {
+		  background-color: #F0F0F1;
+		  border-color: rgba(0, 0, 0, 0.15);
+		  box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
+		  color: rgba(0, 0, 0, 0.65);
+		  transform: translateY(0);
+	  }
 
-    #gameTitle {
-      font-family: 'Poppins',sans-serif;
-      font-weight: bold;
-      font-size: 2em;
-      cursor: default;
-    }
+	  .clockContainer {
+		  display: flex;
 
-    .chin {
-      background-color: #cca57b;
+		  width: 100% !important;
+		  background-color: #a8a397;
+		  font-family: sans-serif;
+	  }
 
-      width: 85%;
-      padding: 2px 16px;
-      transform: translateY(-3px);
+	  .active .clockContainer {
+		  background-color: #A68D6D;
+	  }
 
-      border-radius: 0 0 3px 3px;
-      z-index: 100;
-    }
+	  .clockOpponent > .clockContainer {
+		  flex-direction: column-reverse;
 
-    .chin #info {
-      width: 100%;
-      padding-top: 6px;
-    }
+		  border-radius: 3px 3px 0 0;
+	  }
 
-    .newGameButtons {
-      display: flex;
-      flex-direction: row;
-      justify-content: space-between;
-      align-items: center;
-      margin: 4px 12px 16px 12px;
-    }
+	  .clockPlayer > .clockContainer {
+		  flex-direction: column;
 
-    .newGameButtons .or {
-      font-size: 1.5rem;
-    }
+		  border-radius: 0 0 3px 3px;
+	  }
 
-    .nolink {
-      text-decoration: none;
-      color: black;
-    }
+	  .clockContent {
+		  padding: 4px;
+		  display: flex;
 
-    a.nolink:visited {
-      color: black;
-    }
+		  justify-content: space-between;
+		  align-items: center;
+	  }
 
-    .libtn {
-      align-items: center;
-      background-color: #FFFFDF;
-      border-radius: .25rem;
-      box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
-      box-sizing: border-box;
-      color: rgba(0, 0, 0, 0.85);
-      cursor: pointer;
-      display: inline-flex;
-      font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
-      font-size: 24px;
-      font-weight: 600;
-      justify-content: center;
-      line-height: 1.25;
-      margin: 0;
-      min-height: 3rem;
-      padding: calc(.175rem - 1px) calc(.8rem - 1px);
-      position: relative;
-      text-decoration: none;
-      transition: all 250ms;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-      vertical-align: baseline;
-      width: auto;
-    }
+	  .clockProgress {
+		  display: block;
+		  position: relative;
+	  }
 
-    .libtn:hover,
-    .libtn:focus {
-      border-color: rgba(0, 0, 0, 0.15);
-      box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
-      color: rgba(0, 0, 0, 0.65);
-    }
+	  .clockProgressBar {
+		  position: absolute;
+		  background-color: #FFF0DB;;
+		  height: 4px;
+		  width: 100%;
+	  }
 
-    .libtn:hover {
-      transform: translateY(-1px);
-    }
+	  .active .clockProgressBar {
+		  background-color: #B1EB9A;
+	  }
 
-    .libtn:active {
-      background-color: #F0F0F1;
-      border-color: rgba(0, 0, 0, 0.15);
-      box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
-      color: rgba(0, 0, 0, 0.65);
-      transform: translateY(0);
-    }
+	  .clockProgressBg {
+		  background-color: #BFAB91;
+		  height: 4px;
+		  width: 100%;
+	  }
 
-    .clockContainer {
-      display: flex;
+	  .clockTime {
+		  font-size: 28px;
+		  color: #FFF0DB;
+		  font-weight: 900;
 
-      width: 100% !important;
-      background-color: #a8a397;
-      font-family: sans-serif;
-    }
+		  padding-right: 6px;
+	  }
 
-    .active .clockContainer {
-      background-color: #A68D6D;
-    }
+	  .active .clockTime {
+		  color: #B1EB9A;
+	  }
 
-    .clockOpponent > .clockContainer {
-      flex-direction: column-reverse;
+	  .clockNameContainer {
+		  display: flex;
+		  justify-content: center;
+		  align-items: center;
 
-      border-radius: 3px 3px 0 0;
-    }
+		  padding-left: 6px;
+	  }
 
-    .clockPlayer > .clockContainer {
-      flex-direction: column;
+	  .clockName {
+		  font-size: 15px;
+		  font-weight: 600;
+	  }
 
-      border-radius: 0 0 3px 3px;
-    }
+	  .clockOpponent .clockName:after {
+		  content: "OPPONENT";
+	  }
 
-    .clockContent {
-      padding: 4px;
-      display: flex;
+	  .clockPlayer .clockName:after {
+		  content: "YOU";
+	  }
 
-      justify-content: space-between;
-      align-items: center;
-    }
+	  .playerWhite {
+		  color: #FFF;
+	  }
 
-    .clockProgress {
-      display: block;
-      position: relative;
-    }
+	  .playerBlack {
+		  color: #000;
+	  }
 
-    .clockProgressBar {
-      position: absolute;
-      background-color: #FFF0DB;;
-      height: 4px;
-      width: 100%;
-    }
+	  .clockRating {
+		  font-size: 15px;
+		  padding-left: 6px;
+	  }
 
-    .active .clockProgressBar {
-      background-color: #B1EB9A;
-    }
+	  .clockRatingNumber {
+		  color: #FFF0DB;
+		  font-weight: 600;
+		  font-size: 11px;
+		  margin-top: 2px;
+	  }
 
-    .clockProgressBg {
-      background-color: #BFAB91;
-      height: 4px;
-      width: 100%;
-    }
+	  ul.hor {
+		  display: contents;
+	  }
 
-    .clockTime {
-      font-size: 28px;
-      color: #FFF0DB;
-      font-weight: 900;
+	  ul.hor li {
+		  list-style: none;
+		  display: inline;
+	  }
 
-      padding-right: 6px;
-    }
+	  ul.hor li:after {
+		  font-size: 0.75rem;
+		  font-weight: 800;
+		  content: " \00b7";
+	  }
 
-    .active .clockTime {
-      color: #B1EB9A;
-    }
+	  ul.hor li:last-child:after {
+		  content: none;
+	  }
 
-    .clockNameContainer {
-      display: flex;
-      justify-content: center;
-      align-items: center;
+	  table {
+		  border-collapse: collapse;
+		  border-spacing: 0;
+	  }
 
-      padding-left: 6px;
-    }
+	  td {
+		  width: 30%;
+		  border-color: #FFF0DB;
+		  border-style: solid;
+		  border-width: 1px;
+		  font-family: Arial, sans-serif;
+		  font-size: 14px;
+		  overflow: hidden;
+		  padding: 10px 5px;
+		  word-break: normal;
+	  }
 
-    .clockName {
-      font-size: 15px;
-      font-weight: 600;
-    }
+	  th {
+		  border-color: #FFF0DB;
+		  border-style: solid;
+		  border-width: 1px;
+		  font-family: Arial, sans-serif;
+		  font-size: 14px;
+		  font-weight: normal;
+		  overflow: hidden;
+		  padding: 10px 5px;
+		  word-break: normal;
+	  }
 
-    .clockOpponent .clockName:after {
-      content: "OPPONENT";
-    }
+	  .t404 {
+		  font-size: 52px;
+	  }
 
-    .clockPlayer .clockName:after {
-      content: "YOU";
-    }
-
-    .playerWhite {
-      color: #FFF;
-    }
-
-    .playerBlack {
-      color: #000;
-    }
-
-    .clockRating {
-      font-size: 15px;
-      padding-left: 6px;
-    }
-
-    .clockRatingNumber {
-      color: #FFF0DB;
-      font-weight: 600;
-      font-size: 11px;
-      margin-top: 2px;
-    }
-
-    ul { display: contents; }
-    ul li { list-style: none; display: inline; }
-    ul li:after {
-      font-size: 0.75rem;
-      font-weight: 800;
-      content: " \00b7";
-    }
-    ul li:last-child:after { content: none; }
-
-    .t404 {
-      font-size: 52px;
-    }
-
-    .back {
-      cursor: pointer;
-    }
-  </style>
+	  .back {
+		  cursor: pointer;
+	  }
+	</style>
 </head>
