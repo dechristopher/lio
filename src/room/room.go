@@ -235,6 +235,10 @@ func (r *Instance) Join(bid string) (bool, bool) {
 
 	// if player2 joining
 	if r.Player1 != bid {
+		if r.P2Bot {
+			return false, true
+		}
+
 		r.Player2 = bid
 		r.Game().Black = bid
 		return true, false
