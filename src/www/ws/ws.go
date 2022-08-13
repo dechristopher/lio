@@ -9,6 +9,7 @@ import (
 	"github.com/valyala/fastjson"
 
 	"github.com/dechristopher/lioctad/channel"
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/env"
 	"github.com/dechristopher/lioctad/room"
 	"github.com/dechristopher/lioctad/str"
@@ -150,5 +151,5 @@ func okOrigin(c *fiber.Ctx) bool {
 	}
 
 	origin := c.Context().Request.Header.Peek("Origin")
-	return strings.Contains(util.CorsOrigins(), string(origin))
+	return strings.Contains(config.CorsOrigins(), string(origin))
 }

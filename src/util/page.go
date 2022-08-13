@@ -3,6 +3,7 @@ package util
 import (
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/env"
 )
 
@@ -26,6 +27,7 @@ func HandleTemplate(
 type pageModel struct {
 	Env      env.Env
 	Version  string
+	CacheKey string
 	PageName string
 	Data     interface{}
 }
@@ -34,7 +36,8 @@ type pageModel struct {
 func genPageModel(name string, data interface{}) pageModel {
 	return pageModel{
 		Env:      env.GetEnv(),
-		Version:  Version,
+		Version:  config.Version,
+		CacheKey: config.CacheKey,
 		PageName: name,
 		Data:     data,
 	}

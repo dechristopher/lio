@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/template/html"
 	"github.com/gofiber/websocket/v2"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/env"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
@@ -31,7 +32,7 @@ var (
 
 // Serve all public endpoints
 func Serve(views, static embed.FS) {
-	util.Info(str.CMain, str.MInit, util.Version)
+	util.Info(str.CMain, str.MInit, config.Version)
 
 	// make filesystem location decision based on environment
 	viewsFs = util.PickFS(env.IsLocal(), views, "./views")
@@ -43,7 +44,7 @@ func Serve(views, static embed.FS) {
 	engine.Reload(env.IsLocal())
 
 	r := fiber.New(fiber.Config{
-		ServerHeader:          "lioctad.org " + util.Version,
+		ServerHeader:          "lioctad.org " + config.Version,
 		CaseSensitive:         true,
 		ErrorHandler:          nil,
 		DisableStartupMessage: true,
@@ -64,10 +65,10 @@ func Serve(views, static embed.FS) {
 	}()
 
 	util.Info(str.CMain, str.MStarted, util.TimeSinceBoot(),
-		env.GetEnv(), util.GetPort(), "none")
+		env.GetEnv(), config.GetPort(), "none")
 
 	// listen for connections on primary listening port
-	if err := r.Listen(util.GetListenPort()); err != nil {
+	if err := r.Listen(config.GetListenPort()); err != nil {
 		log.Println(err)
 	}
 

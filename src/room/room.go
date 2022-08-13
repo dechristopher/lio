@@ -6,20 +6,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dechristopher/octad"
+	"github.com/looplab/fsm"
+
 	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/channel/handlers"
 	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/dispatch"
+	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/message"
 	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/www/ws/proto"
-	"github.com/dechristopher/octad"
-	"github.com/looplab/fsm"
-
-	"github.com/dechristopher/lioctad/game"
 )
 
 var gamePub = bus.NewPublisher("game", game.Channel)
@@ -86,7 +87,7 @@ func Create(params Params) (*Instance, error) {
 	}
 
 	r := &Instance{
-		ID:           util.GenerateCode(7, true),
+		ID:           config.GenerateCode(7, true),
 		stateMachine: newStateMachine(),
 		params:       params,
 

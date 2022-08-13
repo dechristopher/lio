@@ -1,8 +1,9 @@
-package util
+package config
 
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -12,15 +13,22 @@ import (
 
 var (
 	// Version of lio
-	Version = "v0.3.0"
+	Version = "v0.3.1"
 
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
+
+	CacheKey = fmt.Sprintf(".%s",
+		GenerateCode(7, true))
 
 	// DebugFlagPtr contains raw debug flags direct from STDIN
 	DebugFlagPtr *string
 	// DebugFlags holds all active, parsed debug flags
 	DebugFlags = make(map[string]bool)
+
+	charset     = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789"
+	charsetFull = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+	seededRand  = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 // ReadSecretFallback attempts to read a secret from the secret
@@ -47,6 +55,24 @@ func ReadSecret(name string) (string, error) {
 	}
 
 	return string(secret), nil
+}
+
+// GenerateCode generates an N character sequence with naughty safety baked in
+func GenerateCode(length int, useFullCharset bool) string {
+	b := make([]byte, length)
+	for {
+		for i := range b {
+			if !useFullCharset {
+				b[i] = charset[seededRand.Intn(len(charset))]
+			} else {
+				b[i] = charsetFull[seededRand.Intn(len(charsetFull))]
+			}
+		}
+
+		if !Naughty(string(b)) {
+			return string(b)
+		}
+	}
 }
 
 // devPrefix returns dev_ only on dev environments

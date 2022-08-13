@@ -8,6 +8,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -24,11 +25,11 @@ var C *minio.Client
 
 // Up brings the connection to the object store online
 func Up() {
-	objectStoreAccessKeyID = util.ReadSecretFallback("lio_obj_access")
-	objectStoreSecretAccessKey = util.ReadSecretFallback("lio_obj_secret")
-	objectStoreEndpoint = util.ReadSecretFallback("lio_obj_endpoint")
+	objectStoreAccessKeyID = config.ReadSecretFallback("lio_obj_access")
+	objectStoreSecretAccessKey = config.ReadSecretFallback("lio_obj_secret")
+	objectStoreEndpoint = config.ReadSecretFallback("lio_obj_endpoint")
 
-	PGNBucket = util.ReadSecretFallback("lio_obj_bucket_pgn")
+	PGNBucket = config.ReadSecretFallback("lio_obj_bucket_pgn")
 
 	var err error
 

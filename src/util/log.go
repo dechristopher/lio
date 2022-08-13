@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/env"
 	"github.com/dechristopher/lioctad/str"
 )
@@ -30,7 +31,7 @@ func Debug(caller, message string, args ...interface{}) {
 
 // DebugFlag prints a debug message to the standard logger if flag is enabled
 func DebugFlag(flag, caller, message string, args ...interface{}) {
-	if IsDebugFlag(flag) {
+	if config.IsDebugFlag(flag) {
 		printLog("debug", str.DebugFormat, caller, message, args...)
 	}
 }

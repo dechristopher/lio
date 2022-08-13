@@ -18,7 +18,7 @@ func TestPickFSEmbedded(t *testing.T) {
 	}
 
 	fs := PickFS(env.IsLocal(), testFs, "./data")
-	f, err := fs.Open("naughty.txt")
+	f, err := fs.Open("sample.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestPickFSOnDisk(t *testing.T) {
 	}
 
 	fs := PickFS(env.IsLocal(), testFs, "./data")
-	f, err := fs.Open("naughty.txt")
+	f, err := fs.Open("sample.txt")
 	if err != nil {
 		t.Fatal(err)
 	}

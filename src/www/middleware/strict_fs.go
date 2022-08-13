@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -22,6 +23,11 @@ func (sfs strictFs) Open(path string) (http.File, error) {
 	if err != nil {
 		util.Error(str.CFS, str.EFSDecode, path, err.Error())
 		return nil, err
+	}
+
+	// strip cache key from static assets
+	if strings.Contains(path, config.CacheKey) {
+		path = strings.Replace(path, config.CacheKey, "", 1)
 	}
 
 	// trim trailing slashes to avoid invalid path errors

@@ -8,6 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/env"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/systems"
@@ -25,16 +26,16 @@ var (
 // init parses flags, sets constants, and prepares us for battle
 func init() {
 	// set boot time immediately
-	util.BootTime = time.Now()
+	config.BootTime = time.Now()
 
 	// parse command line flags
 	isHealthCheck := flag.Bool(str.FHealth, false, str.FHealthUsage)
-	util.DebugFlagPtr = flag.String(str.FDebugFlags, "", str.FDebugFlagsUsage)
+	config.DebugFlagPtr = flag.String(str.FDebugFlags, "", str.FDebugFlagsUsage)
 	flag.Parse()
 
 	// parse out debug flags from command line options
-	for _, debugFlag := range strings.Split(*util.DebugFlagPtr, ",") {
-		util.DebugFlags[debugFlag] = true
+	for _, debugFlag := range strings.Split(*config.DebugFlagPtr, ",") {
+		config.DebugFlags[debugFlag] = true
 	}
 
 	// run health check if told

@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
+	"github.com/dechristopher/lioctad/config"
 	"github.com/dechristopher/lioctad/env"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -34,7 +35,7 @@ func Wire(r fiber.Router, static http.FileSystem) {
 
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: util.CorsOrigins(),
+		AllowOrigins: config.CorsOrigins(),
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
@@ -65,7 +66,7 @@ func Wire(r fiber.Router, static http.FileSystem) {
 		if c.Cookies("bid") == "" {
 			c.Cookie(&fiber.Cookie{
 				Name:     "bid",
-				Value:    util.GenerateCode(16, true),
+				Value:    config.GenerateCode(16, true),
 				Path:     "/",
 				Domain:   "",
 				MaxAge:   0,
