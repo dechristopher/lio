@@ -1,39 +1,12 @@
-/*
- * Merida piece theme
- */
-.merida .og-wrap piece.pawn.white {
-	background-image: url('/res/img/merida/wP.svg');
-}
-.merida .og-wrap piece.bishop.white {
-	background-image: url('/res/img/merida/wB.svg');
-}
-.merida .og-wrap piece.knight.white {
-	background-image: url('/res/img/merida/wN.svg');
-}
-.merida .og-wrap piece.rook.white {
-	background-image: url('/res/img/merida/wR.svg');
-}
-.merida .og-wrap piece.queen.white {
-	background-image: url('/res/img/merida/wQ.svg');
-}
-.merida .og-wrap piece.king.white {
-	background-image: url('/res/img/merida/wK.svg');
-}
-.merida .og-wrap piece.pawn.black {
-	background-image: url('/res/img/merida/bP.svg');
-}
-.merida .og-wrap piece.bishop.black {
-	background-image: url('/res/img/merida/bB.svg');
-}
-.merida .og-wrap piece.knight.black {
-	background-image: url('/res/img/merida/bN.svg');
-}
-.merida .og-wrap piece.rook.black {
-	background-image: url('/res/img/merida/bR.svg');
-}
-.merida .og-wrap piece.queen.black {
-	background-image: url('/res/img/merida/bQ.svg');
-}
-.merida .og-wrap piece.king.black {
-	background-image: url('/res/img/merida/bK.svg');
-}
+.merida piece.pawn.white {background-image: url('/res/img/merida/wP.svg');}
+.merida piece.knight.white {background-image: url('/res/img/merida/wN.svg');}
+.merida piece.bishop.white {background-image: url('/res/img/merida/wB.svg');}
+.merida piece.rook.white {background-image: url('/res/img/merida/wR.svg');}
+.merida piece.queen.white {background-image: url('/res/img/merida/wQ.svg');}
+.merida piece.king.white {background-image: url('/res/img/merida/wK.svg');}
+.merida piece.pawn.black {background-image: url('/res/img/merida/bP.svg');}
+.merida piece.knight.black {background-image: url('/res/img/merida/bN.svg');}
+.merida piece.bishop.black {background-image: url('/res/img/merida/bB.svg');}
+.merida piece.rook.black {background-image: url('/res/img/merida/bR.svg');}
+.merida piece.queen.black {background-image: url('/res/img/merida/bQ.svg');}
+.merida piece.king.black {background-image: url('/res/img/merida/bK.svg');}
