@@ -13,7 +13,7 @@ import (
 
 var (
 	// Version of lio
-	Version = "v0.4.0"
+	Version = "v0.4.1"
 
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
