@@ -348,7 +348,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		}
 
 		// flip game clock
-		r.flipClock(move)
+		r.flipClock()
 
 		r.game.ToMove = r.game.Position().Turn()
 
@@ -413,7 +413,7 @@ func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
 
 // flipClock flips the internal game clock after a move is made
 // and waits for acknowledgement
-func (r *Instance) flipClock(move *message.RoomMove) {
+func (r *Instance) flipClock() {
 	ackChannel := r.game.Clock.GetAck()
 
 	util.DebugFlag("clock", str.CClk, "PRE-FLIP")
