@@ -14,6 +14,7 @@ func Unicast(d []byte, meta SocketContext) {
 
 	if socket == nil || socket.Mutex == nil {
 		util.Error(str.CWSC, str.EWSWrite, meta, errors.New("socket nil"))
+		return
 	}
 
 	socket.Mutex.Lock()
