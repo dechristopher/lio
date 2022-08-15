@@ -6,7 +6,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -31,12 +30,6 @@ func Wire(r fiber.Router, static http.FileSystem) {
 	// Compress responses
 	r.Use(compress.New(compress.Config{
 		Level: compress.LevelBestSpeed,
-	}))
-
-	// Configure CORS
-	r.Use(cors.New(cors.Config{
-		AllowOrigins: config.CorsOrigins(),
-		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
 	// STDOUT request logger

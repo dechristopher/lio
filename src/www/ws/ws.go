@@ -74,7 +74,10 @@ func ConnHandler(c *websocket.Conn) {
 	for {
 		// read raw incoming messages from socket
 		if mt, b, err = c.ReadMessage(); err != nil {
-			util.Info(str.CWS, str.EWSRead, err.Error())
+			// don't log clean websocket close messages
+			if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
+				util.Info(str.CWS, str.EWSRead, err.Error())
+			}
 			break
 		}
 
@@ -87,13 +90,14 @@ func ConnHandler(c *websocket.Conn) {
 		}
 
 		// TODO improve safety of heartbeats to prevent DoS
-		if len(b) == 4 {
-			// write heartbeat ack asap and continue
-			lock.Lock()
-			_ = c.WriteMessage(mt, []byte("0"))
-			lock.Unlock()
-			continue
-		}
+		//if len(b) == 4 {
+		//fmt.Println(mt, b)
+		// write heartbeat ack asap and continue
+		//lock.Lock()
+		//_ = c.WriteMessage(mt, []byte("0"))
+		//lock.Unlock()
+		//	continue
+		//}
 
 		util.DebugFlag("ws", str.CWS, str.DWSRecv, string(b))
 

@@ -44,9 +44,9 @@ func (r *Instance) handleGameOngoing() {
 		case flaggedState := <-r.game.Clock.StateChannel:
 			//automatically resign game if clock expires
 			if flaggedState.Victor == clock.White {
-				r.game.Game.Resign(octad.Black)
+				r.game.Resign(octad.Black)
 			} else {
-				r.game.Game.Resign(octad.White)
+				r.game.Resign(octad.White)
 			}
 
 			// run game over routine and get transition event type

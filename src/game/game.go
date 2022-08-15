@@ -4,13 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/dechristopher/octad"
-	"github.com/google/uuid"
-	"github.com/looplab/fsm"
-
 	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/variant"
+	"github.com/dechristopher/octad"
+	"github.com/google/uuid"
 )
 
 // Channel is the engine monitoring bus channel
@@ -18,15 +16,14 @@ const Channel bus.Channel = "lio:game"
 
 // OctadGame wraps octad game and clock
 type OctadGame struct {
+	octad.Game
 	ID      string          `json:"i"` // game id
 	Start   time.Time       `json:"t"` // game start time
 	White   string          `json:"w"` // white userid
 	Black   string          `json:"b"` // black userid
 	ToMove  octad.Color     `json:"m"` // color to move
-	Game    *octad.Game     // game instance
 	Variant variant.Variant // octad variant
 	Clock   *clock.Clock    // clock instance
-	State   *fsm.FSM        // game state machine
 }
 
 // NewOctadGame returns a new OctadGame instance from the given configuration
@@ -39,10 +36,10 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 	g := OctadGame{
 		ID:      uuid.NewString(),
 		Start:   time.Now(),
-		Game:    game,
+		Game:    *game,
 		ToMove:  game.Position().Turn(),
 		Variant: config.Variant,
-		Clock:   clock.NewClock(config.White, config.Black, config.Variant.Control),
+		Clock:   clock.NewClock(config.Variant.Control),
 		White:   config.White,
 		Black:   config.Black,
 	}

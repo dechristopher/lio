@@ -271,9 +271,9 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte {
 	curr := proto.MovePayload{
 		Clock:   r.currentClock(),
-		OFEN:    r.game.Game.OFEN(),
-		MoveNum: len(r.game.Game.Moves()) / 2,
-		Check:   r.game.Game.Position().InCheck(),
+		OFEN:    r.game.OFEN(),
+		MoveNum: len(r.game.Moves()) / 2,
+		Check:   r.game.Position().InCheck(),
 		Moves:   r.game.MoveHistory(),
 		// TODO calculate move processing latency (EWMA)
 		Latency:   0,
@@ -315,9 +315,9 @@ func (r *Instance) currentClock() proto.ClockPayload {
 
 // getSAN returns the last move in algebraic notation
 func (r *Instance) getSAN() string {
-	if len(r.game.Game.Positions()) > 1 {
-		pos := r.game.Game.Positions()[len(r.game.Game.Positions())-2]
-		move := r.game.Game.Moves()[len(r.game.Game.Moves())-1]
+	if len(r.game.Positions()) > 1 {
+		pos := r.game.Positions()[len(r.game.Positions())-2]
+		move := r.game.Moves()[len(r.game.Moves())-1]
 		return octad.AlgebraicNotation{}.Encode(pos, move)
 	}
 
@@ -361,7 +361,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	// make move and flip clock if legal
 	if mov := r.legalMove(move.Move); mov != nil {
 		// make move
-		errMove := r.game.Game.Move(mov)
+		errMove := r.game.Move(mov)
 		if errMove != nil {
 			// bad if this happens
 			util.Error(str.CRoom, "bad move given err=%s", errMove.Error())
@@ -371,14 +371,14 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		// flip game clock
 		r.flipClock(move)
 
-		r.game.ToMove = r.game.Game.Position().Turn()
+		r.game.ToMove = r.game.Position().Turn()
 
 		ok = true
 
 		// publish move to broadcast channel
-		go gamePub.Publish(mov.String(), r.game.Game.OFEN())
+		go gamePub.Publish(mov.String(), r.game.OFEN())
 
-		if !move.Ctx.IsBot && r.P2Bot && r.game.Game.Outcome() == octad.NoOutcome {
+		if !move.Ctx.IsBot && r.P2Bot && r.game.Outcome() == octad.NoOutcome {
 			// submit request for engine move after human P1 move
 			// only if P2 is configured as a bot
 			r.requestEngineMove()
@@ -393,7 +393,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		} else {
 			// engine gave bad move, major issue
 			// TODO handle this somehow if we ever see it
-			util.Error(str.CRoom, "engine provided bad move ofen=%s move=%s", r.game.Game.OFEN(), move.Move.UOI)
+			util.Error(str.CRoom, "engine provided bad move ofen=%s move=%s", r.game.OFEN(), move.Move.UOI)
 		}
 		return false
 	}
@@ -415,7 +415,7 @@ func (r *Instance) requestEngineMove() {
 			MT:      1,
 		},
 		ResponseChannel: r.moveChannel,
-		OFEN:            r.game.Game.OFEN(),
+		OFEN:            r.game.OFEN(),
 		Depth:           r.calcDepth(r.game.ToMove),
 	})
 }
@@ -423,7 +423,7 @@ func (r *Instance) requestEngineMove() {
 // legalMove checks to see if the given move is legal and returns
 // its corresponding octad move, or nil if invalid
 func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
-	for _, mov := range r.game.Game.ValidMoves() {
+	for _, mov := range r.game.ValidMoves() {
 		if mov.String() == move.UOI {
 			return mov
 		}
@@ -501,7 +501,7 @@ func (r *Instance) calcDepth(color octad.Color) int {
 // to transition the state machine to the GameOver state if the game is actually over
 func (r *Instance) tryGameOver(meta channel.SocketContext) (bool, *fsm.EventDesc) {
 	// restart game if over
-	if r.game.Game.Outcome() != octad.NoOutcome {
+	if r.game.Outcome() != octad.NoOutcome {
 		// send final game update to prevent further moves
 		channel.Broadcast(r.CurrentGameStateMessage(true, false), meta)
 		// broadcast game over message immediately
@@ -526,7 +526,7 @@ func (r *Instance) tryGameOver(meta channel.SocketContext) (bool, *fsm.EventDesc
 
 // updateScore will increment score counters for the winner of a game
 func (r *Instance) updateScore() {
-	switch r.game.Game.Outcome() {
+	switch r.game.Outcome() {
 	case octad.Draw:
 		r.P1Score += 0.5
 	case octad.WhiteWon:
@@ -594,11 +594,11 @@ func storeGame(g game.OctadGame) {
 
 // GameState returns the outcome of the current game, or NoOutcome if still in progress
 func (r *Instance) GameState() octad.Outcome {
-	return r.game.Game.Outcome()
+	return r.game.Outcome()
 }
 
 func (r *Instance) gameOverEvent() *fsm.EventDesc {
-	switch r.game.Game.Outcome() {
+	switch r.game.Outcome() {
 	case octad.NoOutcome:
 		return nil
 	case octad.Draw:
@@ -609,13 +609,13 @@ func (r *Instance) gameOverEvent() *fsm.EventDesc {
 		return r.genBlackWinEvent()
 	default:
 		// this should be impossible
-		panic(fmt.Sprintf("Invalid game outcome: %s", r.game.Game.Outcome()))
+		panic(fmt.Sprintf("Invalid game outcome: %s", r.game.Outcome()))
 		return nil
 	}
 }
 
 func (r *Instance) genDrawEvent() *fsm.EventDesc {
-	switch r.game.Game.Method() {
+	switch r.game.Method() {
 	case octad.InsufficientMaterial:
 		return &EventDrawInsufficient
 	case octad.Stalemate:
@@ -628,7 +628,7 @@ func (r *Instance) genDrawEvent() *fsm.EventDesc {
 		return &EventDraw25MoveRule
 	default:
 		// this should be impossible
-		panic(fmt.Sprintf("Invalid white win event: %s", r.game.Game.Method()))
+		panic(fmt.Sprintf("Invalid white win event: %s", r.game.Method()))
 	}
 }
 
@@ -637,14 +637,14 @@ func (r *Instance) genWhiteWinEvent() *fsm.EventDesc {
 		return &EventWhiteWinsTimeout
 	}
 
-	switch r.game.Game.Method() {
+	switch r.game.Method() {
 	case octad.Checkmate:
 		return &EventWhiteWinsCheckmate
 	case octad.Resignation:
 		return &EventWhiteWinsResignation
 	default:
 		// this should be impossible
-		panic(fmt.Sprintf("Invalid white win event: %s", r.game.Game.Method()))
+		panic(fmt.Sprintf("Invalid white win event: %s", r.game.Method()))
 	}
 }
 
@@ -653,14 +653,14 @@ func (r *Instance) genBlackWinEvent() *fsm.EventDesc {
 		return &EventBlackWinsTimeout
 	}
 
-	switch r.game.Game.Method() {
+	switch r.game.Method() {
 	case octad.Checkmate:
 		return &EventBlackWinsCheckmate
 	case octad.Resignation:
 		return &EventBlackWinsResignation
 	default:
 		// this should be impossible
-		panic(fmt.Sprintf("Invalid white win event: %s", r.game.Game.Method()))
+		panic(fmt.Sprintf("Invalid white win event: %s", r.game.Method()))
 	}
 }
 

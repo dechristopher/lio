@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 	"github.com/gofiber/websocket/v2"
@@ -83,12 +84,19 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// recover from panics
 	r.Use(recover.New())
 
-	// ws upgrade endpoint catch-all
-	r.Use("/ws", ws.UpgradeHandler)
+	// Configure CORS
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: config.CorsOrigins(),
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
+
+	// websocket upgrade middleware
+	r.Use("/socket", ws.UpgradeHandler)
 
 	// websocket connection listener
-	r.Get("/ws/:chan", websocket.New(ws.ConnHandler))
-	r.Get("/ws/:chan/:type", websocket.New(ws.ConnHandler))
+	r.Get("/socket/:chan", websocket.New(ws.ConnHandler))
+	// websocket
+	r.Get("/socket/:type/:chan", websocket.New(ws.ConnHandler))
 
 	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")

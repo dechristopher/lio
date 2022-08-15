@@ -1,5 +1,5 @@
 let ws, ka, backoff = 0, move = 1;
-let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingDelay = 3000;
+let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingDelay = 5000;
 let clockTicker, wt, bt;
 
 const logMe = () => console.log(`© 2022 lioctad.org`);
@@ -71,7 +71,7 @@ window.addEventListener('load', () => {
  */
 const connect = () => {
 	ws = new WebSocket(`${location.origin.replace(
-		/^http/, 'ws')}/ws${location.pathname}`);
+		/^http/, 'ws')}/socket${location.pathname}`);
 
 	ws.onopen = () => {
 		console.log("Connected to lioctad.org");

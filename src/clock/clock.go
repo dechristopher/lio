@@ -1,7 +1,6 @@
 package clock
 
 import (
-	"log"
 	"sync"
 	"time"
 
@@ -13,8 +12,6 @@ const Channel bus.Channel = "lio:clock"
 
 // Clock represents the clock for a single game
 type Clock struct {
-	black  string
-	white  string
 	victor Victor
 
 	isBlack      bool
@@ -41,10 +38,8 @@ type Clock struct {
 
 // NewClock returns a clock configured for the given players at
 // the specified time control
-func NewClock(player1, player2 string, tc TimeControl) *Clock {
+func NewClock(tc TimeControl) *Clock {
 	return &Clock{
-		black:          player1,
-		white:          player2,
 		victor:         NoVictor, // game in play
 		isBlack:        false,
 		delayExpired:   false,
@@ -87,12 +82,6 @@ func (c *Clock) Start() {
 				c.mutex.Unlock()
 			case <-cl.timer.C:
 				cl.delayExpired = true
-				// clean up clock if it somehow persists through
-				// the hour and ticks over.
-				if cl.timeControl.Delay.t == 0 {
-					log.Printf("WARNING: cleanup not working")
-					return
-				}
 			case <-cl.ticker.C:
 				if cl.Flagged() {
 					cl.Stop(true)
