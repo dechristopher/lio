@@ -182,7 +182,7 @@ const pong = () => {
 	// average first few pings and then move to weighted moving average
 	const weight = pongCount > 4 ? 0.1 : 1 / pongCount;
 	latency += weight * (currentLag - latency);
-	document.getElementById("lat").innerHTML = latency.toFixed(1);
+	document.getElementById("lat").innerHTML = `${Math.round(latency)}`;
 };
 
 /**
