@@ -291,6 +291,10 @@ const handleMove = (message) => {
 	}
 
 	const ofenParts = message.d.o.split(' ');
+
+	// play sounds
+	playSounds(message, ofenParts);
+
 	og.set({
 		orientation: message.d.w === getCookie('bid') ? 'white' : 'black',
 		ofen: ofenParts[0],
@@ -304,19 +308,36 @@ const handleMove = (message) => {
 		}
 	});
 
-	if (message.d.gs) {
-		confirmation.play();
-	}
-
-	if (message.d.s) {
-		playSound(message.d.s);
-	}
-
 	// update UI styles and clock tickers
 	updateUI(message, ofenParts);
 
 	// perform pre-move if set
 	og.playPremove();
+	console.log("endHandler");
+};
+
+
+/**
+ * playSounds will play confirmation and move sounds depending
+ * on the contents of the move message received
+ * @param message - move message
+ * @param ofenParts - OFEN parts array
+ */
+const playSounds = (message, ofenParts) => {
+	if (message.d.gs) {
+		console.log("start");
+		// play confirmation sound on game start
+		confirmation.play();
+	} else {
+		console.log("no start");
+		console.log(ofenParts[0], og.state.ofen, ofenParts[0] !== og.state.ofen);
+		// play move sounds if game is not starting
+		// and only if board ofen is different from current
+		if (message.d.s && ofenParts[0] !== og.state.ofen) {
+			console.log("play move sound");
+			playMoveSound(message.d.s);
+		}
+	}
 };
 
 /**
@@ -558,7 +579,7 @@ const doMovePromo = (orig, dest, promo) => {
  * Play sounds for incoming moves based on the SAN for the move
  * @param san
  */
-const playSound = (san) => {
+const playMoveSound = (san) => {
 	if (san.includes("x")) {
 		capSound.play();
 	} else {
