@@ -19,6 +19,9 @@
 		</div>
 	</div>
 	{{ template "partials/footer" . }}
-	{{ template "partials/scripts" . }}
 </div>
+<link rel="stylesheet" href="/octadground{{ .CacheKey }}.base.css">
+<link rel="stylesheet" href="/res/themes/board/green{{ .CacheKey }}.css">
+<link rel="stylesheet" href="/res/themes/piece/alpha{{ .CacheKey }}.css">
 </body>
+{{ template "partials/scripts" . }}
