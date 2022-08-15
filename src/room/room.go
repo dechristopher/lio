@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dechristopher/lioctad/player"
 	"github.com/dechristopher/octad"
 	"github.com/looplab/fsm"
 
@@ -45,44 +46,34 @@ func Count() int {
 // Instance is a struct that represents an ongoing match between
 // two players, controlled by a finite state machine
 type Instance struct {
-	ID           string
-	stateMachine *fsm.FSM
-	params       Params
+	ID     string
+	params Params
+	game   *game.OctadGame
 
-	game *game.OctadGame
+	stateMachine *fsm.FSM
 
 	stateChannel   chan State
 	moveChannel    chan *message.RoomMove
 	controlChannel chan message.RoomControl
 
-	Player1, Player2 string
-	P1Color          octad.Color
-	P1Bot, P2Bot     bool
-	P1Score, P2Score float64
-
-	P1Rematch, P2Rematch bool
+	players player.Players
+	rematch player.Agreement
 }
 
 // Params for room Instance creation
 type Params struct {
-	Player1, Player2 string
-	P1Color          octad.Color
-	P1Bot, P2Bot     bool
-
+	Players    player.Players
 	GameConfig game.OctadGameConfig
 }
 
 // Create a room instance from the given parameters
 func Create(params Params) (*Instance, error) {
-	// P1 must be a human for P2 to be a human
-	if !params.P2Bot && params.P1Bot {
-		return nil, ErrBadParamsBots{}
-	}
-
 	// P1 must be a human for P2 to be a bot
 	// TODO no support for two bots at the moment
 	// (internal engine vs internal engine)
-	if params.P1Bot && params.P2Bot {
+	if util.BothColors(func(c octad.Color) bool {
+		return params.Players[c].IsBot
+	}) {
 		return nil, ErrBadParamsTwoBots{}
 	}
 
@@ -95,11 +86,8 @@ func Create(params Params) (*Instance, error) {
 		moveChannel:    make(chan *message.RoomMove),
 		controlChannel: make(chan message.RoomControl),
 
-		Player1: params.Player1,
-		Player2: params.Player2,
-		P1Color: params.P1Color,
-		P1Bot:   params.P1Bot,
-		P2Bot:   params.P2Bot,
+		players: params.Players,
+		rematch: player.Agreement{},
 	}
 
 	// Keep track of all channels for off-rpc broadcasts
@@ -187,65 +175,70 @@ func (r *Instance) event(event fsm.EventDesc, args ...interface{}) error {
 	return nil
 }
 
-// flipBoard flips the player color and returns P1's color
-func (r *Instance) flipBoard() octad.Color {
+// flipBoard flips the player color
+func (r *Instance) flipBoard() {
 	// change sides
-	r.P1Color = r.P1Color.Other()
+	r.players.FlipColor()
 
 	r.params.GameConfig.White = ""
 	r.params.GameConfig.Black = ""
 
 	// repopulate game config values from parameters
 	r.populateGameConfig()
-	return r.P1Color
 }
 
 // populateGameConfig copies relevant parameter values to the game config parameter
 // before generating a new game during init, or when flipping the board
 func (r *Instance) populateGameConfig() {
 	if r.params.GameConfig.White == "" {
-		if r.P1Color == octad.White {
-			r.params.GameConfig.White = r.Player1
-		} else {
-			r.params.GameConfig.White = r.Player2
-		}
+		r.params.GameConfig.White = r.players[octad.White].ID
 	}
 
 	if r.params.GameConfig.Black == "" {
-		if r.P1Color == octad.White {
-			r.params.GameConfig.Black = r.Player2
-		} else {
-			r.params.GameConfig.Black = r.Player1
-		}
+		r.params.GameConfig.White = r.players[octad.Black].ID
 	}
 }
 
-// Join the room as the second player
-func (r *Instance) Join(bid string) (bool, bool) {
+// Join the room as a human player
+// returns tuple of isJoined, isSpectator
+func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 	// if room established with both players
-	if r.Player1 != "" && r.Player2 != "" {
+	hasPlayers, missing := r.players.HasTwoPlayers()
+
+	if hasPlayers {
 		// if player returning, allow back
-		if r.Player1 == bid || r.Player2 == bid {
+		if r.players.IsPlayer(bid) {
 			return true, false
 		}
 
 		// otherwise, force into spectator mode
+		// TODO track spectator somehow
 		return false, true
 	}
 
 	// if player2 joining
-	if r.Player1 != bid {
-		if r.P2Bot {
+	if !hasPlayers && missing != octad.NoColor {
+		if r.players.HasBot() {
 			return false, true
 		}
 
-		r.Player2 = bid
-		r.Game().Black = bid
+		// set missing player
+		r.players[missing] = &player.Player{
+			ID: bid,
+		}
+
+		// set internal game instance state
+		if missing == octad.White {
+			r.Game().White = bid
+		} else {
+			r.Game().Black = bid
+		}
+
 		return true, false
 	}
 
-	// allow P1 back in before P2 joins
-	return r.Player1 == bid, false
+	// allow player back in before other player joins
+	return r.players.IsPlayer(bid), false
 }
 
 // State returns the current room state
@@ -267,7 +260,7 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 	}
 }
 
-// CurrentGameStateMessage octad position, formatted as a move payload
+// CurrentGameStateMessage returns the octad position, marshalled as a move payload
 func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte {
 	curr := proto.MovePayload{
 		Clock:   r.currentClock(),
@@ -277,6 +270,8 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 		Moves:   r.game.MoveHistory(),
 		// TODO calculate move processing latency (EWMA)
 		Latency:   0,
+		White:     r.players[octad.White].ID,
+		Black:     r.players[octad.Black].ID,
 		GameStart: gameStart,
 	}
 
@@ -286,15 +281,7 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 		curr.ValidMoves = r.game.LegalMoves()
 	}
 
-	// set white/black player ids
-	if r.P1Color == octad.White {
-		curr.White = r.Player1
-		curr.Black = r.Player2
-	} else {
-		curr.White = r.Player2
-		curr.Black = r.Player1
-	}
-
+	// add last move SAN if enabled
 	if addLast {
 		curr.SAN = r.getSAN()
 	}
@@ -330,22 +317,14 @@ func (r *Instance) isTurn(move *message.RoomMove) bool {
 	// handle bot turns
 	if move.Ctx.IsBot {
 		// TODO no P1 bot support at the moment
-		if r.P2Bot && r.P1Color.Other() == r.game.ToMove {
+		if r.players.GetBotColor() == r.game.ToMove {
 			return true
 		}
 	}
 
-	if move.Ctx.BID == r.Player1 {
-		if r.P1Color == r.Game().ToMove {
-			return true
-		}
-	} else {
-		if r.P1Color.Other() == r.Game().ToMove {
-			return true
-		}
-	}
-
-	return false
+	// lookup player color by ID
+	_, playerColor := r.players.Lookup(move.Ctx.BID)
+	return playerColor == r.Game().ToMove
 }
 
 // makeMove attempts to make the given move, transition game state, and
@@ -378,9 +357,9 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		// publish move to broadcast channel
 		go gamePub.Publish(mov.String(), r.game.OFEN())
 
-		if !move.Ctx.IsBot && r.P2Bot && r.game.Outcome() == octad.NoOutcome {
-			// submit request for engine move after human P1 move
-			// only if P2 is configured as a bot
+		// submit request for engine move after human move
+		// only if other player is configured as a bot and game is still ongoing
+		if !move.Ctx.IsBot && r.players.HasBot() && r.game.Outcome() == octad.NoOutcome {
 			r.requestEngineMove()
 		}
 	}
@@ -516,19 +495,11 @@ func (r *Instance) tryGameOver(meta channel.SocketContext) (bool, *fsm.EventDesc
 func (r *Instance) updateScore() {
 	switch r.game.Outcome() {
 	case octad.Draw:
-		r.P1Score += 0.5
+		r.players.ScoreDraw()
 	case octad.WhiteWon:
-		if r.P1Color == octad.White {
-			r.P1Score++
-		} else {
-			r.P2Score++
-		}
+		r.players.ScoreWin(octad.White)
 	case octad.BlackWon:
-		if r.P1Color == octad.Black {
-			r.P1Score++
-		} else {
-			r.P2Score++
-		}
+		r.players.ScoreWin(octad.Black)
 	}
 }
 
@@ -583,6 +554,17 @@ func storeGame(g game.OctadGame) {
 // GameState returns the outcome of the current game, or NoOutcome if still in progress
 func (r *Instance) GameState() octad.Outcome {
 	return r.game.Outcome()
+}
+
+// GenPlayerPayload generates a RoomTemplatePayload for the given player by id
+func (r *Instance) GenPlayerPayload(id string) message.RoomTemplatePayload {
+	_, playerColor := r.players.Lookup(id)
+
+	return message.RoomTemplatePayload{
+		PlayerColor:   playerColor.String(),
+		OpponentColor: playerColor.Other().String(),
+		VariantName:   r.Game().Variant.Name + " " + string(r.Game().Variant.Group),
+	}
 }
 
 func (r *Instance) gameOverEvent() *fsm.EventDesc {

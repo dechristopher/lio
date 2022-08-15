@@ -5,6 +5,12 @@ import (
 	"github.com/dechristopher/lioctad/www/ws/proto"
 )
 
+type RoomTemplatePayload struct {
+	PlayerColor   string
+	OpponentColor string
+	VariantName   string
+}
+
 type RoomMove struct {
 	Player string
 	GameID string // optional game identifier used for filtering out engine moves from previous games

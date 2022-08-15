@@ -35,7 +35,7 @@ func (r *Instance) handleWaitingForPlayers() {
 			}
 
 			// automatically ready bot players
-			if r.P1Bot || r.P2Bot {
+			if r.players.HasBot() {
 				numPlayers = 2
 			}
 

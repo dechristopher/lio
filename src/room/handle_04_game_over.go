@@ -6,6 +6,9 @@ import (
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/message"
+	"github.com/dechristopher/lioctad/player"
+	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/octad"
 )
 
 // handleGameOver handles game finalization and rematch prompts
@@ -16,8 +19,9 @@ func (r *Instance) handleGameOver() {
 		<-t.C
 
 		// manually set rematch true
-		r.P1Rematch = true
-		r.P2Rematch = true
+		util.DoBothColors(func(color octad.Color) {
+			r.rematch.Agree(color)
+		})
 
 		// trigger routine
 		r.controlChannel <- message.RoomControl{
@@ -33,20 +37,21 @@ func (r *Instance) handleGameOver() {
 		select {
 		case control := <-r.controlChannel:
 			if control.Type == message.Rematch {
-				if r.Player1 == control.Ctx.BID {
-					r.P1Rematch = true
-				}
+				// track agreement for player looked up via context
+				util.DoBothColors(func(c octad.Color) {
+					if r.players[c].ID == control.Ctx.BID {
+						r.rematch.Agree(c)
+					}
+				})
 
-				if r.Player2 == control.Ctx.BID {
-					r.P2Rematch = true
-				}
+				// auto-agree to rematch if either player is a bot
+				util.DoBothColors(func(c octad.Color) {
+					if r.players[c].IsBot {
+						r.rematch.Agree(c)
+					}
+				})
 
-				// automatically rematch if P2 is a bot
-				if r.P1Rematch && r.P2Bot {
-					r.P2Rematch = true
-				}
-
-				if r.P1Rematch && r.P2Rematch {
+				if r.rematch.Agreed() {
 					err := r.event(EventRematchAgreed)
 					if err != nil {
 						panic(err)
@@ -64,8 +69,7 @@ func (r *Instance) handleGameOver() {
 					}
 
 					// reset rematch flags
-					r.P1Rematch = false
-					r.P2Rematch = false
+					r.rematch = player.NewAgreement()
 
 					return
 				}

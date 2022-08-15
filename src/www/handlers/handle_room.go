@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/dechristopher/lioctad/game"
+	"github.com/dechristopher/lioctad/player"
 	"github.com/dechristopher/lioctad/room"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
@@ -10,12 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type RoomTemplatePayload struct {
-	PlayerColor   string
-	OpponentColor string
-	VariantName   string
-}
-
 // RoomHandler executes the room page template
 func RoomHandler(c *fiber.Ctx) error {
 	roomInstance, err := room.Get(c.Params("id"))
@@ -23,36 +18,25 @@ func RoomHandler(c *fiber.Ctx) error {
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
-	browserId := c.Cookies("bid")
+	bid := c.Cookies("bid")
 
 	// signal to room that this player is joining as P2
-	joined, isSpectator := roomInstance.Join(browserId)
+	isPlayer, isSpectator := roomInstance.Join(bid)
 
-	if isSpectator {
+	if isPlayer {
+		// get template payload for player
+		payload := roomInstance.GenPlayerPayload(bid)
+		// render template
+		return util.HandleTemplate(c, "room",
+			payload.VariantName, payload, 200)
+	} else if isSpectator {
 		// spectator
 		// TODO signal to JS that this player is a spectator
 		// only receive game updates
 		// only able to draw on board and scroll moves
 
 		// TODO spectator page template
-	}
-
-	if joined {
-		var playerColor octad.Color
-		if roomInstance.Player1 == browserId {
-			playerColor = roomInstance.P1Color
-		} else {
-			playerColor = roomInstance.P1Color.Other()
-		}
-
-		payload := RoomTemplatePayload{
-			PlayerColor:   playerColor.String(),
-			OpponentColor: playerColor.Other().String(),
-			VariantName:   roomInstance.Game().Variant.Name + " " + string(roomInstance.Game().Variant.Group),
-		}
-
-		return util.HandleTemplate(c, "room",
-			payload.VariantName, payload, 200)
+		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	} else {
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
@@ -61,13 +45,19 @@ func RoomHandler(c *fiber.Ctx) error {
 func NewRoomHumanHandler(c *fiber.Ctx) error {
 	bid := c.Cookies("bid")
 
-	instance, err := room.Create(room.Params{
-		Player1: bid,
-		P1Color: octad.White,
+	params := room.Params{
+		Players: make(player.Players),
 		GameConfig: game.OctadGameConfig{
 			Variant: variant.HalfOneBlitz,
 		},
-	})
+	}
+
+	params.Players[octad.White] = &player.Player{
+		ID: bid,
+	}
+
+	instance, err := room.Create(params)
+
 	if err != nil {
 		util.Error(str.CRoom, "failed to create room via human handler: %s", err.Error())
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
@@ -81,14 +71,22 @@ func NewRoomHumanHandler(c *fiber.Ctx) error {
 func NewRoomComputerHandler(c *fiber.Ctx) error {
 	bid := c.Cookies("bid")
 
-	instance, err := room.Create(room.Params{
-		Player1: bid,
-		P1Color: octad.White,
-		P2Bot:   true,
+	params := room.Params{
+		Players: make(player.Players),
 		GameConfig: game.OctadGameConfig{
 			Variant: variant.HalfOneBlitz,
 		},
-	})
+	}
+
+	params.Players[octad.White] = &player.Player{
+		ID: bid,
+	}
+
+	params.Players[octad.Black] = &player.Player{
+		IsBot: true,
+	}
+
+	instance, err := room.Create(params)
 	if err != nil {
 		util.Error(str.CRoom, "failed to create room via computer handler: %s", err.Error())
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)

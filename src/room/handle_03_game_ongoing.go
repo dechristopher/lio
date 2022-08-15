@@ -10,9 +10,14 @@ import (
 
 // handleGameOngoing handles moves, player controls, and flag detection
 func (r *Instance) handleGameOngoing() {
+	// TODO handle player abandons
+	// timer for a certain percentage of game time up to a given max
+	// maybe 30 seconds?
+	// player automatically resigns if they abandon
+	//connectionListener := channel.Map[r.ID].Listen()
+
 	for {
 		select {
-		// TODO handle player abandons
 		// handle move events
 		case move := <-r.moveChannel:
 			// if not player's turn, send previous position and continue
