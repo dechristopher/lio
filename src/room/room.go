@@ -435,25 +435,13 @@ func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
 // flipClock flips the internal game clock after a move is made
 // and waits for acknowledgement
 func (r *Instance) flipClock(move *message.RoomMove) {
+	ackChannel := r.game.Clock.GetAck()
+
 	util.DebugFlag("clock", str.CClk, "PRE-FLIP")
 	// handle clock flipping
-	go func() { r.game.Clock.ControlChannel <- clock.Flip }()
-
-	if move.Ctx.IsBot {
-		if r.P2Bot {
-			if r.P1Color.Other() == octad.White {
-				<-r.game.Clock.WhiteAck
-			} else {
-				<-r.game.Clock.BlackAck
-			}
-		}
-	} else {
-		if move.Ctx.BID == r.Game().White {
-			<-r.game.Clock.WhiteAck
-		} else {
-			<-r.game.Clock.BlackAck
-		}
-	}
+	r.game.Clock.ControlChannel <- clock.Flip
+	// wait for acknowledgement
+	<-ackChannel
 	util.DebugFlag("clock", str.CClk, "POST-FLIP")
 }
 

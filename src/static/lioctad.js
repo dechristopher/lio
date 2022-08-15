@@ -380,6 +380,7 @@ const updateUI = (message, ofenParts) => {
 			clockTicker = setInterval(() => {
 				if (playerTimeRemaining <= 10) {
 					playerTimeRemaining = 0;
+					clearInterval(clockTicker);
 				} else {
 					playerTimeRemaining -= 10;
 				}
@@ -390,6 +391,7 @@ const updateUI = (message, ofenParts) => {
 			clockTicker = setInterval(() => {
 				if (opponentTimeRemaining <= 10) {
 					opponentTimeRemaining = 0;
+					clearInterval(clockTicker);
 				} else {
 					opponentTimeRemaining -= 10;
 				}
@@ -400,7 +402,7 @@ const updateUI = (message, ofenParts) => {
 	}
 };
 
-const padZero = (time) => `0${time}`.slice(-2);
+const padZero = (time, slice) => `0${time}`.slice(slice);
 
 /**
  * Format time in MM:SS.CC
@@ -409,14 +411,22 @@ const padZero = (time) => `0${time}`.slice(-2);
  */
 const timeFormatter = (centiseconds) => {
 	const minutes = centiseconds / 6000 | 0;
-	const seconds = padZero((centiseconds / 100 | 0) % 60);
-	const centi = padZero(`${centiseconds % 100}`.slice(-3));
-
-	if (seconds < 10) {
-		return `${minutes}:${seconds}.${centi}`;
+	let minutesFmt;
+	if (minutes > 9) {
+		minutesFmt = padZero(centiseconds / 6000 | 0, 1);
 	} else {
-		return `${minutes}:${seconds}`;
+		minutesFmt = padZero(centiseconds / 6000 | 0, 0);
 	}
+
+	let seconds = (centiseconds / 100 | 0) % 60;
+	if ( seconds < 0) {
+		seconds = 0;
+	}
+	const secondsFmt = padZero(seconds, -2);
+
+	let centiFmt = `${centiseconds % 100}`.slice(0, 1);
+
+	return `${minutesFmt}:${secondsFmt}.${centiFmt}`;
 }
 
 /**
@@ -492,7 +502,6 @@ const doMove = (orig, dest) => {
 
 			// set piece selector colors and event handlers
 			let promoButtons = promoBar.getElementsByTagName("piece");
-			console.log(promoButtons);
 			for(let i = 0; i < promoButtons.length; i++) {
 				promoButtons[i].classList.add(destPiece.color);
 

@@ -3,7 +3,11 @@ package clock
 import (
 	"strconv"
 	"time"
+
+	"github.com/dechristopher/octad"
 )
+
+var flagged = CTime{t: 0}
 
 // CTime is a wrapper for time.Duration that adds centi-second output
 type CTime struct {
@@ -13,6 +17,16 @@ type CTime struct {
 // Centi returns the time left in centi-seconds
 func (t CTime) Centi() int64 {
 	return int64(t.t / Centi)
+}
+
+// Add will return the sum of the two times
+func (t CTime) Add(time CTime) CTime {
+	return ToCTime(t.t + time.t)
+}
+
+// Diff will return the difference between the two times
+func (t CTime) Diff(time CTime) CTime {
+	return ToCTime(t.t - time.t)
 }
 
 // MarshalJSON marshals CTime as an integer instead of
@@ -68,9 +82,9 @@ const (
 
 // State represents the current state of the Clock
 type State struct {
-	BlackTime CTime  `json:"b"`
-	WhiteTime CTime  `json:"w"`
-	IsBlack   bool   `json:"t"`
-	IsPaused  bool   `json:"p"`
-	Victor    Victor `json:"v"`
+	WhiteTime CTime       `json:"w"`
+	BlackTime CTime       `json:"b"`
+	Turn      octad.Color `json:"t"`
+	IsPaused  bool        `json:"p"`
+	Victor    Victor      `json:"v"`
 }
