@@ -21,7 +21,7 @@ func RoomHandler(c *fiber.Ctx) error {
 
 	bid := c.Cookies("bid")
 
-	// signal to room that this player is joining as P2
+	// signal to room that this player is joining
 	isPlayer, isSpectator := roomInstance.Join(bid)
 
 	if isPlayer {
@@ -55,6 +55,10 @@ func NewRoomHumanHandler(c *fiber.Ctx) error {
 
 	params.Players[octad.White] = &player.Player{
 		ID: bid,
+	}
+
+	params.Players[octad.Black] = &player.Player{
+		ID: "", // to be set by second joining player
 	}
 
 	instance, err := room.Create(params)

@@ -20,12 +20,12 @@ func (p Players) FlipColor() {
 // the color of the missing player if only one player is missing
 func (p Players) HasTwoPlayers() (hasTwo bool, missing octad.Color) {
 	hasTwo = util.BothColors(func(color octad.Color) bool {
-		return p[color] != nil
+		return p[color].ID != ""
 	})
 
-	if p[octad.White] == nil {
+	if p[octad.White].ID == "" && !p[octad.White].IsBot {
 		missing = octad.White
-	} else if p[octad.Black] == nil {
+	} else if p[octad.Black].ID == "" && !p[octad.Black].IsBot {
 		missing = octad.Black
 	} else {
 		missing = octad.NoColor
@@ -64,10 +64,10 @@ func (p Players) ScoreDraw() {
 
 // GetBotColor returns the current color the bot is playing
 func (p Players) GetBotColor() octad.Color {
-	if p[octad.White].IsBot {
+	if p[octad.White] != nil && p[octad.White].IsBot {
 		return octad.White
 	}
-	if p[octad.Black].IsBot {
+	if p[octad.Black] != nil && p[octad.Black].IsBot {
 		return octad.Black
 	}
 	return octad.NoColor

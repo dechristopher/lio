@@ -68,8 +68,8 @@ type Params struct {
 
 // Create a room instance from the given parameters
 func Create(params Params) (*Instance, error) {
-	// P1 must be a human for P2 to be a bot
 	// TODO no support for two bots at the moment
+	// P1 must be a human for P2 to be a bot
 	// (internal engine vs internal engine)
 	if util.BothColors(func(c octad.Color) bool {
 		return params.Players[c].IsBot
@@ -190,12 +190,12 @@ func (r *Instance) flipBoard() {
 // populateGameConfig copies relevant parameter values to the game config parameter
 // before generating a new game during init, or when flipping the board
 func (r *Instance) populateGameConfig() {
-	if r.params.GameConfig.White == "" {
+	if r.params.GameConfig.White == "" && r.players[octad.White] != nil {
 		r.params.GameConfig.White = r.players[octad.White].ID
 	}
 
-	if r.params.GameConfig.Black == "" {
-		r.params.GameConfig.White = r.players[octad.Black].ID
+	if r.params.GameConfig.Black == "" && r.players[octad.Black] != nil {
+		r.params.GameConfig.Black = r.players[octad.Black].ID
 	}
 }
 
@@ -205,6 +205,7 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 	// if room established with both players
 	hasPlayers, missing := r.players.HasTwoPlayers()
 
+	// both players set, player rejoining or spectator
 	if hasPlayers {
 		// if player returning, allow back
 		if r.players.IsPlayer(bid) {
@@ -216,7 +217,14 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 		return false, true
 	}
 
-	// if player2 joining
+	// TODO fix joining as P2
+	// allow player back in before other player joins
+	// check to allow joining first player after room creation
+	if r.players.IsPlayer(bid) {
+		return true, false
+	}
+
+	// if second player joining
 	if !hasPlayers && missing != octad.NoColor {
 		if r.players.HasBot() {
 			return false, true
@@ -237,8 +245,8 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 		return true, false
 	}
 
-	// allow player back in before other player joins
-	return r.players.IsPlayer(bid), false
+	// allow spectators in before second player joins
+	return false, true
 }
 
 // State returns the current room state
