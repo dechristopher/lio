@@ -57,9 +57,9 @@ func NewRoomHumanHandler(c *fiber.Ctx) error {
 		ID: bid,
 	}
 
-	params.Players[octad.Black] = &player.Player{
-		ID: "", // to be set by second joining player
-	}
+	// configure room with player to join via URL
+	toJoin := player.ToJoin
+	params.Players[octad.Black] = &toJoin
 
 	instance, err := room.Create(params)
 

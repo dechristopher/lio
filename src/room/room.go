@@ -68,6 +68,11 @@ type Params struct {
 
 // Create a room instance from the given parameters
 func Create(params Params) (*Instance, error) {
+	// make sure both players are configured
+	if len(params.Players) != 2 {
+		return nil, ErrBadParamsPlayers{}
+	}
+
 	// TODO no support for two bots at the moment
 	// P1 must be a human for P2 to be a bot
 	// (internal engine vs internal engine)

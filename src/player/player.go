@@ -10,6 +10,13 @@ type Player struct {
 	// sendLatency bool // TODO send server latency stats if enabled
 }
 
+// ToJoin is a sample Player used to configure a room in which
+// the opponent joins via URL and is then configured
+var ToJoin = Player{
+	ID:    "",
+	IsBot: false,
+}
+
 // Score returns the player's match score
 func (p *Player) Score() float64 {
 	score := 0.0

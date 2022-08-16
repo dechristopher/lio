@@ -21,3 +21,9 @@ type ErrBadParamsTwoBots struct{}
 func (e ErrBadParamsTwoBots) Error() string {
 	return "room:config: P1 must be a human if P2 is set as a bot"
 }
+
+type ErrBadParamsPlayers struct{}
+
+func (e ErrBadParamsPlayers) Error() string {
+	return "room:config: both players must be configured when creating a room"
+}
