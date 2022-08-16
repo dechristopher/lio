@@ -425,7 +425,7 @@ const updateUI = (message, ofenParts) => {
 const clockFrame = (timeRemaining, timeControl, timeElement, barElement) => () => {
 	const elapsed = (performance.now() - frameTime) * 10;
 	const remaining = ((timeRemaining * 100) - elapsed) / 100; // hacky
-	timeElement.innerHTML = timeFormatter(remaining);
+	timeElement.innerHTML = timeFormatter(Math.max(remaining, 0));
 	barElement.style.width = barWidth(timeControl, remaining);
 
 	frameId = requestAnimFrame(clockFrame(timeRemaining, timeControl, timeElement, barElement));
