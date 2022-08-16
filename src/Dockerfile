@@ -16,4 +16,4 @@ WORKDIR /
 COPY --from=build /build/lioctad lioctad
 
 EXPOSE 4444
-ENTRYPOINT ["/lioctad"]
+ENTRYPOINT ["/lioctad", "--debug", "room,dispatch,clock"]
