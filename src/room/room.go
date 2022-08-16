@@ -140,7 +140,7 @@ func (r *Instance) routine() {
 	defer r.cleanup()
 
 	for {
-		util.DebugFlag("room", str.CRoom, "[%s] room state transition -> %s", r.ID, r.State())
+		util.DebugFlag("room", str.CRoom, "[%s] room state transition - %s", r.ID, r.State())
 		switch r.State() {
 		case StateWaitingForPlayers:
 			r.handleWaitingForPlayers()
