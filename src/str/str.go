@@ -75,7 +75,7 @@ const (
 	DEngStart   = "eng start: ofen=%s alg=%d"
 	DEngSearch  = "eng search: sec=%.3f ofen=%s alg=%d eval=%+v"
 	DGameMove   = "game move: move=%s new_ofen=%s"
-	DClockEvent = "clock event: type=%d whiteTime=%s blackTime=%s state=%+v"
+	DClockEvent = "clock event: type=%d state=%+v"
 )
 
 // (T) Test messages

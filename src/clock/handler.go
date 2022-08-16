@@ -3,8 +3,6 @@ package clock
 import (
 	"time"
 
-	"github.com/dechristopher/octad"
-
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -62,9 +60,7 @@ func (c *Clock) handleCommand(cmd Command) bool {
 		c.flagTimer.Reset(c.players[c.turn].remaining().t)
 
 		// publish clock state to monitors
-		c.publisher.Publish(cmd,
-			c.players[octad.White].remaining(),
-			c.players[octad.Black].remaining())
+		c.publisher.Publish(cmd, c.State())
 
 		return false
 	default:

@@ -429,13 +429,10 @@ func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
 // and waits for acknowledgement
 func (r *Instance) flipClock() {
 	ackChannel := r.game.Clock.GetAck()
-
-	util.DebugFlag("clock", str.CClk, "PRE-FLIP")
 	// handle clock flipping
 	r.game.Clock.ControlChannel <- clock.Flip
 	// wait for acknowledgement
 	<-ackChannel
-	util.DebugFlag("clock", str.CClk, "POST-FLIP")
 }
 
 // calcDepth returns the depth the engine should search to
