@@ -224,8 +224,6 @@ func (c *Clock) Stop(writeState bool) {
 
 // State returns the current clock state
 func (c *Clock) State() State {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
 	return State{
 		WhiteTime: c.EstimateRemaining(octad.White),
 		BlackTime: c.EstimateRemaining(octad.Black),

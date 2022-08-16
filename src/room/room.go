@@ -666,9 +666,9 @@ func genGameOverState(g *game.OctadGame) (int, string) {
 func genDrawState(g *game.OctadGame) (int, string) {
 	switch g.Game.Method() {
 	case octad.InsufficientMaterial:
-		return 3, "DRAWN DUE TO INSUFFICIENT MATERIAL."
+		return 3, "DRAWN DUE TO INSUFFICIENT MATERIAL"
 	case octad.Stalemate:
-		return 4, "DRAWN BY STALEMATE."
+		return 4, "DRAWN VIA STALEMATE"
 	case octad.DrawOffer:
 		return 5, "DRAWN BY AGREEMENT"
 	case octad.ThreefoldRepetition:
