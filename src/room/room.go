@@ -58,6 +58,8 @@ type Instance struct {
 
 	players player.Players
 	rematch player.Agreement
+
+	abandoned bool
 }
 
 // Params for room Instance creation
@@ -683,28 +685,28 @@ func genDrawState(g *game.OctadGame) (int, string) {
 
 func genWhiteWinState(g *game.OctadGame) (int, string) {
 	if g.Clock.State().Victor == clock.White {
-		return 1, "WHITE WINS ON TIME"
+		return 1, "BLACK OUT OF TIME - WHITE WINS"
 	}
 
 	switch g.Game.Method() {
 	case octad.Checkmate:
 		return 1, "WHITE WINS BY CHECKMATE"
 	case octad.Resignation:
-		return 7, "BLACK RESIGNED, WHITE IS VICTORIOUS"
+		return 7, "BLACK RESIGNED - WHITE WINS"
 	}
 	return -1, ""
 }
 
 func genBlackWinState(g *game.OctadGame) (int, string) {
 	if g.Clock.State().Victor == clock.Black {
-		return 2, "BLACK WINS ON TIME"
+		return 2, "WHITE OUT OF TIME - BLACK WINS"
 	}
 
 	switch g.Game.Method() {
 	case octad.Checkmate:
 		return 2, "BLACK WINS BY CHECKMATE"
 	case octad.Resignation:
-		return 8, "WHITE RESIGNED, BLACK IS VICTORIOUS"
+		return 8, "WHITE RESIGNED - BLACK WINS"
 	}
 	return -1, ""
 }
@@ -715,7 +717,7 @@ func (r *Instance) gameOverMessage(abandoned bool) []byte {
 
 	if abandoned {
 		id = -1
-		status = "PLAYER ABANDONED, MATCH OVER"
+		status = "PLAYER ABANDONED - MATCH OVER"
 	} else {
 		id, status = r.gameOverState()
 	}
@@ -725,6 +727,7 @@ func (r *Instance) gameOverMessage(abandoned bool) []byte {
 		StatusID: id,
 		Status:   status,
 		Clock:    r.currentClock(),
+		RoomOver: abandoned,
 	}
 
 	return gameOver.Marshal()

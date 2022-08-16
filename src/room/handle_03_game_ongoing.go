@@ -140,6 +140,8 @@ func (r *Instance) handleGameOngoing() {
 			// run game over routine
 			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, true)
 
+			r.abandoned = true
+
 			// make state transition and exit the gameOngoing routine
 			err := r.event(EventPlayerAbandons)
 			if err != nil {

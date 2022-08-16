@@ -70,6 +70,7 @@ func (r *Instance) handleGameReady() {
 
 			return
 		case <-cleanupTimer.C:
+			r.abandoned = true
 			// game expired, white timed out making first move
 			util.DebugFlag("room", str.CRoom, "[%s] game expired, white timed out making first move, cleaning up", r.ID)
 			err := r.event(EventPlayerAbandons)

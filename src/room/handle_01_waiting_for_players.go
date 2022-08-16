@@ -50,6 +50,7 @@ func (r *Instance) handleWaitingForPlayers() {
 				return
 			}
 		case <-cleanupTimer.C:
+			r.abandoned = true
 			// room expired, clean up
 			util.DebugFlag("room", str.CRoom, "[%s] room expired, cleaning up", r.ID)
 			err := r.event(EventPlayerAbandons)
