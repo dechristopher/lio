@@ -154,8 +154,7 @@ func (r *Instance) routine() {
 			r.handleRoomOver()
 			return
 		default:
-			fmt.Println("sleeping")
-			time.Sleep(time.Second * 2)
+			panic("invalid or unknown room state")
 		}
 	}
 }
