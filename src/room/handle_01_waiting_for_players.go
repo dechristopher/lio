@@ -13,8 +13,8 @@ import (
 // proceed to clean up the room if exceeded
 func (r *Instance) handleWaitingForPlayers() {
 	cleanupTimer := time.NewTimer(time.Minute * 15)
-	connectionListener := channel.Map[r.ID].Listen()
 
+	connectionListener := channel.Map[r.ID].Listen()
 	defer channel.Map[r.ID].UnListen(connectionListener)
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for players", r.ID)
@@ -27,6 +27,7 @@ func (r *Instance) handleWaitingForPlayers() {
 			if numPlayers == 0 {
 				util.DebugFlag("room", str.CRoom, "[%s] no players connected, started timer", r.ID)
 				cleanupTimer = time.NewTimer(roomExpiryTime)
+				continue
 			}
 
 			// stop timer if one or more players are connected

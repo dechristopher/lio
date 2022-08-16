@@ -33,7 +33,7 @@ func (r *Instance) handleGameReady() {
 	for {
 		select {
 		case move := <-r.moveChannel:
-			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.UOI, move.Player, r.Game().White, r.Game().Black)
+			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.UOI, move.Player, r.game.White, r.game.Black)
 
 			// don't allow moves out of order
 			if !r.isTurn(move) {

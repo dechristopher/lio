@@ -241,9 +241,9 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 
 		// set internal game instance state
 		if missing == octad.White {
-			r.Game().White = bid
+			r.game.White = bid
 		} else {
-			r.Game().Black = bid
+			r.game.Black = bid
 		}
 
 		return true, false
@@ -336,7 +336,7 @@ func (r *Instance) isTurn(move *message.RoomMove) bool {
 
 	// lookup player color by ID
 	_, playerColor := r.players.Lookup(move.Ctx.BID)
-	return playerColor == r.Game().ToMove
+	return playerColor == r.game.ToMove
 }
 
 // makeMove attempts to make the given move, transition game state, and
@@ -478,13 +478,13 @@ func (r *Instance) calcDepth(color octad.Color) int {
 
 // tryGameOver will emit a game over broadcast, record the game, and return an event
 // to transition the state machine to the GameOver state if the game is actually over
-func (r *Instance) tryGameOver(meta channel.SocketContext) (bool, *fsm.EventDesc) {
+func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool, *fsm.EventDesc) {
 	// restart game if over
 	if r.game.Outcome() != octad.NoOutcome {
 		// send final game update to prevent further moves
 		channel.Broadcast(r.CurrentGameStateMessage(true, false), meta)
 		// broadcast game over message immediately
-		channel.Broadcast(r.gameOverMessage(), meta)
+		channel.Broadcast(r.gameOverMessage(abandoned), meta)
 
 		r.updateScore()
 
@@ -575,7 +575,7 @@ func (r *Instance) GenPlayerPayload(id string) message.RoomTemplatePayload {
 	return message.RoomTemplatePayload{
 		PlayerColor:   playerColor.String(),
 		OpponentColor: playerColor.Other().String(),
-		VariantName:   r.Game().Variant.Name + " " + string(r.Game().Variant.Group),
+		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
 	}
 }
 
@@ -709,14 +709,24 @@ func genBlackWinState(g *game.OctadGame) (int, string) {
 	return -1, ""
 }
 
-func (r *Instance) gameOverMessage() []byte {
-	id, status := r.gameOverState()
+func (r *Instance) gameOverMessage(abandoned bool) []byte {
+	var id int
+	var status string
+
+	if abandoned {
+		id = -1
+		status = "PLAYER ABANDONED, MATCH OVER"
+	} else {
+		id, status = r.gameOverState()
+	}
+
 	gameOver := proto.GameOverPayload{
 		Winner:   getWinnerString(id),
 		StatusID: id,
 		Status:   status,
 		Clock:    r.currentClock(),
 	}
+
 	return gameOver.Marshal()
 }
 

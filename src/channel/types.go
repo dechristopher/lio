@@ -126,6 +126,10 @@ func (s *SockMap) Listen() Listener {
 	}
 	listener := make(chan int)
 	s.listenChannels = append(s.listenChannels, listener)
+
+	// send status immediately
+	go func() { listener <- s.Length() }()
+
 	return listener
 }
 
