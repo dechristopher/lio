@@ -241,7 +241,7 @@ const parseResponse = (raw) => {
 			handleMove(message);
 			break;
 		case "g": // game over
-			// clearInterval(clockTicker);
+
 			cancelAnimationFrame(frameId);
 			document.getElementById("info").innerHTML = message.d.s;
 			notification.play();
@@ -351,7 +351,7 @@ const playSounds = (message, ofenParts) => {
  * @param ofenParts - OFEN parts array
  */
 const updateUI = (message, ofenParts) => {
-	// clearInterval(clockTicker);
+	cancelAnimationFrame(frameId);
 
 	wt = message.d.c.w;
 	bt = message.d.c.b;
@@ -397,8 +397,6 @@ const updateUI = (message, ofenParts) => {
 		plyClock.classList.add('playerBlack');
 		plyClock.classList.remove('playerWhite');
 	}
-
-	cancelAnimationFrame(frameId);
 
 	// only run this when move is provided, otherwise we flip
 	// the clock on regular game updates, which is not intended
