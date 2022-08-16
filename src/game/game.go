@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/dechristopher/octad"
+	"github.com/google/uuid"
+
 	"github.com/dechristopher/lioctad/bus"
 	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/variant"
-	"github.com/dechristopher/octad"
-	"github.com/google/uuid"
 )
 
 // Channel is the engine monitoring bus channel

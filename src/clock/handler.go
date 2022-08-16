@@ -3,9 +3,10 @@ package clock
 import (
 	"time"
 
+	"github.com/dechristopher/octad"
+
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/octad"
 )
 
 // handleCommand will perform the command on the given clock and

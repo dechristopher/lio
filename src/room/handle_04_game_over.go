@@ -3,12 +3,13 @@ package room
 import (
 	"time"
 
+	"github.com/dechristopher/octad"
+
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/message"
 	"github.com/dechristopher/lioctad/player"
 	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/octad"
 )
 
 // handleGameOver handles game finalization and rematch prompts

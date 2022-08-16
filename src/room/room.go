@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dechristopher/lioctad/player"
 	"github.com/dechristopher/octad"
 	"github.com/looplab/fsm"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/dechristopher/lioctad/dispatch"
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/message"
+	"github.com/dechristopher/lioctad/player"
 	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"

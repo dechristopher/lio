@@ -1,8 +1,9 @@
 package player
 
 import (
-	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/octad"
+
+	"github.com/dechristopher/lioctad/util"
 )
 
 // Players map for use anywhere two players compete

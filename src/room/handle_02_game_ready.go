@@ -3,10 +3,11 @@ package room
 import (
 	"time"
 
+	"github.com/dechristopher/octad"
+
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/octad"
 )
 
 // handle waiting for white to make first move and start game

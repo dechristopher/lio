@@ -1,11 +1,12 @@
 package room
 
 import (
+	"github.com/dechristopher/octad"
+
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/octad"
 )
 
 // handleGameOngoing handles moves, player controls, and flag detection

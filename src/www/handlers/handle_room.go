@@ -1,14 +1,15 @@
 package handlers
 
 import (
+	"github.com/dechristopher/octad"
+	"github.com/gofiber/fiber/v2"
+
 	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/player"
 	"github.com/dechristopher/lioctad/room"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/variant"
-	"github.com/dechristopher/octad"
-	"github.com/gofiber/fiber/v2"
 )
 
 // RoomHandler executes the room page template
