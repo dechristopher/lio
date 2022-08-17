@@ -7,6 +7,7 @@ import (
 
 	"github.com/dechristopher/lioctad/channel"
 	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lioctad/lag"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -23,6 +24,7 @@ func (r *Instance) handleGameOngoing() {
 		select {
 		// handle move events
 		case move := <-r.moveChannel:
+			moveStart := time.Now()
 			// if not player's turn, send previous position and continue
 			if !r.isTurn(move) {
 				channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
@@ -50,6 +52,10 @@ func (r *Instance) handleGameOngoing() {
 
 				return
 			}
+
+			// track move lag for later compensation
+			lag.Move.Track(moveStart)
+			util.DebugFlag("lag", str.CRoom, "move lag avg: %s", lag.Move.Get())
 
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:

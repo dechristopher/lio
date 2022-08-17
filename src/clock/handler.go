@@ -3,6 +3,7 @@ package clock
 import (
 	"time"
 
+	"github.com/dechristopher/lioctad/lag"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -27,6 +28,9 @@ func (c *Clock) handleCommand(cmd Command) bool {
 		} else {
 			// update elapsed time of current player
 			c.players[c.turn].takeTime(ToCTime(time.Since(c.timestamp)))
+
+			// compensate player for move processing lag
+			c.players[c.turn].giveTime(ToCTime(lag.Move.Get()))
 
 			// check to see if someone flagged
 			if c.flagged() {
