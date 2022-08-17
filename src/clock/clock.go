@@ -142,6 +142,8 @@ func (c *Clock) EstimateRemaining(color octad.Color) CTime {
 // EstimateFlagged uses EstimateRemaining to determine flag status out
 // of band from player moves and state updates
 func (c *Clock) EstimateFlagged() bool {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	// player's estimated remaining time budget has fallen to zero
 	return c.EstimateRemaining(c.turn).t <= flagged.t
 }
@@ -182,6 +184,12 @@ func (c *Clock) Start() {
 			case <-cl.flagTimer.C:
 				// check to see if any player has flagged
 				if cl.EstimateFlagged() {
+					if c.turn == octad.Black {
+						c.victor = White
+					} else {
+						c.victor = Black
+					}
+
 					cl.Stop(true)
 					return
 				}
