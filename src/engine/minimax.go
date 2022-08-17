@@ -27,7 +27,7 @@ type minimaxABParams struct {
 func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	// sleep for a random amount of time to make the engine easier to beat,
 	// anywhere from a fraction of a second to 1.25 seconds
-	time.Sleep(clock.Centi * 5 * time.Duration(rand.Intn(25)))
+	time.Sleep(clock.Centisecond * 5 * time.Duration(rand.Intn(25)))
 
 	isWhite := situation.Position().Turn() == octad.White
 	bestMoveEval := math.Inf(1)

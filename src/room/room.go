@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dechristopher/lioctad/lag"
 	"github.com/dechristopher/octad"
 	"github.com/looplab/fsm"
 
@@ -152,7 +153,6 @@ func (r *Instance) routine() {
 			r.handleGameOver()
 		case StateRoomOver:
 			// housekeeping items go here
-			// TODO redirect / notify players, etc.
 			r.handleRoomOver()
 			return
 		default:
@@ -277,13 +277,12 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 // CurrentGameStateMessage returns the octad position, marshalled as a move payload
 func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte {
 	curr := proto.MovePayload{
-		Clock:   r.currentClock(),
-		OFEN:    r.game.OFEN(),
-		MoveNum: len(r.game.Moves()) / 2,
-		Check:   r.game.Position().InCheck(),
-		Moves:   r.game.MoveHistory(),
-		// TODO calculate move processing latency (EWMA)
-		Latency:   0,
+		Clock:     r.currentClock(),
+		OFEN:      r.game.OFEN(),
+		MoveNum:   len(r.game.Moves()) / 2,
+		Check:     r.game.Position().InCheck(),
+		Moves:     r.game.MoveHistory(),
+		Latency:   clock.ToCTime(0),
 		White:     r.players[octad.White].ID,
 		Black:     r.players[octad.Black].ID,
 		GameStart: gameStart,
@@ -310,7 +309,7 @@ func (r *Instance) currentClock() proto.ClockPayload {
 		Control: r.game.Variant.Control.Time.Centi(),
 		Black:   state.BlackTime.Centi(),
 		White:   state.WhiteTime.Centi(),
-		Lag:     0,
+		Lag:     clock.ToCTime(lag.Move.Get()).Centi(),
 	}
 }
 

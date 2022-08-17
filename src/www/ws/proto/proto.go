@@ -3,6 +3,7 @@ package proto
 import (
 	"encoding/json"
 
+	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
 )
@@ -68,7 +69,7 @@ type MovePayload struct {
 	Check      bool                `json:"k,omitempty"`
 	Moves      []string            `json:"m,omitempty"`
 	ValidMoves map[string][]string `json:"v,omitempty"`
-	Latency    int                 `json:"l,omitempty"` // player latency indicator
+	Latency    clock.CTime         `json:"l,omitempty"` // player latency indicator
 	Ack        int                 `json:"a,omitempty"` // move ack from player
 	White      string              `json:"w,omitempty"` // white player id
 	Black      string              `json:"b,omitempty"` // black player id
@@ -91,7 +92,7 @@ type ClockPayload struct {
 	Control int64 `json:"tc"` // time control total time
 	Black   int64 `json:"b"`  // black clock in centi-seconds
 	White   int64 `json:"w"`  // white clock in centi-seconds
-	Lag     int   `json:"l"`  // internal server lag in ms
+	Lag     int64 `json:"l"`  // internal server lag in ms
 }
 
 // CrowdPayload contains data about connected players and spectator count

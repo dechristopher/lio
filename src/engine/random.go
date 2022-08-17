@@ -12,7 +12,7 @@ import (
 
 // randomMove is the root for the random move generator
 func randomMove(situation *octad.Game) MoveEval {
-	time.Sleep(clock.Centi * 5 * time.Duration(rand.Intn(50)))
+	time.Sleep(clock.Centisecond * 5 * time.Duration(rand.Intn(50)))
 
 	var bestMove MoveEval
 	moves := orderMoves(situation)

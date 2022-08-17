@@ -14,9 +14,14 @@ type CTime struct {
 	t time.Duration
 }
 
-// Centi returns the time left in centi-seconds
+// Centi returns the time in centi-seconds
 func (t CTime) Centi() int64 {
-	return int64(t.t / Centi)
+	return int64(t.t / Centisecond)
+}
+
+// Milli returns the time in milliseconds
+func (t CTime) Milli() int64 {
+	return int64(t.t / Millisecond)
 }
 
 // Add will return the sum of the two times
@@ -61,8 +66,11 @@ type TimeControl struct {
 	// TODO Bronstein delay?
 }
 
-// Centi represents one centi-second
-const Centi = time.Second / 100
+// Centisecond represents one centi-second
+const Centisecond = time.Second / 100
+
+// Millisecond represents one millisecond
+const Millisecond = time.Second / 1000
 
 // Command constant for clock operations
 type Command int
