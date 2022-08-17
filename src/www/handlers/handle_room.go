@@ -21,6 +21,11 @@ func RoomHandler(c *fiber.Ctx) error {
 
 	bid := c.Cookies("bid")
 
+	// turn away players with no bid set
+	if bid == "" {
+		return c.Redirect("/", fiber.StatusTemporaryRedirect)
+	}
+
 	// signal to room that this player is joining
 	isPlayer, isSpectator := roomInstance.Join(bid)
 
