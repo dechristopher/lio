@@ -246,6 +246,13 @@ const parseResponse = (raw) => {
 			document.getElementById("info").innerHTML = message.d.s;
 			notification.play();
 
+			// disallow further moves
+			og.set({
+				movable: {
+					dests: new Map()
+				}
+			})
+
 			// if room over, redirect home after a second
 			if (message.d.o === true) {
 				setTimeout(() => {

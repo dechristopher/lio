@@ -444,13 +444,13 @@ func (r *Instance) calcDepth(color octad.Color) int {
 
 	switch tc := r.game.Variant.Control.Time.Centi(); {
 	case tc >= 6000:
-		depth = 8
-	case tc >= 3000:
 		depth = 7
-	case tc >= 1500:
+	case tc >= 3000:
 		depth = 6
-	case tc >= 5:
+	case tc >= 1500:
 		depth = 5
+	case tc >= 5:
+		depth = 4
 	default:
 		depth = 4
 	}
