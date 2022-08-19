@@ -4,6 +4,7 @@ import (
 	"github.com/dechristopher/octad"
 
 	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lioctad/www/ws/proto"
 )
 
 // Players map for use anywhere two players compete
@@ -60,6 +61,14 @@ func (p Players) ScoreDraw() {
 	util.DoBothColors(func(c octad.Color) {
 		p[c].scoreHalf++
 	})
+}
+
+// ScoreMap returns a compatible ScorePayload map of the current player scores
+func (p Players) ScoreMap() proto.ScorePayload {
+	return proto.ScorePayload{
+		octad.White.String(): p[octad.White].Score(),
+		octad.Black.String(): p[octad.Black].Score(),
+	}
 }
 
 // GetBotColor returns the current color the bot is playing

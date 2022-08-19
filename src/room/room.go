@@ -285,6 +285,7 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 		Latency:   clock.ToCTime(0),
 		White:     r.players[octad.White].ID,
 		Black:     r.players[octad.Black].ID,
+		Score:     r.players.ScoreMap(),
 		GameStart: gameStart,
 	}
 
@@ -484,6 +485,7 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 		// broadcast game over message immediately
 		channel.Broadcast(r.gameOverMessage(abandoned), meta)
 
+		// keep track of match score
 		r.updateScore()
 
 		// record game result
@@ -723,6 +725,7 @@ func (r *Instance) gameOverMessage(abandoned bool) []byte {
 		StatusID: id,
 		Status:   status,
 		Clock:    r.currentClock(),
+		Score:    r.players.ScoreMap(),
 		RoomOver: abandoned,
 	}
 

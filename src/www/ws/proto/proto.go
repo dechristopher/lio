@@ -55,8 +55,10 @@ type OFENPayload struct {
 	GameID     string `json:"i"` // game id for routing message to board
 }
 
+type ScorePayload map[string]float64
+
 // MovePayloadVersion represents the current proto version of the MovePayload
-const MovePayloadVersion = 1
+const MovePayloadVersion = 2
 
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
@@ -69,10 +71,11 @@ type MovePayload struct {
 	Check      bool                `json:"k,omitempty"`
 	Moves      []string            `json:"m,omitempty"`
 	ValidMoves map[string][]string `json:"v,omitempty"`
-	Latency    clock.CTime         `json:"l,omitempty"` // player latency indicator
-	Ack        int                 `json:"a,omitempty"` // move ack from player
-	White      string              `json:"w,omitempty"` // white player id
-	Black      string              `json:"b,omitempty"` // black player id
+	Latency    clock.CTime         `json:"l,omitempty"`  // player latency indicator
+	Ack        int                 `json:"a,omitempty"`  // move ack from player
+	White      string              `json:"w,omitempty"`  // white player id
+	Black      string              `json:"b,omitempty"`  // black player id
+	Score      ScorePayload        `json:"sc,omitempty"` // match score
 	GameStart  bool                `json:"gs,omitempty"`
 }
 
@@ -108,6 +111,7 @@ type GameOverPayload struct {
 	StatusID int          `json:"i,omitempty"`
 	Status   string       `json:"s"`
 	Clock    ClockPayload `json:"c,omitempty"`
+	Score    ScorePayload `json:"sc,omitempty"`
 	RoomOver bool         `json:"o,omitempty"`
 }
 
