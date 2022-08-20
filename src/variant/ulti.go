@@ -8,9 +8,10 @@ import (
 
 // ZeroFiveUlti is the zero second, five second delay ulti variant
 var ZeroFiveUlti = Variant{
-	Name:    ":00 ~5",
-	Group:   UltiGroup,
-	Control: ZeroFiveUltiTC,
+	Name:     ":00 ~5",
+	HTMLName: "zero-five-ulti",
+	Group:    UltiGroup,
+	Control:  ZeroFiveUltiTC,
 }
 
 // ZeroFiveUltiTC is the zero second, five-second delay ulti time control

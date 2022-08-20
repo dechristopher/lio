@@ -8,9 +8,10 @@ import (
 
 // OneZeroRapid is the one minute, zero second increment rapid variant
 var OneZeroRapid = Variant{
-	Name:    "1 + 0",
-	Group:   RapidGroup,
-	Control: OneZeroRapidTC,
+	Name:     "1 + 0",
+	HTMLName: "one-zero-rapid",
+	Group:    RapidGroup,
+	Control:  OneZeroRapidTC,
 }
 
 // OneZeroRapidTC is the one minute, zero second increment rapid time control
@@ -21,9 +22,10 @@ var OneZeroRapidTC = clock.TimeControl{
 
 // OneTwoRapid is the one minute, two second increment rapid variant
 var OneTwoRapid = Variant{
-	Name:    "1 + 2",
-	Group:   RapidGroup,
-	Control: OneTwoRapidTC,
+	Name:     "1 + 2",
+	HTMLName: "one-two-rapid",
+	Group:    RapidGroup,
+	Control:  OneTwoRapidTC,
 }
 
 // OneTwoRapidTC is the one minute, two second increment rapid time control

@@ -8,9 +8,10 @@ import (
 
 // FiveZeroHyper is the five second, zero second increment hyper variant
 var FiveZeroHyper = Variant{
-	Name:    ":05 + 0",
-	Group:   HyperGroup,
-	Control: FiveZeroHyperTC,
+	Name:     ":05 + 0",
+	HTMLName: "five-zero-hyper",
+	Group:    HyperGroup,
+	Control:  FiveZeroHyperTC,
 }
 
 // FiveZeroHyperTC is the five second, zero second increment hyper time control
