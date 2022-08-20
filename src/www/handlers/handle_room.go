@@ -139,5 +139,6 @@ func NewRoomVsComputer(c *fiber.Ctx) error {
 		c:             c,
 		variant:       variant.HalfOneBlitz,
 		selectedColor: util.RandomColor(),
+		vsBot:         true,
 	})
 }
