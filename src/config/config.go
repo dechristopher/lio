@@ -30,7 +30,6 @@ var (
 
 	charset     = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789"
 	charsetFull = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-	seededRand  = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 // ReadSecretFallback attempts to read a secret from the secret
@@ -65,9 +64,9 @@ func GenerateCode(length int, useFullCharset bool) string {
 	for {
 		for i := range b {
 			if !useFullCharset {
-				b[i] = charset[seededRand.Intn(len(charset))]
+				b[i] = charset[rand.Intn(len(charset))]
 			} else {
-				b[i] = charsetFull[seededRand.Intn(len(charsetFull))]
+				b[i] = charsetFull[rand.Intn(len(charsetFull))]
 			}
 		}
 

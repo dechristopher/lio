@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"flag"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -48,6 +49,9 @@ func init() {
 		// print development mode warning
 		util.Debug(str.CMain, str.MDevMode)
 	}
+
+	// Seed PRNG
+	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 // main does the things
