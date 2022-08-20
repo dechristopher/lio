@@ -82,10 +82,11 @@
 		font-weight: 600;
 
 		cursor: pointer !important;
+		pointer-events: none;
 	}
 
-  .tc-select input:checked+label button,
-	.tc-box:hover {
+	.tc-select input:checked + label > button,
+  .tc-select input + label:hover > button {
 		background: #0bab7d;
 		color: #fff;
 	}
@@ -143,7 +144,8 @@
 				<div class="tc-select">
 					{{ range $pool, $tcs := .Data.Pools }}
 					{{ range $tcs }}
-					<input id="{{ .HTMLName }}" type="radio" class="tc-input" name="time-control" value="{{ .HTMLName }}"/>
+					<input id="{{ .HTMLName }}" type="radio" class="tc-input"
+								 name="time-control" value="{{ .HTMLName }}" required/>
 					<label for="{{ .HTMLName }}">
 						<button type="button" class="tc-box libtn">
 							<span class="tc-name">{{ .Name }}</span>
