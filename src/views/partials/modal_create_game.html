@@ -46,8 +46,26 @@
 		cursor: pointer;
 	}
 
+	.tc-select {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+
+		padding: 6px;
+
+		background: #f1d8b8;
+		border-top: 1px solid #8c6d54;
+		border-bottom: 1px solid #8c6d54;
+	}
+
+	.tc-select input {
+		position: absolute;
+		left: -99999px;
+	}
+
 	.tc-box {
-		width: 28%;
+		width: 64px;
 		height: 4.5em !important;
 		margin: 4px !important;
 		padding: 2px !important;
@@ -66,21 +84,8 @@
 		cursor: pointer !important;
 	}
 
-	.tc-select {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: center;
-
-		padding: 6px;
-
-		background: #f1d8b8;
-		border-top: 1px solid #8c6d54;
-		border-bottom: 1px solid #8c6d54;
-	}
-
-	.tc-box:hover,
-	.tc-box:focus {
+  .tc-select input:checked+label button,
+	.tc-box:hover {
 		background: #0bab7d;
 		color: #fff;
 	}
@@ -121,11 +126,11 @@
 	}
 
 	.bk {
-	  background-image: url('/res/img/cburnett/bK.svg');
+		background-image: url('/res/img/cburnett/bK.svg');
 	}
 
 	.random {
-	  background-image: url('/res/img/cburnett/wbK.svg');
+		background-image: url('/res/img/cburnett/wbK.svg');
 	}
 
 </style>
@@ -138,10 +143,13 @@
 				<div class="tc-select">
 					{{ range $pool, $tcs := .Data.Pools }}
 					{{ range $tcs }}
-					<button class="tc-box libtn">
-						<span class="tc-name">{{ .Name }}</span>
-						<span class="tc-pool">{{ $pool }}</span>
-					</button>
+					<input id="{{ .HTMLName }}" type="radio" class="tc-input" name="time-control" value="{{ .HTMLName }}"/>
+					<label for="{{ .HTMLName }}">
+						<button type="button" class="tc-box libtn">
+							<span class="tc-name">{{ .Name }}</span>
+							<span class="tc-pool">{{ $pool }}</span>
+						</button>
+					</label>
 					{{ end }}
 					{{ end }}
 				</div>
