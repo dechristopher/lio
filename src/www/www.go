@@ -130,7 +130,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	r.Get("/:id", handlers.RoomHandler)
 
 	// new room creation routes
-	r.Get("/new/human", handlers.NewRoomHumanHandler)
+	r.Post("/new/human", handlers.NewRoomHumanHandler)
 	r.Get("/new/computer", handlers.NewRoomComputerHandler)
 
 	// return static index.html for all other paths and let
