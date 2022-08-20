@@ -17,10 +17,10 @@ var RatingPools = map[variant.Group][]variant.Variant{
 		variant.OneZeroRapid,
 		variant.OneTwoRapid,
 	},
-	variant.HyperGroup: {
-		variant.FiveZeroHyper,
-	},
-	variant.UltiGroup: {
-		variant.ZeroFiveUlti,
-	},
+	//variant.HyperGroup: {
+	//	variant.FiveZeroHyper,
+	//},
+	//variant.UltiGroup: {
+	//	variant.ZeroFiveUlti,
+	//},
 }

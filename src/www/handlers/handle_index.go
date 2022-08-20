@@ -6,15 +6,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/dechristopher/lioctad/env"
+	"github.com/dechristopher/lioctad/pools"
 	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lioctad/variant"
 )
 
 var cachedIndex []byte
 
+type indexData struct {
+	Pools map[variant.Group][]variant.Variant
+}
+
 // IndexHandler executes the home page template
 func IndexHandler(c *fiber.Ctx) error {
 	return util.HandleTemplate(c, "index",
-		"Free Online Octad", nil, 200)
+		"Free Online Octad", indexData{
+			Pools: pools.RatingPools,
+		}, 200)
 }
 
 // SPAHandlerInit creates the SPA handler to serve index.html for all
