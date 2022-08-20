@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"math/rand"
-
 	"github.com/dechristopher/octad"
 	"github.com/gofiber/fiber/v2"
 
@@ -14,6 +12,13 @@ import (
 	"github.com/dechristopher/lioctad/util"
 	"github.com/dechristopher/lioctad/variant"
 )
+
+type NewRoomPayload struct {
+	c             *fiber.Ctx
+	variant       variant.Variant
+	selectedColor octad.Color
+	vsBot         bool
+}
 
 // RoomHandler executes the room page template
 func RoomHandler(c *fiber.Ctx) error {
@@ -51,8 +56,16 @@ func RoomHandler(c *fiber.Ctx) error {
 	}
 }
 
-func NewRoomHumanHandler(c *fiber.Ctx) error {
-	bid := c.Cookies("bid")
+func NewQuickRoomVsHuman(c *fiber.Ctx) error {
+	return NewRoom(NewRoomPayload{
+		c:             c,
+		variant:       variant.HalfOneBlitz,
+		selectedColor: util.RandomColor(),
+	})
+}
+
+func NewCustomRoomVsHuman(c *fiber.Ctx) error {
+
 	selectedColor := octad.White
 
 	payload := struct {
@@ -76,70 +89,55 @@ func NewRoomHumanHandler(c *fiber.Ctx) error {
 	} else if payload.Color == "b" {
 		selectedColor = octad.Black
 	} else if payload.Color == "r" {
-		randIndex := rand.Float32()
-
-		if randIndex > 0.5 {
-			selectedColor = octad.White
-		} else {
-			selectedColor = octad.Black
-		}
+		selectedColor = util.RandomColor()
 	} else {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid color selected")
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
+	return NewRoom(NewRoomPayload{
+		c:             c,
+		variant:       selectedVariant,
+		selectedColor: selectedColor,
+	})
+}
+
+func NewRoom(payload NewRoomPayload) error {
+	bid := payload.c.Cookies("bid")
 	params := room.Params{
 		Players: make(player.Players),
 		GameConfig: game.OctadGameConfig{
-			Variant: selectedVariant,
+			Variant: payload.variant,
 		},
 	}
-
-	params.Players[selectedColor] = &player.Player{
+	params.Players[payload.selectedColor] = &player.Player{
 		ID: bid,
 	}
 
 	// configure room with player to join via URL
 	toJoin := player.ToJoin
-	params.Players[selectedColor.Other()] = &toJoin
+	params.Players[payload.selectedColor.Other()] = &toJoin
+
+	if payload.vsBot {
+		params.Players[payload.selectedColor.Other()].IsBot = true
+	}
 
 	instance, err := room.Create(params)
 
 	if err != nil {
-		util.Error(str.CRoom, "failed to create room via human handler: %s", err.Error())
-		return c.Redirect("/", fiber.StatusTemporaryRedirect)
+		util.Error(str.CRoom, "failed to create room: %s", err.Error())
+		return payload.c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
-	util.Info(str.CRoom, "user %s created room %s vs human", bid, instance.ID)
+	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", bid, instance.ID, payload.vsBot)
 
-	return c.Redirect("/" + instance.ID)
+	return payload.c.Redirect("/" + instance.ID)
 }
 
-func NewRoomComputerHandler(c *fiber.Ctx) error {
-	bid := c.Cookies("bid")
-
-	params := room.Params{
-		Players: make(player.Players),
-		GameConfig: game.OctadGameConfig{
-			Variant: variant.HalfOneBlitz,
-		},
-	}
-
-	params.Players[octad.White] = &player.Player{
-		ID: bid,
-	}
-
-	params.Players[octad.Black] = &player.Player{
-		IsBot: true,
-	}
-
-	instance, err := room.Create(params)
-	if err != nil {
-		util.Error(str.CRoom, "failed to create room via computer handler: %s", err.Error())
-		return c.Redirect("/", fiber.StatusTemporaryRedirect)
-	}
-
-	util.Info(str.CRoom, "user %s created room %s vs computer", bid, instance.ID)
-
-	return c.Redirect("/" + instance.ID)
+func NewRoomVsComputer(c *fiber.Ctx) error {
+	return NewRoom(NewRoomPayload{
+		c:             c,
+		variant:       variant.HalfOneBlitz,
+		selectedColor: util.RandomColor(),
+	})
 }
