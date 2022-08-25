@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/dechristopher/octad v1.0.9
+	github.com/dechristopher/octad v1.0.10
 	github.com/gofiber/fiber/v2 v2.36.0
 	github.com/gofiber/template v1.6.30
 	github.com/gofiber/websocket/v2 v2.0.24

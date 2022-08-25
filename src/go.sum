@@ -105,6 +105,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dechristopher/octad v1.0.9 h1:yX3RTlZuWHjVfOw8jN8nVeUFa5uPyFdodEsGcq7P2UE=
 github.com/dechristopher/octad v1.0.9/go.mod h1:TEnNh6nJ3XIVDjZH1NBK/E+cbjAcQpduCj7WYbBnTWc=
+github.com/dechristopher/octad v1.0.10 h1:WO66Hxcqp3CZLpFCUVy6M8VMvPNlQzOKtLQyullHIHM=
+github.com/dechristopher/octad v1.0.10/go.mod h1:0BTzcHBwwnz3rjD1v8qLdy5iAZNqmKfSUhczkab7Z+Y=
 github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385/go.mod h1:0vRUJqYpeSZifjYj7uP3BG/gKcuzL9xWVV/Y+cK33KM=

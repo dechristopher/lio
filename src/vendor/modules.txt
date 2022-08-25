@@ -4,8 +4,8 @@ github.com/andybalholm/brotli
 # github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 ## explicit
 github.com/asaskevich/EventBus
-# github.com/dechristopher/octad v1.0.9
-## explicit; go 1.15
+# github.com/dechristopher/octad v1.0.10
+## explicit; go 1.19
 github.com/dechristopher/octad
 # github.com/dustin/go-humanize v1.0.0
 ## explicit
