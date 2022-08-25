@@ -86,7 +86,7 @@ func Create(params Params) (*Instance, error) {
 	}
 
 	r := &Instance{
-		ID:           config.GenerateCode(7, true),
+		ID:           config.GenerateCode(7, config.Base58),
 		stateMachine: newStateMachine(),
 		params:       params,
 

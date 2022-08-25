@@ -11,6 +11,13 @@ import (
 	"github.com/dechristopher/lioctad/env"
 )
 
+type Charset int
+
+const (
+	Hex Charset = iota
+	Base58
+)
+
 var (
 	// Version of lio
 	Version = "v0.5.1"
@@ -21,15 +28,15 @@ var (
 	// CacheKey that is injected into static asset URLs to bust
 	// the cache between deploys of the site
 	CacheKey = fmt.Sprintf(".%s",
-		GenerateCode(7, true))
+		GenerateCode(7, Base58))
 
 	// DebugFlagPtr contains raw debug flags direct from STDIN
 	DebugFlagPtr *string
 	// DebugFlags holds all active, parsed debug flags
 	DebugFlags = make(map[string]bool)
 
-	charset     = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789"
-	charsetFull = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+	charsetHex    = "abcdef01234567890"
+	charsetBase58 = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"
 )
 
 // ReadSecretFallback attempts to read a secret from the secret
@@ -59,14 +66,23 @@ func ReadSecret(name string) (string, error) {
 }
 
 // GenerateCode generates an N character sequence with naughty safety baked in
-func GenerateCode(length int, useFullCharset bool) string {
+func GenerateCode(length int, charset ...Charset) string {
 	b := make([]byte, length)
+	var cs Charset
+
+	if charset == nil || len(charset) == 0 {
+		cs = Base58
+	} else {
+		cs = charset[0]
+	}
+
 	for {
 		for i := range b {
-			if !useFullCharset {
-				b[i] = charset[rand.Intn(len(charset))]
-			} else {
-				b[i] = charsetFull[rand.Intn(len(charsetFull))]
+			switch cs {
+			case Hex:
+				b[i] = charsetHex[rand.Intn(len(charsetHex))]
+			case Base58:
+				b[i] = charsetBase58[rand.Intn(len(charsetBase58))]
 			}
 		}
 

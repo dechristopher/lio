@@ -59,7 +59,7 @@ func Wire(r fiber.Router, static http.FileSystem) {
 		if c.Cookies("bid") == "" {
 			c.Cookie(&fiber.Cookie{
 				Name:     "bid",
-				Value:    config.GenerateCode(16, true),
+				Value:    config.GenerateCode(16, config.Base58),
 				Path:     "/",
 				Domain:   "",
 				MaxAge:   0,
