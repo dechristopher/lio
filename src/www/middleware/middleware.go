@@ -16,11 +16,11 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-const logFormatProd = "${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
+const logFormatProd = "[${cookie:bid}] ${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency} \"${referrer}\" \"${ua}\"\n"
 
-const logFormatDev = "${ip} [${time}] \"${method} ${path} ${protocol}\" " +
+const logFormatDev = "[${cookie:bid}] ${ip} [${time}] \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency}\n"
 
 // Wire attaches all middleware to the given router
