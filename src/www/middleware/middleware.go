@@ -50,7 +50,7 @@ func Wire(r fiber.Router, static http.FileSystem) {
 	// Serve static files from /static preventing directory listings
 	r.Use(filesystem.New(filesystem.Config{
 		Root:   strictFs{static},
-		MaxAge: 86400,
+		MaxAge: 86400 * 30,
 	}))
 
 	// set browser id cookie
