@@ -6,8 +6,8 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/pkg/errors"
 
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // colorMulti is a negation constant map used in negamax

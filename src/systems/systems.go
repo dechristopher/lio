@@ -3,14 +3,14 @@ package systems
 import (
 	"time"
 
-	"github.com/dechristopher/lioctad/bus"
-	"github.com/dechristopher/lioctad/clock"
-	"github.com/dechristopher/lioctad/dispatch"
-	"github.com/dechristopher/lioctad/engine"
-	"github.com/dechristopher/lioctad/game"
-	"github.com/dechristopher/lioctad/store"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/bus"
+	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/dispatch"
+	"github.com/dechristopher/lio/engine"
+	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/store"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 var pub *bus.Publisher

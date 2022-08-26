@@ -3,7 +3,7 @@ package variant
 import (
 	"time"
 
-	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lio/clock"
 )
 
 // FiveZeroHyper is the five second, zero second increment hyper variant

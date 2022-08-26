@@ -3,9 +3,9 @@ package proto
 import (
 	"encoding/json"
 
-	"github.com/dechristopher/lioctad/clock"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // PayloadTag defines the message payload data type

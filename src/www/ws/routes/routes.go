@@ -1,9 +1,9 @@
 package routes
 
 import (
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/www/ws/handlers"
-	"github.com/dechristopher/lioctad/www/ws/proto"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/www/ws/handlers"
+	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // wsRoutes is a type that tracks websocket handlers and the

@@ -5,11 +5,11 @@ import (
 
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/clock"
-	"github.com/dechristopher/lioctad/lag"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/lag"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // handleGameOngoing handles moves, player controls, and flag detection

@@ -6,7 +6,7 @@ import (
 
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/bus"
+	"github.com/dechristopher/lio/bus"
 )
 
 // Channel is the engine monitoring bus channel

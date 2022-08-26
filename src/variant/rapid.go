@@ -3,7 +3,7 @@ package variant
 import (
 	"time"
 
-	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lio/clock"
 )
 
 // OneZeroRapid is the one minute, zero second increment rapid variant

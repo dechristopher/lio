@@ -6,8 +6,8 @@ import (
 
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/bus"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/bus"
+	"github.com/dechristopher/lio/util"
 )
 
 // MoveEval contains the best move and the evaluation of the best sequence

@@ -3,8 +3,8 @@ package channel
 import (
 	"errors"
 
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // Unicast sends an ad-hoc message to the channel and socket that

@@ -3,7 +3,7 @@ package variant
 import (
 	"time"
 
-	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lio/clock"
 )
 
 // QuarterZeroBullet is the 15 second, zero second increment bullet variant

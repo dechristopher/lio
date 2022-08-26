@@ -4,13 +4,13 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/game"
-	"github.com/dechristopher/lioctad/player"
-	"github.com/dechristopher/lioctad/pools"
-	"github.com/dechristopher/lioctad/room"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/lioctad/variant"
+	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/player"
+	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/room"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/variant"
 )
 
 type NewRoomPayload struct {

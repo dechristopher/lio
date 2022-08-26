@@ -3,8 +3,8 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/util"
 )
 
 type status struct {

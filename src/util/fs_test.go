@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dechristopher/lioctad/env"
+	"github.com/dechristopher/lio/env"
 )
 
 //go:embed data/*

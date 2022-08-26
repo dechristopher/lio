@@ -3,8 +3,8 @@ package room
 import (
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/www/ws/proto"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // handleGameOver handles room finalization and player notification

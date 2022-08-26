@@ -1,6 +1,6 @@
 package pools
 
-import "github.com/dechristopher/lioctad/variant"
+import "github.com/dechristopher/lio/variant"
 
 var Map map[string]variant.Variant
 

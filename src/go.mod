@@ -1,4 +1,4 @@
-module github.com/dechristopher/lioctad
+module github.com/dechristopher/lio
 
 go 1.19
 

@@ -5,11 +5,11 @@ import (
 
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/game"
-	"github.com/dechristopher/lioctad/message"
-	"github.com/dechristopher/lioctad/player"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/player"
+	"github.com/dechristopher/lio/util"
 )
 
 // handleGameOver handles game finalization and rematch prompts

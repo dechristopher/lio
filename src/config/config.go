@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dechristopher/lioctad/env"
+	"github.com/dechristopher/lio/env"
 )
 
 type Charset int

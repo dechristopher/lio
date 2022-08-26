@@ -3,9 +3,9 @@ package room
 import (
 	"time"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // handle waiting for players period

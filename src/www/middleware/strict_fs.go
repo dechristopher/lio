@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // strictFs is a Custom strict filesystem implementation to

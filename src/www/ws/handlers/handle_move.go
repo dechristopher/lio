@@ -3,14 +3,14 @@ package handlers
 import (
 	"encoding/json"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/message"
-	"github.com/dechristopher/lioctad/room"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/room"
 	"github.com/valyala/fastjson"
 
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/lioctad/www/ws/proto"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // HandleMove processes game update messages

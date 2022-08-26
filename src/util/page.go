@@ -3,8 +3,8 @@ package util
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/env"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
 )
 
 // HandleTemplate will execute the http template engine

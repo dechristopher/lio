@@ -3,7 +3,7 @@ package pools
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/pools"
+	"github.com/dechristopher/lio/pools"
 )
 
 // RatingPoolsHandler returns a list of all active rating

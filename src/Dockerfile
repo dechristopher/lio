@@ -4,7 +4,8 @@ FROM golang:1.19.0-alpine3.16 AS build
 WORKDIR /build
 COPY . .
 
-RUN CGO_ENABLED=0 go build -v -trimpath -o lioctad
+WORKDIR cmd/lio
+RUN CGO_ENABLED=0 go build -v -trimpath -o lio
 
 # final packaging
 FROM golang:1.19.0-alpine3.16
@@ -13,7 +14,7 @@ FROM golang:1.19.0-alpine3.16
 RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
 
 WORKDIR /
-COPY --from=build /build/lioctad lioctad
+COPY --from=build /build/cmd/lio/lio lio
 
 EXPOSE 4444
-ENTRYPOINT ["/lioctad", "--debug", "room,dispatch,clock"]
+ENTRYPOINT ["/lio", "--debug", "room,dispatch,clock"]

@@ -13,14 +13,14 @@ import (
 	"github.com/gofiber/template/html"
 	"github.com/gofiber/websocket/v2"
 
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/lioctad/www/handlers"
-	"github.com/dechristopher/lioctad/www/handlers/api"
-	"github.com/dechristopher/lioctad/www/middleware"
-	"github.com/dechristopher/lioctad/www/ws"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/www/handlers"
+	"github.com/dechristopher/lio/www/handlers/api"
+	"github.com/dechristopher/lio/www/middleware"
+	"github.com/dechristopher/lio/www/ws"
 )
 
 var (

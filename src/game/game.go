@@ -7,9 +7,9 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/google/uuid"
 
-	"github.com/dechristopher/lioctad/bus"
-	"github.com/dechristopher/lioctad/clock"
-	"github.com/dechristopher/lioctad/variant"
+	"github.com/dechristopher/lio/bus"
+	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/variant"
 )
 
 // Channel is the engine monitoring bus channel

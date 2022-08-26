@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/util"
 	"github.com/gofiber/fiber/v2"
 )
 

@@ -3,8 +3,8 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/www/handlers/api/pools"
-	"github.com/dechristopher/lioctad/www/handlers/api/stats"
+	"github.com/dechristopher/lio/www/handlers/api/pools"
+	"github.com/dechristopher/lio/www/handlers/api/stats"
 )
 
 // Wire up all the API handlers to the /api router

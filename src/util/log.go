@@ -6,9 +6,9 @@ import (
 	"log"
 	"strings"
 
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/str"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/str"
 )
 
 // LogMessage is a json struct used for non-stdout log messages

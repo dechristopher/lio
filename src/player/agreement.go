@@ -3,7 +3,7 @@ package player
 import (
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/util"
 )
 
 // Agreement between two players

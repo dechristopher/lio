@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/room"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/room"
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/util"
 )
 
 const memDur = 10

@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"github.com/dechristopher/lioctad/channel"
+	"github.com/dechristopher/lio/channel"
 )
 
 // Marshal fully JSON marshals the CrowdPayload and

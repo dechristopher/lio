@@ -1,8 +1,8 @@
 package message
 
 import (
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/www/ws/proto"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 type RoomTemplatePayload struct {

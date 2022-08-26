@@ -1,7 +1,7 @@
 package game
 
 import (
-	"github.com/dechristopher/lioctad/variant"
+	"github.com/dechristopher/lio/variant"
 )
 
 // OctadGameConfig is used to configure a new game

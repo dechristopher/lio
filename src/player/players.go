@@ -3,8 +3,8 @@ package player
 import (
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/lioctad/www/ws/proto"
+	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // Players map for use anywhere two players compete

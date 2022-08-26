@@ -5,10 +5,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/pools"
-	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/lioctad/variant"
+	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/variant"
 )
 
 var cachedIndex []byte

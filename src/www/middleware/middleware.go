@@ -11,9 +11,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/util"
 )
 
 const logFormatProd = "[${cookie:bid}] ${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +

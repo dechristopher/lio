@@ -16,10 +16,10 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.18
+        go-version: 1.19
 
     - name: Build
-      run: cd src && go build -v ./...
+      run: cd src/cmd/lio && go build -v -o lio
 
     - name: Test
       run: cd src && go test -parallel 4 -shuffle on -race -v ./...

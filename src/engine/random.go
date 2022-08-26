@@ -4,9 +4,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/dechristopher/lioctad/clock"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/octad"
 )
 

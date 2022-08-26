@@ -3,7 +3,7 @@ package variant
 import (
 	"time"
 
-	"github.com/dechristopher/lioctad/clock"
+	"github.com/dechristopher/lio/clock"
 )
 
 // ZeroFiveUlti is the zero second, five second delay ulti variant

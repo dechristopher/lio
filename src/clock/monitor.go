@@ -1,9 +1,9 @@
 package clock
 
 import (
-	"github.com/dechristopher/lioctad/bus"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
+	"github.com/dechristopher/lio/bus"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 // MonitorSub creates the clock monitoring subscription

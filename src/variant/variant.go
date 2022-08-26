@@ -1,6 +1,6 @@
 package variant
 
-import "github.com/dechristopher/lioctad/clock"
+import "github.com/dechristopher/lio/clock"
 
 // Variant represents a timed octad variant
 type Variant struct {

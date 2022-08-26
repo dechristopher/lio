@@ -6,7 +6,7 @@ import (
 
 	"github.com/dechristopher/octad"
 
-	"github.com/dechristopher/lioctad/config"
+	"github.com/dechristopher/lio/config"
 )
 
 // DoBothColors runs the given function on both colors

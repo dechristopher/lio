@@ -8,14 +8,14 @@ import (
 	"github.com/gofiber/websocket/v2"
 	"github.com/valyala/fastjson"
 
-	"github.com/dechristopher/lioctad/channel"
-	"github.com/dechristopher/lioctad/config"
-	"github.com/dechristopher/lioctad/env"
-	"github.com/dechristopher/lioctad/room"
-	"github.com/dechristopher/lioctad/str"
-	"github.com/dechristopher/lioctad/util"
-	"github.com/dechristopher/lioctad/www/ws/proto"
-	"github.com/dechristopher/lioctad/www/ws/routes"
+	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/room"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/www/ws/proto"
+	"github.com/dechristopher/lio/www/ws/routes"
 )
 
 // UpgradeHandler catches anything under /ws/** and allows
