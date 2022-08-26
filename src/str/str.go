@@ -1,8 +1,5 @@
 package str
 
-// CPadding is the current max caller padding, dynamically increased
-var CPadding = 0
-
 // Flags, log formats and miscellaneous strings
 const (
 	FHealth      = "health"

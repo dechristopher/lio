@@ -6,13 +6,8 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-// init the game monitoring
-func init() {
-	go monitorSub()
-}
-
-// monitorSub creates the game monitoring subscription
-func monitorSub() {
+// MonitorSub creates the game monitoring subscription
+func MonitorSub() {
 	err := Channel.Subscribe(monitorGame)
 	if err != nil {
 		panic(err)

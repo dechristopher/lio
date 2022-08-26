@@ -4,7 +4,10 @@ import (
 	"time"
 
 	"github.com/dechristopher/lioctad/bus"
+	"github.com/dechristopher/lioctad/clock"
 	"github.com/dechristopher/lioctad/dispatch"
+	"github.com/dechristopher/lioctad/engine"
+	"github.com/dechristopher/lioctad/game"
 	"github.com/dechristopher/lioctad/store"
 	"github.com/dechristopher/lioctad/str"
 	"github.com/dechristopher/lioctad/util"
@@ -25,13 +28,16 @@ var Initializers = []func(){
 	bus.Up,
 	store.Up,
 	dispatch.UpEngine,
+	engine.MonitorSub,
+	clock.MonitorSub,
+	game.MonitorSub,
 	Up,
 }
 
 // Run all the subsystem initializer functions
 func Run() {
-	for _, i := range Initializers {
-		go i()
+	for i := range Initializers {
+		Initializers[i]()
 	}
 	err := bus.SystemChannel.SubscribeOnce(func(e bus.Event) {
 		util.Debug(str.CBus, str.DBusOk)

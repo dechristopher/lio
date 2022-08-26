@@ -6,13 +6,8 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-// init the engine monitoring
-func init() {
-	go monitorSub()
-}
-
-// monitorSub creates the engine monitoring subscription
-func monitorSub() {
+// MonitorSub creates the engine monitoring subscription
+func MonitorSub() {
 	err := Channel.Subscribe(monitorEngine)
 	if err != nil {
 		panic(err)

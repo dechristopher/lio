@@ -6,13 +6,8 @@ import (
 	"github.com/dechristopher/lioctad/util"
 )
 
-// init the clock monitor
-func init() {
-	go monitorSub()
-}
-
-// monitorSub creates the clock monitoring subscription
-func monitorSub() {
+// MonitorSub creates the clock monitoring subscription
+func MonitorSub() {
 	err := Channel.Subscribe(monitorClock)
 	if err != nil {
 		panic(err)

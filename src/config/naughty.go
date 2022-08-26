@@ -9,21 +9,9 @@ import (
 var (
 	//go:embed data/naughty.txt
 	naughtyFile string
-)
 
-var (
 	naughty []string
 )
-
-func init() {
-	go loadNaughtyAsync()
-}
-
-// loadNaughtyAsync runs the loadNaughty function,
-// but it should be called asynchronously on init
-func loadNaughtyAsync() {
-	naughty = loadNaughty()
-}
 
 // loadNaughty loads the naughty list on boot
 func loadNaughty() []string {
@@ -37,6 +25,13 @@ func loadNaughty() []string {
 
 // Naughty returns whether a given word or phrase is appropriate
 func Naughty(in string) bool {
+	if len(naughty) == 0 {
+		naughty = loadNaughty()
+		if len(naughty) == 0 {
+			panic("naughty list missing")
+		}
+	}
+
 	check := strings.ToLower(in)
 	for _, word := range naughty {
 		if word == check {
