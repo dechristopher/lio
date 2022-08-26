@@ -3,8 +3,10 @@ name: LIO Build/Test
 on:
   push:
     branches: [ master ]
+    paths: [ 'src/**/*.go', 'src/go.*', 'src/vendor/**' ]
   pull_request:
     branches: [ '*' ]
+    paths: [ 'src/**/*.go', 'src/go.*', 'src/vendor/**' ]
 
 jobs:
 
