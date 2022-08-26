@@ -5,7 +5,7 @@
 Lioctad (li[bre] octad) is a free online octad game server focused on
 [realtime](https://lioctad.org/games) gameplay and ease of use.
 
-Lioctad is written in Go 1.18 using Go Fiber and React 17 with Redux. Go
+Lioctad is written in Go 1.19 using Go Fiber and React 17 with Redux. Go
 templates are used for templating. Pure octad logic is contained in the
 [octad](https://github.com/dechristopher/octad) library. The server is fully
 asynchronous, making heavy use of Go routines. WebSocket connections are handled
