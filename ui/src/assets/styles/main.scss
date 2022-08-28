@@ -1,9 +1,5 @@
-@import '~normalize.css/normalize.css';
-@import './Select.scss';
-@import './loading-spinner.scss';
-@import './Tooltip.scss';
-
-@import './components/progress-bar';
+@import url("components/button.scss");
+@import url("components/chin.scss");
 
 @tailwind base;
 @tailwind components;
@@ -23,4 +19,6 @@ code {
 
 html, body {
   @apply bg-gray-100;
+  background-color: #f1d8b8;
+  display: flex;
 }

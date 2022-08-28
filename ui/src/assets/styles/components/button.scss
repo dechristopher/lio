@@ -1,0 +1,68 @@
+.quick_game_button_group {
+  margin: 0 12px 12px 12px;
+}
+
+.libtn {
+  align-items: center;
+  background-color: #FFFFDF;
+  border-radius: .25rem;
+  box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+  box-sizing: border-box;
+  color: rgba(0, 0, 0, 0.85);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: system-ui, -apple-system, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  justify-content: center;
+  line-height: 1.25;
+  margin: 0;
+  min-height: 3rem;
+  padding: calc(.175rem - 1px) calc(.8rem - 1px);
+  position: relative;
+  text-decoration: none;
+  transition: all 250ms;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  vertical-align: baseline;
+  width: auto;
+  border-width: 2px;
+  border-width: 2px;
+  border-top-color: #767676;
+  border-left-color: #767676;
+  border-bottom-color: #212121;
+  border-right-color: #212121;
+}
+
+.libtn:hover,
+.libtn:focus,
+.tc-select input + label:hover > button {
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.libtn:hover,
+.tc-select input + label:hover > button {
+  transform: translateY(-1px);
+}
+
+.libtn:active {
+  background-color: #F0F0F1;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
+  color: rgba(0, 0, 0, 0.65);
+  transform: translateY(0);
+}
+
+.cgbtn-container {
+  padding: 12px 0 8px 0;
+  border-top: 2px solid #222;
+}
+
+.cgbtn {
+  font-family: 'Noto Sans', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 15.5px !important;
+}
