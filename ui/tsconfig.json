@@ -42,22 +42,21 @@
      "moduleResolution": "node",              /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
      "baseUrl": "./",                         /* Base directory to resolve non-absolute module names. */
     /* A series of entries which re-map imports to lookup locations relative to the 'baseUrl'. */
-     "paths": {
-       "@/*": ["./*"],
-       "@app/*": ["./src/app/*"],
-       "@appv2/*": ["./src/appv2/*"],
-       "@assets/*": ["./src/assets/*"],
-       "@utils/*": ["./src/utils/*"],
-       "@app:components/*": ["./src/app/components/*"],
-       "@app:containers/*": ["./src/app/containers/*"],
-       "@app:views/*": ["./src/app/views/*"],
-       "@components/*": ["./src/components/*"]
-     },
+    "paths": {
+      "@/*": ["./*"],
+      "@app/*": ["./src/app/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@app:components/*": ["./src/app/components/*"],
+      "@app:containers/*": ["./src/app/containers/*"],
+      "@app:views/*": ["./src/app/views/*"],
+      "@components/*": ["./src/components/*"]
+    },
     // "rootDirs": [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */
 
     /* List of folders to include type definitions from. */
-     "typeRoots": ["./node_modules/@types", "./src/@types"],
-    // "types": [],                           /* Type declaration files to be included in compilation. */
+    "typeRoots": ["./node_modules/@types", "./src/@types"],
+    "types": [ "node" ],                           /* Type declaration files to be included in compilation. */
      "allowSyntheticDefaultImports": true,    /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
      "esModuleInterop": true,                 /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
     // "preserveSymlinks": true,              /* Do not resolve the real path of symlinks. */

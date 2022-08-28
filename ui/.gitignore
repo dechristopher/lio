@@ -5,3 +5,12 @@ coverage/**
 webpack.config.parsed.json
 
 .DS_Store
+
+# Taken from here https://yarnpkg.com/getting-started/qa#which-files-should-be-gitignored
+.yarn/*
+!.yarn/cache
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

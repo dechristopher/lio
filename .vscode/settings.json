@@ -1,0 +1,15 @@
+{
+  "search.exclude": {
+    "**/.yarn": true,
+    "**/.pnp.*": true
+  },
+  "eslint.nodePath": "./ui/.yarn/sdks",
+  "prettier.prettierPath": "./ui/.yarn/sdks/prettier/index.js",
+  "typescript.tsdk": "./ui/.yarn/sdks/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "editor.formatOnSave": true,
+  "cSpell.words": [
+    "centi",
+    "OFEN"
+  ]
+}
