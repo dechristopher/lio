@@ -9,6 +9,7 @@
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "editor.formatOnSave": true,
   "cSpell.words": [
+    "adless",
     "centi",
     "Dechristopher",
     "headlessui",
