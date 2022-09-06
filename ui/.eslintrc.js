@@ -1,16 +1,19 @@
 module.exports = {
-    parser: '@typescript-eslint/parser', // Specifies the ESLint parser
+    parser: '@typescript-eslint/parser',
     plugins: ['@typescript-eslint', 'react', "jsdoc"],
     env: {
         browser: true,
         jest: true,
     },
     extends: [
-        'plugin:@typescript-eslint/recommended', // Uses the recommended rules from the @typescript-eslint/eslint-plugin,
-        'plugin:react/recommended'
+        'plugin:eslint:recommended',
+        'plugin:@typescript-eslint/recommended',
+        'plugin:@typescript-eslint/recommended-requiring-type-checking',
+        'plugin:react/recommended',
     ],
     parserOptions: {
         tsconfigRootDir: __dirname,
+        project: ['./tsconfig.json'],
         ecmaVersion: 2018, // Allows for the parsing of modern ECMAScript features
         sourceType: 'module', // Allows for the use of imports
         ecmaFeatures: {
@@ -18,8 +21,6 @@ module.exports = {
         },
     },
     rules: {
-        // Place to specify ESLint rules. Can be used to overwrite rules specified from the extended configs
-        // e.g. "@typescript-eslint/explicit-function-return-type": "off",
         '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
         '@typescript-eslint/ban-ts-comment': 'off',
@@ -28,7 +29,6 @@ module.exports = {
         'react/no-deprecated': 'off',
         'react/no-string-refs': 'off',
         'react/require-render-return': 'off',
-
         'react/jsx-filename-extension': [
             'warn',
             {
@@ -61,7 +61,6 @@ module.exports = {
         "jsdoc/require-example": 0,
         "jsdoc/require-file-overview": 0,
         "jsdoc/require-hyphen-before-param-description": 1,
-        "jsdoc/require-jsdoc": 1, // Recommended
         "jsdoc/require-param": 1, // Recommended
         "jsdoc/require-param-description": 1, // Recommended
         "jsdoc/require-param-name": 1, // Recommended
@@ -77,11 +76,25 @@ module.exports = {
         "jsdoc/require-throws": 1,
         "jsdoc/require-yields": 1, // Recommended
         "jsdoc/require-yields-check": 1, // Recommended
-        "jsdoc/valid-types": 1 // Recommended
+        "jsdoc/valid-types": 1, // Recommended
+        'jsdoc/require-jsdoc': [
+			'error',
+			{
+				publicOnly: true,
+				require: {
+					ClassDeclaration: true,
+					ClassExpression: true,
+					ArrowFunctionExpression: true,
+					FunctionDeclaration: true,
+					FunctionExpression: true,
+					MethodDefinition: true,
+				},
+			},
+		],
     },
     settings: {
         react: {
-            version: 'detect', // Tells eslint-plugin-react to automatically detect the version of React to use
+            version: 'detect',
         },
     },
 };
