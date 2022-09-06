@@ -7,7 +7,7 @@ import {
 } from "./CreateGameButtons.css";
 import Button from "../Button/Button";
 
-export default function CreateGameButtons() {
+export default function CreateGameButtons(): JSX.Element {
 	return (
 		<div className={Chin}>
 			<div className="quick_game_button_group">
@@ -16,25 +16,29 @@ export default function CreateGameButtons() {
 				</div>
 				<div className="flex items-center">
 					<Link href="/game">
-						<Button
-							className={QuickGameButtonStyle}
-							title="Quick game vs human"
-							aria-label="Quick game versus human"
-						>
-							👶
-						</Button>
+						<a>
+							<Button
+								className={QuickGameButtonStyle}
+								title="Quick game vs human"
+								aria-label="Quick game versus human"
+							>
+								👶
+							</Button>
+						</a>
 					</Link>
 
 					<div className="text-2xl mx-1.5">or</div>
 
 					<Link href="/game">
-						<Button
-							className={QuickGameButtonStyle}
-							title="Quick game vs the computer"
-							aria-label="Quick game versus the computer"
-						>
-							🤖
-						</Button>
+						<a>
+							<Button
+								className={QuickGameButtonStyle}
+								title="Quick game vs the computer"
+								aria-label="Quick game versus the computer"
+							>
+								🤖
+							</Button>
+						</a>
 					</Link>
 				</div>
 			</div>
