@@ -11,11 +11,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
-	"github.com/gofiber/websocket/v2"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/www/handlers"
 	"github.com/dechristopher/lio/www/handlers/api"
@@ -90,13 +90,17 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
+	// evaluate / set user context
+	// TODO rebuild this every time someone logs in
+	r.Use(user.ContextMiddleware)
+
 	// websocket upgrade middleware
 	r.Use("/socket", ws.UpgradeHandler)
 
 	// websocket connection listener
-	r.Get("/socket/:chan", websocket.New(ws.ConnHandler))
+	r.Get("/socket/:chan", ws.ConnHandler())
 	// websocket
-	r.Get("/socket/:type/:chan", websocket.New(ws.ConnHandler))
+	r.Get("/socket/:type/:chan", ws.ConnHandler())
 
 	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")
@@ -126,13 +130,13 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// game database page handler
 	r.Get("/db", handlers.DBHandler)
 
-	// room handler
-	r.Get("/:id", handlers.RoomHandler)
-
 	// new room creation routes
 	r.Post("/new/human", handlers.NewCustomRoomVsHuman)
 	r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
 	r.Get("/new/computer", handlers.NewRoomVsComputer)
+
+	// room handler
+	r.Get("/:id", handlers.RoomHandler)
 
 	// return static index.html for all other paths and let
 	// React handle 404s so that we get nice error pages

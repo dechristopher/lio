@@ -13,6 +13,7 @@ import (
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/www/ws/proto"
 	"github.com/dechristopher/lio/www/ws/routes"
@@ -21,10 +22,10 @@ import (
 // UpgradeHandler catches anything under /ws/** and allows
 // the websocket connection through the "allowed" local
 func UpgradeHandler(c *fiber.Ctx) error {
-	bid := c.Cookies("bid")
-	if bid == "" {
+	uid := user.GetID(c)
+	if uid == "" {
 		c.Status(403)
-		util.Error(str.CWS, str.EWSNoBid, c.String())
+		util.Error(str.CWS, str.EWSNoUid, c.String())
 		return nil
 	}
 
@@ -37,108 +38,122 @@ func UpgradeHandler(c *fiber.Ctx) error {
 	return fiber.ErrUpgradeRequired
 }
 
-// ConnHandler is the global websocket connection handler
+// ConnHandler returns a wrapped websocket connection handler
 // for various websocket use-cases across the site
-func ConnHandler(c *websocket.Conn) {
-	// websocket.Conn bindings
-	// https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
-	var (
-		mt  int
-		b   []byte
-		err error
-	)
+func ConnHandler() fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		return websocket.New(connHandler(ctx), websocket.Config{
+			EnableCompression: true,
+		})(ctx)
+	}
+}
 
-	bid := c.Cookies("bid")
-	thisChannel := c.Params("chan")
+// connHandler returns the actual websocket handler implementation
+func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
+	// get uid and channel from fiber context
+	uid := user.GetID(ctx)
+	thisChannel := ctx.Params("chan")
 
 	// ensure room exists for connection
 	if thisRoom, err := room.Get(thisChannel); thisRoom == nil {
-		_ = c.Close()
 		util.Error(str.CWS, str.EWSConn, err.Error())
-		return
+		return func(conn *websocket.Conn) {
+			_ = conn.Close()
+		}
 	}
 
-	util.Info(str.CWS, str.MWSConn, c.RemoteAddr().String(), bid, thisChannel)
+	util.Info(str.CWS, str.MWSConn, ctx.IP(), uid, thisChannel)
 
-	// track this socket in the corresponding SockMap
-	lock := &sync.Mutex{}
-	channel.Map[thisChannel].Track(bid, &channel.Socket{
-		Connection: c,
-		Mutex:      lock,
-		Type:       c.Params("type"),
-	})
+	// return websocket handler injected with values from request context
+	return func(c *websocket.Conn) {
+		// websocket.Conn bindings
+		// https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
+		var (
+			mt  int
+			b   []byte
+			err error
+		)
 
-	// UnTrack this socket when it disconnects
-	defer killSocket(c, thisChannel, bid)
-
-	for {
-		// read raw incoming messages from socket
-		if mt, b, err = c.ReadMessage(); err != nil {
-			// don't log clean websocket close messages
-			if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
-				util.Info(str.CWS, str.EWSRead, err.Error())
-			}
-			break
-		}
-
-		if fastjson.GetInt(b, "pi") == 1 {
-			// write pong message asap and continue
-			lock.Lock()
-			_ = c.WriteMessage(mt, proto.Pong())
-			lock.Unlock()
-			continue
-		}
-
-		// TODO improve safety of heartbeats to prevent DoS
-		//if len(b) == 4 {
-		//fmt.Println(mt, b)
-		// write heartbeat ack asap and continue
-		//lock.Lock()
-		//_ = c.WriteMessage(mt, []byte("0"))
-		//lock.Unlock()
-		//	continue
-		//}
-
-		util.DebugFlag("ws", str.CWS, str.DWSRecv, string(b))
-
-		// pull message tag for routing decision
-		tag := fastjson.GetString(b, "t")
-
-		// ignore if no route
-		if !validTag(tag) {
-			continue
-		}
-
-		// route message to proper handler and await response
-		resp := routes.Map[proto.PayloadTag(tag)](b, channel.SocketContext{
-			BID:     bid,
-			Channel: thisChannel,
-			MT:      mt,
+		// track this socket in the corresponding SockMap
+		lock := &sync.Mutex{}
+		channel.Map[thisChannel].Track(uid, &channel.Socket{
+			Connection: c,
+			Mutex:      lock,
+			Type:       c.Params("type"),
 		})
 
-		if resp == nil {
-			continue
-		}
+		// UnTrack this socket when it disconnects
+		defer killSocket(c, thisChannel, uid)
 
-		// return immediate response if any given
-		// print response to debug out
-		util.DebugFlag("ws", str.CWS, str.DWSSend, string(resp))
+		for {
+			// read raw incoming messages from socket
+			if mt, b, err = c.ReadMessage(); err != nil {
+				// don't log clean websocket close messages
+				if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
+					util.Info(str.CWS, str.EWSRead, err.Error())
+				}
+				break
+			}
 
-		lock.Lock()
-		// acquire socket lock, write bytes, and release lock
-		if err = c.WriteMessage(mt, resp); err != nil {
-			util.Error(str.CWS, str.EWSWrite, resp, err.Error())
-			break
+			if fastjson.GetInt(b, "pi") == 1 {
+				// write pong message asap and continue
+				lock.Lock()
+				_ = c.WriteMessage(mt, proto.Pong())
+				lock.Unlock()
+				continue
+			}
+
+			// TODO improve safety of heartbeats to prevent DoS
+			//if len(b) == 4 {
+			//fmt.Println(mt, b)
+			// write heartbeat ack asap and continue
+			//lock.Lock()
+			//_ = c.WriteMessage(mt, []byte("0"))
+			//lock.Unlock()
+			//	continue
+			//}
+
+			util.DebugFlag("ws", str.CWS, str.DWSRecv, string(b))
+
+			// pull message tag for routing decision
+			tag := fastjson.GetString(b, "t")
+
+			// ignore if no route
+			if !validTag(tag) {
+				continue
+			}
+
+			// route message to proper handler and await response
+			resp := routes.Map[proto.PayloadTag(tag)](b, channel.SocketContext{
+				UID:     uid,
+				Channel: thisChannel,
+				MT:      mt,
+			})
+
+			if resp == nil {
+				continue
+			}
+
+			// return immediate response if any given
+			// print response to debug out
+			util.DebugFlag("ws", str.CWS, str.DWSSend, string(resp))
+
+			lock.Lock()
+			// acquire socket lock, write bytes, and release lock
+			if err = c.WriteMessage(mt, resp); err != nil {
+				util.Error(str.CWS, str.EWSWrite, resp, err.Error())
+				break
+			}
+			lock.Unlock()
 		}
-		lock.Unlock()
 	}
 }
 
 // killSocket closes the websocket connection and removes the socket
 // reference from the ChanMap map
-func killSocket(conn *websocket.Conn, thisChannel string, bid string) {
-	util.Info(str.CWS, str.MWSDisc, conn.RemoteAddr(), bid, thisChannel)
-	channel.Map[thisChannel].UnTrack(bid)
+func killSocket(conn *websocket.Conn, thisChannel string, uid string) {
+	util.Info(str.CWS, str.MWSDisc, conn.RemoteAddr(), uid, thisChannel)
+	channel.Map[thisChannel].UnTrack(uid)
 	_ = conn.Close()
 }
 

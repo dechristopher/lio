@@ -45,6 +45,7 @@ const notification = new Howl({
 
 // create game board
 let og = Octadground(document.getElementById('game'), {
+	ofen: 'ppkn/4/4/NKPP', // set initial board state to prevent brief period of missing pieces
 	orientation: document.getElementById('gcon-xx').classList.contains('w') ? 'white' : 'black',
 	highlight: {
 		lastMove: true,
@@ -277,7 +278,7 @@ const parseResponse = (raw) => {
  * @returns {boolean} is white
  */
 const isPlayerWhite = (message) => {
-	return message.d.w === getCookie('bid');
+	return message.d.w === getCookie('uid');
 };
 
 /**
@@ -316,7 +317,7 @@ const handleMove = (message) => {
 	playSounds(message, ofenParts);
 
 	og.set({
-		orientation: message.d.w === getCookie('bid') ? 'white' : 'black',
+		orientation: message.d.w === getCookie('uid') ? 'white' : 'black',
 		ofen: ofenParts[0],
 		lastMove: getLastMove(message.d.m),
 		turnColor: whiteToMove(ofenParts) ? "white" : "black",
@@ -324,7 +325,7 @@ const handleMove = (message) => {
 		movable: {
 			free: false,
 			dests: allMoves(message.d.v),
-			color: message.d.w === getCookie('bid') ? 'white' : 'black',
+			color: message.d.w === getCookie('uid') ? 'white' : 'black',
 		}
 	});
 

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dechristopher/lio/lag"
 	"github.com/dechristopher/octad"
 	"github.com/looplab/fsm"
 
@@ -17,11 +16,13 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/lag"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/variant"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
@@ -47,9 +48,10 @@ func Count() int {
 // Instance is a struct that represents an ongoing match between
 // two players, controlled by a finite state machine
 type Instance struct {
-	ID     string
-	params Params
-	game   *game.OctadGame
+	ID      string
+	creator string
+	params  Params
+	game    *game.OctadGame
 
 	stateMachine *fsm.FSM
 
@@ -65,8 +67,21 @@ type Instance struct {
 
 // Params for room Instance creation
 type Params struct {
+	Creator    string
 	Players    player.Players
 	GameConfig game.OctadGameConfig
+}
+
+// NewParams returns a new parameters object configured
+// using the given variant
+func NewParams(creatorId string, variant variant.Variant) Params {
+	return Params{
+		Creator: creatorId,
+		Players: make(player.Players),
+		GameConfig: game.OctadGameConfig{
+			Variant: variant,
+		},
+	}
 }
 
 // Create a room instance from the given parameters
@@ -87,6 +102,7 @@ func Create(params Params) (*Instance, error) {
 
 	r := &Instance{
 		ID:           config.GenerateCode(7, config.Base58),
+		creator:      params.Creator,
 		stateMachine: newStateMachine(),
 		params:       params,
 
@@ -207,14 +223,14 @@ func (r *Instance) populateGameConfig() {
 
 // Join the room as a human player
 // returns tuple of isJoined, isSpectator
-func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
+func (r *Instance) Join(uid string) (isPlayer, isSpectator bool) {
 	// if room established with both players
 	hasPlayers, missing := r.players.HasTwoPlayers()
 
 	// both players set, player rejoining or spectator
 	if hasPlayers {
 		// if player returning, allow back
-		if r.players.IsPlayer(bid) {
+		if r.players.IsPlayer(uid) {
 			return true, false
 		}
 
@@ -226,7 +242,7 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 	// TODO fix joining as P2
 	// allow player back in before other player joins
 	// check to allow joining first player after room creation
-	if r.players.IsPlayer(bid) {
+	if r.players.IsPlayer(uid) {
 		return true, false
 	}
 
@@ -238,14 +254,14 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 
 		// set missing player
 		r.players[missing] = &player.Player{
-			ID: bid,
+			ID: uid,
 		}
 
 		// set internal game instance state
 		if missing == octad.White {
-			r.game.White = bid
+			r.game.White = uid
 		} else {
-			r.game.Black = bid
+			r.game.Black = uid
 		}
 
 		return true, false
@@ -258,6 +274,11 @@ func (r *Instance) Join(bid string) (isPlayer, isSpectator bool) {
 // State returns the current room state
 func (r *Instance) State() State {
 	return State(r.stateMachine.Current())
+}
+
+// IsCreator returns true if the given player by ID is the creator of the room
+func (r *Instance) IsCreator(id string) bool {
+	return r.creator == id
 }
 
 // Game returns the game container instance
@@ -337,7 +358,7 @@ func (r *Instance) isTurn(move *message.RoomMove) bool {
 	}
 
 	// lookup player color by ID
-	_, playerColor := r.players.Lookup(move.Ctx.BID)
+	_, playerColor := r.players.Lookup(move.Ctx.UID)
 	return playerColor == r.game.ToMove
 }
 
@@ -568,8 +589,8 @@ func (r *Instance) GameState() octad.Outcome {
 	return r.game.Outcome()
 }
 
-// GenPlayerPayload generates a RoomTemplatePayload for the given player by id
-func (r *Instance) GenPlayerPayload(id string) message.RoomTemplatePayload {
+// GenTemplatePayload generates a RoomTemplatePayload for the given player by id
+func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 	_, playerColor := r.players.Lookup(id)
 
 	return message.RoomTemplatePayload{

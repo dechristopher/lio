@@ -43,13 +43,13 @@ func NewSockMap(channel string) *SockMap {
 
 // Track adds the given socket to the internal sockets map
 // and emits an update to the crowd channel
-func (s *SockMap) Track(bid string, sock *Socket) {
+func (s *SockMap) Track(uid string, sock *Socket) {
 	if s == nil {
 		return
 	}
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	s.sockets[bid] = sock
+	s.sockets[uid] = sock
 	go func() {
 		s.updateChannel <- s.Length()
 	}()
@@ -57,24 +57,24 @@ func (s *SockMap) Track(bid string, sock *Socket) {
 
 // UnTrack removes the given socket from the internal sockets
 // map and emits an update to the crowd channel
-func (s *SockMap) UnTrack(bid string) {
+func (s *SockMap) UnTrack(uid string) {
 	if s == nil {
 		return
 	}
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	delete(s.sockets, bid)
+	delete(s.sockets, uid)
 	go func() {
 		s.updateChannel <- s.Length()
 	}()
 }
 
-// Get returns a given Socket by bid
-func (s *SockMap) Get(bid string) *Socket {
+// Get returns a given Socket by uid
+func (s *SockMap) Get(uid string) *Socket {
 	if s == nil {
 		return nil
 	}
-	return s.sockets[bid]
+	return s.sockets[uid]
 }
 
 // Empty returns true if the SockMap is tracking no connected sockets
@@ -162,7 +162,7 @@ type Socket struct {
 // data received by a websocket handler
 type SocketContext struct {
 	Channel string
-	BID     string
+	UID     string
 	IsBot   bool
 	MT      int // websocket message type
 }

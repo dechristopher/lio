@@ -9,6 +9,8 @@ type RoomTemplatePayload struct {
 	PlayerColor   string
 	OpponentColor string
 	VariantName   string
+	IsCreator     bool
+	IsJoining     bool
 }
 
 type RoomMove struct {

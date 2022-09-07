@@ -10,7 +10,7 @@ import (
 // Unicast sends an ad-hoc message to the channel and socket that
 // the message originated from
 func Unicast(d []byte, meta SocketContext) {
-	socket := Map[meta.Channel].Get(meta.BID)
+	socket := Map[meta.Channel].Get(meta.UID)
 
 	if socket == nil || socket.Mutex == nil {
 		util.Error(str.CWSC, str.EWSWrite, meta, errors.New("socket nil"))
@@ -28,8 +28,8 @@ func Unicast(d []byte, meta SocketContext) {
 // Broadcast sends a message to all connected sockets within the
 // channel that this message originated from
 func Broadcast(d []byte, meta SocketContext) {
-	for bid := range Map[meta.Channel].sockets {
-		meta.BID = bid
+	for uid := range Map[meta.Channel].sockets {
+		meta.UID = uid
 		Unicast(d, meta)
 	}
 }
@@ -37,11 +37,11 @@ func Broadcast(d []byte, meta SocketContext) {
 // BroadcastEx sends a message to all connected sockets within the
 // channel that this message originated from except the originator
 func BroadcastEx(d []byte, meta SocketContext) {
-	for bid := range Map[meta.Channel].sockets {
-		if bid != meta.BID {
+	for uid := range Map[meta.Channel].sockets {
+		if uid != meta.UID {
 			Unicast(d, SocketContext{
 				Channel: meta.Channel,
-				BID:     bid,
+				UID:     uid,
 				MT:      meta.MT,
 			})
 		}

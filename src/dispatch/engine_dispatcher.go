@@ -51,7 +51,7 @@ func (d *EngineDispatcher) run() {
 func (d *EngineDispatcher) worker(r EngineRequest) {
 	// ensure upstream handlers know this move is from a bot
 	r.Ctx.IsBot = true
-	r.Ctx.BID = ""
+	r.Ctx.UID = ""
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] request received, searching(%d)..", r.OFEN, r.Depth)
 

@@ -34,7 +34,7 @@ func HandleMove(m []byte, meta channel.SocketContext) []byte {
 
 	// send move to room
 	thisRoom.SendMove(&message.RoomMove{
-		Player: meta.BID, Move: msg.Data, Ctx: meta,
+		Player: meta.UID, Move: msg.Data, Ctx: meta,
 	})
 
 	return nil

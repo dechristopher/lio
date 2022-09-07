@@ -11,16 +11,15 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
-	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/util"
 )
 
-const logFormatProd = "[${cookie:bid}] ${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
+const logFormatProd = "[${cookie:uid}] ${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency} \"${referrer}\" \"${ua}\"\n"
 
-const logFormatDev = "[${cookie:bid}] ${ip} [${time}] \"${method} ${path} ${protocol}\" " +
+const logFormatDev = "[${cookie:uid}] ${ip} [${time}] \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency}\n"
 
 // Wire attaches all middleware to the given router
@@ -52,24 +51,6 @@ func Wire(r fiber.Router, static http.FileSystem) {
 		Root:   strictFs{static},
 		MaxAge: 86400 * 30,
 	}))
-
-	// set browser id cookie
-	// TODO rebuild this every time someone logs in
-	r.Use(func(c *fiber.Ctx) error {
-		if c.Cookies("bid") == "" {
-			c.Cookie(&fiber.Cookie{
-				Name:     "bid",
-				Value:    config.GenerateCode(16, config.Base58),
-				Path:     "/",
-				Domain:   "",
-				MaxAge:   0,
-				Secure:   !env.IsLocal(),
-				HTTPOnly: false,
-				SameSite: "Strict",
-			})
-		}
-		return c.Next()
-	})
 }
 
 // NotFound wires the final 404 handler after all other

@@ -4,14 +4,16 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
 )
+
+const roomTemplate = "room"
 
 type NewRoomPayload struct {
 	c             *fiber.Ctx
@@ -27,27 +29,40 @@ func RoomHandler(c *fiber.Ctx) error {
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
-	bid := c.Cookies("bid")
+	uid := user.GetID(c)
 
-	// turn away players with no bid set
-	if bid == "" {
+	// turn away players with no uid set
+	if uid == "" {
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
 	// signal to room that this player is joining
-	isPlayer, isSpectator := roomInstance.Join(bid)
+	isPlayer, isSpectator := roomInstance.Join(uid)
+
+	// get template payload for user
+	payload := roomInstance.GenTemplatePayload(uid)
 
 	if isPlayer {
-		// get template payload for player
-		payload := roomInstance.GenPlayerPayload(bid)
+		// user is player
+
+		// if game waiting state, enable waiting room / join room templates
+		if roomInstance.State() == room.StateWaitingForPlayers {
+			payload.IsCreator = roomInstance.IsCreator(uid)
+			payload.IsJoining = !payload.IsCreator
+		}
+
 		// render template
-		return util.HandleTemplate(c, "room",
+		return util.HandleTemplate(c, roomTemplate,
 			payload.VariantName, payload, 200)
 	} else if isSpectator {
-		// spectator
+		// user is spectator
 		// TODO signal to JS that this player is a spectator
+		// by excluding some player-specific scripts
+		// --->
 		// only receive game updates
 		// only able to draw on board and scroll moves
+
+		// payload.IsSpectator = true
 
 		// TODO spectator page template
 		return c.Redirect("/", fiber.StatusTemporaryRedirect)
@@ -56,6 +71,8 @@ func RoomHandler(c *fiber.Ctx) error {
 	}
 }
 
+// NewQuickRoomVsHuman creates a game against a human player with the default
+// time control and randomized color
 func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 	return NewRoom(NewRoomPayload{
 		c:             c,
@@ -64,6 +81,8 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 	})
 }
 
+// NewCustomRoomVsHuman creates a game against a human player with time control
+// and color selected by the creator
 func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 
 	selectedColor := octad.White
@@ -102,38 +121,47 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 	})
 }
 
+// NewRoom handles room creation and the validation of room payload parameters
 func NewRoom(payload NewRoomPayload) error {
-	bid := payload.c.Cookies("bid")
-	params := room.Params{
-		Players: make(player.Players),
-		GameConfig: game.OctadGameConfig{
-			Variant: payload.variant,
-		},
+	uid := user.GetID(payload.c)
+
+	if uid == "" {
+		// TODO prevent anonymous users from creating games when we have accounts
+		return payload.c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
+
+	// establish room parameters
+	params := room.NewParams(uid, payload.variant)
+
+	// set creating player ID in players map
 	params.Players[payload.selectedColor] = &player.Player{
-		ID: bid,
+		ID: uid,
 	}
 
 	// configure room with player to join via URL
 	toJoin := player.ToJoin
 	params.Players[payload.selectedColor.Other()] = &toJoin
 
+	// set bot=true if game is configured with computer opponent
 	if payload.vsBot {
 		params.Players[payload.selectedColor.Other()].IsBot = true
 	}
 
+	// create room and handle resultant errors
 	instance, err := room.Create(params)
-
 	if err != nil {
 		util.Error(str.CRoom, "failed to create room: %s", err.Error())
 		return payload.c.Redirect("/", fiber.StatusTemporaryRedirect)
 	}
 
-	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", bid, instance.ID, payload.vsBot)
+	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", uid, instance.ID, payload.vsBot)
 
+	// redirect to waiting room vs human, or game vs computer
 	return payload.c.Redirect("/" + instance.ID)
 }
 
+// NewRoomVsComputer creates a new game against a computer opponent with the
+// default time control and randomized color
 func NewRoomVsComputer(c *fiber.Ctx) error {
 	return NewRoom(NewRoomPayload{
 		c:             c,

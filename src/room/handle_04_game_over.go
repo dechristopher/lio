@@ -40,7 +40,7 @@ func (r *Instance) handleGameOver() {
 			if control.Type == message.Rematch {
 				// track agreement for player looked up via context
 				util.DoBothColors(func(c octad.Color) {
-					if r.players[c].ID == control.Ctx.BID {
+					if r.players[c].ID == control.Ctx.UID {
 						r.rematch.Agree(c)
 					}
 				})
