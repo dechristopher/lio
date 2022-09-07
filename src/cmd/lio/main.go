@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dechristopher/lio/crypt"
 	"github.com/joho/godotenv"
 
 	"github.com/dechristopher/lio/config"
@@ -52,6 +53,9 @@ func init() {
 
 	// Seed PRNG
 	rand.Seed(time.Now().UTC().UnixNano())
+
+	// test that crypto system is operational
+	_, _ = crypt.Encrypt([]byte("lio"))
 }
 
 // main does the things

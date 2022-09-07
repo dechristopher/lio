@@ -8,6 +8,9 @@ on:
     branches: [ '*' ]
     paths: [ 'src/**/*.go', 'src/go.*', 'src/vendor/**' ]
 
+env:
+  DEV_CRYPTO_KEY: testkeyforthelioctadcryptosystem
+
 jobs:
 
   lio-build:

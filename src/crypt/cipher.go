@@ -10,13 +10,9 @@ import (
 	"github.com/dechristopher/lio/util"
 )
 
-var (
-	_ = gcm()
-)
-
 // gcm Initializes a new GCM block cipher with the given secure key
 func gcm() cipher.Block {
-	key := []byte(config.ReadSecretFallback("crypto_key"))
+	key := []byte(config.CryptoKey)
 	if c, err := aes.NewCipher(key); err != nil {
 		util.Error(str.CCrypt, str.EBadSecureKey, err.Error())
 		os.Exit(1)

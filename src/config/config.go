@@ -30,6 +30,8 @@ var (
 	CacheKey = fmt.Sprintf(".%s",
 		GenerateCode(7, Base58))
 
+	CryptoKey = ReadSecretFallback("crypto_key")
+
 	// DebugFlagPtr contains raw debug flags direct from STDIN
 	DebugFlagPtr *string
 	// DebugFlags holds all active, parsed debug flags
