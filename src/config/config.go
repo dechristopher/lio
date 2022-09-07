@@ -30,6 +30,7 @@ var (
 	CacheKey = fmt.Sprintf(".%s",
 		GenerateCode(7, Base58))
 
+	// CryptoKey for use with cryptographic operations in lio
 	CryptoKey = ReadSecretFallback("crypto_key")
 
 	// DebugFlagPtr contains raw debug flags direct from STDIN

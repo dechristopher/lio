@@ -13,7 +13,7 @@ github.com/dustin/go-humanize
 # github.com/fasthttp/websocket v1.5.0
 ## explicit; go 1.15
 github.com/fasthttp/websocket
-# github.com/gofiber/fiber/v2 v2.36.0
+# github.com/gofiber/fiber/v2 v2.37.0
 ## explicit; go 1.16
 github.com/gofiber/fiber/v2
 github.com/gofiber/fiber/v2/internal/bytebufferpool
@@ -33,11 +33,11 @@ github.com/gofiber/fiber/v2/middleware/logger
 github.com/gofiber/fiber/v2/middleware/recover
 github.com/gofiber/fiber/v2/middleware/requestid
 github.com/gofiber/fiber/v2/utils
-# github.com/gofiber/template v1.6.30
+# github.com/gofiber/template v1.7.0
 ## explicit; go 1.16
 github.com/gofiber/template/html
 github.com/gofiber/template/utils
-# github.com/gofiber/websocket/v2 v2.0.24
+# github.com/gofiber/websocket/v2 v2.0.25
 ## explicit; go 1.14
 github.com/gofiber/websocket/v2
 # github.com/google/uuid v1.3.0
@@ -55,7 +55,7 @@ github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
 github.com/klauspost/compress/s2
 github.com/klauspost/compress/zlib
-# github.com/klauspost/cpuid/v2 v2.1.0
+# github.com/klauspost/cpuid/v2 v2.1.1
 ## explicit; go 1.15
 github.com/klauspost/cpuid/v2
 # github.com/looplab/fsm v0.3.0
@@ -64,7 +64,7 @@ github.com/looplab/fsm
 # github.com/minio/md5-simd v1.1.2
 ## explicit; go 1.14
 github.com/minio/md5-simd
-# github.com/minio/minio-go/v7 v7.0.34
+# github.com/minio/minio-go/v7 v7.0.36
 ## explicit; go 1.17
 github.com/minio/minio-go/v7
 github.com/minio/minio-go/v7/pkg/credentials
@@ -101,7 +101,7 @@ github.com/sirupsen/logrus
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.38.0
+# github.com/valyala/fasthttp v1.40.0
 ## explicit; go 1.15
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
@@ -114,16 +114,16 @@ github.com/valyala/fastjson/fastfloat
 # github.com/valyala/tcplisten v1.0.0
 ## explicit; go 1.12
 github.com/valyala/tcplisten
-# golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
+# golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 ## explicit; go 1.17
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
-# golang.org/x/net v0.0.0-20220812174116-3211cb980234
+# golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
 ## explicit; go 1.17
 golang.org/x/net/http/httpguts
 golang.org/x/net/idna
 golang.org/x/net/publicsuffix
-# golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab
+# golang.org/x/sys v0.0.0-20220907062415-87db552b00fd
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
