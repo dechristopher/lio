@@ -35,9 +35,13 @@ func SiteStatsHandler(c *fiber.Ctx) error {
 		if locked {
 			util.DebugFlag("stat", "STAT", "pulling site stats")
 			var players int
-			for _, sockMap := range channel.Map {
-				players += sockMap.Length()
-			}
+			channel.Map.Range(func(ch, _ any) bool {
+				sockMap := channel.Map.GetSockMap(ch.(string))
+				if sockMap != nil {
+					players += sockMap.Length()
+				}
+				return true
+			})
 			memStats = stats{
 				Players: players,
 				Games:   room.Count(),

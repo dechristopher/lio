@@ -14,8 +14,8 @@ import (
 
 // handleGameOngoing handles moves, player controls, and flag detection
 func (r *Instance) handleGameOngoing() {
-	connectionListener := channel.Map[r.ID].Listen()
-	defer channel.Map[r.ID].UnListen(connectionListener)
+	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
+	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
 
 	// set up abandon timer beyond any regular game duration
 	var abandonTimer = time.NewTimer(time.Hour)
@@ -88,7 +88,7 @@ func (r *Instance) handleGameOngoing() {
 				}
 
 				// return whether the player is connected
-				return channel.Map[r.ID].Get(r.players[color].ID) != nil
+				return channel.Map.GetSockMap(r.ID).Get(r.players[color].ID) != nil
 			})
 
 			if playersConnected {
@@ -119,7 +119,7 @@ func (r *Instance) handleGameOngoing() {
 				}
 
 				// set whether the player by color is connected
-				connected[color] = channel.Map[r.ID].Get(r.players[color].ID) != nil
+				connected[color] = channel.Map.GetSockMap(r.ID).Get(r.players[color].ID) != nil
 			})
 
 			// if both players abandoned

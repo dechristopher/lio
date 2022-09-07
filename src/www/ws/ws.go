@@ -76,7 +76,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 
 		// track this socket in the corresponding SockMap
 		lock := &sync.Mutex{}
-		channel.Map[thisChannel].Track(uid, &channel.Socket{
+		channel.Map.GetSockMap(thisChannel).Track(uid, &channel.Socket{
 			Connection: c,
 			Mutex:      lock,
 			Type:       c.Params("type"),
@@ -153,7 +153,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 // reference from the ChanMap map
 func killSocket(conn *websocket.Conn, thisChannel string, uid string) {
 	util.Info(str.CWS, str.MWSDisc, conn.RemoteAddr(), uid, thisChannel)
-	channel.Map[thisChannel].UnTrack(uid)
+	channel.Map.GetSockMap(thisChannel).UnTrack(uid)
 	_ = conn.Close()
 }
 

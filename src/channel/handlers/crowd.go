@@ -16,7 +16,7 @@ func HandleCrowd(thisChannel string) {
 	}
 	var spectators int
 	// range over channel entries until it is closed, then exit routine
-	for spectators = range channel.Map[thisChannel].Listen() {
+	for spectators = range channel.Map.GetSockMap(thisChannel).Listen() {
 		util.DebugFlag("crowd", str.CChan, "spec: %d", spectators)
 		proto.CrowdPayload{
 			Spec: spectators,

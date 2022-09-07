@@ -14,8 +14,8 @@ import (
 func (r *Instance) handleWaitingForPlayers() {
 	cleanupTimer := time.NewTimer(time.Minute * 15)
 
-	connectionListener := channel.Map[r.ID].Listen()
-	defer channel.Map[r.ID].UnListen(connectionListener)
+	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
+	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for players", r.ID)
 

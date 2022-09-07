@@ -35,7 +35,7 @@ func NewSockMap(channel string) *SockMap {
 		cleanup: make(chan bool),
 	}
 
-	//go handlers.HandleCrowd(channel)
+	//TODO go handlers.HandleCrowd(channel)
 	go s.broadcastToListeners()
 
 	return s
@@ -94,7 +94,7 @@ func (s *SockMap) Cleanup() {
 		}
 	}
 
-	delete(Map, s.channel)
+	Map.Delete(s.channel)
 }
 
 // Length returns the number of actively connected sockets

@@ -116,8 +116,8 @@ func Create(params Params) (*Instance, error) {
 
 	// Keep track of all channels for off-rpc broadcasts
 	// Create a new SockMap and track it under the channel key
-	if _, ok := channel.Map[r.ID]; !ok {
-		channel.Map[r.ID] = channel.NewSockMap(r.ID)
+	if sockMap := channel.Map.GetSockMap(r.ID); sockMap == nil {
+		channel.Map.Store(r.ID, channel.NewSockMap(r.ID))
 		go handlers.HandleCrowd(r.ID)
 	}
 
@@ -180,7 +180,7 @@ func (r *Instance) routine() {
 // cleanup finishes, closes, and finalizes the room
 func (r *Instance) cleanup() {
 	util.DebugFlag("room", str.CRoom, "cleaning up room %s", r.ID)
-	channel.Map[r.ID].Cleanup()
+	channel.Map.GetSockMap(r.ID).Cleanup()
 	// delete room instance from rooms map
 	delete(rooms, r.ID)
 }
