@@ -25,7 +25,7 @@ func (r *Instance) handleGameReady() {
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for white to move", r.ID)
 
 	// request engine move immediately
-	if r.players.HasBot() && r.players.GetBotColor() == octad.White {
+	if r.players.GetBotColor() == octad.White {
 		util.DebugFlag("room", str.CRoom, "[%s] engine making first move..", r.ID)
 		r.requestEngineMove()
 	}
@@ -54,7 +54,7 @@ func (r *Instance) handleGameReady() {
 				r.game.Clock.Reset()
 
 				// re-request engine first move
-				if r.players.HasBot() && r.players.GetBotColor() == octad.White {
+				if r.players.GetBotColor() == octad.White {
 					r.requestEngineMove()
 				}
 				continue
