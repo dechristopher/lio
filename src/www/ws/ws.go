@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -52,10 +53,16 @@ func ConnHandler() fiber.Handler {
 func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 	// get uid and channel from fiber context
 	uid := user.GetID(ctx)
-	thisChannel := ctx.Params("chan")
+	roomId := ctx.Params("chan")
+	thisChannel := roomId
+
+	// prepend channel type to channel name if it exists
+	if channelType := ctx.Params("type"); channelType != "" {
+		thisChannel = fmt.Sprintf("%s/%s", channelType, thisChannel)
+	}
 
 	// ensure room exists for connection
-	if thisRoom, err := room.Get(thisChannel); thisRoom == nil {
+	if thisRoom, err := room.Get(roomId); thisRoom == nil {
 		util.Error(str.CWS, str.EWSConn, err.Error())
 		return func(conn *websocket.Conn) {
 			_ = conn.Close()
@@ -127,6 +134,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 			resp := routes.Map[proto.PayloadTag(tag)](b, channel.SocketContext{
 				UID:     uid,
 				Channel: thisChannel,
+				RoomID:  roomId,
 				MT:      mt,
 			})
 

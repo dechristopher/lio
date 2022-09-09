@@ -1,27 +1,27 @@
 <body>
 <div class="c">
-	{{ template "partials/title" . }}
-	<i id="gameTitle">{{ .Data.VariantName }}</i>
-	<div class="gccon mt8">
-		<div id="clockOpponent" class="clockOpponent">
-			{{ template "partials/clock" .Data.OpponentColor }}
-		</div>
-		{{ template "partials/game" .Data.PlayerColor }}
-		<div id="clockPlayer" class="clockPlayer">
-			{{ template "partials/clock" .Data.PlayerColor }}
-		</div>
-	</div>
-	<div class="chin">
-		<div class="info sm">
-			<div id="info"></div>
-			<span id="crowd">0</span> CONNECTED
-			(<span id="lat">0</span><span class="unit">ms</span>)
-		</div>
-	</div>
+	{{ template "partials/header" . }}
+	{{ if and (eq .Data.IsCreator false) (eq .Data.IsJoining false) }}
+	<!-- Playing game -->
+	{{ template "partials/room/room_game" . }}
+	{{ else if eq .Data.IsCreator true }}
+	<!-- Creator -->
+	{{ template "partials/room/room_creator" . }}
+	{{ else if eq .Data.IsJoining true }}
+	<!-- Joiner -->
+	{{ template "partials/room/room_joiner" . }}
+	{{ end }}
 	{{ template "partials/footer" . }}
 </div>
-<link rel="stylesheet" href="/octadground{{ .CacheKey }}.base.css">
-<link rel="stylesheet" href="/res/themes/board/green{{ .CacheKey }}.css">
-<link rel="stylesheet" href="/res/themes/piece/alpha{{ .CacheKey }}.css">
 </body>
-{{ template "partials/scripts" . }}
+{{ template "scripts/base" . }}
+{{ if and (eq .Data.IsCreator false) (eq .Data.IsJoining false) }}
+<!-- Playing game -->
+{{ template "scripts/room" . }}
+{{ else if eq .Data.IsCreator true }}
+<!-- Creator -->
+{{ template "scripts/room_creator" . }}
+{{ else if eq .Data.IsJoining true }}
+<!-- Joiner -->
+{{ template "scripts/room_joiner" . }}
+{{ end }}

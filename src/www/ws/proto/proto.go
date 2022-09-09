@@ -22,6 +22,10 @@ const (
 	CrowdTag PayloadTag = "c"
 	// GameOverTag is the message type tag for the GameOverPayload
 	GameOverTag PayloadTag = "g"
+	// RoomTag is the message type tag for the RoomMessage
+	RoomTag PayloadTag = "r"
+	// RedirectTag is the message type tag for the RedirectMessage
+	RedirectTag PayloadTag = "e"
 )
 
 // Message represents our websocket protocol messages container
@@ -115,10 +119,20 @@ type GameOverPayload struct {
 	RoomOver bool         `json:"o,omitempty"`
 }
 
-// RoomPayload returns room state data
-type RoomPayload struct {
-	P1Score int `json:"p1"`
-	P2Score int `json:"p2"`
+// RoomMessage contains room state data
+type RoomMessage struct {
+	RoomID  string `json:"id,omitempty"`
+	Query   bool   `json:"q,omitempty"`
+	Ready   bool   `json:"r,omitempty"`
+	P1Score int    `json:"p1,omitempty"`
+	P2Score int    `json:"p2,omitempty"`
+}
+
+// RedirectMessage instructs the client to redirect to a different page
+// optionally displaying an intermediate message in a modal
+type RedirectMessage struct {
+	Message  string `json:"m,omitempty"`
+	Location string `json:"l"`
 }
 
 // Marshal encodes the given message and payload into JSON

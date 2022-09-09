@@ -6,11 +6,14 @@ import (
 )
 
 type RoomTemplatePayload struct {
+	RoomID        string
 	PlayerColor   string
 	OpponentColor string
 	VariantName   string
 	IsCreator     bool
 	IsJoining     bool
+	CancelToken   string
+	JoinToken     string
 }
 
 type RoomMove struct {

@@ -14,6 +14,7 @@ type wsRoutes = map[proto.PayloadTag]channel.Handler
 var (
 	Map = wsRoutes{
 		proto.MoveTag: handlers.HandleMove,
+		proto.RoomTag: handlers.HandleRoom,
 		proto.OFENTag: Unimplemented,
 	}
 )

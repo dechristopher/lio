@@ -34,7 +34,7 @@ func (c *Clock) handleCommand(cmd Command) bool {
 
 			// check to see if someone flagged
 			if c.flagged() {
-				c.Stop(true)
+				c.Stop(true, false)
 				return true
 			}
 
@@ -64,7 +64,7 @@ func (c *Clock) handleCommand(cmd Command) bool {
 		c.flagTimer.Reset(c.players[c.turn].remaining().t)
 
 		// publish clock state to monitors
-		c.publisher.Publish(cmd, c.State())
+		c.publisher.Publish(cmd, c.State(false))
 
 		return false
 	default:

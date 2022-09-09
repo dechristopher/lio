@@ -1,0 +1,39 @@
+<!-- Joiner:
+				Displays room info and join button.
+
+				Join button submits form to join game and brings player to the game
+				screen immediately. Creator is notified via websocket and brought
+				to game screen via refresh of page without further interaction.
+				Game then begins.
+	-->
+<div class="chin" style="padding-top: 12px">
+	{{ if eq .Data.IsJoining true }}
+	<i id="challengerTitle">Anonymous opponent</i>
+	{{ end }}
+	<div class="sm center">
+		<div id="joiner">
+			{{ template "partials/game_info" . }}
+			<form class="contents" method="post" action="/{{ .Data.RoomID }}/join">
+				<input type="hidden" name="join_token" value="{{ .Data.JoinToken }}" />
+				<input type="submit" id="joinGameButton" class="cgbtn libtn" title="Join the game"
+							 value="JOIN GAME"/>
+			</form>
+		</div>
+	</div>
+</div>
+<style>
+	#challengerTitle {
+		margin-block-start: 8px;
+	}
+
+	#joiner {
+		display: flex;
+		flex-direction: column;
+		padding: 16px;
+		width: 275px;
+	}
+
+	#joinGameButton {
+		background-color: #98ff65;
+	}
+</style>

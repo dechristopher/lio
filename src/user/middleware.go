@@ -59,6 +59,7 @@ func ContextMiddleware(c *fiber.Ctx) error {
 		}
 		// decrypt and unmarshal the enclave context cookie
 		err = json.Unmarshal(decryptedJson, userContext)
+		// ensure cookies match
 		if err != nil || userContext.ID != c.Cookies(uidCookieName) {
 			return wipeContext(c)
 		}
@@ -74,5 +75,5 @@ func ContextMiddleware(c *fiber.Ctx) error {
 func wipeContext(c *fiber.Ctx) error {
 	c.ClearCookie(contextCookieName)
 	c.ClearCookie(uidCookieName)
-	return c.Redirect("/", fiber.StatusTemporaryRedirect)
+	return c.Redirect("/")
 }

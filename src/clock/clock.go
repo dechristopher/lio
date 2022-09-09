@@ -190,7 +190,7 @@ func (c *Clock) Start() {
 						c.victor = Black
 					}
 
-					cl.Stop(true)
+					cl.Stop(true, true)
 					return
 				}
 			}
@@ -200,7 +200,7 @@ func (c *Clock) Start() {
 
 // Reset the clock times and prepare for another game
 func (c *Clock) Reset() {
-	c.Stop(false)
+	c.Stop(false, true)
 	c.players[octad.White].elapsed = ToCTime(0)
 	c.players[octad.Black].elapsed = ToCTime(0)
 
@@ -211,7 +211,12 @@ func (c *Clock) Reset() {
 }
 
 // Stop the clock and write state to state channel
-func (c *Clock) Stop(writeState bool) {
+func (c *Clock) Stop(writeState, lock bool) {
+	if lock {
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
+	}
+
 	c.clockPaused = true
 
 	if c.flagTimer != nil {
@@ -222,7 +227,7 @@ func (c *Clock) Stop(writeState bool) {
 	}
 
 	if writeState {
-		c.StateChannel <- c.State()
+		c.StateChannel <- c.State(false)
 	}
 	close(c.StateChannel)
 	close(c.ControlChannel)
@@ -231,7 +236,11 @@ func (c *Clock) Stop(writeState bool) {
 }
 
 // State returns the current clock state
-func (c *Clock) State() State {
+func (c *Clock) State(lock bool) State {
+	if lock {
+		c.mutex.Lock()
+		defer c.mutex.Unlock()
+	}
 	return State{
 		WhiteTime: c.EstimateRemaining(octad.White),
 		BlackTime: c.EstimateRemaining(octad.Black),

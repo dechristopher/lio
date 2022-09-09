@@ -1,0 +1,30 @@
+<div id="gameInfo">
+	<span id="gameInfoVariant">{{ .Data.VariantName }}</span>
+	<div>
+		<span id="gameInfoColor">{{ if eq .Data.PlayerColor "w" }}WHITE{{ else }}BLACK{{ end }}</span>
+		<span id="gameInfoSeparator">•</span>
+		<span id="gameInfoPool">CASUAL</span>
+	</div>
+</div>
+<style>
+	#gameInfo {
+		display: flex;
+		flex-direction: column;
+
+		border: 2px solid rgba(0, 0, 0, 0.85);
+		border-radius: 8px;
+		background: #dcdcdc;
+
+		font-weight: 500;
+		font-size: 1.1rem;
+
+		margin-bottom: 8px;
+
+		box-shadow: 2px 3px 0;
+	}
+
+	#gameInfoVariant {
+			font-weight: 600;
+		font-size: 1.8rem;
+	}
+</style>

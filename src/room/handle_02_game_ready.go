@@ -13,7 +13,8 @@ import (
 // handle waiting for white to make first move and start game
 // waits for one minute before timing out and terminating game and room
 func (r *Instance) handleGameReady() {
-	cleanupTimer := time.NewTimer(time.Second * 30)
+	// one-minute abandon timer after game start
+	cleanupTimer := time.NewTimer(time.Minute)
 	defer cleanupTimer.Stop()
 
 	// broadcast reset board state to all
@@ -43,7 +44,7 @@ func (r *Instance) handleGameReady() {
 
 			util.DebugFlag("room", str.CRoom, "[%s] white (%s) trying to make first move", r.ID, move.Player)
 			// start game clock on first move
-			if r.game.Clock.State().IsPaused {
+			if r.game.Clock.State(true).IsPaused {
 				util.DebugFlag("room", str.CRoom, "[%s] starting clock", r.ID)
 				r.game.Clock.Start()
 			}

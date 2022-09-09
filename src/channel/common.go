@@ -19,18 +19,30 @@ func Unicast(d []byte, meta SocketContext) {
 
 	socket.Mutex.Lock()
 	defer socket.Mutex.Unlock()
-	err := socket.Connection.WriteMessage(meta.MT, d)
-	if err != nil {
-		util.Error(str.CWSC, str.EWSWrite, meta, err)
+
+	if socket.Connection != nil {
+		err := socket.Connection.WriteMessage(meta.MT, d)
+		if err != nil {
+			util.Error(str.CWSC, str.EWSWrite, meta, err)
+		}
+	} else {
+		// clean up vestigial socket from tracking
+		// TODO is this a larger issue with the sync.Map rewrite?
+		Map.GetSockMap(meta.Channel).UnTrack(meta.UID)
 	}
 }
 
 // Broadcast sends a message to all connected sockets within the
 // channel that this message originated from
 func Broadcast(d []byte, meta SocketContext) {
-	for uid := range Map.GetSockMap(meta.Channel).sockets {
-		meta.UID = uid
-		Unicast(d, meta)
+	sockMap := Map.GetSockMap(meta.Channel)
+	if sockMap != nil {
+		sockMap.mut.Lock()
+		defer sockMap.mut.Unlock()
+		for uid := range sockMap.sockets {
+			meta.UID = uid
+			Unicast(d, meta)
+		}
 	}
 }
 

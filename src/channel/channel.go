@@ -21,11 +21,13 @@ func (d *Directory) GetSocket(channel, uid string) *Socket {
 	return sockMap.Get(uid)
 }
 
-// GetSockMap returns the SockMap for a given channel
+// GetSockMap returns the SockMap for a given channel, or a
+// new one if it does not exist for the channel already
 func (d *Directory) GetSockMap(channel string) *SockMap {
 	sockMapRaw, ok := Map.Load(channel)
 	if !ok {
-		return nil
+		Map.Store(channel, NewSockMap(channel))
+		sockMapRaw, _ = Map.Load(channel)
 	}
 	sockMap, ok := sockMapRaw.(*SockMap)
 	if !ok {

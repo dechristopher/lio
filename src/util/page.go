@@ -28,6 +28,7 @@ type pageModel struct {
 	Env      env.Env
 	Version  string
 	CacheKey string
+	SiteURL  string
 	PageName string
 	Data     interface{}
 }
@@ -38,6 +39,7 @@ func genPageModel(name string, data interface{}) pageModel {
 		Env:      env.GetEnv(),
 		Version:  config.Version,
 		CacheKey: config.CacheKey,
+		SiteURL:  config.SiteURL(),
 		PageName: name,
 		Data:     data,
 	}

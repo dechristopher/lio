@@ -28,6 +28,19 @@ import (
 
 var gamePub = bus.NewPublisher("game", game.Channel)
 
+// Type of room channel
+type Type string
+
+const (
+	room    Type = ""
+	waiting Type = "wait/"
+)
+
+var roomChannelTypes = []Type{
+	room,
+	waiting,
+}
+
 // rooms is a mapping from room ID to instance
 var rooms = make(map[string]*Instance)
 
@@ -61,6 +74,9 @@ type Instance struct {
 
 	players player.Players
 	rematch player.Agreement
+
+	joinToken   string // token to control joining challenges
+	cancelToken string // token to control cancelling challenges
 
 	abandoned bool
 }
@@ -100,8 +116,14 @@ func Create(params Params) (*Instance, error) {
 		return nil, ErrBadParamsTwoBots{}
 	}
 
+	roomId := config.GenerateCode(7, config.Base58)
+
+	for rooms[roomId] != nil {
+		roomId = config.GenerateCode(7, config.Base58)
+	}
+
 	r := &Instance{
-		ID:           config.GenerateCode(7, config.Base58),
+		ID:           roomId,
 		creator:      params.Creator,
 		stateMachine: newStateMachine(),
 		params:       params,
@@ -112,17 +134,26 @@ func Create(params Params) (*Instance, error) {
 
 		players: params.Players,
 		rematch: player.Agreement{},
+
+		cancelToken: config.GenerateCode(12),
 	}
 
+	// randomize join token before anybody joins to prevent abuse
+	r.NewJoinToken()
+
 	// Keep track of all channels for off-rpc broadcasts
-	// Create a new SockMap and track it under the channel key
-	if sockMap := channel.Map.GetSockMap(r.ID); sockMap == nil {
-		channel.Map.Store(r.ID, channel.NewSockMap(r.ID))
-		go handlers.HandleCrowd(r.ID)
+	// Create new SockMaps and track them under the channel key
+	// for each room channel type
+	for _, channelType := range roomChannelTypes {
+		channel.Map.GetSockMap(fmt.Sprintf("%s%s", channelType, r.ID))
 	}
+
+	// handle crowd messages for primary room channel
+	go handlers.HandleCrowd(r.ID)
 
 	r.populateGameConfig()
 
+	// create a new game instance using the provided game config
 	var err error
 	r.game, err = game.NewOctadGame(r.params.GameConfig)
 	if err != nil {
@@ -180,7 +211,13 @@ func (r *Instance) routine() {
 // cleanup finishes, closes, and finalizes the room
 func (r *Instance) cleanup() {
 	util.DebugFlag("room", str.CRoom, "cleaning up room %s", r.ID)
-	channel.Map.GetSockMap(r.ID).Cleanup()
+	// clean up all existing room channels by type
+	for _, channelType := range roomChannelTypes {
+		c := fmt.Sprintf("%s%s", channelType, r.ID)
+		if _, ok := channel.Map.Load(c); ok {
+			channel.Map.GetSockMap(c).Cleanup()
+		}
+	}
 	// delete room instance from rooms map
 	delete(rooms, r.ID)
 }
@@ -191,9 +228,6 @@ func (r *Instance) event(event fsm.EventDesc, args ...interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	// TODO determine the need for the stateChannel
-	//r.stateChannel <- r.State()
 	return nil
 }
 
@@ -221,37 +255,57 @@ func (r *Instance) populateGameConfig() {
 	}
 }
 
-// Join the room as a human player
-// returns tuple of isJoined, isSpectator
-func (r *Instance) Join(uid string) (isPlayer, isSpectator bool) {
-	// if room established with both players
-	hasPlayers, missing := r.players.HasTwoPlayers()
+// IsReady returns true if the room is ready for games to be played
+func (r *Instance) IsReady() bool {
+	hasTwoPlayers, _ := r.players.HasTwoPlayers()
+	return hasTwoPlayers || r.HasBot()
+}
 
-	// both players set, player rejoining or spectator
-	if hasPlayers {
-		// if player returning, allow back
-		if r.players.IsPlayer(uid) {
-			return true, false
+// HandlePreGame sets flags and token info in the RoomTemplatePayload if the
+// room is in the pre-game state
+func (r *Instance) HandlePreGame(uid string, payload *message.RoomTemplatePayload) {
+	if !r.IsReady() {
+		payload.IsCreator = r.IsCreator(uid)
+		payload.IsJoining = !payload.IsCreator
+
+		// set cancel token in payload
+		if payload.IsCreator {
+			payload.CancelToken = r.CancelToken()
 		}
+		// set new join token in payload
+		if payload.IsJoining {
+			payload.JoinToken = r.NewJoinToken()
+		}
+	}
+}
 
-		// otherwise, force into spectator mode
+// CanJoin returns true if the given player by uid can participate in the match
+// either as a player or a spectator
+func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
+	hasPlayers, _ := r.players.HasTwoPlayers()
+
+	// force into spectator mode if match has both players
+	if hasPlayers && !r.players.IsPlayer(uid) {
 		// TODO track spectator somehow
 		return false, true
 	}
 
-	// TODO fix joining as P2
-	// allow player back in before other player joins
-	// check to allow joining first player after room creation
-	if r.players.IsPlayer(uid) {
-		return true, false
+	// player can return if P1, or join as P2
+	return true, false
+}
+
+// Join attempts to join the room as a human player
+func (r *Instance) Join(uid, joinToken string) bool {
+	// validate provided join token
+	if joinToken != r.joinToken {
+		return false
 	}
+
+	// if room established with both players
+	hasPlayers, missing := r.players.HasTwoPlayers()
 
 	// if second player joining
 	if !hasPlayers && missing != octad.NoColor {
-		if r.players.HasBot() {
-			return false, true
-		}
-
 		// set missing player
 		r.players[missing] = &player.Player{
 			ID: uid,
@@ -264,11 +318,45 @@ func (r *Instance) Join(uid string) (isPlayer, isSpectator bool) {
 			r.game.Black = uid
 		}
 
-		return true, false
+		// joined properly
+		return true
 	}
 
-	// allow spectators in before second player joins
-	return false, true
+	// game already has both players
+	return false
+}
+
+// NotifyWaiting notifies the waiting player(s) that games have begun
+// by sending redirect messages to the room
+func (r *Instance) NotifyWaiting() {
+	waitingChannelName := fmt.Sprintf("%s%s", waiting, r.ID)
+	// ensure channel exists before notifying players
+	if waitingChannel := channel.Map.GetSockMap(waitingChannelName); waitingChannel != nil {
+		meta := channel.SocketContext{
+			Channel: waitingChannelName,
+			MT:      1,
+		}
+		// create redirect message
+		redir := proto.RedirectMessage{
+			Location: fmt.Sprintf("/%s", r.ID),
+		}
+		// broadcast redirect message
+		channel.Broadcast(redir.Marshal(), meta)
+	}
+}
+
+// NewJoinToken returns a new randomized join token for the
+// joining user. Updates the stored join token so other users
+// already on the join page can't also accept a challenge
+func (r *Instance) NewJoinToken() string {
+	r.joinToken = config.GenerateCode(12)
+	return r.joinToken
+}
+
+// CancelToken returns the cancelToken to the challenging player
+// such that they may cancel the challenge before games start
+func (r *Instance) CancelToken() string {
+	return r.cancelToken
 }
 
 // State returns the current room state
@@ -279,6 +367,11 @@ func (r *Instance) State() State {
 // IsCreator returns true if the given player by ID is the creator of the room
 func (r *Instance) IsCreator(id string) bool {
 	return r.creator == id
+}
+
+// HasBot returns true if the room is configured with a bot player
+func (r *Instance) HasBot() bool {
+	return r.players.HasBot()
 }
 
 // Game returns the game container instance
@@ -326,7 +419,7 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 
 // currentClock returns the current clock state via a ClockPayload
 func (r *Instance) currentClock() proto.ClockPayload {
-	state := r.game.Clock.State()
+	state := r.game.Clock.State(true)
 	return proto.ClockPayload{
 		Control: r.game.Variant.Control.Time.Centi(),
 		Black:   state.BlackTime.Centi(),
@@ -478,10 +571,11 @@ func (r *Instance) calcDepth(color octad.Color) int {
 	}
 
 	var remaining int64
+	clockState := r.game.Clock.State(true)
 	if color == octad.White {
-		remaining = r.game.Clock.State().WhiteTime.Centi()
+		remaining = clockState.WhiteTime.Centi()
 	} else {
-		remaining = r.game.Clock.State().BlackTime.Centi()
+		remaining = clockState.BlackTime.Centi()
 	}
 
 	modifier := float64(remaining) / float64(r.game.Variant.Control.Time.Centi())
@@ -594,6 +688,7 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 	_, playerColor := r.players.Lookup(id)
 
 	return message.RoomTemplatePayload{
+		RoomID:        r.ID,
 		PlayerColor:   playerColor.String(),
 		OpponentColor: playerColor.Other().String(),
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
@@ -636,7 +731,7 @@ func (r *Instance) genDrawEvent() *fsm.EventDesc {
 }
 
 func (r *Instance) genWhiteWinEvent() *fsm.EventDesc {
-	if r.game.Clock.State().Victor == clock.White {
+	if r.game.Clock.State(true).Victor == clock.White {
 		return &EventWhiteWinsTimeout
 	}
 
@@ -652,7 +747,7 @@ func (r *Instance) genWhiteWinEvent() *fsm.EventDesc {
 }
 
 func (r *Instance) genBlackWinEvent() *fsm.EventDesc {
-	if r.game.Clock.State().Victor == clock.Black {
+	if r.game.Clock.State(true).Victor == clock.Black {
 		return &EventBlackWinsTimeout
 	}
 
@@ -703,7 +798,7 @@ func genDrawState(g *game.OctadGame) (int, string) {
 }
 
 func genWhiteWinState(g *game.OctadGame) (int, string) {
-	if g.Clock.State().Victor == clock.White {
+	if g.Clock.State(true).Victor == clock.White {
 		return 1, "BLACK OUT OF TIME - WHITE WINS"
 	}
 
@@ -717,7 +812,7 @@ func genWhiteWinState(g *game.OctadGame) (int, string) {
 }
 
 func genBlackWinState(g *game.OctadGame) (int, string) {
-	if g.Clock.State().Victor == clock.Black {
+	if g.Clock.State(true).Victor == clock.Black {
 		return 2, "WHITE OUT OF TIME - BLACK WINS"
 	}
 

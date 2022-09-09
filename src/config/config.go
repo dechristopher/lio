@@ -118,6 +118,14 @@ func GetListenPort() string {
 	return fmt.Sprintf(":%s", GetPort())
 }
 
+// SiteURL returns the site URL based on environment configuration
+func SiteURL() string {
+	if !env.IsProd() {
+		return fmt.Sprintf("http://localhost:%s/", GetPort())
+	}
+	return "https://lioctad.org/"
+}
+
 // CorsOrigins returns the proper CORS origin configuration
 // for the current environment
 func CorsOrigins() string {

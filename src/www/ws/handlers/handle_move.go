@@ -15,7 +15,7 @@ import (
 
 // HandleMove processes game update messages
 func HandleMove(m []byte, meta channel.SocketContext) []byte {
-	thisRoom, err := room.Get(meta.Channel)
+	thisRoom, err := room.Get(meta.RoomID)
 	if err != nil {
 		return nil
 	}

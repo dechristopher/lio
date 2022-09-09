@@ -125,7 +125,9 @@ func (s *SockMap) Listen() Listener {
 		return nil
 	}
 	listener := make(chan int)
+	s.mut.Lock()
 	s.listenChannels = append(s.listenChannels, listener)
+	s.mut.Unlock()
 
 	// send status immediately
 	go func() { listener <- s.Length() }()
@@ -162,6 +164,7 @@ type Socket struct {
 // data received by a websocket handler
 type SocketContext struct {
 	Channel string
+	RoomID  string
 	UID     string
 	IsBot   bool
 	MT      int // websocket message type

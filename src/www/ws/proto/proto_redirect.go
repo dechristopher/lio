@@ -2,9 +2,9 @@ package proto
 
 // Marshal fully JSON marshals the MovePayload and
 // Wraps it in a Message struct
-func (m *MovePayload) Marshal() []byte {
+func (m *RedirectMessage) Marshal() []byte {
 	message := Message{
-		Tag:  string(MoveTag),
+		Tag:  string(RedirectTag),
 		Data: m,
 	}
 

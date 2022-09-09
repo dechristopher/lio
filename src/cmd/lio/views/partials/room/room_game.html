@@ -1,0 +1,17 @@
+<i id="gameTitle">{{ .Data.VariantName }}</i>
+<div class="gccon mt8">
+	<div id="clockOpponent" class="clockOpponent">
+		{{ template "partials/clock" .Data.OpponentColor }}
+	</div>
+	{{ template "partials/game" .Data.PlayerColor }}
+	<div id="clockPlayer" class="clockPlayer">
+		{{ template "partials/clock" .Data.PlayerColor }}
+	</div>
+</div>
+<div class="chin">
+	<div class="info sm">
+		<div id="info"></div>
+		<span id="crowd">0</span> CONNECTED
+		(<span id="lat">0</span><span class="unit">ms</span>)
+	</div>
+</div>
