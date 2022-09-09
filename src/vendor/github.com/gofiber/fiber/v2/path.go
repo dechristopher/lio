@@ -60,7 +60,7 @@ const (
 	paramConstraintDataSeparator byte = ','  // separator of datas of type constraint for a parameter
 )
 
-// parameter constraint types
+// TypeConstraint parameter constraint types
 type TypeConstraint int16
 
 type Constraint struct {
@@ -259,7 +259,7 @@ func (routeParser *routeParser) analyseParameterPart(pattern string) (string, *r
 	// Check has constraint
 	var constraints []*Constraint
 
-	if hasConstraint := (parameterConstraintStart != -1 && parameterConstraintEnd != -1); hasConstraint {
+	if hasConstraint := parameterConstraintStart != -1 && parameterConstraintEnd != -1; hasConstraint {
 		constraintString := pattern[parameterConstraintStart+1 : parameterConstraintEnd]
 		userConstraints := splitNonEscaped(constraintString, string(parameterConstraintSeparatorChars))
 		constraints = make([]*Constraint, 0, len(userConstraints))
@@ -362,23 +362,15 @@ func findLastCharsetPosition(search string, charset []byte) int {
 // findNextCharsetPositionConstraint search the next char position from the charset
 // unlike findNextCharsetPosition, it takes care of constraint start-end chars to parse route pattern
 func findNextCharsetPositionConstraint(search string, charset []byte) int {
+	constraintStart := findNextNonEscapedCharsetPosition(search, parameterConstraintStartChars)
+	constraintEnd := findNextNonEscapedCharsetPosition(search, parameterConstraintEndChars)
 	nextPosition := -1
-	constraintStart := -1
-	constraintEnd := -1
 
 	for _, char := range charset {
 		pos := strings.IndexByte(search, char)
 
-		if char == paramConstraintStart {
-			constraintStart = pos
-		}
-
-		if char == paramConstraintEnd {
-			constraintEnd = pos
-		}
-
 		if pos != -1 && (pos < nextPosition || nextPosition == -1) {
-			if pos > constraintStart && pos < constraintEnd {
+			if (pos > constraintStart && pos > constraintEnd) || (pos < constraintStart && pos < constraintEnd) {
 				nextPosition = pos
 			}
 		}
