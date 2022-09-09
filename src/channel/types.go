@@ -102,6 +102,8 @@ func (s *SockMap) Length() int {
 	if s == nil {
 		return 0
 	}
+	s.mut.Lock()
+	defer s.mut.Unlock()
 	return len(s.sockets)
 }
 
