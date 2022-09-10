@@ -17,7 +17,7 @@ window.notification = new Howl({
 	volume: 0.8
 });
 
-const crowdTag = "t";
+const crowdTag = "c";
 
 const logMe = () => console.log(`© 2022 lioctad.org`);
 
