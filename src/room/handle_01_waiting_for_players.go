@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
@@ -35,24 +36,24 @@ func (r *Instance) handleWaitingForPlayers() {
 			// don't clean up the room if the challenger is actively waiting
 			// for their opponent to accept the invite
 			if waitingPlayers > 0 {
-				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, challenger waiting", r.ID)
+				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players waiting", r.ID)
 				cleanupTimer.Stop()
 			} else {
-				util.DebugFlag("room", str.CRoom, "[%s] no players connected or waiting, started timer", r.ID)
+				util.DebugFlag("room", str.CRoom, "[%s] no players waiting, cleanup timer enabled", r.ID)
 				cleanupTimer = time.NewTimer(roomExpiryTime)
 			}
 		case numPlayers := <-connectionListener:
 			util.DebugFlag("room", str.CRoom, "[%s] room player count changed: %d", r.ID, numPlayers)
 			// start cleanup timer if no players are connected
 			if numPlayers == 0 && !hasWaitingPlayer() {
-				util.DebugFlag("room", str.CRoom, "[%s] no players connected or waiting, started timer", r.ID)
+				util.DebugFlag("room", str.CRoom, "[%s] no players connected, cleanup timer enabled", r.ID)
 				cleanupTimer = time.NewTimer(roomExpiryTime)
 				continue
 			}
 
 			// stop timer if one or more players are connected
 			if numPlayers > 0 || hasWaitingPlayer() {
-				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players connected or waiting", r.ID)
+				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players connected", r.ID)
 				cleanupTimer.Stop()
 			}
 
@@ -79,6 +80,11 @@ func (r *Instance) handleWaitingForPlayers() {
 				panic(err)
 			}
 			return
+		case control := <-r.controlChannel:
+			// if room cancelled, halt immediately
+			if control.Type == message.Cancel {
+				return
+			}
 		}
 	}
 }

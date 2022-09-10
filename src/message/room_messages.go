@@ -33,6 +33,7 @@ type RoomControlType int
 
 const (
 	Rematch RoomControlType = iota
+	Cancel
 	Resign
 	Draw
 )

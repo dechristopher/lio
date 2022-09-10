@@ -109,9 +109,33 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 	return c.Redirect("/#errJoinExpired")
 }
 
-// RoomCancelHandler joins the player to the room
+// RoomCancelHandler cancels the room immediately
 func RoomCancelHandler(c *fiber.Ctx) error {
-	return nil
+	uid, roomInstance, err, redirected := getUserAndRoom(c)
+	if err != nil || redirected {
+		return err
+	}
+
+	cancelPayload := struct {
+		Token string `form:"cancel_token"`
+	}{}
+
+	err = c.BodyParser(&cancelPayload)
+	if err != nil {
+		return c.Redirect("/#errCancel")
+	}
+
+	if !roomInstance.IsCreator(uid) || cancelPayload.Token != roomInstance.CancelToken() {
+		return c.Redirect("/", fiber.StatusForbidden)
+	}
+
+	// cancel the game if we're allowed to
+	if !roomInstance.Cancel() {
+		return c.Redirect("/", fiber.StatusBadRequest)
+	}
+
+	// redirect home after room cancellation
+	return c.Redirect("/")
 }
 
 // NewQuickRoomVsHuman creates a game against a human player with the default

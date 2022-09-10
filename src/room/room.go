@@ -79,6 +79,7 @@ type Instance struct {
 	cancelToken string // token to control cancelling challenges
 
 	abandoned bool
+	cancelled bool
 }
 
 // Params for room Instance creation
@@ -205,6 +206,11 @@ func (r *Instance) routine() {
 		default:
 			panic("invalid or unknown room state")
 		}
+
+		// exit routine if room has been cancelled
+		if r.cancelled {
+			return
+		}
 	}
 }
 
@@ -277,6 +283,28 @@ func (r *Instance) HandlePreGame(uid string, payload *message.RoomTemplatePayloa
 			payload.JoinToken = r.NewJoinToken()
 		}
 	}
+}
+
+// Cancel will cancel the room if not past waiting for players state
+func (r *Instance) Cancel() bool {
+	// only allow room cancellation in the waiting state
+	if r.State() != StateWaitingForPlayers {
+		return false
+	}
+
+	// set cancelled flag to halt room routine loop
+	r.cancelled = true
+
+	// emit control message to signal room routine handler to exit
+	r.controlChannel <- message.RoomControl{
+		Type: message.Cancel,
+		Ctx: channel.SocketContext{
+			Channel: r.ID,
+			MT:      1,
+		},
+	}
+
+	return true
 }
 
 // CanJoin returns true if the given player by uid can participate in the match
