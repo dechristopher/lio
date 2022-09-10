@@ -20,7 +20,7 @@ const (
 
 var (
 	// Version of lio
-	Version = "v0.5.5"
+	Version = "v0.5.6"
 
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
