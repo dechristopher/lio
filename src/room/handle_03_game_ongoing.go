@@ -54,7 +54,7 @@ func (r *Instance) handleGameOngoing() {
 			}
 
 			// track move lag for later compensation
-			lag.Move.Track(moveStart)
+			go lag.Move.Track(moveStart)
 			util.DebugFlag("lag", str.CRoom, "move lag avg: %s", lag.Move.Get())
 
 		// handle clock events

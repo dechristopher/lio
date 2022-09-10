@@ -1,28 +1,37 @@
 package lag
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
-type Monitor string
+// Monitor is a struct used for tracking latencies
+type Monitor struct {
+	Name string
+	mut  *sync.Mutex
+	avg  MovingAverage
+}
 
-const Move Monitor = "move"
+// Move lag tracker
+var Move = MakeMonitor("move")
 
-var monitors = make(map[Monitor]MovingAverage)
+// MakeMonitor makes a new monitor with the given name
+func MakeMonitor(name string) *Monitor {
+	return &Monitor{
+		Name: name,
+		mut:  &sync.Mutex{},
+		avg:  NewMovingAverage(),
+	}
+}
 
 // Get EWMA lag for the given monitor
-func (m Monitor) Get() time.Duration {
-	if monitors[m] == nil {
-		monitors[m] = NewMovingAverage()
-	}
-
-	return time.Duration(monitors[m].Value())
+func (m *Monitor) Get() time.Duration {
+	return time.Duration(m.avg.Value())
 }
 
 // Track EWMA lag for the given monitor
-func (m Monitor) Track(start time.Time) {
-	if monitors[m] == nil {
-		monitors[m] = NewMovingAverage()
-	}
-
-	dur := time.Since(start)
-	monitors[m].Add(float64(dur))
+func (m *Monitor) Track(start time.Time) {
+	m.mut.Lock()
+	defer m.mut.Unlock()
+	m.avg.Add(float64(time.Since(start)))
 }
