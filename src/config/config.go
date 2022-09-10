@@ -16,12 +16,15 @@ type Charset int
 const (
 	Hex Charset = iota
 	Base58
-)
 
-var (
 	// Version of lio
 	Version = "v0.5.6"
 
+	charsetHex    = "abcdef01234567890"
+	charsetBase58 = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"
+)
+
+var (
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
 
@@ -37,9 +40,6 @@ var (
 	DebugFlagPtr *string
 	// DebugFlags holds all active, parsed debug flags
 	DebugFlags = make(map[string]bool)
-
-	charsetHex    = "abcdef01234567890"
-	charsetBase58 = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"
 )
 
 // ReadSecretFallback attempts to read a secret from the secret
