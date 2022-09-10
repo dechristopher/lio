@@ -11,14 +11,14 @@ import (
 // with the given template, name, data, and status
 func HandleTemplate(
 	c *fiber.Ctx,
+	status int,
 	template string,
 	name string,
 	data interface{},
-	status int,
 ) error {
 	return c.Status(status).Render(
 		template,
-		genPageModel(name, data),
+		genPageModel(name, template, data),
 		"layouts/main")
 }
 
@@ -30,17 +30,19 @@ type pageModel struct {
 	CacheKey string
 	SiteURL  string
 	PageName string
+	Template string
 	Data     interface{}
 }
 
 // GenPageModel generates the global page model
-func genPageModel(name string, data interface{}) pageModel {
+func genPageModel(name, template string, data interface{}) pageModel {
 	return pageModel{
 		Env:      env.GetEnv(),
 		Version:  config.Version,
 		CacheKey: config.CacheKey,
 		SiteURL:  config.SiteURL(),
 		PageName: name,
+		Template: template,
 		Data:     data,
 	}
 }

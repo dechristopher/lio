@@ -62,8 +62,8 @@ func RoomHandler(c *fiber.Ctx) error {
 		roomInstance.HandlePreGame(uid, &payload)
 
 		// render template
-		return util.HandleTemplate(c, roomTemplate,
-			payload.VariantName, payload, 200)
+		return util.HandleTemplate(c, 200, roomTemplate,
+			payload.VariantName, payload)
 	} else if asSpectator { // user is spectator
 		// TODO signal to JS that this player is a spectator
 		// by excluding some player-specific scripts

@@ -14,6 +14,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.36
 	github.com/pkg/errors v0.9.1
 	github.com/valyala/fastjson v1.6.3
+	golang.org/x/text v0.3.7
 )
 
 require (
@@ -36,6 +37,5 @@ require (
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591 // indirect
 	golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2 // indirect
-	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )

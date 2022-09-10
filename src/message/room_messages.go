@@ -2,6 +2,7 @@ package message
 
 import (
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/variant"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
@@ -10,6 +11,7 @@ type RoomTemplatePayload struct {
 	PlayerColor   string
 	OpponentColor string
 	VariantName   string
+	Variant       variant.Variant
 	IsCreator     bool
 	IsJoining     bool
 	CancelToken   string

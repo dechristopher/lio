@@ -19,10 +19,10 @@ type indexData struct {
 
 // IndexHandler executes the home page template
 func IndexHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, "index",
+	return util.HandleTemplate(c, 200, "index",
 		"Free Online Octad", indexData{
 			Pools: pools.RatingPools,
-		}, 200)
+		})
 }
 
 // SPAHandlerInit creates the SPA handler to serve index.html for all

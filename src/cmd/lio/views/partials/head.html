@@ -13,13 +13,20 @@
 	<meta name="theme-color" content="#ffffff">
 	<meta name="application-name" content="lioctad.org">
 	<meta property="og:site_name" content="lioctad.org">
-	<meta property="og:title" content="The best free, adless octad server">
-	<meta property="og:url" content="https://lioctad.org">
 	<meta property="og:type" content="website">
+	{{ if eq .Template "room" }}
+	<meta property="og:url" content="https://lioctad.org/{{ .Data.RoomID }}">
+	<meta property="og:title" content="{{ .Data.Variant.Group.String | Title }} ({{ .Data.Variant.Name }}) casual octad • Challenge from anonymous opponent • lichess.org">
+	<meta name="description" content="Join the challenge or watch the game here.">
+	<meta property="og:description" content="Join the challenge or watch the game here.">
+	{{ else }}
+	<meta property="og:url" content="https://lioctad.org">
+	<meta property="og:title" content="The best free, adless octad server">
 	<meta name="description"
 				content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
 	<meta property="og:description"
 				content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad with the computer, friends or random players.">
+	{{ end }}
 	<style>
 	  body {
 		  margin: 0;

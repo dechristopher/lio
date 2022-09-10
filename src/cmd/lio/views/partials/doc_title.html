@@ -1,7 +1,5 @@
-{{ if eq .Env "dev" }}
-<title>DEV • lioctad.org • {{ .PageName }}</title>
-{{ else if eq .Env "local" }}
-<title>LOCAL • lioctad.org • {{ .PageName }}</title>
+{{ if eq .Template "room" }}
+<title>{{ .Data.Variant.Group.String | Title }} ({{ .Data.Variant.Name }}) casual octad • Challenge from anonymous opponent • lichess.org</title>
 {{ else }}
 <title>lioctad.org • {{ .PageName }}</title>
 {{ end }}

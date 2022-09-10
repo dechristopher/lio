@@ -57,8 +57,8 @@ func Wire(r fiber.Router, static http.FileSystem) {
 // handlers are defined. Acts as the final fallback.
 func NotFound(r *fiber.App) {
 	r.Use(func(c *fiber.Ctx) error {
-		return util.HandleTemplate(c, "404",
-			"404", nil, 404)
+		return util.HandleTemplate(c, 404, "404",
+			"404", nil)
 	})
 }
 

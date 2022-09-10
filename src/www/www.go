@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
@@ -43,6 +46,18 @@ func Serve(views, static embed.FS) {
 
 	// enable template engine reloading on dev
 	engine.Reload(env.IsLocal())
+
+	toUpperAny := func(s any) string {
+		return strings.ToUpper(s.(string))
+	}
+
+	// custom template rendering functions
+	engine.AddFuncMap(map[string]interface{}{
+		"ToUpper":    strings.ToUpper,
+		"ToUpperAny": toUpperAny,
+		"ToLower":    strings.ToLower,
+		"Title":      cases.Title(language.English).String,
+	})
 
 	r := fiber.New(fiber.Config{
 		ServerHeader:          "lioctad.org " + config.Version,

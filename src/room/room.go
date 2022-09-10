@@ -720,6 +720,7 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		PlayerColor:   playerColor.String(),
 		OpponentColor: playerColor.Other().String(),
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
+		Variant:       r.game.Variant,
 	}
 }
 
