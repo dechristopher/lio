@@ -73,6 +73,14 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 
 	// return websocket handler injected with values from request context
 	return func(c *websocket.Conn) {
+		// recover panicked websocket handlers
+		defer func() {
+			err := recover()
+			if err != nil {
+				util.Error(str.CWS, "[%s @ %s] recovered panicked ws handler: %v", uid, roomId, err)
+			}
+		}()
+
 		// websocket.Conn bindings
 		// https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
 		var (

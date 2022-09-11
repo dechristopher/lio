@@ -185,6 +185,13 @@ func (r *Instance) init() error {
 
 // routine for handling all room operations after creation
 func (r *Instance) routine() {
+	// recover panicked room routines
+	defer func() {
+		err := recover()
+		if err != nil {
+			util.Error(str.CRoom, "[%s] recovered panicked room routine: %v", r.ID, err)
+		}
+	}()
 	// defer room cleanup, still runs in case of a panic, thanks go
 	defer r.cleanup()
 
