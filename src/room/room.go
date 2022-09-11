@@ -167,7 +167,12 @@ func Create(params Params) (*Instance, error) {
 		return nil, err
 	}
 
+	// store room in rooms map
+	// TODO sync.Map
 	rooms[r.ID] = r
+
+	// log room creation
+	util.Info(str.CRoom, "[%s] room created by uid %s", r.ID, params.Creator)
 
 	return r, nil
 }

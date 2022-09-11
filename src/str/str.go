@@ -59,8 +59,8 @@ const (
 	MStarted  = "started in %s [env: %s][http: %s][health: %s]"
 	MShutdown = "shutting down"
 	MExit     = "exit"
-	MWSConn   = "ws: newconn %s - %s @ %s"
-	MWSDisc   = "ws: disconn %s - %s @ %s"
+	MWSConn   = "[%s @ %s] ws: new conn from %s"
+	MWSDisc   = "[%s @ %s] ws: disconnected %s"
 )
 
 // (D) Debug log messages

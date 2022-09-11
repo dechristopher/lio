@@ -69,7 +69,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 		}
 	}
 
-	util.Info(str.CWS, str.MWSConn, ctx.IP(), uid, thisChannel)
+	util.Info(str.CWS, str.MWSConn, uid, thisChannel, ctx.IP())
 
 	// return websocket handler injected with values from request context
 	return func(c *websocket.Conn) {
@@ -168,7 +168,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 // killSocket closes the websocket connection and removes the socket
 // reference from the ChanMap map
 func killSocket(conn *websocket.Conn, thisChannel string, uid string) {
-	util.Info(str.CWS, str.MWSDisc, conn.RemoteAddr(), uid, thisChannel)
+	util.Info(str.CWS, str.MWSDisc, uid, thisChannel, conn.RemoteAddr())
 	channel.Map.GetSockMap(thisChannel).UnTrack(uid)
 	_ = conn.Close()
 }
