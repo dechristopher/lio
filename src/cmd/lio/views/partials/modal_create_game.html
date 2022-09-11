@@ -1,3 +1,38 @@
+<div id="modalCreateGame" class="modal-shade">
+	<div class="modal">
+		<span class="close">&times;</span>
+		<div class="modal-content">
+			<h2>Create a game</h2>
+			<form action="/new/human" method="POST">
+				<div class="tc-select">
+					{{ range $pool, $tcs := .Data.Pools }}
+					{{ range $tcs }}
+					<input id="{{ .HTMLName }}" type="radio" class="tc-input"
+								 name="time-control" value="{{ .HTMLName }}" required/>
+					<label for="{{ .HTMLName }}">
+						<button type="button" class="tc-box libtn">
+							<span class="tc-name">{{ .Name }}</span>
+							<span class="tc-pool">{{ .Group }}</span>
+						</button>
+					</label>
+					{{ end }}
+					{{ end }}
+				</div>
+				<div class="submit">
+					<button class="submit-btn libtn" name="color" value="w" title="Play the white pieces first">
+						<span class="piece-button alpha wk"></span>
+					</button>
+					<button class="submit-btn large libtn" name="color" value="r" title="Play either set of pieces first">
+						<span class="piece-button alpha random"></span>
+					</button>
+					<button class="submit-btn libtn" name="color" value="b" title="Play the black pieces first">
+						<span class="piece-button alpha bk"></span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
 <style>
 	.modal-shade {
 		display: none;
@@ -144,49 +179,14 @@
 	}
 
 </style>
-<div id="modalCreateGame" class="modal-shade">
-	<div class="modal">
-		<span class="close">&times;</span>
-		<div class="modal-content">
-			<h2>Create a game</h2>
-			<form action="/new/human" method="POST">
-				<div class="tc-select">
-					{{ range $pool, $tcs := .Data.Pools }}
-					{{ range $tcs }}
-					<input id="{{ .HTMLName }}" type="radio" class="tc-input"
-								 name="time-control" value="{{ .HTMLName }}" required/>
-					<label for="{{ .HTMLName }}">
-						<button type="button" class="tc-box libtn">
-							<span class="tc-name">{{ .Name }}</span>
-							<span class="tc-pool">{{ .Group }}</span>
-						</button>
-					</label>
-					{{ end }}
-					{{ end }}
-				</div>
-				<div class="submit">
-					<button class="submit-btn libtn" name="color" value="w" title="Play the white pieces first">
-						<span class="piece-button alpha wk"></span>
-					</button>
-					<button class="submit-btn large libtn" name="color" value="r" title="Play either set of pieces first">
-						<span class="piece-button alpha random"></span>
-					</button>
-					<button class="submit-btn libtn" name="color" value="b" title="Play the black pieces first">
-						<span class="piece-button alpha bk"></span>
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-</div>
 <script>
 	const modal = document.getElementById("modalCreateGame");
 	const btn = document.getElementById("createGameButton");
-	const span = document.getElementsByClassName("close")[0];
+	const close = document.getElementsByClassName("close")[0];
 	btn.onclick = function () {
 		modal.style.display = "block";
 	};
-	span.onclick = function () {
+	close.onclick = function () {
 		modal.style.display = "none";
 	};
 	window.onclick = function (event) {
