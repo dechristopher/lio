@@ -228,7 +228,7 @@ func (r *Instance) routine() {
 
 // cleanup finishes, closes, and finalizes the room
 func (r *Instance) cleanup() {
-	util.DebugFlag("room", str.CRoom, "cleaning up room %s", r.ID)
+	util.DebugFlag("room", str.CRoom, "[%s] cleaning up", r.ID)
 	// clean up all existing room channels by type
 	for _, channelType := range roomChannelTypes {
 		c := fmt.Sprintf("%s%s", channelType, r.ID)
