@@ -19,6 +19,7 @@ func (r *Instance) handleGameOngoing() {
 
 	// set up abandon timer beyond any regular game duration
 	var abandonTimer = time.NewTimer(time.Hour)
+	defer abandonTimer.Stop()
 
 	for {
 		select {

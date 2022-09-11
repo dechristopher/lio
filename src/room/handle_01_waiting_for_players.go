@@ -15,6 +15,7 @@ import (
 // proceed to clean up the room if exceeded
 func (r *Instance) handleWaitingForPlayers() {
 	cleanupTimer := time.NewTimer(time.Minute * 15)
+	defer cleanupTimer.Stop()
 
 	waitingRoom := channel.Map.GetSockMap(fmt.Sprintf("%s%s", waiting, r.ID))
 	waitingListener := waitingRoom.Listen()
