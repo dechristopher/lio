@@ -9,6 +9,7 @@ import (
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/player"
+	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
 
@@ -34,8 +35,20 @@ func (r *Instance) handleGameOver() {
 		}
 	}()
 
+	// 30 second timeout until rematch is unavailable
+	rematchTimeout := time.NewTimer(30 * time.Second)
+	defer rematchTimeout.Stop()
+
 	for {
 		select {
+		case <-rematchTimeout.C:
+			// no rematch agreed to, clean up
+			util.DebugFlag("room", str.CRoom, "[%s] no rematch, room over", r.ID)
+			err := r.event(EventNoRematch)
+			if err != nil {
+				panic(err)
+			}
+			return
 		case control := <-r.controlChannel:
 			if control.Type == message.Rematch {
 				// track agreement for player looked up via context
