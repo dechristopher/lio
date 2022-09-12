@@ -3,7 +3,7 @@
 		<span class="close">&times;</span>
 		<div class="modal-content">
 			<h2>Create a game</h2>
-			<form action="/new/human" method="POST">
+			<form class="cg" action="/new/human" method="POST">
 				<div class="tc-select">
 					{{ range $pool, $tcs := .Data.Pools }}
 					{{ range $tcs }}
@@ -19,13 +19,13 @@
 					{{ end }}
 				</div>
 				<div class="submit">
-					<button class="submit-btn libtn" name="color" value="w" title="Play the white pieces first">
+					<button type="submit" class="submit-btn libtn" name="color" value="w" title="Play the white pieces first">
 						<span class="piece-button alpha wk"></span>
 					</button>
-					<button class="submit-btn large libtn" name="color" value="r" title="Play either set of pieces first">
+					<button type="submit" class="submit-btn large libtn" name="color" value="r" title="Play either set of pieces first">
 						<span class="piece-button alpha random"></span>
 					</button>
-					<button class="submit-btn libtn" name="color" value="b" title="Play the black pieces first">
+					<button type="submit" class="submit-btn libtn" name="color" value="b" title="Play the black pieces first">
 						<span class="piece-button alpha bk"></span>
 					</button>
 				</div>
@@ -146,6 +146,12 @@
 		justify-content: center;
 		align-items: center;
 	}
+
+  form:invalid.cg button[type="submit"] {
+	  pointer-events: none;
+	  background-color: #aeaeae !important;
+		opacity: 50%;
+  }
 
 	.submit-btn {
 		padding: 2px 6px !important;
