@@ -1,5 +1,6 @@
 // LIO core client code
 let ka, backoff = 0;
+let disconnected = false;
 let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingDelay = 5000;
 
 // ws handlers map
@@ -53,14 +54,19 @@ const connect = (prefix) => {
 	};
 
 	window.ws.onclose = () => {
-		console.warn("Lost connection to lioctad.org");
 		window.ws = null;
 		clearInterval(ka);
 		clearInterval(pingRunner);
-		if (typeof disableBoard !== 'undefined') {
-			disableBoard();
+
+		if (!disconnected) {
+			console.warn("Lost connection to lioctad.org");
+			if (typeof disableBoard !== 'undefined') {
+				disableBoard();
+			}
+			reconnect(prefix);
+		} else {
+			console.log("Disconnected from lioctad.org");
 		}
-		reconnect(prefix);
 	};
 
 	window.ws.onmessage = (evt) => {
@@ -81,6 +87,15 @@ const connected = () => {
 		sendKeepAlive();
 	}, 5000);
 };
+
+/**
+ * Disconnect from the websocket endpoint with the given reason
+ * @param reason - human-readable ws close message
+ */
+const disconnect = (reason) => {
+	disconnected = true;
+	window.ws.close(1000, reason);
+}
 
 /**
  * Reconnect to the backend adhering to exponential backoff
