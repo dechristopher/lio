@@ -27,6 +27,12 @@ window.capSound = new Howl({
 	volume: 0.9
 });
 
+window.checkSound = new Howl({
+	src: ["/res/sfx/check.ogg"],
+	preload: true,
+	volume: 0.9
+});
+
 // create game board
 let og = Octadground(document.getElementById('game'), {
 	ofen: 'ppkn/4/4/NKPP', // set initial board state to prevent brief period of missing pieces
@@ -167,7 +173,7 @@ const playSounds = (message, ofenParts) => {
 		// play move sounds if game is not starting
 		// and only if board ofen is different from current
 		if (message.d.s && ofenParts[0] !== og.state.ofen) {
-			playMoveSound(message.d.s);
+			playMoveSound(message);
 		}
 	}
 };
@@ -443,10 +449,16 @@ const doMovePromo = (orig, dest, promo) => {
 
 /**
  * Play sounds for incoming moves based on the SAN for the move
- * @param san
+ * and whether the move is a capture or results in check
+ * @param message - move message
  */
-const playMoveSound = (san) => {
-	if (san.includes("x")) {
+const playMoveSound = (message) => {
+	if (message.d.k) {
+		window.checkSound.play();
+		return;
+	}
+
+	if (message.d.s.includes("x")) {
 		window.capSound.play();
 	} else {
 		window.moveSound.play();
