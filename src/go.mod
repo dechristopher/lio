@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.4.0
 	github.com/looplab/fsm v0.3.0
-	github.com/minio/minio-go/v7 v7.0.36
+	github.com/minio/minio-go/v7 v7.0.42
 	github.com/pkg/errors v0.9.1
 	github.com/valyala/fastjson v1.6.3
 	golang.org/x/text v0.3.7
