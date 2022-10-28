@@ -27,10 +27,10 @@ func (c *Clock) handleCommand(cmd Command) bool {
 			c.firstMove = false
 		} else {
 			// update elapsed time of current player
-			c.players[c.turn].takeTime(ToCTime(time.Since(c.timestamp)))
+			c.players[c.turn].giveTime(ToCTime(time.Since(c.timestamp)))
 
 			// compensate player for move processing lag
-			c.players[c.turn].giveTime(ToCTime(lag.Move.Get()))
+			c.players[c.turn].takeTime(ToCTime(lag.Move.Get()))
 
 			// check to see if someone flagged
 			if c.flagged() {
@@ -40,13 +40,13 @@ func (c *Clock) handleCommand(cmd Command) bool {
 
 			// add increment if enabled
 			if c.hasIncrement() {
-				c.players[c.turn].giveTime(c.control.Increment)
+				c.players[c.turn].takeTime(c.timeControl.Increment)
 			}
 		}
 
 		// reset delay if enabled
-		if c.delayTimer != nil && c.control.Delay.t != 0 {
-			c.delayTimer.Reset(c.control.Delay.t)
+		if c.delayTimer != nil && c.timeControl.Delay.t != 0 {
+			c.delayTimer.Reset(c.timeControl.Delay.t)
 			c.delayExpired = false
 		}
 

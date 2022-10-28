@@ -8,22 +8,19 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/template/html"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
-	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/handlers"
 	"github.com/dechristopher/lio/www/handlers/api"
 	"github.com/dechristopher/lio/www/middleware"
-	"github.com/dechristopher/lio/www/ws"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/template/html"
 )
 
 var (
@@ -39,13 +36,13 @@ func Serve(views, static embed.FS) {
 	util.Info(str.CMain, str.MInit, config.Version)
 
 	// make filesystem location decision based on environment
-	viewsFs = util.PickFS(env.IsLocal(), views, "./views")
+	//viewsFs = util.PickFS(env.IsLocal(), views, "./views")
 	staticFs = util.PickFS(env.IsLocal(), static, "./static")
 	// populate template engine from views filesystem
-	engine = html.NewFileSystem(viewsFs, ".html")
+	//engine = html.NewFileSystem(viewsFs, ".html")
 
 	// enable template engine reloading on dev
-	engine.Reload(env.IsLocal())
+	//engine.Reload(env.IsLocal())
 
 	toUpperAny := func(s any) string {
 		return strings.ToUpper(s.(string))
@@ -64,7 +61,7 @@ func Serve(views, static embed.FS) {
 		CaseSensitive:         true,
 		ErrorHandler:          nil,
 		DisableStartupMessage: true,
-		Views:                 engine,
+		//Views:                 engine,
 	})
 
 	// wire up all route handlers
@@ -105,17 +102,20 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
-	// evaluate / set user context
-	// TODO rebuild this every time someone logs in
-	r.Use(user.ContextMiddleware)
+	// TODO remove because moved to api.go
+	//// websocket upgrade middleware
+	//r.Use("/socket", ws.UpgradeHandler)
+	//// websocket connection listener
+	//r.Get("/socket/:chan", websocket.New(ws.ConnHandler))
+	//// websocket
+	//r.Get("/socket/:type/:chan", websocket.New(ws.ConnHandler))
 
-	// websocket upgrade middleware
-	r.Use("/socket", ws.UpgradeHandler)
-
-	// websocket connection listener
-	r.Get("/socket/:chan", ws.ConnHandler())
-	// websocket
-	r.Get("/socket/:type/:chan", ws.ConnHandler())
+	if env.IsProd() {
+		// TODO update to serve the built React files
+		r.Static("/", "./views", fiber.Static{
+			Index: "test.html",
+		})
+	}
 
 	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")
@@ -123,32 +123,36 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// wire up all middleware components
 	middleware.Wire(sub, staticFs)
 
-	// JSON service health / status handler
-	r.Get("/lio", handlers.StatusHandler)
-
 	// group for /api routes
 	apiGroup := sub.Group("/api")
 
 	// wire all the api handlers
 	api.Wire(apiGroup)
 
+	// TODO remove because handled by the UI
 	// home handler
-	// TODO not needed once we default SPAHandler
-	r.Get("/", handlers.IndexHandler)
+	//r.Get("/", handlers.IndexHandler)
 
+	// TODO remove because handled by the UI
 	// other pages
-	r.Get("/about", handlers.AboutHandler)
-	r.Get("/about/board", handlers.AboutBoardHandler)
-	r.Get("/about/rules", handlers.AboutRulesHandler)
-	r.Get("/about/misc", handlers.AboutMiscHandler)
+	//r.Get("/about", handlers.AboutHandler)
+	//r.Get("/about/board", handlers.AboutBoardHandler)
+	//r.Get("/about/rules", handlers.AboutRulesHandler)
+	//r.Get("/about/misc", handlers.AboutMiscHandler)
 
+	// TODO remove because handled by the UI
 	// game database page handler
-	r.Get("/db", handlers.DBHandler)
+	//r.Get("/db", handlers.DBHandler)
 
-	// new room creation routes
-	r.Post("/new/human", handlers.NewCustomRoomVsHuman)
-	r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
-	r.Get("/new/computer", handlers.NewRoomVsComputer)
+	// TODO remove because moved to api.go
+	//// JSON service health / status handler
+	//r.Get("/lio", handlers.StatusHandler)
+	//// room handler
+	//r.Get("/:id", handlers.RoomHandler)
+	//// new room creation routes
+	//r.Post("/new/human", handlers.NewCustomRoomVsHuman)
+	//r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
+	//r.Get("/new/computer", handlers.NewRoomVsComputer)
 
 	// room handlers
 	r.Get("/:id", handlers.RoomHandler)
@@ -159,7 +163,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// React handle 404s so that we get nice error pages
 	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
 
+	// TODO remove because handled by the UI
 	// Custom 404 page
-	// TODO not needed once we default SPAHandler
-	middleware.NotFound(r)
+	//middleware.NotFound(r)
 }

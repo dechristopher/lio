@@ -134,5 +134,6 @@ func CorsOrigins() string {
 	}
 	return "http://localhost:4444, " +
 		"http://localhost:8080, " +
-		"https://dev.lioctad.org"
+		"https://dev.lioctad.org, " +
+		"http://localhost:3000"
 }

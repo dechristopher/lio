@@ -443,6 +443,8 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 		GameStart: gameStart,
 	}
 
+	fmt.Printf("Game State %v\n", r.State())
+
 	// set legal moves if we're in GameReady or GameOngoing
 	// to prevent first moves before moves are allowed to be played
 	if r.State() != StateWaitingForPlayers {

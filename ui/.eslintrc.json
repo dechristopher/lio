@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "next/core-web-vitals"
+    // "prettier"
+    // "plugin:jsdoc/recommended"
+  ],
+  "settings": {
+    "next": {
+      "rootDir": "ui/"
+    }
+  }
+}

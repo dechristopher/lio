@@ -12,7 +12,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/dechristopher/lio/env"
-	"github.com/dechristopher/lio/util"
 )
 
 const logFormatProd = "[${cookie:uid}] ${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
@@ -53,14 +52,15 @@ func Wire(r fiber.Router, static http.FileSystem) {
 	}))
 }
 
+// TODO remove because handled by the UI
 // NotFound wires the final 404 handler after all other
 // handlers are defined. Acts as the final fallback.
-func NotFound(r *fiber.App) {
-	r.Use(func(c *fiber.Ctx) error {
-		return util.HandleTemplate(c, 404, "404",
-			"404", nil)
-	})
-}
+//func NotFound(r *fiber.App) {
+//	r.Use(func(c *fiber.Ctx) error {
+//		return util.HandleTemplate(c, "404",
+//			"404", nil, 404)
+//	})
+//}
 
 func logFormat() string {
 	if env.IsProd() {

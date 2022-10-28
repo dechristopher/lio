@@ -1,0 +1,52 @@
+.promoShade {
+  z-index: 10;
+  width: 320px;
+  height: 320px;
+  position: absolute;
+  background-color: rgba(50, 50, 50, 0.6);
+}
+
+.promo {
+  z-index: 11;
+  position: absolute;
+}
+
+.promo.fa {
+  padding-left: 0;
+}
+
+.promo.fb {
+  padding-left: 80px;
+}
+
+.promo.fc {
+  padding-left: 160px;
+}
+
+.promo.fd {
+  padding-left: 240px;
+}
+
+.piece {
+  display: block;
+  position: relative;
+  width: 74px;
+  height: 74px;
+  background-color: #b7b7a3;
+  background-size: 74px;
+  background-position: center;
+  -webkit-transition: all 200ms ease-in-out;
+  -ms-transition: all 200ms ease-in-out;
+  transition: all 200ms ease-in-out;
+  box-sizing: border-box;
+  border: 2px solid black;
+  margin: 3px 4px 6px 3px;
+}
+
+.piece:hover {
+  background-color: #a5b0b8;
+  background-size: 80px;
+  -webkit-transition: all 200ms ease-in-out;
+  -ms-transition: all 200ms ease-in-out;
+  transition: all 200ms ease-in-out;
+}

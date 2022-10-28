@@ -1,6 +1,8 @@
 import React from "react";
 import Head from "next/head";
-import CreateGameButtons from "../components/CreateGameButtons/CreateGameButtons";
+import GameButtons from "@/components/GameButtons/GameButtons";
+import MainContainer from "@/components/MainContainer/MainContainer";
+import PromotionModal from "@/components/PromotionModal/PromotionModal";
 
 export default function Home(): JSX.Element {
 	return (
@@ -55,15 +57,13 @@ export default function Home(): JSX.Element {
 					property="og:description"
 					content="Free online octad server. Play octad in a clean interface. No registration, no ads. Play octad/ with the computer, friends or random players."
 				/>
-
-				<link rel="preconnect" href="https://fonts.gstatic.com" />
-				<link
-					href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;300&family=Noto+Sans:ital@0;1&family=Poppins:wght@300;400;500;600&display=swap"
-					rel="stylesheet"
-				/>
 			</Head>
 
-			<CreateGameButtons />
+			<MainContainer>
+				<GameButtons />
+			</MainContainer>
+
+			<PromotionModal open />
 		</div>
 	);
 }

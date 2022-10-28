@@ -14,7 +14,7 @@ const Channel bus.Channel = "lio:clock"
 
 // Clock represents the clock for a single game
 type Clock struct {
-	control TimeControl
+	timeControl TimeControl
 
 	victor    Victor
 	turn      octad.Color
@@ -37,7 +37,7 @@ type Clock struct {
 }
 
 func (c *Clock) hasIncrement() bool {
-	return c.control.Increment.t > 0
+	return c.timeControl.Increment.t > 0
 }
 
 // time container for a single player
@@ -52,16 +52,16 @@ func (pc *playerClock) remaining() CTime {
 	return pc.control.Time.Diff(pc.elapsed)
 }
 
-// takeTime adds the given time to the player's elapsed time
-func (pc *playerClock) takeTime(t CTime) {
+// giveTime adds the given time to the player's elapsed time
+func (pc *playerClock) giveTime(t CTime) {
 	pc.elapsed = pc.elapsed.Add(t)
 	if pc.elapsed.t > pc.control.Time.t {
 		pc.elapsed = pc.control.Time
 	}
 }
 
-// giveTime subtracts the given time from the player's elapsed time
-func (pc *playerClock) giveTime(t CTime) {
+// takeTime subtracts the given time from the player's elapsed time
+func (pc *playerClock) takeTime(t CTime) {
 	pc.elapsed = pc.elapsed.Diff(t)
 }
 
@@ -72,10 +72,10 @@ func (pc *playerClock) flagged() bool {
 }
 
 // NewClock returns a clock configured for the given players at
-// the specified time control
+// the specified time timeControl
 func NewClock(tc TimeControl) *Clock {
 	clock := &Clock{
-		control:        tc,
+		timeControl:    tc,
 		victor:         NoVictor, // game in progress
 		turn:           octad.White,
 		players:        make(map[octad.Color]*playerClock),
@@ -164,8 +164,8 @@ func (c *Clock) Start() {
 
 	go func(cl *Clock) {
 		// set up delay timer
-		if cl.control.Delay.t != 0 {
-			cl.delayTimer = time.NewTimer(cl.control.Delay.t)
+		if cl.timeControl.Delay.t != 0 {
+			cl.delayTimer = time.NewTimer(cl.timeControl.Delay.t)
 		} else {
 			// default to true for immediate decrement
 			cl.delayTimer = time.NewTimer(time.Hour)

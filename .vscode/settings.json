@@ -4,6 +4,9 @@
     "**/.pnp.*": true
   },
   "eslint.nodePath": "./ui/.yarn/sdks",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
   "prettier.prettierPath": "./ui/.yarn/sdks/prettier/index.js",
   "typescript.tsdk": "./ui/.yarn/sdks/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
@@ -11,10 +14,13 @@
   "cSpell.words": [
     "adless",
     "centi",
+    "centisecond",
+    "centiseconds",
     "Dechristopher",
     "headlessui",
     "heroicons",
     "lioctad",
+    "Octadground",
     "OFEN",
     "tailwindcss",
     "Toubeau"

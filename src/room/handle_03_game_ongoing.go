@@ -1,6 +1,7 @@
 package room
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/dechristopher/octad"
@@ -25,6 +26,7 @@ func (r *Instance) handleGameOngoing() {
 		select {
 		// handle move events
 		case move := <-r.moveChannel:
+			fmt.Printf("Move Data %v", move)
 			moveStart := time.Now()
 			// if not player's turn, send previous position and continue
 			if !r.isTurn(move) {
