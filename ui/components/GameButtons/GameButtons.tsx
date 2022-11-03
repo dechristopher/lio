@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
 	CreateGameButtonStyle,
@@ -8,9 +8,11 @@ import {
 } from "./GameButtons.css";
 import Button from "../Button/Button";
 import { useRouter } from "next/router";
+import CreateGameModal from "../CreateGameModal/CreateGameModal";
 
 export default function GameButtons(): JSX.Element {
 	const router = useRouter();
+	const [modalOpen, setModalOpen] = useState(false);
 
 	return (
 		<div>
@@ -42,7 +44,6 @@ export default function GameButtons(): JSX.Element {
 						aria-label="Quick game versus the computer"
 						onClick={() => {
 							fetch("api/new/computer").then((response) => {
-								console.log(response);
 								if (response.status === 200) {
 									router.push(response.url);
 								}
@@ -63,10 +64,16 @@ export default function GameButtons(): JSX.Element {
 					title="Create a custom game"
 					className={CreateGameButtonStyle}
 					aria-label="Create a custom game"
+					onClick={() => setModalOpen(true)}
 				>
 					<div>CREATE GAME</div>
 				</Button>
 			</div>
+
+			<CreateGameModal
+				open={modalOpen}
+				close={() => setModalOpen(false)}
+			/>
 		</div>
 	);
 }

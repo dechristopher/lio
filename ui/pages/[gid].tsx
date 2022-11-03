@@ -16,7 +16,7 @@ import {
 	NotificationSound,
 	useAnimationFrame,
 } from "@/components/shared";
-import { SocketResponse } from "@/proto/proto";
+import { Color, SocketResponse } from "@/proto/proto";
 import {
 	MovePayload,
 	MovePayloadDeserialized,
@@ -188,6 +188,8 @@ export default function GameBoard() {
 	const parseResponse = (raw: string) => {
 		let message: SocketResponse = JSON.parse(raw);
 
+		console.log("[Websocket] Message", message);
+
 		// handle pongs
 		if (message.po === 1) {
 			console.log("[Websocket] Received pong");
@@ -300,7 +302,7 @@ export default function GameBoard() {
 					CaptureSound.play();
 				} else {
 					MoveSound.play();
-				};
+				}
 			}
 		}
 
@@ -324,14 +326,14 @@ export default function GameBoard() {
 
 		setTimeControl(message.Clock?.TimeControl ?? 0);
 
-		const playerColor = isPlayerWhite ? "white" : "black";
+		const playerColor = isPlayerWhite ? Color.WHITE : Color.BLACK;
 		setOctadgroundState((oldState) => ({
 			...oldState,
 			ofen: ofenParts[0],
 			check: message.Check,
 			orientation: playerColor,
 			lastMove: getLastMove(message.Moves ?? []),
-			turnColor: isWhitesTurn ? "white" : "black",
+			turnColor: isWhitesTurn ? Color.WHITE : Color.BLACK,
 			selectable: {
 				enabled: IsMobile(),
 			},
@@ -391,8 +393,8 @@ export default function GameBoard() {
 			// TODO handle piece promotion
 			if (
 				destPiece &&
-				((destPiece.color === "white" && dest[1] === "4") ||
-					(destPiece.color === "black" && dest[1] === "1"))
+				((destPiece.color === Color.WHITE && dest[1] === "4") ||
+					(destPiece.color === Color.BLACK && dest[1] === "1"))
 			) {
 				// show the promo popup
 
@@ -467,8 +469,8 @@ export default function GameBoard() {
 	// 		// unset promo piece color
 	// 		let promoButtons = promoBar.getElementsByTagName("piece");
 	// 		for (let i = 0; i < promoButtons.length; i++) {
-	// 			promoButtons[i].classList.remove("white");
-	// 			promoButtons[i].classList.remove("black");
+	// 			promoButtons[i].classList.remove(Color.WHITE);
+	// 			promoButtons[i].classList.remove(Color.BLACK);
 	// 		}
 	// 	}
 	// };

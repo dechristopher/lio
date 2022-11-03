@@ -62,8 +62,6 @@ export default function Home(): JSX.Element {
 			<MainContainer>
 				<GameButtons />
 			</MainContainer>
-
-			<PromotionModal open />
 		</div>
 	);
 }

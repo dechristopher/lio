@@ -155,8 +155,8 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 	selectedColor := octad.White
 
 	payload := struct {
-		TimeControl string `form:"time-control"`
-		Color       string `form:"color"`
+		TimeControl string `json:"time-control"`
+		Color       string `json:"color"`
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {

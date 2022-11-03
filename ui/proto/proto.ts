@@ -4,6 +4,11 @@ import { CrowdPayload, CrowdPayloadSerialized } from "./crowd";
 import { MoveAckPayload, MoveAckPayloadSerialized } from "./move_ack";
 import { GameOverPayload, GameOverPayloadSerialized } from "./game_over";
 
+export enum Color {
+	WHITE = "white",
+	BLACK = "black"
+}
+
 export enum MessageTag {
 	OFENTag = "o", // OFENTag is the message type tag for the OFENPayload
 	MoveTag = "m", // MoveTag is the message type tag for the MovePayload
