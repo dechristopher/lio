@@ -8558,10 +8558,10 @@ obuf@^1.0.0, obuf@^1.1.2:
   resolved "https://registry.yarnpkg.com/obuf/-/obuf-1.1.2.tgz#09bea3343d41859ebd446292d11c9d4db619084e"
   integrity sha512-PX1wu0AmAdPqOL1mWhqmlOd8kOIZQwGZw6rh7uby9fTc5lhaOWFLX3I6R1hrF9k3zUY40e6igsLGkDXK92LJNg==
 
-octadground@1.0.1-0:
-  version "1.0.1-0"
-  resolved "https://registry.yarnpkg.com/octadground/-/octadground-1.0.1-0.tgz#f7971c94327b3fb9c436e8be3778461f36b883d2"
-  integrity sha512-mnz9UVDgbkuJfFE5dEMQK+LRHFIJdJjb6PVhUCoFIBudb3NfWnMFGmechu+vcYGnrkk36ykEKMIeQf/6TwXvzQ==
+octadground@1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/octadground/-/octadground-1.0.3.tgz#e95f7dae2bfe1384578b19eae9bd98d2182626f3"
+  integrity sha512-dT9PMLlQkmXDy6x6AUc+B0QGxXNo47fPPV+7vmh9vyv6VNW7WMf2n101RAZswBHJ3VeM9YAB/WDTxYU8IyXB6g==
 
 on-finished@2.4.1:
   version "2.4.1"
@@ -9570,12 +9570,12 @@ react-lifecycles-compat@^3.0.4:
   resolved "https://registry.yarnpkg.com/react-lifecycles-compat/-/react-lifecycles-compat-3.0.4.tgz#4f1a273afdfc8f3488a8c516bfda78f872352362"
   integrity sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==
 
-react-octadground@^1.6.0-3:
-  version "1.6.0-3"
-  resolved "https://registry.yarnpkg.com/react-octadground/-/react-octadground-1.6.0-3.tgz#aa424d278028d6e5d9a8695bacd5f94063590203"
-  integrity sha512-6WdYT5E8fFYVVs7Hu9WiLYNMK6YKgCUKwXOyxvNwEfVINYsxxH2j/5jeIO/182Myii6D5ZT0JdZHg5mK8MGW0w==
+react-octadground@^1.6.2:
+  version "1.6.3"
+  resolved "https://registry.yarnpkg.com/react-octadground/-/react-octadground-1.6.3.tgz#53412c37f684ce291f20afbea1a04afa6c773559"
+  integrity sha512-uQHwNl+dcesJLtADkQ2BrPBjZF4ndpPIK+LKpNi+cpTVDAGT0jytkEa5ngw/UJPJsBa1oOH+IUQyNGp3WJnkNg==
   dependencies:
-    octadground "1.0.1-0"
+    octadground "1.0.3"
 
 react-refresh@~0.9.0:
   version "0.9.0"
