@@ -1,10 +1,9 @@
 import React from "react";
 import Head from "next/head";
-import GameButtons from "@/components/GameButtons/GameButtons";
-import MainContainer from "@/components/MainContainer/MainContainer";
-import PromotionModal from "@/components/PromotionModal/PromotionModal";
+import Home from "@/components/Home/Home";
+import ContentWrapper from "@/components/ContentWrapper/ContentWrapper";
 
-export default function Home(): JSX.Element {
+export default function Index() {
 	return (
 		<div>
 			<Head>
@@ -59,9 +58,9 @@ export default function Home(): JSX.Element {
 				/>
 			</Head>
 
-			<MainContainer>
-				<GameButtons />
-			</MainContainer>
+			<ContentWrapper>
+				<Home />
+			</ContentWrapper>
 		</div>
 	);
 }

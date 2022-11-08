@@ -2,11 +2,13 @@ package proto
 
 import (
 	"encoding/json"
-
 	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
+
+// RoomState of a current OctadRoom TODO moved outside of room.go bc of import cycle. Check if there is another logical place to put this
+type RoomState string
 
 // PayloadTag defines the message payload data type
 type PayloadTag string
@@ -81,6 +83,7 @@ type MovePayload struct {
 	Black      string              `json:"b,omitempty"`  // black player id
 	Score      ScorePayload        `json:"sc,omitempty"` // match score
 	GameStart  bool                `json:"gs,omitempty"`
+	RoomState  RoomState           `json:"rs,omitempty"`
 }
 
 // MessageMove contains a MovePayload message

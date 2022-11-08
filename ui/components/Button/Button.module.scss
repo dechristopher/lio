@@ -1,0 +1,38 @@
+.libtn {
+	padding: 12px;
+	min-height: 3rem;
+	cursor: pointer;
+	transition: all 250ms;
+	text-decoration: none;
+	justify-content: center;
+	background-color: #FFFFDF;
+	touch-action: manipulation;
+	border-width: 2px;
+	border-radius: .25rem;
+	border-right-color: #979797;
+	border-bottom-color: #979797;
+	border-left-color: #e3e3e3;
+	border-top-color: #e3e3e3;
+	box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+
+	&:hover {
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+		color: rgba(0, 0, 0, 0.65);
+		transform: translateY(-1px);
+	}
+
+	&:focus {
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+		color: rgba(0, 0, 0, 0.65);
+	}
+
+	&:active {
+		background-color: #F0F0F1;
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
+		color: rgba(0, 0, 0, 0.65);
+		transform: translateY(0);
+	}
+}

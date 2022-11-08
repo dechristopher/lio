@@ -1,11 +1,5 @@
 import { Howl } from "howler";
-import { FC, ReactNode, useEffect, useRef } from "react";
-
-type PropsWithChildren = {
-	children?: ReactNode;
-};
-
-export interface FcWithChildren extends FC<PropsWithChildren> {}
+import { useEffect, useRef } from "react";
 
 export const IsMobile = (): boolean => {
 	if (navigator) {
@@ -88,5 +82,5 @@ export const GetBrowserId = (): string | null => {
 	const cookieObj = new URLSearchParams(
 		document.cookie.replaceAll("&", "%26").replaceAll("; ", "&"),
 	);
-	return cookieObj.get("bid");
+	return cookieObj.get("uid");
 };

@@ -68,7 +68,7 @@ type Instance struct {
 
 	stateMachine *fsm.FSM
 
-	stateChannel   chan State
+	stateChannel   chan proto.RoomState
 	moveChannel    chan *message.RoomMove
 	controlChannel chan message.RoomControl
 
@@ -129,7 +129,7 @@ func Create(params Params) (*Instance, error) {
 		stateMachine: newStateMachine(),
 		params:       params,
 
-		stateChannel:   make(chan State, 1),
+		stateChannel:   make(chan proto.RoomState, 1),
 		moveChannel:    make(chan *message.RoomMove),
 		controlChannel: make(chan message.RoomControl),
 
@@ -400,8 +400,8 @@ func (r *Instance) CancelToken() string {
 }
 
 // State returns the current room state
-func (r *Instance) State() State {
-	return State(r.stateMachine.Current())
+func (r *Instance) State() proto.RoomState {
+	return proto.RoomState(r.stateMachine.Current())
 }
 
 // IsCreator returns true if the given player by ID is the creator of the room
@@ -441,9 +441,10 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 		Black:     r.players[octad.Black].ID,
 		Score:     r.players.ScoreMap(),
 		GameStart: gameStart,
+		RoomState: r.State(),
 	}
 
-	fmt.Printf("Game State %v\n", r.State())
+	fmt.Printf("Game RoomState %v\n", r.State())
 
 	// set legal moves if we're in GameReady or GameOngoing
 	// to prevent first moves before moves are allowed to be played

@@ -1,13 +1,11 @@
 package api
 
 import (
-	"github.com/dechristopher/lioctad/www/handlers"
-	"github.com/dechristopher/lioctad/www/ws"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/websocket/v2"
-
+	"github.com/dechristopher/lio/www/handlers"
 	"github.com/dechristopher/lio/www/handlers/api/pools"
 	"github.com/dechristopher/lio/www/handlers/api/stats"
+	"github.com/dechristopher/lio/www/ws"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Wire up all the API handlers to the /api router
@@ -16,9 +14,9 @@ func Wire(a fiber.Router) {
 	a.Use("/socket", ws.UpgradeHandler)
 
 	// websocket connection listener
-	a.Get("/socket/:chan", websocket.New(ws.ConnHandler))
+	a.Get("/socket/:chan", ws.ConnHandler())
 	// websocket
-	a.Get("/socket/:type/:chan", websocket.New(ws.ConnHandler))
+	a.Get("/socket/:type/:chan", ws.ConnHandler())
 
 	// GET /pools - retrieve rating pools JSON
 	a.Get("/pools", pools.RatingPoolsHandler)

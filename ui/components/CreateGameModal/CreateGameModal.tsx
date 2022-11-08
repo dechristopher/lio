@@ -1,70 +1,42 @@
-import React, { FC, Fragment, useEffect, useRef, useState } from "react";
+import React, { FC, Fragment, useEffect, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import {
-	ExclamationTriangleIcon,
-	XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import styles from "./CreateModal.module.scss";
 import classNames from "classnames";
 import Image from "next/image";
 import Button from "../Button/Button";
 import { Color } from "@/proto/proto";
 import { useRouter } from "next/router";
-import axios, { AxiosResponse } from "axios";
-import useSWR, { Fetcher } from "swr";
+import { VariantPools, Variant } from "@/proto/pools";
 
-enum RatingGroup {
-	Bullet = "bullet",
-	Blitz = "blitz",
-	Rapid = "rapid",
-	Hyper = "hyper",
-	Ulti = "ulti",
-}
-
-type RatingPoolTime = {
-	t: number;
-	i: number;
-	d: number;
+type NewGamePayload = {
+	"time-control": string;
+	color: "w" | "b";
 };
-
-type RatingPool = {
-	name: string;
-	html_name: string;
-	group: RatingGroup;
-	time: RatingPoolTime;
-};
-
-type RatingPoolResponse = Partial<
-	Record<keyof typeof RatingGroup, RatingPool[]>
->;
 
 interface CreateGameModalProps {
 	open: boolean;
 	close: () => void;
 }
 
-type CustomGamePayload = {
-	"time-control": string;
-	color: "w" | "b";
-};
-
-const fetcher: Fetcher<RatingPoolResponse, string> = (url) =>
-	fetch(url).then((res) => res.json());
-
 const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 	const router = useRouter();
-	const [selectedRating, setSelectedRating] = useState<RatingPool | null>(
+	const [variantPools, setVariantPools] = useState<VariantPools>({});
+	const [selectedVariant, setSelectedVariant] = useState<Variant | null>(
 		null,
 	);
 	const [selectedColor, setSelectedColor] = useState<Color | null>(null);
 
-	// TODO handle errors
-	const ratingPoolsReq = useSWR("/api/pools", fetcher);
+	useEffect(() => {
+		fetch("/api/pools")
+			.then((res) => res.json())
+			.then((data) => setVariantPools(data));
+	}, []);
 
 	useEffect(() => {
-		if (!!selectedRating && !!selectedColor) {
-			const payload: CustomGamePayload = {
-				"time-control": selectedRating.html_name,
+		if (!!selectedVariant && !!selectedColor) {
+			const payload: NewGamePayload = {
+				"time-control": selectedVariant.html_name,
 				color: selectedColor === Color.WHITE ? "w" : "b",
 			};
 			fetch("/api/new/human", {
@@ -80,11 +52,17 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 				}
 			});
 		}
-	}, [selectedRating, selectedColor]);
+	}, [selectedVariant, selectedColor, router]);
+
+	const handleClose = () => {
+		setSelectedColor(null);
+		setSelectedVariant(null);
+		props.close();
+	};
 
 	return (
 		<Transition.Root show={props.open} as={Fragment}>
-			<Dialog as="div" className="relative z-10" onClose={props.close}>
+			<Dialog as="div" className="relative z-10" onClose={handleClose}>
 				<Transition.Child
 					as={Fragment}
 					enter="ease-out duration-300"
@@ -94,7 +72,13 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 					leaveFrom="opacity-100"
 					leaveTo="opacity-0"
 				>
-					<div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+					<div
+						// cannot use a module class here because an invisible shade remains after the dialog closes
+						className="fixed inset-0 transition-opacity"
+						style={{
+							backgroundColor: "rgba(0, 0, 0, 0.5)",
+						}}
+					/>
 				</Transition.Child>
 
 				<div className="fixed inset-0 z-10 overflow-y-auto">
@@ -108,17 +92,10 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 							leaveFrom="opacity-100 translate-y-0 sm:scale-100"
 							leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
 						>
-							<Dialog.Panel
-								className="relative transform rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:max-w-lg"
-								style={{
-									borderRadius: "3px",
-									backgroundColor: "#cca57b",
-								}}
-							>
+							<Dialog.Panel className={styles.body}>
 								<button
 									className={styles.close}
-									onClick={props.close}
-									autoFocus={true}
+									onClick={handleClose}
 								>
 									<span className="sr-only">Close</span>
 									<XMarkIcon
@@ -128,149 +105,20 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 									/>
 								</button>
 
-								<div>
-									{/* <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-										<ExclamationTriangleIcon
-											className="h-6 w-6 text-red-600"
-											aria-hidden="true"
-										/>
-									</div> */}
-									<div className="text-center sm:text-left w-100">
-										<Dialog.Title
-											as="h3"
-											className="font-bold leading-6 text-gray-900 text-center"
-											style={{
-												fontSize: "1.5rem",
-											}}
-										>
-											Create a game
-										</Dialog.Title>
-										<div
-											className="mt-1.5"
-											style={{
-												display: "grid",
-												gridTemplateColumns:
-													"auto auto auto",
-												alignItems: "center",
-												columnGap: 8,
-												rowGap: 8,
-												backgroundColor: "#f1d8b8",
-												borderTop: "1px solid #8c6d54",
-												borderBottom:
-													"1px solid #8c6d54",
-												padding: "12px 24px",
-											}}
-										>
-											{Object.values(
-												ratingPoolsReq.data ?? {},
-											).map((poolGroup) =>
-												poolGroup.map((pool) => (
-													<RatingPoolTile
-														key={`${pool.group}-${pool.html_name}`}
-														ratingPool={pool}
-														selectedRating={
-															selectedRating
-														}
-														selectRating={
-															setSelectedRating
-														}
-													/>
-												)),
-											)}
-										</div>
-									</div>
-
-									<div
-										className="flex"
-										style={{
-											columnGap: 8,
-											alignItems: "center",
-											justifyContent: "center",
-											padding: "16px 0",
-										}}
-									>
-										<Button
-											style={{
-												height: "48px",
-												width: "64px",
-											}}
-										>
-											<Image
-												width="100%"
-												height="100%"
-												src="/images/pieces/wK.svg"
-												alt="Play the white pieces first"
-												onClick={() =>
-													setSelectedColor(
-														Color.WHITE,
-													)
-												}
-											/>
-										</Button>
-
-										<Button
-											style={{
-												height: "64px",
-												width: "80px",
-											}}
-										>
-											<Image
-												width="100%"
-												height="100%"
-												src="/images/pieces/wbK.svg"
-												alt="Play either set of pieces first"
-												onClick={() => {
-													if (Math.random() > 0.5) {
-														setSelectedColor(
-															Color.WHITE,
-														);
-													} else {
-														setSelectedColor(
-															Color.BLACK,
-														);
-													}
-												}}
-											/>
-										</Button>
-
-										<Button
-											style={{
-												height: "48px",
-												width: "64px",
-											}}
-										>
-											<Image
-												width="100%"
-												height="100%"
-												src="/images/pieces/bK.svg"
-												alt="Play the black pieces first"
-												onClick={() =>
-													setSelectedColor(
-														Color.BLACK,
-													)
-												}
-											/>
-										</Button>
-									</div>
-									{/* TODO add color selection buttons */}
+								<div className="font-bold leading-6 text-center text-2xl mt-1">
+									Create a game
 								</div>
 
-								{/* <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-									<button
-										type="button"
-										className="inline-flex w-full justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
-										onClick={props.close}
-									>
-										Deactivate
-									</button>
-									<button
-										type="button"
-										className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm"
-										onClick={props.close}
-									>
-										Cancel
-									</button>
-								</div> */}
+								<VariantSelector
+									ratingPools={variantPools}
+									selectedVariant={selectedVariant}
+									setVariant={setSelectedVariant}
+								/>
+
+								<ColorSelector
+									disabled={!selectedVariant}
+									setColor={setSelectedColor}
+								/>
 							</Dialog.Panel>
 						</Transition.Child>
 					</div>
@@ -280,32 +128,96 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 	);
 };
 
-interface RatingPoolTileProps {
-	ratingPool: RatingPool;
-	selectedRating: RatingPool | null;
-	selectRating: (rating: RatingPool) => void;
+interface VariantSelectorProps {
+	ratingPools: VariantPools;
+	selectedVariant: Variant | null;
+	setVariant: (variant: Variant) => void;
 }
 
-const RatingPoolTile: FC<RatingPoolTileProps> = (props) => {
+const VariantSelector = (props: VariantSelectorProps) => {
 	return (
-		<button
-			style={{
-				display: "flex",
-				flexDirection: "column",
-				lineHeight: 0.75,
-			}}
-			className={classNames([
-				styles.tcBox,
-				{
-					[styles.selected]:
-						props.ratingPool.name === props.selectedRating?.name,
-				},
-			])}
-			onClick={() => props.selectRating(props.ratingPool)}
-		>
-			<div className="text-lg">{props.ratingPool.name}</div>
-			<div className="italic">{props.ratingPool.group}</div>
-		</button>
+		<div className={styles.variantBtnContainer}>
+			{Object.values(props.ratingPools).map((poolGroup) =>
+				poolGroup.map((pool) => (
+					<Button
+						key={`${pool.group}-${pool.html_name}`}
+						onClick={() => props.setVariant(pool)}
+						className={classNames([
+							styles.variantBtn,
+							{
+								[styles.selected]:
+									pool.name === props.selectedVariant?.name,
+							},
+						])}
+					>
+						<div className="text-lg">{pool.name}</div>
+						<div className="italic">{pool.group}</div>
+					</Button>
+				)),
+			)}
+		</div>
+	);
+};
+
+interface ColorSelectorProps {
+	disabled: boolean;
+	setColor: (color: Color) => void;
+}
+
+const ColorSelector = (props: ColorSelectorProps) => {
+	return (
+		<div className="flex gap-x-2 items-center justify-center py-4">
+			<Button
+				disabled={props.disabled}
+				className={classNames(styles.colorSelectBtn, {
+					[styles.disabled]: props.disabled,
+				})}
+				onClick={() => props.setColor(Color.WHITE)}
+			>
+				<Image
+					width="48px"
+					height="48px"
+					src="/images/pieces/wK.svg"
+					alt="Play the white pieces first"
+				/>
+			</Button>
+
+			<Button
+				disabled={props.disabled}
+				className={classNames(styles.colorSelectBtn, styles.big, {
+					[styles.disabled]: props.disabled,
+				})}
+				onClick={() => {
+					if (Math.random() > 0.5) {
+						props.setColor(Color.WHITE);
+					} else {
+						props.setColor(Color.BLACK);
+					}
+				}}
+			>
+				<Image
+					width="48px"
+					height="48px"
+					src="/images/pieces/wbK.svg"
+					alt="Play either set of pieces first"
+				/>
+			</Button>
+
+			<Button
+				disabled={props.disabled}
+				className={classNames(styles.colorSelectBtn, {
+					[styles.disabled]: props.disabled,
+				})}
+				onClick={() => props.setColor(Color.BLACK)}
+			>
+				<Image
+					width="48px"
+					height="48px"
+					src="/images/pieces/bK.svg"
+					alt="Play the black pieces first"
+				/>
+			</Button>
+		</div>
 	);
 };
 

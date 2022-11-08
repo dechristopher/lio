@@ -1,0 +1,56 @@
+.gameSettings {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	border: 2px solid rgba(0, 0, 0, 0.85);
+	border-radius: 8px;
+	background-color: #dcdcdc;
+	font-weight: 500;
+	font-size: 1.1rem;
+	box-shadow: 2px 3px 0;
+	width: 100%;
+	margin-top: 16px;
+}
+
+.inviteLink {
+	border: 1px solid #404040;
+	padding: 0.6em 1em;
+	margin-right: 8px;
+	font-size: 12px;
+	font-weight: 600;
+	min-height: 1.8em;
+	flex: 1;
+	text-align: center;
+}
+
+.copyBtn {
+	min-height: 1.8em;
+	min-width: 2.5em;
+	background-color: #a8e4ee;
+	border-radius: 0.25rem;
+	border-width: 2px;
+	border-style: solid;
+	border-right-color: #979797;
+	border-bottom-color: #979797;
+	border-left-color: #e3e3e3;
+	border-top-color: #e3e3e3;
+	transition: all 250ms;
+
+	&.copied {
+		background-color: #afeea8;
+	}
+}
+
+.cancelBtn {
+	margin-top: 12px;
+	width: 100%;
+	font-weight: bold;
+	background-color: #ff6565;
+
+	&:hover {
+		border-right-color: #e46161;
+		border-bottom-color: #e46161;
+		border-left-color: #dd6e6e;
+		border-top-color: #dd6e6e;
+	}
+}

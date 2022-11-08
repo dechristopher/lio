@@ -6,6 +6,16 @@ import {
 
 export type ScorePayload = Record<string, number>;
 
+// Room states
+export enum RoomState {
+	StateInit = "init",
+	StateWaitingForPlayers = "waiting_for_players",
+	StateGameReady = "game_ready",
+	StateGameOngoing = "game_ongoing",
+	StateGameOver = "game_over",
+	StateRoomOver = "room_over",
+}
+
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
 export interface MovePayloadDeserialized {
@@ -23,6 +33,7 @@ export interface MovePayloadDeserialized {
 	Black?: string; // b
 	Score?: ScorePayload; // sc
 	GameStart?: boolean; // gs
+	RoomState?: RoomState; // rs
 }
 
 export interface MovePayloadSerialized {
@@ -40,6 +51,7 @@ export interface MovePayloadSerialized {
 	b?: string; // Black
 	sc?: ScorePayload; // Score
 	gs?: boolean; // GameStart
+	rs?: RoomState; // RoomState
 }
 
 export class MovePayload extends WsPayloadBaseClass<
@@ -74,6 +86,7 @@ export class MovePayload extends WsPayloadBaseClass<
 			Black: data.b,
 			Score: data.sc,
 			GameStart: data.gs,
+			RoomState: data.rs,
 		};
 	}
 
@@ -98,6 +111,7 @@ export class MovePayload extends WsPayloadBaseClass<
 			b: this.data.Black,
 			sc: this.data.Score,
 			gs: this.data.GameStart,
+			rs: this.data.RoomState,
 		};
 	}
 

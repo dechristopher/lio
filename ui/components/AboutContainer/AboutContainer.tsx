@@ -1,44 +1,36 @@
 import Link from "next/link";
-import React from "react";
+import React, { ReactNode } from "react";
 import Button from "../Button/Button";
-import MainContainer from "../MainContainer/MainContainer";
-import { FcWithChildren } from "../shared";
-import {
-	AboutContainerStyle,
-	AboutRedirect,
-	AboutButtonGroup,
-	AboutButton,
-} from "./AboutContainer.css";
+import ContentWrapper from "../ContentWrapper/ContentWrapper";
+import styles from "./AboutContainer.module.scss";
 
-const AboutContainer: FcWithChildren = (props) => {
+interface AboutContainerProps {
+	children?: ReactNode;
+}
+
+const AboutContainer = (props: AboutContainerProps) => {
 	return (
-		<MainContainer>
-			<div className={AboutContainerStyle}>
+		<ContentWrapper>
+			<div className="text-left w-80">
 				<Link href="/about">
-					<div className={AboutRedirect}>About lioctad.org</div>
+					<div className={styles.header}>About lioctad.org</div>
 				</Link>
 
 				{props.children}
 
-				<div className={AboutButtonGroup}>
+				<div className="flex justify-between mx-3">
 					<Link href="/about/board">
-						<a>
-							<Button className={AboutButton}>Board</Button>
-						</a>
+						<Button className={styles.aboutBtn}>Board</Button>
 					</Link>
 					<Link href="/about/rules">
-						<a>
-							<Button className={AboutButton}>Rules</Button>
-						</a>
+						<Button className={styles.aboutBtn}>Rules</Button>
 					</Link>
 					<Link href="/about/misc">
-						<a>
-							<Button className={AboutButton}>Misc.</Button>
-						</a>
+						<Button className={styles.aboutBtn}>Misc.</Button>
 					</Link>
 				</div>
 			</div>
-		</MainContainer>
+		</ContentWrapper>
 	);
 };
 

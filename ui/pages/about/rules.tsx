@@ -6,13 +6,13 @@ export default function Rules() {
 	return (
 		<AboutContainer>
 			<div>
-				<div className="about-header">Rules</div>
+				<div className="font-bold mb-3 text-sm">Rules</div>
 
-				<div className="prose">
+				<div className="prose mb-3">
 					All standard chess rules apply: en passant is allowed, pawns
 					promote to any piece, and stalemates are a draw.
 				</div>
-				<div className="prose">
+				<div className="prose mb-3">
 					The only catch, however, is that castling is possible
 					between the king and any of its pieces on the starting rank
 					before movement. The king will simply switch spaces with the
@@ -20,7 +20,7 @@ export default function Rules() {
 					case the king will travel one space to the right, and the
 					pawn will lie where the king was before.
 				</div>
-				<div className="prose">
+				<div className="prose mb-3">
 					An example of white castling with their far pawn can be
 					expressed as [ 1. c2 b3 2. O-O-O ... ] with the resulting
 					structure leaving the knight on a1, a pawn on b1, the king

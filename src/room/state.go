@@ -1,18 +1,18 @@
 package room
 
-import "github.com/looplab/fsm"
-
-// State of a current OctadRoom
-type State string
+import (
+	"github.com/dechristopher/lio/www/ws/proto"
+	"github.com/looplab/fsm"
+)
 
 // Game states constants
 const (
-	StateInit              State = "init"
-	StateWaitingForPlayers State = "waiting_for_players"
-	StateGameReady         State = "game_ready"
-	StateGameOngoing       State = "game_ongoing"
-	StateGameOver          State = "game_over"
-	StateRoomOver          State = "room_over"
+	StateInit              proto.RoomState = "init"
+	StateWaitingForPlayers proto.RoomState = "waiting_for_players"
+	StateGameReady         proto.RoomState = "game_ready"
+	StateGameOngoing       proto.RoomState = "game_ongoing"
+	StateGameOver          proto.RoomState = "game_over"
+	StateRoomOver          proto.RoomState = "room_over"
 )
 
 var EventRoomInitialized = fsm.EventDesc{

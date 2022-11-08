@@ -6,9 +6,9 @@ export default function Board() {
 	return (
 		<AboutContainer>
 			<div>
-				<div className="about-header">Board Layout</div>
+				<div className="font-bold mb-3 text-sm">Board Layout</div>
 
-				<div className="prose">
+				<div className="prose mb-3">
 					Each player begins with four pieces: a knight, their king,
 					and two pawns placed in that order from left to right
 					relative to them. An example of this can be seen in the

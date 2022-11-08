@@ -1,27 +1,24 @@
 import Link from "next/link";
 import React from "react";
-import Dot from "../Dot/Dot";
-import { FooterLinks, FooterCopyRight } from "./Footer.css";
+import styles from "./Footer.module.scss";
 
 export const Footer = () => {
 	return (
-		<div>
-			<div className="flex justify-between items-center">
+		<div className="mt-1">
+			<div className="flex items-center text-xs font-bold">
 				<Link href="/about">
-					<div className={FooterLinks}>About</div>
+					<div className="cursor-pointer">About</div>
 				</Link>
-				<Dot />
+				<div className={styles.dot} />
 				<Link href="/db">
-					<div className={FooterLinks}>DB</div>
+					<div className="cursor-pointer">DB</div>
 				</Link>
-				<Dot />
+				<div className={styles.dot} />
 				<Link href="https://github.com/dechristopher/lio">
-					<div
-						className={FooterLinks}
-					>{`v${process.env.NEXT_PUBLIC_APP_VERSION}`}</div>
+					<div className="cursor-pointer">{`v${process.env.NEXT_PUBLIC_APP_VERSION}`}</div>
 				</Link>
 			</div>
-			<p className={FooterCopyRight}>&copy; 2021-2022 lioctad.org</p>
+			<p className={styles.copyright}> 2021-2022 lioctad.org</p>
 		</div>
 	);
 };

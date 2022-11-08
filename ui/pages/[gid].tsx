@@ -18,6 +18,7 @@ import {
 } from "@/components/shared";
 import { Color, SocketResponse } from "@/proto/proto";
 import {
+	RoomState,
 	MovePayload,
 	MovePayloadDeserialized,
 	MovePayloadSerialized,
@@ -29,14 +30,12 @@ import {
 } from "@/proto/game_over";
 import { CrowdPayload, CrowdPayloadSerialized } from "@/proto/crowd";
 import { Howl } from "howler";
-import MainContainer from "@/components/MainContainer/MainContainer";
 import { Footer } from "@/components/Footer/Footer";
 import { Header } from "@/components/Header/Header";
 import Clock from "@/components/Clock/Clock";
-import TimeControl from "@/components/TimeControl/TimeControl";
-import Chin from "@/components/Chin/Chin";
 import { useRouter } from "next/router";
 import useWebSocket, { ReadyState } from "react-use-websocket";
+import Lobby from "@/components/Lobby/Lobby";
 
 type Command = {
 	t: string;
@@ -79,6 +78,7 @@ export default function GameBoard() {
 	const [opponentClockActive, setOpponentClockActive] = useState(false);
 	const [playerClockBarWidth, setPlayerClockBarWidth] = useState(0);
 	const [opponentClockBarWidth, setOpponentClockBarWidth] = useState(0);
+	const [gameState, setGameState] = useState<RoomState>(RoomState.StateInit);
 
 	const playerClockAnimationFrameHandler = (clockStartFrameTime: number) => {
 		// converting milliseconds to centiseconds
@@ -154,7 +154,7 @@ export default function GameBoard() {
 		// sends a keep-alive message, requesting the socket stay open
 		const keepAlive = setInterval(() => {
 			console.log("[Websocket] Sending keep alive...");
-			sendMessage(null as unknown as string);
+			sendMessage((null as unknown) as string);
 		}, 3000);
 		// pings the backend server every, used for calculating client latency
 		const pingRunner = setInterval(() => {
@@ -270,6 +270,11 @@ export default function GameBoard() {
 	const handleMove = (message: MovePayloadDeserialized) => {
 		console.log("[Game] Move Payload", message);
 		const ofenParts: string[] = message.OFEN?.split(" ") ?? [];
+
+		if (message.RoomState) {
+			setGameState(message.RoomState);
+		}
+
 		const isPlayerWhite = message.White === GetBrowserId() ? true : false;
 		const isWhitesTurn = ofenParts[1] === "w";
 		const isPlayersTurn =
@@ -474,6 +479,20 @@ export default function GameBoard() {
 	// 		}
 	// 	}
 	// };
+	/**
+	 *
+	 * TODO
+	 * 3. Pass game state status to move message payload
+	 * 1. Create "Game" component to house the board and active game logic
+	 * 2. Create logic to handle player connection and determine whether to show the lobby or game
+	 *
+	 */
+
+	if (gameState === RoomState.StateWaitingForPlayers) {
+		return (
+			<Lobby playerColor={isPlayerWhite ? Color.WHITE : Color.BLACK} />
+		);
+	}
 
 	return (
 		<div
@@ -484,23 +503,27 @@ export default function GameBoard() {
 			}}
 		>
 			<Header />
-			<TimeControl />
+			<div className="font-bold text-3xl italic mb-2 leading-none">
+				½ + 1 Blitz
+			</div>
 
-			<Clock
-				flipOrientation={true}
-				time={opponentTime}
-				barWidth={opponentClockBarWidth}
-				isWhite={!isPlayerWhite}
-				isActive={!isPlayersTurn}
-			/>
-			<Octadground {...octadGroundState} width="38vw" height="38vw" />
-			<Clock
-				time={playerTime}
-				isActive={isPlayersTurn}
-				barWidth={playerClockBarWidth}
-				isWhite={isPlayerWhite}
-			/>
-			<Chin latency={latency} />
+			<div className="flex flex-col items-center">
+				<Clock
+					flipOrientation={true}
+					time={opponentTime}
+					barWidth={opponentClockBarWidth}
+					isWhite={!isPlayerWhite}
+					isActive={!isPlayersTurn}
+				/>
+				<Octadground {...octadGroundState} width="38vw" height="38vw" />
+				<Clock
+					time={playerTime}
+					isActive={isPlayersTurn}
+					barWidth={playerClockBarWidth}
+					isWhite={isPlayerWhite}
+				/>
+				<Chin latency={latency} />
+			</div>
 
 			<Footer />
 		</div>
@@ -550,4 +573,19 @@ const timeFormatter = (centiSeconds: number): string => {
  */
 const calcBarWidth = (timeControl: number, time: number): number => {
 	return Math.min((time / timeControl) * 100, 100);
+};
+
+interface ChinProps {
+	latency: number;
+}
+
+const Chin = (props: ChinProps) => {
+	const numConnected = 1;
+
+	return (
+		<div className="flex justify-center pt-2 pb-1 octad-tan text-2xs w-11/12 rounded-b">
+			<div className="mr-1">{`${numConnected} CONNECTED`}</div>
+			<div>{`(${props.latency}ms)`}</div>
+		</div>
+	);
 };

@@ -151,6 +151,7 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 // NewCustomRoomVsHuman creates a game against a human player with time control
 // and color selected by the creator
 func NewCustomRoomVsHuman(c *fiber.Ctx) error {
+	fmt.Println("NEW CUSTOM")
 
 	selectedColor := octad.White
 
@@ -191,6 +192,7 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 // NewRoomVsComputer creates a new game against a computer opponent with the
 // default time control and randomized color
 func NewRoomVsComputer(c *fiber.Ctx) error {
+	fmt.Println("COMPUTER")
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       variant.HalfOneBlitz,
@@ -202,6 +204,8 @@ func NewRoomVsComputer(c *fiber.Ctx) error {
 // newRoom handles room creation and the validation of room payload parameters
 func newRoom(payload newRoomPayload) error {
 	uid := user.GetID(payload.c)
+
+	fmt.Printf("UID %v\n", uid)
 
 	if uid == "" {
 		// TODO prevent anonymous users from creating games when we have accounts

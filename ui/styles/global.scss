@@ -4,76 +4,94 @@
 
 html,
 body {
-  margin: 0;
-  padding: 0;
-  // font-family: 'Poppins', sans-serif;
-  // text-align: center;
-  // display: flex;
-  // flex-direction: row;
-  // justify-content: center;
-  background-color: #f1d8b8;
-  user-select: none;
-  // -webkit-user-select: none;
+	margin: 0;
+	padding: 0;
+	line-height: normal;
+	font-family: "Poppins", sans-serif;
+	transition: "all 250ms";
+	background-color: #f1d8b8;
+	user-select: none;
+	-webkit-user-select: none;
 }
 
-.about-table {
-  border-spacing: 0;
-  margin-bottom: 16px;
-  border-collapse: collapse;
-
-  td {
-    width: 30%;
-    border-color: #FFF0DB;
-    border-style: solid;
-    border-width: 1px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    overflow: hidden;
-    padding: 10px 5px;
-    word-break: normal;
-  }
-  
-  th {
-    border-color: #FFF0DB;
-    border-style: solid;
-    border-width: 1px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    font-weight: normal;
-    overflow: hidden;
-    padding: 10px 5px;
-    word-break: normal;
-  }
-}
-
-.about-header {
-  font-size: .9em;
-  font-weight: bold;
-  line-height: normal;
-  margin-bottom: 12px;
+.octad-green {
+	color: #0bab7d;
 }
 
 .prose {
-  line-height: normal;
-  font-size: 0.75rem;
-  font-weight: 500;
-  margin-bottom: 12px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+.line-break {
+	width: 100%;
+	background-color: #000;
+	height: 1.5px;
+	margin: 12px 0;
+}
+
+.hyperlink {
+	margin-left: 3px;
+	color: blue;
+	text-decoration: underline;
+
+	&:visited {
+		color: #551a8b;
+	}
 }
 
 .ofen-block {
-  background: #f1d8b8;
-  border-left: 3px solid #0bab7d;
-  color: #363636;
-  page-break-inside: avoid;
-  font-family: 'Noto Sans Mono', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  margin-bottom: 1.6em;
-  max-width: 100%;
-  overflow: auto;
-  padding: 1em 1.5em;
-  display: block;
-  word-wrap: break-word;
-  user-select: text;
-  cursor: text;
+	background: #f1d8b8;
+	border-left: 3px solid #0bab7d;
+	color: #363636;
+	page-break-inside: avoid;
+	font-family: "Noto Sans Mono", monospace;
+	font-size: 13px;
+	line-height: 1.6;
+	margin-bottom: 1.6em;
+	max-width: 100%;
+	overflow: auto;
+	padding: 1em 1.5em;
+	display: block;
+	word-wrap: break-word;
+	user-select: text;
+	cursor: text;
+}
+
+.about-table {
+	border-spacing: 0;
+	margin-bottom: 16px;
+	border-collapse: collapse;
+
+	td {
+		width: 30%;
+		border-color: #fff0db;
+		border-style: solid;
+		border-width: 1px;
+		font-family: Arial, sans-serif;
+		font-size: 14px;
+		overflow: hidden;
+		padding: 10px 5px;
+		word-break: normal;
+	}
+
+	th {
+		border-color: #fff0db;
+		border-style: solid;
+		border-width: 1px;
+		font-family: Arial, sans-serif;
+		font-size: 14px;
+		font-weight: normal;
+		overflow: hidden;
+		padding: 10px 5px;
+		word-break: normal;
+	}
+}
+
+.text-2xs {
+	font-size: 0.6rem;
+}
+
+.octad-tan {
+	background-color: #cca57b;
 }

@@ -6,19 +6,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
-
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/www/handlers"
 	"github.com/dechristopher/lio/www/handlers/api"
 	"github.com/dechristopher/lio/www/middleware"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 )
@@ -44,17 +42,17 @@ func Serve(views, static embed.FS) {
 	// enable template engine reloading on dev
 	//engine.Reload(env.IsLocal())
 
-	toUpperAny := func(s any) string {
-		return strings.ToUpper(s.(string))
-	}
+	//toUpperAny := func(s any) string {
+	//	return strings.ToUpper(s.(string))
+	//}
 
 	// custom template rendering functions
-	engine.AddFuncMap(map[string]interface{}{
-		"ToUpper":    strings.ToUpper,
-		"ToUpperAny": toUpperAny,
-		"ToLower":    strings.ToLower,
-		"Title":      cases.Title(language.English).String,
-	})
+	//engine.AddFuncMap(map[string]interface{}{
+	//	"ToUpper":    strings.ToUpper,
+	//	"ToUpperAny": toUpperAny,
+	//	"ToLower":    strings.ToLower,
+	//	"Title":      cases.Title(language.English).String,
+	//})
 
 	r := fiber.New(fiber.Config{
 		ServerHeader:          "lioctad.org " + config.Version,
@@ -110,11 +108,15 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	//// websocket
 	//r.Get("/socket/:type/:chan", websocket.New(ws.ConnHandler))
 
+	// evaluate / set user context
+	// TODO rebuild this every time someone logs in
+	r.Use(user.ContextMiddleware)
+
 	if env.IsProd() {
 		// TODO update to serve the built React files
-		r.Static("/", "./views", fiber.Static{
-			Index: "test.html",
-		})
+		//r.Static("/", "./views", fiber.Static{
+		//	Index: "test.html",
+		//})
 	}
 
 	// sub-router with compression and other middleware enabled

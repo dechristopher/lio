@@ -1,5 +1,6 @@
+import classNames from "classnames";
 import React, { ButtonHTMLAttributes, DetailedHTMLProps } from "react";
-import { BaseButtonStyle } from "./Button.css";
+import styles from "./Button.module.scss";
 
 type ButtonProps = DetailedHTMLProps<
 	ButtonHTMLAttributes<HTMLButtonElement>,
@@ -8,7 +9,10 @@ type ButtonProps = DetailedHTMLProps<
 
 export default function Button(props: ButtonProps) {
 	return (
-		<button {...props} className={`${props.className ?? BaseButtonStyle}`}>
+		<button
+			{...props}
+			className={classNames(styles.libtn, props.className)}
+		>
 			{props.children}
 		</button>
 	);
