@@ -135,7 +135,7 @@ export default function GameBoard() {
 				}));
 			},
 			onMessage: (event) => {
-				if (!!event.data) {
+				if (event.data) {
 					parseResponse(event.data);
 				}
 			},
@@ -174,7 +174,7 @@ export default function GameBoard() {
 
 	// build socket message
 	const buildCommand = (tag: string, data: any) => {
-		let m: Command = {
+		const m: Command = {
 			t: tag,
 			d: data,
 		};
@@ -186,7 +186,7 @@ export default function GameBoard() {
 	 * @param raw - the raw message JSON string
 	 */
 	const parseResponse = (raw: string) => {
-		let message: SocketResponse = JSON.parse(raw);
+		const message: SocketResponse = JSON.parse(raw);
 
 		console.log("[Websocket] Message", message);
 
@@ -320,8 +320,8 @@ export default function GameBoard() {
 		};
 
 		const getLegalMoves = (moves: Map<string, string[]>) => {
-			let allMoves = new Map();
-			if (!!moves) {
+			const allMoves = new Map();
+			if (moves) {
 				Object.entries(moves).forEach(([s1, dests]) => {
 					allMoves.set(s1, dests);
 				});
@@ -393,7 +393,7 @@ export default function GameBoard() {
 	const doMove = (orig: Key, dest: Key, pieces: Pieces) => {
 		console.log("OnMove", orig, dest, pieces);
 		if (pieces.get(dest)?.role === "pawn") {
-			let destPiece = pieces.get(dest);
+			const destPiece = pieces.get(dest);
 
 			// TODO handle piece promotion
 			if (

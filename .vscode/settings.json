@@ -3,6 +3,7 @@
     "**/.yarn": true,
     "**/.pnp.*": true
   },
+  "eslint.packageManager": "yarn",
   "eslint.nodePath": "./ui/.yarn/sdks",
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": true
@@ -11,6 +12,7 @@
   "typescript.tsdk": "./ui/.yarn/sdks/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "cSpell.words": [
     "adless",
     "centi",
