@@ -345,7 +345,7 @@ const Board = () => {
 		setOctadgroundState((oldState) => ({
 			...oldState,
 			ofen: ofenParts[0],
-			check: message.Check,
+			check: message.Check ?? false,
 			orientation: playerColor,
 			lastMove: getLastMove(message.Moves ?? []),
 			turnColor: isWhitesTurn ? Color.WHITE : Color.BLACK,
