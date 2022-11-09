@@ -1,3 +1,4 @@
+import { VariantPool } from "@/proto/pools";
 import { Color } from "@/proto/proto";
 import classNames from "classnames";
 import { useRouter } from "next/router";
@@ -8,6 +9,8 @@ import styles from "./Lobby.module.scss";
 
 interface LobbyProps {
 	playerColor: Color;
+	variantName: string;
+	variantGroup: VariantPool;
 }
 
 const Lobby: FC<LobbyProps> = (props) => {
@@ -15,6 +18,7 @@ const Lobby: FC<LobbyProps> = (props) => {
 	const [hasCopied, setHasCopied] = useState(false);
 	const [inviteLink, setInviteLink] = useState<string | null>(null);
 
+	// wait for the component to mount before accessing location
 	useEffect(() => {
 		setInviteLink(location.href);
 	}, []);
@@ -28,7 +32,7 @@ const Lobby: FC<LobbyProps> = (props) => {
 
 				<div className={styles.gameSettings}>
 					<div className="font-semibold text-2xl leading-none">
-						1 + 1 bullet
+						{`${props.variantName} ${props.variantGroup}`}
 					</div>
 					<div>{props.playerColor.toUpperCase()} • CASUAL</div>
 				</div>

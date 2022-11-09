@@ -1,48 +1,49 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import Octadground, {
-	OctadgroundProps,
-	Key,
-	Piece,
-	Pieces,
-} from "react-octadground/octadground";
+import { GameOverPayload, GameOverPayloadSerialized } from "@/proto/game_over";
 import "react-octadground/dist/styles/octadground.css";
 import {
-	CaptureSound,
-	ConfirmationSound,
-	GetBrowserId,
-	IsMobile,
-	MoveSound,
-	NotificationSound,
-	useAnimationFrame,
-} from "@/components/shared";
-import { Color, SocketResponse } from "@/proto/proto";
-import {
-	RoomState,
 	MovePayload,
 	MovePayloadDeserialized,
 	MovePayloadSerialized,
 } from "@/proto/move";
-import {
-	GameOverPayload,
-	GameOverPayloadDeserialized,
-	GameOverPayloadSerialized,
-} from "@/proto/game_over";
-import { CrowdPayload, CrowdPayloadSerialized } from "@/proto/crowd";
-import { Howl } from "howler";
-import { Footer } from "@/components/Footer/Footer";
-import { Header } from "@/components/Header/Header";
-import Clock from "@/components/Clock/Clock";
+import { Color, SocketResponse } from "@/proto/proto";
 import { useRouter } from "next/router";
-import useWebSocket, { ReadyState } from "react-use-websocket";
-import Lobby from "@/components/Lobby/Lobby";
+import React, { useEffect, useState } from "react";
+import Octadground, {
+	OctadgroundProps,
+	Pieces,
+	Key,
+} from "react-octadground/octadground";
+import useWebSocket from "react-use-websocket";
+import Clock from "../Clock/Clock";
+import { Footer } from "../Footer/Footer";
+import { Header } from "../Header/Header";
+import {
+	useAnimationFrame,
+	GetBrowserId,
+	ConfirmationSound,
+	CaptureSound,
+	MoveSound,
+	IsMobile,
+	NotificationSound,
+} from "../shared";
 
 type Command = {
 	t: string;
 	d: any;
 };
 
-export default function GameBoard() {
+// build socket message
+export const BuildCommand = (tag: string, data: any) => {
+	const m: Command = {
+		t: tag,
+		d: data,
+	};
+	return JSON.stringify(m);
+};
+
+interface BoardProps {}
+
+const Board = (props: BoardProps) => {
 	const router = useRouter();
 	const [playPremoveFn, setPlayPremoveFn] = useState<(() => boolean) | null>(
 		null,
@@ -57,28 +58,62 @@ export default function GameBoard() {
 		movable: {
 			free: false,
 		},
-		onMove: (orig, dest, pieces, _capturedPiece) =>
-			doMove(orig, dest, pieces),
+		onMove: (orig, dest, pieces) => doMove(orig, dest, pieces),
 	});
-	const [lastPingTime, setLastPingTime] = useState<number>(Date.now());
-	// const [frameId, setFrameId] = useState<number | null>(null);
+
 	const [moveCount, setMoveCount] = useState(1);
-	const [latency, setLatency] = useState(0);
-	const [pongCount, setPongCount] = useState(0);
 	const [playerTime, setPlayerTime] = useState<string>("");
 	const [playerRemainingTime, setPlayerRemainingTime] = useState(0);
 	const [opponentRemainingTime, setOpponentRemainingTime] = useState(0);
+	const [lastPingTime, setLastPingTime] = useState<number>(Date.now());
+	const [pongCount, setPongCount] = useState(0);
+	const [latency, setLatency] = useState(0);
+	const [timeControl, setTimeControl] = useState<number>(0);
 	const [opponentTime, setOpponentTime] = useState<string>("");
 	const [playerScore, setPlayerScore] = useState<number>(0);
 	const [opponentScore, setOpponentScore] = useState<number>(0);
+
 	const [isPlayerWhite, setIsPlayerWhite] = useState<boolean>(false);
-	const [timeControl, setTimeControl] = useState<number>(0);
 	const [isPlayersTurn, setIsPlayersTurn] = useState(false);
 	const [playerClockActive, setPlayerClockActive] = useState(false);
 	const [opponentClockActive, setOpponentClockActive] = useState(false);
 	const [playerClockBarWidth, setPlayerClockBarWidth] = useState(0);
 	const [opponentClockBarWidth, setOpponentClockBarWidth] = useState(0);
-	const [gameState, setGameState] = useState<RoomState>(RoomState.StateInit);
+
+	const { sendMessage } = useWebSocket(
+		`ws://localhost:3000/api/socket${router.asPath}`,
+		{
+			share: true,
+			onOpen: () => {
+				console.log("[Websocket - BOARD] Connected to lioctad.org");
+				// sends an empty move message to prompt a response with board info
+				sendMessage(BuildCommand("m", { a: 0 }));
+			},
+			onClose: (event) => {
+				console.warn(
+					"[Websocket] Lost connection to lioctad.org",
+					event,
+				);
+
+				// disable the board
+				setOctadgroundState((oldState) => ({
+					...oldState,
+					movable: {
+						free: false,
+						dests: new Map(),
+					},
+				}));
+			},
+			onMessage: (event) => {
+				if (event.data) {
+					const socketResponse: SocketResponse = JSON.parse(
+						event.data,
+					);
+					parseResponse(socketResponse);
+				}
+			},
+		},
+	);
 
 	const playerClockAnimationFrameHandler = (clockStartFrameTime: number) => {
 		// converting milliseconds to centiseconds
@@ -111,39 +146,9 @@ export default function GameBoard() {
 	useAnimationFrame(playerClockAnimationFrameHandler, playerClockActive);
 	useAnimationFrame(opponentClockAnimationFrameHandler, opponentClockActive);
 
-	const { sendMessage } = useWebSocket(
-		`ws://localhost:3000/api/socket${router.asPath}`,
-		{
-			onOpen: () => {
-				console.log("[Websocket] Connected to lioctad.org");
-				// sends an empty move message to prompt a response with board info
-				sendMessage(buildCommand("m", { a: 0 }));
-			},
-			onClose: (event) => {
-				console.warn(
-					"[Websocket] Lost connection to lioctad.org",
-					event,
-				);
-
-				// disable the board
-				setOctadgroundState((oldState) => ({
-					...oldState,
-					movable: {
-						free: false,
-						dests: new Map(),
-					},
-				}));
-			},
-			onMessage: (event) => {
-				if (event.data) {
-					parseResponse(event.data);
-				}
-			},
-		},
-	);
-
 	// kick things off, on component mount
 	useEffect(() => {
+		sendMessage(BuildCommand("m", { a: 0 }));
 		// TODO add polyfills
 		// window.requestAnimationFrame = (function () {
 		// 	return function (callback: FrameRequestCallback): number {
@@ -170,28 +175,15 @@ export default function GameBoard() {
 			console.log("Clearing ping runner...");
 			clearInterval(pingRunner);
 		};
-	}, [sendMessage]);
-
-	// build socket message
-	const buildCommand = (tag: string, data: any) => {
-		const m: Command = {
-			t: tag,
-			d: data,
-		};
-		return JSON.stringify(m);
-	};
+	}, []);
 
 	/**
 	 * Determine what to do with received responses
 	 * @param raw - the raw message JSON string
 	 */
-	const parseResponse = (raw: string) => {
-		const message: SocketResponse = JSON.parse(raw);
-
-		console.log("[Websocket] Message", message);
-
+	const parseResponse = (socketResponse: SocketResponse) => {
 		// handle pongs
-		if (message.po === 1) {
+		if (socketResponse.po === 1) {
 			console.log("[Websocket] Received pong");
 			const currentLag = Math.min(Date.now() - lastPingTime, 10000);
 			const newPongCount = pongCount + 1;
@@ -205,17 +197,19 @@ export default function GameBoard() {
 			return;
 		}
 
-		switch (message.t) {
-			case "m": // move
-				const movePayload = new MovePayload(
-					message.d as MovePayloadSerialized,
+		switch (socketResponse.t) {
+			case "m": {
+				const payload = new MovePayload(
+					socketResponse.d as MovePayloadSerialized,
 				).get();
 
-				handleMove(movePayload);
+				handleMove(payload);
 				break;
-			case "g": // game over
+			}
+			case "g": {
+				// game over
 				const gameOverPayload = new GameOverPayload(
-					message.d as GameOverPayloadSerialized,
+					socketResponse.d as GameOverPayloadSerialized,
 				).get();
 
 				setPlayerClockActive(false);
@@ -248,10 +242,11 @@ export default function GameBoard() {
 					}, 3000);
 				}
 				break;
+			}
 			case "c": // crowd
-				const crowdPayload = new CrowdPayload(
-					message.d as CrowdPayloadSerialized,
-				).get();
+				// const crowdPayload = new CrowdPayload(
+				// 	message.d as CrowdPayloadSerialized,
+				// ).get();
 
 				// const crowd = document.getElementById("crowd");
 				// if (crowd) {
@@ -270,10 +265,6 @@ export default function GameBoard() {
 	const handleMove = (message: MovePayloadDeserialized) => {
 		console.log("[Game] Move Payload", message);
 		const ofenParts: string[] = message.OFEN?.split(" ") ?? [];
-
-		if (message.RoomState) {
-			setGameState(message.RoomState);
-		}
 
 		const isPlayerWhite = message.White === GetBrowserId() ? true : false;
 		const isWhitesTurn = ofenParts[1] === "w";
@@ -351,9 +342,9 @@ export default function GameBoard() {
 			},
 		}));
 
-		const whiteScore = message.Score?.["w"];
-		const blackScore = message.Score?.["b"];
-		if (whiteScore && blackScore) {
+		const whiteScore = message.Score?.White;
+		const blackScore = message.Score?.Black;
+		if (whiteScore !== undefined && blackScore !== undefined) {
 			if (isPlayerWhite) {
 				setPlayerScore(whiteScore);
 				setOpponentScore(blackScore);
@@ -438,7 +429,7 @@ export default function GameBoard() {
 		console.log("[Websocket] Sending game move...");
 		// send move message
 		sendMessage(
-			buildCommand("m", {
+			BuildCommand("m", {
 				u: orig + dest,
 				a: moveCount,
 			}),
@@ -479,20 +470,6 @@ export default function GameBoard() {
 	// 		}
 	// 	}
 	// };
-	/**
-	 *
-	 * TODO
-	 * 3. Pass game state status to move message payload
-	 * 1. Create "Game" component to house the board and active game logic
-	 * 2. Create logic to handle player connection and determine whether to show the lobby or game
-	 *
-	 */
-
-	if (gameState === RoomState.StateWaitingForPlayers) {
-		return (
-			<Lobby playerColor={isPlayerWhite ? Color.WHITE : Color.BLACK} />
-		);
-	}
 
 	return (
 		<div
@@ -509,8 +486,9 @@ export default function GameBoard() {
 
 			<div className="flex flex-col items-center">
 				<Clock
-					flipOrientation={true}
+					flipOrientation
 					time={opponentTime}
+					score={opponentScore}
 					barWidth={opponentClockBarWidth}
 					isWhite={!isPlayerWhite}
 					isActive={!isPlayersTurn}
@@ -518,17 +496,22 @@ export default function GameBoard() {
 				<Octadground {...octadGroundState} width="38vw" height="38vw" />
 				<Clock
 					time={playerTime}
+					score={playerScore}
 					isActive={isPlayersTurn}
 					barWidth={playerClockBarWidth}
 					isWhite={isPlayerWhite}
 				/>
-				<Chin latency={latency} />
+
+				<div className="flex justify-center pt-2 pb-1 octad-tan text-2xs w-11/12 rounded-b">
+					<div className="mr-1">{`${1} CONNECTED`}</div>
+					<div>{`(${latency}ms)`}</div>
+				</div>
 			</div>
 
 			<Footer />
 		</div>
 	);
-}
+};
 
 const padZero = (time: number, slice: number): string =>
 	`0${time}`.slice(slice);
@@ -575,17 +558,4 @@ const calcBarWidth = (timeControl: number, time: number): number => {
 	return Math.min((time / timeControl) * 100, 100);
 };
 
-interface ChinProps {
-	latency: number;
-}
-
-const Chin = (props: ChinProps) => {
-	const numConnected = 1;
-
-	return (
-		<div className="flex justify-center pt-2 pb-1 octad-tan text-2xs w-11/12 rounded-b">
-			<div className="mr-1">{`${numConnected} CONNECTED`}</div>
-			<div>{`(${props.latency}ms)`}</div>
-		</div>
-	);
-};
+export default Board;

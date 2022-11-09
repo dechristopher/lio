@@ -1,12 +1,13 @@
-import React, { FC, SetStateAction, useEffect, useState } from "react";
+import React, { FC } from "react";
 import styles from "./Clock.module.scss";
 import classNames from "classnames";
 
 interface ClockProps {
 	time: string;
+	score: number;
 	isWhite: boolean;
 	isActive: boolean;
-  barWidth: number;
+	barWidth: number;
 	flipOrientation?: boolean;
 }
 
@@ -36,7 +37,9 @@ const Clock: FC<ClockProps> = (props) => {
 					>
 						Opponent
 					</div>
-					<div className={styles.clockRatingNumber}>0</div>
+					<div className={styles.clockRatingNumber}>
+						{props.score}
+					</div>
 				</div>
 
 				<div
@@ -55,9 +58,9 @@ const Clock: FC<ClockProps> = (props) => {
 						[styles.clockProgressBar]: true,
 						[styles.active]: props.isActive,
 					})}
-          style={{
-            width: `${props.barWidth}%`,
-          }}
+					style={{
+						width: `${props.barWidth}%`,
+					}}
 				></div>
 				<div className={styles.clockProgressBg}></div>
 			</div>

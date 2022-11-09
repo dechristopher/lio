@@ -99,10 +99,12 @@ type MoveAckPayload int
 
 // ClockPayload is a wire representation of the current state of a game's clock
 type ClockPayload struct {
-	Control int64 `json:"tc"` // time control total time
-	Black   int64 `json:"b"`  // black clock in centi-seconds
-	White   int64 `json:"w"`  // white clock in centi-seconds
-	Lag     int64 `json:"l"`  // internal server lag in ms
+	Control      int64  `json:"tc"` // time control total time
+	Black        int64  `json:"b"`  // black clock in centi-seconds
+	White        int64  `json:"w"`  // white clock in centi-seconds
+	Lag          int64  `json:"l"`  // internal server lag in ms
+	VariantName  string `json:"n"`  // variant name
+	VariantGroup string `json:"g"`  // variant group name
 }
 
 // CrowdPayload contains data about connected players and spectator count

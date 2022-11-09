@@ -1,4 +1,4 @@
-enum VariantPool {
+export enum VariantPool {
 	Bullet = "bullet",
 	Blitz = "blitz",
 	Rapid = "rapid",

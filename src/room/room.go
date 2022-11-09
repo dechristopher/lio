@@ -464,10 +464,12 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 func (r *Instance) currentClock() proto.ClockPayload {
 	state := r.game.Clock.State(true)
 	return proto.ClockPayload{
-		Control: r.game.Variant.Control.Time.Centi(),
-		Black:   state.BlackTime.Centi(),
-		White:   state.WhiteTime.Centi(),
-		Lag:     clock.ToCTime(lag.Move.Get()).Centi(),
+		Control:      r.game.Variant.Control.Time.Centi(),
+		Black:        state.BlackTime.Centi(),
+		White:        state.WhiteTime.Centi(),
+		Lag:          clock.ToCTime(lag.Move.Get()).Centi(),
+		VariantName:  r.game.Variant.Name,
+		VariantGroup: r.game.Variant.Group.String(),
 	}
 }
 

@@ -3,10 +3,11 @@ import { MovePayload, MovePayloadSerialized } from "./move";
 import { CrowdPayload, CrowdPayloadSerialized } from "./crowd";
 import { MoveAckPayload, MoveAckPayloadSerialized } from "./move_ack";
 import { GameOverPayload, GameOverPayloadSerialized } from "./game_over";
+import { VariantPool } from "./pools";
 
 export enum Color {
 	WHITE = "white",
-	BLACK = "black"
+	BLACK = "black",
 }
 
 export enum MessageTag {
@@ -23,6 +24,8 @@ export interface SerializedClockPayload {
 	b?: number; // Black (black clock in centi-seconds)
 	w?: number; // White (white clock in centi-seconds)
 	l?: number; // Lag (internal server lag in ms)
+	n?: string; // variant name
+	g?: VariantPool; // variant group name
 }
 
 // ClockPayload is a wire representation of the current state of a game's clock
@@ -31,6 +34,8 @@ export interface DeserializedClockPayload {
 	Black?: number; // `json:"b"` (black clock in centi-seconds)
 	White?: number; // `json:"w"` (white clock in centi-seconds)
 	Lag?: number; // `json:"l"` (internal server lag in ms)
+	VariantName?: string; // `json:"n"` (variant name)
+	VariantGroup?: VariantPool; // `json:"g"` (variant group name)
 }
 
 export type Payload =
