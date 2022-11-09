@@ -20,13 +20,20 @@ const AboutContainer = (props: AboutContainerProps) => {
 
 				<div className="flex justify-between mx-3">
 					<Link href="/about/board">
-						<Button className={styles.aboutBtn}>Board</Button>
+						{/* these anchor tags prevent an error getting thrown within the console */}
+						<a>
+							<Button className={styles.aboutBtn}>Board</Button>
+						</a>
 					</Link>
 					<Link href="/about/rules">
-						<Button className={styles.aboutBtn}>Rules</Button>
+						<a>
+							<Button className={styles.aboutBtn}>Rules</Button>
+						</a>
 					</Link>
 					<Link href="/about/misc">
-						<Button className={styles.aboutBtn}>Misc.</Button>
+						<a>
+							<Button className={styles.aboutBtn}>Misc.</Button>
+						</a>
 					</Link>
 				</div>
 			</div>
