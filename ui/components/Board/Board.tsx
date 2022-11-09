@@ -5,7 +5,7 @@ import {
 	MovePayloadDeserialized,
 	MovePayloadSerialized,
 } from "@/proto/move";
-import { Color, SocketResponse } from "@/proto/proto";
+import { SocketResponse } from "@/proto/proto";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
 import Octadground, {
@@ -17,15 +17,36 @@ import useWebSocket from "react-use-websocket";
 import Clock from "../Clock/Clock";
 import { Footer } from "../Footer/Footer";
 import { Header } from "../Header/Header";
-import {
-	useAnimationFrame,
-	GetBrowserId,
-	ConfirmationSound,
-	CaptureSound,
-	MoveSound,
-	IsMobile,
-	NotificationSound,
-} from "../shared";
+import { useAnimationFrame } from "@/hooks/useAnimationFrame";
+import { GetBrowserId, IsMobile } from "@/utils";
+import { Howl } from "howler";
+import { Color } from "@/types";
+
+export const MoveSound = new Howl({
+	src: ["/sfx/move.ogg"],
+	preload: true,
+	autoplay: true,
+	html5: true,
+	volume: 0.9,
+});
+
+export const CaptureSound = new Howl({
+	src: ["/sfx/capture.ogg"],
+	preload: true,
+	volume: 0.9,
+});
+
+export const ConfirmationSound = new Howl({
+	src: ["/sfx/confirmation.ogg"],
+	preload: true,
+	volume: 0.99,
+});
+
+export const NotificationSound = new Howl({
+	src: ["/sfx/end.ogg"],
+	preload: true,
+	volume: 0.6,
+});
 
 type Command = {
 	t: string;
@@ -41,9 +62,7 @@ export const BuildCommand = (tag: string, data: any) => {
 	return JSON.stringify(m);
 };
 
-interface BoardProps {}
-
-const Board = (props: BoardProps) => {
+const Board = () => {
 	const router = useRouter();
 	const [playPremoveFn, setPlayPremoveFn] = useState<(() => boolean) | null>(
 		null,

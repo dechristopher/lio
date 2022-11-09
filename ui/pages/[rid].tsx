@@ -1,14 +1,13 @@
 import React, { useState } from "react";
-
-import { GetBrowserId } from "@/components/shared";
-import { Color, SocketResponse } from "@/proto/proto";
+import { SocketResponse } from "@/proto/proto";
 import { RoomState, MovePayload, MovePayloadSerialized } from "@/proto/move";
 
 import { useRouter } from "next/router";
 import useWebSocket from "react-use-websocket";
 import Lobby from "@/components/Lobby/Lobby";
 import Board, { BuildCommand } from "@/components/Board/Board";
-import { VariantPool } from "@/proto/pools";
+import { Color, VariantPool } from "@/types";
+import { GetBrowserId } from "@/utils";
 
 export default function Room() {
 	const router = useRouter();

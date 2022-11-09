@@ -1,18 +1,10 @@
 import {
-	SerializedClockPayload,
 	DeserializedClockPayload,
+	DeserializedScorePayload,
+	SerializedClockPayload,
+	SerializedScorePayload,
 	WsPayloadBaseClass,
 } from "./proto";
-
-export type SerializedScorePayload = {
-	b?: number;
-	w?: number;
-};
-
-export type DeserializedScorePayload = {
-	Black?: number;
-	White?: number;
-};
 
 export enum RoomState {
 	Init = "init",

@@ -3,22 +3,8 @@ import { MovePayload, MovePayloadSerialized } from "./move";
 import { CrowdPayload, CrowdPayloadSerialized } from "./crowd";
 import { MoveAckPayload, MoveAckPayloadSerialized } from "./move_ack";
 import { GameOverPayload, GameOverPayloadSerialized } from "./game_over";
-import { VariantPool } from "./pools";
+import { VariantPool } from "@/types";
 
-export enum Color {
-	WHITE = "white",
-	BLACK = "black",
-}
-
-export enum MessageTag {
-	OFENTag = "o", // OFENTag is the message type tag for the OFENPayload
-	MoveTag = "m", // MoveTag is the message type tag for the MovePayload
-	MoveAckTag = "a", // MoveAckTag is the message type tag for the MoveAckPayload
-	CrowdTag = "c", // CrowdTag is the message type tag for the CrowdPayload
-	GameOverTag = "g", // GameOverTag is the message type tag for the GameOverPayload
-}
-
-// ClockPayload is a wire representation of the current state of a game's clock
 export interface SerializedClockPayload {
 	tc?: number; // Control
 	b?: number; // Black (black clock in centi-seconds)
@@ -28,7 +14,6 @@ export interface SerializedClockPayload {
 	g?: VariantPool; // variant group name
 }
 
-// ClockPayload is a wire representation of the current state of a game's clock
 export interface DeserializedClockPayload {
 	TimeControl?: number; // tc
 	Black?: number; // `json:"b"` (black clock in centi-seconds)
@@ -38,7 +23,25 @@ export interface DeserializedClockPayload {
 	VariantGroup?: VariantPool; // `json:"g"` (variant group name)
 }
 
-export type Payload =
+export type SerializedScorePayload = {
+	b?: number;
+	w?: number;
+};
+
+export type DeserializedScorePayload = {
+	Black?: number;
+	White?: number;
+};
+
+export enum MessageTag {
+	OFENTag = "o", // OFENTag is the message type tag for the OFENPayload
+	MoveTag = "m", // MoveTag is the message type tag for the MovePayload
+	MoveAckTag = "a", // MoveAckTag is the message type tag for the MoveAckPayload
+	CrowdTag = "c", // CrowdTag is the message type tag for the CrowdPayload
+	GameOverTag = "g", // GameOverTag is the message type tag for the GameOverPayload
+}
+
+type Payload =
 	| OFENPayload
 	| MovePayload
 	| MoveAckPayload

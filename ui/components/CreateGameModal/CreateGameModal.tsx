@@ -5,9 +5,8 @@ import styles from "./CreateModal.module.scss";
 import classNames from "classnames";
 import Image from "next/image";
 import Button from "../Button/Button";
-import { Color } from "@/proto/proto";
 import { useRouter } from "next/router";
-import { VariantPools, Variant } from "@/proto/pools";
+import { VariantPools, Variant, Color } from "@/types";
 
 type NewGamePayload = {
 	"time-control": string;

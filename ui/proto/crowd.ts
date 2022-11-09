@@ -1,19 +1,21 @@
-import {WsPayloadBaseClass} from "./proto";
+import { WsPayloadBaseClass } from "./proto";
 
 export interface CrowdPayloadDeserialized {
-	Black: boolean;   // `json:"b"`
-	White: boolean;   // `json:"w"`
-	Spec: number;     //  `json:"s,omitempty"`
+	Black: boolean; // `json:"b"`
+	White: boolean; // `json:"w"`
+	Spec: number; //  `json:"s,omitempty"`
 }
-
 
 export interface CrowdPayloadSerialized {
-	b: boolean;   // `json:"b"`
-	w: boolean;   // `json:"w"`
-	s: number;    //  `json:"s,omitempty"`
+	b: boolean; // `json:"b"`
+	w: boolean; // `json:"w"`
+	s: number; //  `json:"s,omitempty"`
 }
 
-export class CrowdPayload extends WsPayloadBaseClass<CrowdPayloadSerialized, CrowdPayloadDeserialized> {
+export class CrowdPayload extends WsPayloadBaseClass<
+	CrowdPayloadSerialized,
+	CrowdPayloadDeserialized
+> {
 	private data: CrowdPayloadDeserialized;
 
 	constructor(data: CrowdPayloadSerialized) {
@@ -25,16 +27,16 @@ export class CrowdPayload extends WsPayloadBaseClass<CrowdPayloadSerialized, Cro
 		return {
 			Black: data.b,
 			White: data.w,
-			Spec: data.s
-		}
+			Spec: data.s,
+		};
 	}
 
 	public serialize(): CrowdPayloadSerialized {
 		return {
 			b: this.data.Black,
 			w: this.data.White,
-			s: this.data.Spec
-		}
+			s: this.data.Spec,
+		};
 	}
 
 	get(): CrowdPayloadDeserialized {

@@ -1,5 +1,4 @@
-import { VariantPool } from "@/proto/pools";
-import { Color } from "@/proto/proto";
+import { Color, VariantPool } from "@/types";
 import classNames from "classnames";
 import { useRouter } from "next/router";
 import React, { FC, useEffect, useState } from "react";
