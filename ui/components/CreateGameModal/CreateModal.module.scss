@@ -1,6 +1,8 @@
+@import "../../styles/variables.scss";
+
 .body {
 	border-radius: 3px;
-	background-color: #cca57b;
+	background-color: $primary-brown;
 	position: relative;
 	filter: drop-shadow(0 20px 13px rgb(0 0 0 / 0.03))
 		drop-shadow(0 8px 5px rgb(0 0 0 / 0.08));
@@ -35,7 +37,7 @@
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 8px;
 	padding: 12px 24px;
-	background-color: #f1d8b8;
+	background-color: $primary-tan;
 	border-top: 1px solid #8c6d54;
 	border-bottom: 1px solid #8c6d54;
 
@@ -46,15 +48,15 @@
 
 		&:hover,
 		&.selected {
-			background: #0bab7d;
+			background: $primary-green;
 			color: #fff;
 		}
 
 		&:hover {
-			border-top-color: #40a487;
-			border-left-color: #40a487;
-			border-bottom-color: #149d75;
-			border-right-color: #149d75;
+			border-top-color: $green-hover-light;
+			border-left-color: $green-hover-light;
+			border-bottom-color: $green-hover-dark;
+			border-right-color: $green-hover-dark;
 		}
 	}
 }

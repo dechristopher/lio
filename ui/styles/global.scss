@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "./variables.scss";
+
 html,
 body {
 	margin: 0;
@@ -9,13 +11,13 @@ body {
 	line-height: normal;
 	font-family: "Poppins", sans-serif;
 	transition: "all 250ms";
-	background-color: #f1d8b8;
+	background-color: $primary-tan;
 	user-select: none;
 	-webkit-user-select: none;
 }
 
 .octad-green {
-	color: #0bab7d;
+	color: $primary-green;
 }
 
 .prose {
@@ -41,8 +43,8 @@ body {
 }
 
 .ofen-block {
-	background: #f1d8b8;
-	border-left: 3px solid #0bab7d;
+	background: $primary-tan;
+	border-left: 3px solid $primary-green;
 	color: #363636;
 	page-break-inside: avoid;
 	font-family: "Noto Sans Mono", monospace;
@@ -93,5 +95,5 @@ body {
 }
 
 .octad-tan {
-	background-color: #cca57b;
+	background-color: $primary-brown;
 }
