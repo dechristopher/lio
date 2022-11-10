@@ -1,5 +1,6 @@
 import { Color, VariantPool } from "@/types";
 import classNames from "classnames";
+import Image from "next/image";
 import { useRouter } from "next/router";
 import React, { FC, useEffect, useState } from "react";
 import Button from "../Button/Button";
@@ -30,7 +31,7 @@ const Lobby: FC<LobbyProps> = (props) => {
 				</div>
 
 				<div className={styles.gameSettings}>
-					<div className="font-semibold text-2xl leading-none">
+					<div className={styles.variant}>
 						{`${props.variantName} ${props.variantGroup}`}
 					</div>
 					<div>{props.playerColor.toUpperCase()} • CASUAL</div>
@@ -46,7 +47,7 @@ const Lobby: FC<LobbyProps> = (props) => {
 					<div className="text-xs font-medium">
 						To invite someone to play, share this URL:
 					</div>
-					<div className="flex">
+					<div className={styles.inviteContainer}>
 						<input
 							readOnly
 							type="text"
@@ -69,8 +70,23 @@ const Lobby: FC<LobbyProps> = (props) => {
 								setTimeout(() => setHasCopied(false), 3000);
 							}}
 						>
-							{/* TODO replace with icons */}
-							{hasCopied ? "Copied" : "Copy"}
+							{hasCopied ? (
+								<div className="p-0.5">
+									<Image
+										alt="Copied"
+										width="100%"
+										height="100%"
+										src="/images/Checkmark.svg"
+									/>
+								</div>
+							) : (
+								<Image
+									alt="Copy"
+									width="100%"
+									height="100%"
+									src="/images/Clipboard.svg"
+								/>
+							)}
 						</button>
 					</div>
 					<div className="text-xs font-medium mt-3">
@@ -85,7 +101,7 @@ const Lobby: FC<LobbyProps> = (props) => {
 						router.push("/");
 					}}
 				>
-					x Cancel Game
+					× CANCEL GAME
 				</Button>
 			</div>
 		</ContentWrapper>

@@ -10,42 +10,57 @@
 	box-shadow: 2px 3px 0;
 	width: 100%;
 	margin-top: 16px;
+	padding: 4px 0;
+
+	.variant {
+		font-size: 1.8rem;
+		font-weight: 600;
+	}
 }
 
-.inviteLink {
-	border: 1px solid #404040;
-	padding: 0.6em 1em;
-	margin-right: 8px;
-	font-size: 12px;
-	font-weight: 600;
-	min-height: 1.8em;
-	flex: 1;
-	text-align: center;
-}
+.inviteContainer {
+	display: flex;
 
-.copyBtn {
-	min-height: 1.8em;
-	min-width: 2.5em;
-	background-color: #a8e4ee;
-	border-radius: 0.25rem;
-	border-width: 2px;
-	border-style: solid;
-	border-right-color: #979797;
-	border-bottom-color: #979797;
-	border-left-color: #e3e3e3;
-	border-top-color: #e3e3e3;
-	transition: all 250ms;
+	.inviteLink {
+		border: 1px solid #404040;
+		padding: 0.6em 1em;
+		margin-right: 8px;
+		font-size: 12px;
+		font-weight: 600;
+		min-height: 1.8em;
+		flex: 1;
+		text-align: center;
+	}
 
-	&.copied {
-		background-color: #afeea8;
+	.copyBtn {
+		height: 38px;
+		width: 38px;
+		padding: 6px;
+		min-height: 1.8em;
+		min-width: 2.5em;
+		background-color: #a8e4ee;
+		border-radius: 0.25rem;
+		border-width: 2px;
+		border-style: solid;
+		border-right-color: #979797;
+		border-bottom-color: #979797;
+		border-left-color: #e3e3e3;
+		border-top-color: #e3e3e3;
+		transition: all 250ms;
+
+		&.copied {
+			background-color: #afeea8;
+		}
 	}
 }
 
 .cancelBtn {
 	margin-top: 12px;
 	width: 100%;
-	font-weight: bold;
 	background-color: #ff6565;
+	font-family: "Noto Sans", sans-serif !important;
+	font-size: 15.5px;
+	font-weight: 600;
 
 	&:hover {
 		border-right-color: #e46161;
