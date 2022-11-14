@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Button from "../Button/Button";
 import { useRouter } from "next/router";
-import CreateGameModal from "../CreateGameModal/CreateGameModal";
+// import CreateGameModal from "../../app/CustomGameModal";
 
 export default function Home() {
 	const router = useRouter();
@@ -56,10 +56,10 @@ export default function Home() {
 				CREATE GAME
 			</Button>
 
-			<CreateGameModal
+			{/* <CreateGameModal
 				open={modalOpen}
 				close={() => setModalOpen(false)}
-			/>
+			/> */}
 		</div>
 	);
 }

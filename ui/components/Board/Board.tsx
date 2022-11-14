@@ -1,12 +1,5 @@
-import { GameOverPayload, GameOverPayloadSerialized } from "@/proto/game_over";
 import "react-octadground/dist/styles/octadground.css";
-import {
-	MovePayload,
-	MovePayloadDeserialized,
-	MovePayloadSerialized,
-} from "@/proto/move";
-import { SocketResponse } from "@/proto/proto";
-import { useRouter } from "next/router";
+import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import Octadground, {
 	OctadgroundProps,
@@ -15,12 +8,17 @@ import Octadground, {
 } from "react-octadground/octadground";
 import useWebSocket from "react-use-websocket";
 import Clock from "../Clock/Clock";
-import { Footer } from "../Footer/Footer";
-import { Header } from "../Header/Header";
-import { useAnimationFrame } from "@/hooks/useAnimationFrame";
-import { GetBrowserId, IsMobile } from "@/utils";
 import { Howl } from "howler";
-import { Color } from "@/types";
+import { useAnimationFrame } from "@hooks/useAnimationFrame";
+import { GameOverPayload, GameOverPayloadSerialized } from "@proto/game_over";
+import {
+	MovePayload,
+	MovePayloadSerialized,
+	MovePayloadDeserialized,
+} from "@proto/move";
+import { SocketResponse } from "@proto/proto";
+import { GetBrowserId, IsMobile } from "@utils/index";
+import { Color } from "@client/types";
 
 export const MoveSound = new Howl({
 	src: ["/sfx/move.ogg"],
@@ -63,7 +61,7 @@ export const BuildCommand = (tag: string, data: any) => {
 };
 
 const Board = () => {
-	const router = useRouter();
+	const pathName = usePathname() ?? "";
 	const [playPremoveFn, setPlayPremoveFn] = useState<(() => boolean) | null>(
 		null,
 	);
@@ -100,7 +98,7 @@ const Board = () => {
 	const [opponentClockBarWidth, setOpponentClockBarWidth] = useState(0);
 
 	const { sendMessage } = useWebSocket(
-		`ws://localhost:3000/api/socket${router.asPath}`,
+		`ws://localhost:3000/api/socket${pathName}`,
 		{
 			share: true,
 			onOpen: () => {
@@ -493,12 +491,11 @@ const Board = () => {
 	return (
 		<div
 			className="flex flex-col items-center pt-8"
-			style={{
-				width: "100vw",
-				height: "100vh",
-			}}
+			// style={{
+			// 	width: "100vw",
+			// 	height: "100vh",
+			// }}
 		>
-			<Header />
 			<div className="font-bold text-3xl italic mb-2 leading-none">
 				½ + 1 Blitz
 			</div>
@@ -526,8 +523,6 @@ const Board = () => {
 					<div>{`(${latency}ms)`}</div>
 				</div>
 			</div>
-
-			<Footer />
 		</div>
 	);
 };

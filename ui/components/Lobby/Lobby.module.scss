@@ -57,15 +57,15 @@
 .cancelBtn {
 	margin-top: 12px;
 	width: 100%;
-	background-color: #ff6565;
+	background-color: #ff6565 !important;
 	font-family: "Noto Sans", sans-serif !important;
 	font-size: 15.5px;
 	font-weight: 600;
 
 	&:hover {
-		border-right-color: #e46161;
-		border-bottom-color: #e46161;
-		border-left-color: #dd6e6e;
-		border-top-color: #dd6e6e;
+		border-right-color: #e46161 !important;
+		border-bottom-color: #e46161 !important;
+		border-left-color: #dd6e6e !important;
+		border-top-color: #dd6e6e !important;
 	}
 }
