@@ -11,14 +11,14 @@ import (
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
-// HandleRoom processes rom update request messages
+// HandleRoom processes room update request messages
 func HandleRoom(m []byte, meta channel.SocketContext) []byte {
 	thisRoom, err := room.Get(meta.RoomID)
 	if err != nil {
 		return nil
 	}
 
-	var msg proto.RoomMessage
+	var msg proto.MessageRoom
 	err = json.Unmarshal(m, &msg)
 	if err != nil {
 		util.Error(str.CHMov, str.EMoveUnmarshal, m, err)
@@ -27,7 +27,7 @@ func HandleRoom(m []byte, meta channel.SocketContext) []byte {
 
 	// if requesting room readiness update, return redirect message
 	// if the room is ready for gameplay
-	if msg.Query {
+	if msg.Data.Query {
 		util.Info("HR", "queried")
 		if thisRoom.IsReady() {
 			util.Info("HR", "isReady")

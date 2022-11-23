@@ -13,13 +13,14 @@ type wsRoutes = map[proto.PayloadTag]channel.Handler
 // Map protocol commands to command handlers
 var (
 	Map = wsRoutes{
-		proto.MoveTag: handlers.HandleMove,
-		proto.RoomTag: handlers.HandleRoom,
-		proto.OFENTag: Unimplemented,
+		proto.MoveTag:    handlers.HandleMove,
+		proto.RoomTag:    handlers.HandleRoom,
+		proto.RematchTag: handlers.HandleRematch,
+		proto.OFENTag:    Unimplemented,
 	}
 )
 
 // Unimplemented is a placeholder for routing unimplemented handler functions
 func Unimplemented(_ []byte, _ channel.SocketContext) []byte {
-	return []byte("{\"ok\": false}")
+	return nil
 }

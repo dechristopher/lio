@@ -30,3 +30,10 @@ func (a Agreement) Agreed() bool {
 		return a.agreed(c)
 	})
 }
+
+// Reset the agreement instance in preparation for a new agreement
+func (a Agreement) Reset() {
+	util.DoBothColors(func(color octad.Color) {
+		a[color] = false
+	})
+}

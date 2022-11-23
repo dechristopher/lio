@@ -118,6 +118,8 @@ github.com/valyala/tcplisten
 ## explicit; go 1.17
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
+# golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b
+## explicit; go 1.18
 # golang.org/x/net v0.0.0-20220909164309-bea034e7d591
 ## explicit; go 1.17
 golang.org/x/net/http/httpguts

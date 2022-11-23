@@ -6,30 +6,30 @@ import (
 	"github.com/dechristopher/lio/clock"
 )
 
-// HalfZeroBlitz is the 30 second, zero second increment blitz variant
-var HalfZeroBlitz = Variant{
-	Name:     "½ + 0",
-	HTMLName: "half-zero-blitz",
+// QuarterZeroBlitz is the 15 second, zero second increment blitz variant
+var QuarterZeroBlitz = Variant{
+	Name:     "¼",
+	HTMLName: "quarter-zero-blitz",
 	Group:    BlitzGroup,
-	Control:  HalfZeroBlitzTC,
+	Control:  QuarterZeroBlitzTC,
 }
 
-// HalfZeroBlitzTC is the 30 second, zero second increment blitz time control
-var HalfZeroBlitzTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 30),
+// QuarterZeroBlitzTC is the 15 second, zero second increment blitz time control
+var QuarterZeroBlitzTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 15),
 	Increment: clock.ToCTime(time.Second * 0),
 }
 
-// HalfOneBlitz is the 30 second, one second increment blitz variant
-var HalfOneBlitz = Variant{
-	Name:     "½ + 1",
-	HTMLName: "half-one-blitz",
+// QuarterOneBlitz is the 15 second, one second increment blitz variant
+var QuarterOneBlitz = Variant{
+	Name:     "¼ + 1",
+	HTMLName: "quarter-one-blitz",
 	Group:    BlitzGroup,
-	Control:  HalfOneBlitzTC,
+	Control:  QuarterOneBlitzTC,
 }
 
-// HalfOneBlitzTC is the 30 second, one second increment blitz time control
-var HalfOneBlitzTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 30),
+// QuarterOneBlitzTC is the 15 second, one second increment blitz time control
+var QuarterOneBlitzTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 15),
 	Increment: clock.ToCTime(time.Second * 1),
 }

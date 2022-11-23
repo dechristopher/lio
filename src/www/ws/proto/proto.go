@@ -22,6 +22,8 @@ const (
 	CrowdTag PayloadTag = "c"
 	// GameOverTag is the message type tag for the GameOverPayload
 	GameOverTag PayloadTag = "g"
+	// RematchTag is the message type tag for the RematchMessage
+	RematchTag PayloadTag = "re"
 	// RoomTag is the message type tag for the RoomMessage
 	RoomTag PayloadTag = "r"
 	// RedirectTag is the message type tag for the RedirectMessage
@@ -111,21 +113,60 @@ type CrowdPayload struct {
 
 // GameOverPayload contains data regarding the outcome of the game
 type GameOverPayload struct {
-	Winner   string       `json:"w,omitempty"`
-	StatusID int          `json:"i,omitempty"`
-	Status   string       `json:"s"`
-	Clock    ClockPayload `json:"c,omitempty"`
-	Score    ScorePayload `json:"sc,omitempty"`
-	RoomOver bool         `json:"o,omitempty"`
+	WinnerColor string         `json:"wc,omitempty"`
+	WinnerUID   string         `json:"wid,omitempty"`
+	StatusID    GameOverStatus `json:"sid,omitempty"`
+	Clock       ClockPayload   `json:"c,omitempty"`
+	Score       ScorePayload   `json:"sc,omitempty"`
+	RoomOver    bool           `json:"o,omitempty"`
 }
 
-// RoomMessage contains room state data
-type RoomMessage struct {
+type GameOverStatus int
+
+const (
+	OverAbandoned GameOverStatus = iota
+	InProgress
+	WhiteWinsCheckmate
+	BlackWinsCheckmate
+	WhiteWinsResignation
+	BlackWinsResignation
+	WhiteWinsTimeout
+	BlackWinsTimeout
+	DrawAgreement
+	DrawInsufficientMaterial
+	DrawRepetition
+	DrawStalemate
+	DrawTwentyFiveMoveRule
+	OverNoRematch
+)
+
+// RematchPayload is a payload used to relay rematch information
+// bidirectionally with the client
+type RematchPayload struct {
+	PlayerRequest   bool `json:"r,omitempty"`  // player requesting rematch, client->
+	OpponentRequest bool `json:"o,omitempty"`  // opponent requested rematch, ->client
+	NoRematch       bool `json:"no,omitempty"` // opponent left or denied rematch, ->client
+}
+
+// MessageRematch contains a RematchPayload message
+type MessageRematch struct {
+	Tag  string         `json:"t"` // message type tag
+	Data RematchPayload `json:"d"` // rematch data payload
+}
+
+// RoomPayload contains room state data
+type RoomPayload struct {
 	RoomID  string `json:"id,omitempty"`
 	Query   bool   `json:"q,omitempty"`
 	Ready   bool   `json:"r,omitempty"`
 	P1Score int    `json:"p1,omitempty"`
 	P2Score int    `json:"p2,omitempty"`
+}
+
+// MessageRoom contains a RoomPayload message
+type MessageRoom struct {
+	Tag  string      `json:"t"` // message type tag
+	Data RoomPayload `json:"d"` // room data payload
 }
 
 // RedirectMessage instructs the client to redirect to a different page

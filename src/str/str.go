@@ -44,7 +44,9 @@ const (
 	EWSRead              = "read err: %s"
 	EWSWrite             = "write err: meta=%+v error=%s"
 	EWSNoUid             = "no uid: %s"
-	EMoveUnmarshal       = "failed to parse move: move=%+v error=%s"
+	EWSNotOk             = "failed checks: not requesting ws, or not valid origin"
+	EMoveUnmarshal       = "failed to parse move message: move=%+v error=%s"
+	ERematchUnmarshal    = "failed to parse rematch message: move=%+v error=%s"
 	ERecord              = "failed to record game error=%s"
 	EProtoMarshal        = "failed to marshal protocol message error=%s"
 )

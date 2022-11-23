@@ -3,15 +3,42 @@ let frameId, frameTime, wt, bt, move = 1;
 
 const moveTag = "m";
 const gameOverTag = "g";
+const rematchTag = "re";
 
-window.addEventListener('load', () => {
-	if (window.ws) {
-		return false;
-	}
-	connect();
-	return true;
-});
+const StatusWhiteWinsCheckmate = 2;
+const StatusBlackWinsCheckmate = 3;
+const StatusWhiteWinsResignation = 4;
+const StatusBlackWinsResignation = 5;
+const StatusWhiteWinsTimeout = 6;
+const StatusBlackWinsTimeout = 7;
+const StatusDrawAgreement = 8;
+const StatusDrawInsufficientMaterial = 9;
+const StatusDrawRepetition = 10;
+const StatusDrawStalemate = 11;
+const StatusDrawTwentyFiveMoveRule = 12;
 
+const CheckmateMessage = "by checkmate";
+const ResignationMessage = "opponent resigned";
+const TimeoutMessage = "opponent resigned";
+const DrawAgreementMessage = "by agreement";
+const DrawInsufficientMaterialMessage = "insufficient material";
+const DrawRepetitionMessage = "via repetition";
+const DrawStalemateMessage = "via stalemate";
+const DrawTwentyFiveMoveRuleMessage = "25-move rule exceeded"
+
+const GameOverReasonMap = {
+	[StatusWhiteWinsCheckmate]: CheckmateMessage,
+	[StatusBlackWinsCheckmate]: CheckmateMessage,
+	[StatusWhiteWinsResignation]: ResignationMessage,
+	[StatusBlackWinsResignation]: ResignationMessage,
+	[StatusWhiteWinsTimeout]: TimeoutMessage,
+	[StatusBlackWinsTimeout]: TimeoutMessage,
+	[StatusDrawAgreement]: DrawAgreementMessage,
+	[StatusDrawInsufficientMaterial]: DrawInsufficientMaterialMessage,
+	[StatusDrawRepetition]: DrawRepetitionMessage,
+	[StatusDrawStalemate]: DrawStalemateMessage,
+	[StatusDrawTwentyFiveMoveRule]: DrawTwentyFiveMoveRuleMessage,
+};
 
 window.moveSound = new Howl({
 	src: ["/res/sfx/move.ogg"],
@@ -61,10 +88,17 @@ let og = Octadground(document.getElementById('game'), {
  * @param num - move number
  */
 const sendGameMove = (move, num) => {
-	send(buildCommand("m", {
+	send(buildCommand(moveTag, {
 		u: move,
 		a: num
 	}));
+};
+
+/**
+ * Sends a game rematch request
+ */
+const sendRematchRequest = () => {
+	send(buildCommand(rematchTag, {r: true}));
 };
 
 /**
@@ -78,8 +112,8 @@ const isPlayerWhite = (message) => {
 
 /**
  * Returns true if it is currently the player's turn
- * @param message
- * @param ofenParts
+ * @param message - move message
+ * @param ofenParts - split OFEN
  * @returns {boolean} is currently player's turn
  */
 const isPlayerTurn = (message, ofenParts) => {
@@ -103,7 +137,7 @@ const whiteToMove = (ofenParts) => {
 const handleMove = (message) => {
 	if (!message.d.m) {
 		move = 1;
-		document.getElementById("info").innerHTML = "";
+		hideRematchModal();
 	}
 
 	const ofenParts = message.d.o.split(' ');
@@ -136,8 +170,18 @@ const handleMove = (message) => {
  * @param message - game over message
  */
 const handleGameOver = (message) => {
+	// if room over, redirect home after a second
+	if (message.d.o === true) {
+		disconnect("room over");
+		// TODO show room over message on modal if still up, or on game interface?
+		// setTimeout(() => {
+		//  // redirect home
+		// 	window.location.href = "/";
+		// }, 3000);
+		return;
+	}
+
 	cancelAnimationFrame(frameId);
-	document.getElementById("info").innerHTML = message.d.s;
 	window.notification.play();
 
 	// disallow further moves
@@ -145,19 +189,22 @@ const handleGameOver = (message) => {
 		movable: {
 			dests: new Map()
 		}
-	})
+	});
 
 	// update match score
 	updateScore(message);
 
-	// if room over, redirect home after a second
-	if (message.d.o === true) {
-		setTimeout(() => {
-			window.location.href = "/";
-		}, 3000);
-	}
+	// display the rematch modal
+	displayRematch(message);
 };
 
+/**
+ * Handles incoming rematch information messages
+ * @param message - rematch information message
+ */
+const handleRematch = (message) => {
+	// TODO
+};
 
 /**
  * playSounds will play confirmation and move sounds depending
@@ -193,13 +240,145 @@ const updateScore = (message) => {
 	const plyScore = plyClock.getElementsByClassName("clockScore")[0];
 	const oppScore = oppClock.getElementsByClassName("clockScore")[0];
 
-	if (isPlayerWhite(message)) {
-		plyScore.innerHTML = message.d.sc.w;
-		oppScore.innerHTML = message.d.sc.b;
+	if (message.d.sc.w) {
+		// move message, with scores keyed by color
+		if (isPlayerWhite(message)) {
+			plyScore.innerHTML = message.d.sc.w;
+			oppScore.innerHTML = message.d.sc.b;
+		} else {
+			plyScore.innerHTML = message.d.sc.b;
+			oppScore.innerHTML = message.d.sc.w;
+		}
 	} else {
-		plyScore.innerHTML = message.d.sc.b;
-		oppScore.innerHTML = message.d.sc.w;
+		// game over message, with scores keyed by player uid
+		Object.keys(message.d.sc).forEach((uid) => {
+			if (uid === getCookie("uid")) {
+				plyScore.innerHTML = message.d.sc[uid];
+			} else {
+				oppScore.innerHTML = message.d.sc[uid];
+			}
+		});
 	}
+};
+
+/**
+ * Displays the updated rematch modal using the given message
+ * @param message - game over message
+ */
+const displayRematch = (message) => {
+	// update win/loss message
+	updateRematchModalWinLoss(message);
+
+	// update win/loss reason message
+	updateRematchModalReason(message);
+
+	// update winner picture border
+	updateRematchWinnerPictureBorder(message);
+
+	// update scores
+	updateRematchModalScores(message);
+
+	// set rematch button handler
+	document.getElementById("rematch")
+		.addEventListener('click', sendRematch);
+
+	// display modal after 3/4 of a second
+	setTimeout(() => {
+		openRematchModal();
+	}, 750);
+};
+
+/**
+ * Sends a rematch message request
+ */
+const sendRematch = () => {
+	sendRematchRequest();
+	const rematchButton = document.getElementById("rematch");
+	// style rematch button green after rematch request sent
+	rematchButton.classList.add("sent");
+	// remove rematch button click event
+	rematchButton.removeEventListener("click", sendRematch);
+};
+
+/**
+ * Updates the rematch modal's win/loss message
+ * @param message - game over message
+ */
+const updateRematchModalWinLoss = (message) => {
+	const winLoss = document.getElementById("win-loss");
+
+	if (message.d.wc === "d") {
+		winLoss.innerHTML = "Game drawn"
+		return;
+	}
+
+	const outcome = document.getElementById("outcome");
+
+	if (isPlayerWinner(message)) {
+		winLoss.innerHTML = "You won!";
+		outcome.classList.add("win");
+
+	} else {
+		winLoss.innerHTML = "You lost";
+		outcome.classList.add("loss");
+	}
+};
+
+/**
+ * Updates the rematch modals' win/loss reason message
+ * @param message - game over message
+ */
+const updateRematchModalReason = (message) => {
+	const reason = document.getElementById("reason");
+	if (message.d.sid) {
+		reason.innerHTML = GameOverReasonMap[message.d.sid];
+	} else {
+		reason.innerHTML = "via an unknown reason";
+	}
+};
+
+/**
+ * Updates the profile picture border of the winning player
+ * @param message - game over message
+ */
+const updateRematchWinnerPictureBorder = (message) => {
+	// no profile picture borders for a draw
+	if (message.d.wc === "d") {
+		return;
+	}
+
+	let picture;
+
+	if (isPlayerWinner(message)) {
+		picture = document.getElementById("player-icon");
+	} else {
+		picture = document.getElementById("opponent-icon");
+	}
+
+	picture.classList.add("winner");
+};
+
+/**
+ * Updates the rematch modal's scores
+ * @param message - game over message
+ */
+const updateRematchModalScores = (message) => {
+	Object.keys(message.d.sc).forEach((uid) => {
+		if (uid === getCookie("uid")) {
+			document.getElementById("score-player").innerHTML = message.d.sc[uid];
+		} else {
+			document.getElementById("score-opponent").innerHTML = message.d.sc[uid];
+		}
+	});
+};
+
+/**
+ * Returns true if the player is the winner of the game
+ * @param message - game over message
+ * @returns {boolean} player is winner of game
+ */
+const isPlayerWinner = (message) => {
+	return message.d.wid === getCookie('uid');
 }
 
 /**
@@ -488,3 +667,4 @@ const getCookie = (cname) => {
 // Set handlers for game messages
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
+window.handlers.set(rematchTag, handleRematch);

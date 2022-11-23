@@ -143,11 +143,13 @@ func (s *SockMap) broadcastToListeners() {
 	for {
 		select {
 		case update := <-s.updateChannel:
+			s.mut.Lock()
 			for i := range s.listenChannels {
 				if s.listenChannels[i] != nil {
 					s.listenChannels[i] <- update
 				}
 			}
+			s.mut.Unlock()
 		case <-s.cleanup:
 			return
 		}

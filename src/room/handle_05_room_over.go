@@ -9,16 +9,23 @@ import (
 
 // handleGameOver handles room finalization and player notification
 func (r *Instance) handleRoomOver() {
+	var payload proto.GameOverPayload
+
 	// send game over message if match expired
 	if r.abandoned && r.game.Outcome() == octad.NoOutcome {
-		payload := proto.GameOverPayload{
-			Status:   "Match expired. Leaving room..",
+		payload = proto.GameOverPayload{
+			StatusID: proto.OverAbandoned,
 			RoomOver: true,
 		}
-
-		channel.Broadcast(payload.Marshal(), channel.SocketContext{
-			Channel: r.ID,
-			MT:      1,
-		})
+	} else {
+		payload = proto.GameOverPayload{
+			StatusID: proto.OverNoRematch,
+			RoomOver: true,
+		}
 	}
+
+	channel.Broadcast(payload.Marshal(), channel.SocketContext{
+		Channel: r.ID,
+		MT:      1,
+	})
 }

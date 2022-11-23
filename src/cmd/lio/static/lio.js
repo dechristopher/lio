@@ -42,11 +42,19 @@ window.addEventListener('load', () => {
 });
 
 /**
+ * Get the websocket channel ID from the hidden data element
+ * @returns {string} - websocket channel ID
+ */
+const getSocketID = () => {
+	return document.getElementById("ws-path").getAttribute("data-config");
+}
+
+/**
  * Connect to the backend and handle events
  */
 const connect = (prefix) => {
 	window.ws = new WebSocket(`${location.origin.replace(
-		/^http/, 'ws')}/socket${prefix ? `/${prefix}` : ''}${location.pathname}`);
+		/^http/, 'ws')}/socket${prefix ? `/${prefix}` : ''}/${getSocketID()}`);
 
 	window.ws.onopen = () => {
 		console.log("Connected to lioctad.org");
@@ -140,7 +148,7 @@ const sendKeepAlive = () => {
  * Sends an empty move message to prompt a response with board info
  */
 const sendBoardUpdateRequest = () => {
-	send(buildCommand("m", {a: 0}));
+	send(buildCommand(moveTag, {a: 0}));
 };
 
 /**

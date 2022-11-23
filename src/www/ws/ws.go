@@ -20,8 +20,9 @@ import (
 	"github.com/dechristopher/lio/www/ws/routes"
 )
 
-// UpgradeHandler catches anything under /ws/** and allows
-// the websocket connection through the "allowed" local
+// UpgradeHandler catches anything under /socket/** and gates
+// websocket connections to users with UID set from allowed
+// origins
 func UpgradeHandler(c *fiber.Ctx) error {
 	uid := user.GetID(c)
 	if uid == "" {
@@ -34,6 +35,7 @@ func UpgradeHandler(c *fiber.Ctx) error {
 	// requested upgrade to the WebSocket protocol and
 	// originates from a trusted origin.
 	if websocket.IsWebSocketUpgrade(c) && okOrigin(c) {
+		util.Debug(str.CWS, str.EWSNotOk)
 		return c.Next()
 	}
 	return fiber.ErrUpgradeRequired
@@ -56,8 +58,9 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 	roomId := ctx.Params("chan")
 	thisChannel := roomId
 
+	channelType := ctx.Params("type")
 	// prepend channel type to channel name if it exists
-	if channelType := ctx.Params("type"); channelType != "" {
+	if channelType != "" {
 		thisChannel = fmt.Sprintf("%s/%s", channelType, thisChannel)
 	}
 
@@ -94,7 +97,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 		channel.Map.GetSockMap(thisChannel).Track(uid, &channel.Socket{
 			Connection: c,
 			Mutex:      lock,
-			Type:       c.Params("type"),
+			Type:       channelType,
 		})
 
 		// UnTrack this socket when it disconnects

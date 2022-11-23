@@ -143,7 +143,7 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitz,
+		variant:       variant.HalfTwoRapid,
 		selectedColor: util.RandomColor(),
 	})
 }
@@ -193,7 +193,7 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 func NewRoomVsComputer(c *fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitz,
+		variant:       variant.HalfTwoRapid,
 		selectedColor: util.RandomColor(),
 		vsBot:         true,
 	})

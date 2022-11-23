@@ -6,16 +6,16 @@ import (
 	"github.com/dechristopher/lio/clock"
 )
 
-// FiveZeroHyper is the five second, zero second increment hyper variant
-var FiveZeroHyper = Variant{
-	Name:     ":05 + 0",
-	HTMLName: "five-zero-hyper",
+// ThreeZeroHyper is the three second, zero second increment hyper variant
+var ThreeZeroHyper = Variant{
+	Name:     ":03",
+	HTMLName: "three-zero-hyper",
 	Group:    HyperGroup,
-	Control:  FiveZeroHyperTC,
+	Control:  ThreeZeroHyperTC,
 }
 
-// FiveZeroHyperTC is the five second, zero second increment hyper time control
-var FiveZeroHyperTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 5),
+// ThreeZeroHyperTC is the three second, zero second increment hyper time control
+var ThreeZeroHyperTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 3),
 	Increment: clock.ToCTime(time.Second * 0),
 }

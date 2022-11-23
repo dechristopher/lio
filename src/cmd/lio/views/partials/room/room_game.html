@@ -15,3 +15,14 @@
 		(<span id="lat">0</span><span class="unit">ms</span>)
 	</div>
 </div>
+<div id="ws-path" class="hidden" data-config="{{ .Data.RoomID }}"></div>
+{{ template "partials/modal_rematch" . }}
+<script>
+	window.addEventListener('load', () => {
+		if (window.ws) {
+			return false;
+		}
+		connect();
+		return true;
+	});
+</script>

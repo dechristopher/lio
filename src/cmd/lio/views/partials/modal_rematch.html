@@ -1,0 +1,248 @@
+<div id="modalRematch" class="modal-rematch-shade">
+	<div class="modal-rematch">
+		<span id="close-rematch" class="close">&times;</span>
+		<div class="modal-content">
+			<div id="outcome">
+				<span id="win-loss"></span>
+				<span id="reason"></span>
+			</div>
+			<div id="match-info">
+				<div id="match-players">
+					<div id="match-player-player" class="match-player">
+						<div id="player-icon" class="match-player-icon"></div>
+						<div class="match-player-name">You</div>
+					</div>
+					<div id="match-score"><span id="score-player"></span> - <span id="score-opponent"></span></div>
+					<div id="match-player-opponent" class="match-player">
+						<div id="opponent-icon" class="match-player-icon"></div>
+						<div class="match-player-name">Opponent</div>
+					</div>
+				</div>
+				<div id="match-rating">
+					<span id="rating"></span>
+					<span id="ratingDiff"></span>
+				</div>
+			</div>
+			<div id="rematch-buttons">
+				<button id="new-game" disabled type="button" class="rematch-btn libtn" title="Find a new opponent">
+					New game
+				</button>
+				<button id="rematch" type="button" class="rematch-btn libtn" title="Offer a rematch">
+					Rematch
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+<style>
+	#outcome {
+		display: flex;
+		flex-direction: column;
+		border-radius: 3px 3px 0 0;
+	}
+
+	#outcome.win {
+		background-color: #0bab7d;
+	}
+
+	#outcome.loss {
+		background-color: #ff6969;
+	}
+
+	#win-loss {
+		font-size: 28px;
+		font-weight: 600;
+		margin-bottom: -8px;
+	}
+
+	.modal-rematch-shade {
+		display: none;
+		pointer-events: none;
+		position: fixed;
+		z-index: 300;
+		padding-top: 192px;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		overflow: auto;
+		background-color: rgba(0, 0, 0, 0.35);
+	}
+
+	.modal-rematch-shade.open {
+		display: block;
+		pointer-events: all;
+	}
+
+	.modal-rematch {
+		background-color: #cca57b;
+		margin: auto;
+		padding-bottom: 12px;
+		border-radius: 3px;
+		width: 22em;
+	}
+
+	.modal-content h2 {
+		margin-block-end: 0.1em;
+	}
+
+	#match-info {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+
+		padding: 12px 6px 6px 6px;
+
+		background: #f1d8b8;
+		border-top: 1px solid #8c6d54;
+		border-bottom: 1px solid #8c6d54;
+	}
+
+	#match-players {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-evenly;
+	}
+
+	.match-player {
+		width: 128px;
+		height: 128px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.match-player-icon {
+		width: 96px;
+		height: 96px;
+		background: #F0F0F1 url("/res/img/pawn-blue.svg") no-repeat center;
+		background-size: 72px;
+		border: 2px solid #404040;
+		border-radius: 3px;
+	}
+
+	.match-player-icon.winner {
+		border: 4px solid #0bab7d;
+	}
+
+	.match-player-name {
+		font-size: 14px;
+	}
+
+	#match-score {
+		white-space: nowrap;
+		font-size: 24px;
+		font-weight: 600;
+		padding: 0 4px 22px 4px;
+	}
+
+	#match-rating {
+		display: none;
+		/*display: flex;*/
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+	}
+
+	#rating {
+		font-size: 28px;
+		font-weight: 600;
+		margin-right: 4px;
+	}
+
+	#ratingDiff {
+		font-size: 21px;
+		font-weight: 600;
+	}
+
+	#ratingDiff.gain {
+		color: #0bab7d;
+	}
+
+	#ratingDiff.loss {
+		color: #ff6969;
+	}
+
+	#rematch-buttons {
+		margin-top: 12px;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rematch-btn {
+		padding: 4px 21px !important;
+		margin: 0 4px !important;
+
+		font-size: 18px;
+	}
+
+	.rematch-btn:disabled {
+		padding: 4px 21px !important;
+		margin: 0 4px !important;
+
+		font-size: 18px;
+		color: #404040;
+		opacity: 50%;
+		pointer-events: none;
+	}
+
+	#rematch.sent {
+		background: #0bab7d;
+		color: #fff;
+	}
+
+	#close-rematch {
+		transform: translate(164px, -12px);
+	}
+</style>
+<script>
+	const modalRem = document.getElementById("modalRematch");
+	const closeRem = document.getElementById("close-rematch");
+	closeRem.onclick = function () {
+		hideRematchModal();
+	};
+	window.addEventListener('click', (event) => {
+		if (event.target === modalRem) {
+			hideRematchModal();
+		}
+	});
+
+	/**
+	 * Opens the rematch modal
+	 */
+	const openRematchModal = () => {
+		modalRem.classList.add("open");
+	};
+
+	/**
+	 * Hides the rematch modal and resets styled elements
+	 */
+	const hideRematchModal = () => {
+		modalRem.classList.remove("open");
+		resetModalStyles();
+	};
+
+	/**
+	 * Resets stateful styles within the rematch modal
+	 */
+	const resetModalStyles = () => {
+		// reset win/loss styles for outcome
+		const outcome = document.getElementById("outcome");
+		outcome.classList.remove("win");
+		outcome.classList.remove("loss");
+
+		// reset rematch button handler and styles
+		const rematchButton = document.getElementById("rematch");
+		rematchButton.removeEventListener("click", sendRematch);
+		rematchButton.classList.remove("sent");
+
+		// reset player profile picture winner borders
+		document.getElementById("player-icon").classList.remove("winner");
+		document.getElementById("opponent-icon").classList.remove("winner");
+	};
+</script>

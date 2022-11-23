@@ -124,7 +124,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	middleware.Wire(sub, staticFs)
 
 	// JSON service health / status handler
-	r.Get("/lio", handlers.StatusHandler)
+	sub.Get("/lio", handlers.StatusHandler)
 
 	// group for /api routes
 	apiGroup := sub.Group("/api")
@@ -134,26 +134,26 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 
 	// home handler
 	// TODO not needed once we default SPAHandler
-	r.Get("/", handlers.IndexHandler)
+	sub.Get("/", handlers.IndexHandler)
 
 	// other pages
-	r.Get("/about", handlers.AboutHandler)
-	r.Get("/about/board", handlers.AboutBoardHandler)
-	r.Get("/about/rules", handlers.AboutRulesHandler)
-	r.Get("/about/misc", handlers.AboutMiscHandler)
+	sub.Get("/about", handlers.AboutHandler)
+	sub.Get("/about/board", handlers.AboutBoardHandler)
+	sub.Get("/about/rules", handlers.AboutRulesHandler)
+	sub.Get("/about/misc", handlers.AboutMiscHandler)
 
 	// game database page handler
-	r.Get("/db", handlers.DBHandler)
+	sub.Get("/db", handlers.DBHandler)
 
 	// new room creation routes
-	r.Post("/new/human", handlers.NewCustomRoomVsHuman)
-	r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
-	r.Get("/new/computer", handlers.NewRoomVsComputer)
+	sub.Post("/new/human", handlers.NewCustomRoomVsHuman)
+	sub.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
+	sub.Get("/new/computer", handlers.NewRoomVsComputer)
 
 	// room handlers
-	r.Get("/:id", handlers.RoomHandler)
-	r.Post("/:id/join", handlers.RoomJoinHandler)
-	r.Post("/:id/cancel", handlers.RoomCancelHandler)
+	sub.Get("/:id", handlers.RoomHandler)
+	sub.Post("/:id/join", handlers.RoomJoinHandler)
+	sub.Post("/:id/cancel", handlers.RoomCancelHandler)
 
 	// return static index.html for all other paths and let
 	// React handle 404s so that we get nice error pages

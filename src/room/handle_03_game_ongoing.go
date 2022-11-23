@@ -40,7 +40,7 @@ func (r *Instance) handleGameOngoing() {
 			}
 
 			// check to see if the game is over
-			isOver, event := r.tryGameOver(move.Ctx, false)
+			isOver, event := r.tryGameOver(move.Ctx)
 			if isOver {
 				// make state transition and exit the gameOngoing routine
 				err := r.event(*event)
@@ -68,7 +68,7 @@ func (r *Instance) handleGameOngoing() {
 			}
 
 			// run game over routine and get transition event type
-			_, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, false)
+			_, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1})
 
 			// make state transition and exit the gameOngoing routine
 			err := r.event(*event)
@@ -144,10 +144,10 @@ func (r *Instance) handleGameOngoing() {
 				}
 			}
 
-			// run game over routine
-			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, true)
-
 			r.abandoned = true
+
+			// run game over routine
+			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1})
 
 			// make state transition and exit the gameOngoing routine
 			err := r.event(EventPlayerAbandons)

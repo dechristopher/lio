@@ -1,6 +1,6 @@
 <div id="modalCreateGame" class="modal-shade">
 	<div class="modal">
-		<span class="close">&times;</span>
+		<span id="close-cg" class="close">&times;</span>
 		<div class="modal-content">
 			<h2>Create a game</h2>
 			<form class="cg" action="/new/human" method="POST">
@@ -22,7 +22,8 @@
 					<button type="submit" class="submit-btn libtn" name="color" value="w" title="Play the white pieces first">
 						<span class="piece-button alpha wk"></span>
 					</button>
-					<button type="submit" class="submit-btn large libtn" name="color" value="r" title="Play either set of pieces first">
+					<button type="submit" class="submit-btn large libtn" name="color" value="r"
+									title="Play either set of pieces first">
 						<span class="piece-button alpha random"></span>
 					</button>
 					<button type="submit" class="submit-btn libtn" name="color" value="b" title="Play the black pieces first">
@@ -44,7 +45,6 @@
 		width: 100%;
 		height: 100%;
 		overflow: auto;
-		background-color: rgb(0, 0, 0);
 		background-color: rgba(0, 0, 0, 0.5);
 	}
 
@@ -58,27 +58,6 @@
 
 	.modal-content h2 {
 		margin-block-end: 0.1em;
-	}
-
-	.close {
-		color: #fff;
-		float: right;
-		font-size: 24px;
-		font-weight: bold;
-		position: absolute;
-		transform: translate(116px, -12px);
-		width: 24px;
-		height: 24px;
-		background: #444;
-		border-radius: 50%;
-		line-height: 25px;
-	}
-
-	.close:hover,
-	.close:focus {
-		background: #d30020;
-		text-decoration: none;
-		cursor: pointer;
 	}
 
 	.tc-select {
@@ -147,11 +126,11 @@
 		align-items: center;
 	}
 
-  form:invalid.cg button[type="submit"] {
-	  pointer-events: none;
-	  background-color: #aeaeae !important;
+	form:invalid.cg button[type="submit"] {
+		pointer-events: none;
+		background-color: #aeaeae !important;
 		opacity: 50%;
-  }
+	}
 
 	.submit-btn {
 		padding: 2px 6px !important;
@@ -184,22 +163,25 @@
 		background-image: url('/res/img/cburnett/wbK.svg');
 	}
 
+	#close-cg {
+		transform: translate(116px, -12px);
+	}
 </style>
 <script>
-	const modal = document.getElementById("modalCreateGame");
-	const btn = document.getElementById("createGameButton");
-	const close = document.getElementsByClassName("close")[0];
-	btn.onclick = function () {
-		modal.style.display = "block";
+	const modalCg = document.getElementById("modalCreateGame");
+	const btnCg = document.getElementById("createGameButton");
+	const closeCg = modalCg.getElementsByClassName("close")[0];
+	btnCg.onclick = function () {
+		modalCg.style.display = "block";
 	};
-	close.onclick = function () {
-		modal.style.display = "none";
+	closeCg.onclick = function () {
+		modalCg.style.display = "none";
 	};
-	window.onclick = function (event) {
-		if (event.target === modal) {
-			modal.style.display = "none";
-		}
-	};
+	window.addEventListener('click', (event) => {
+	  if (event.target === modalCg) {
+		  modalCg.style.display = "none";
+	  }
+	});
 </script>
 <link rel="prefetch" href="/res/img/cburnett/wK.svg">
 <link rel="prefetch" href="/res/img/cburnett/bK.svg">

@@ -70,7 +70,7 @@ type Instance struct {
 
 	stateChannel   chan State
 	moveChannel    chan *message.RoomMove
-	controlChannel chan message.RoomControl
+	controlChannel chan *message.RoomControl
 
 	players player.Players
 	rematch player.Agreement
@@ -131,7 +131,7 @@ func Create(params Params) (*Instance, error) {
 
 		stateChannel:   make(chan State, 1),
 		moveChannel:    make(chan *message.RoomMove),
-		controlChannel: make(chan message.RoomControl),
+		controlChannel: make(chan *message.RoomControl),
 
 		players: params.Players,
 		rematch: player.Agreement{},
@@ -308,7 +308,7 @@ func (r *Instance) Cancel() bool {
 	r.cancelled = true
 
 	// emit control message to signal room routine handler to exit
-	r.controlChannel <- message.RoomControl{
+	r.controlChannel <- &message.RoomControl{
 		Type: message.Cancel,
 		Ctx: channel.SocketContext{
 			Channel: r.ID,
@@ -425,6 +425,16 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 	// prevent first moves before moves are allowed to be played
 	if r.State() != StateWaitingForPlayers {
 		r.moveChannel <- move
+	}
+}
+
+// SendControl writes a control message to the room's controlChannel
+// to be consumed by a listening routine
+func (r *Instance) SendControl(control *message.RoomControl) {
+	// prevent control messages outside of routines that accept them
+	if r.State() == StateWaitingForPlayers || r.State() == StateGameOver {
+		util.Debug(str.CRoom, "rematch sent to room")
+		r.controlChannel <- control
 	}
 }
 
@@ -632,16 +642,15 @@ func (r *Instance) calcDepth(color octad.Color) int {
 
 // tryGameOver will emit a game over broadcast, record the game, and return an event
 // to transition the state machine to the GameOver state if the game is actually over
-func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool, *fsm.EventDesc) {
-	// restart game if over
+func (r *Instance) tryGameOver(meta channel.SocketContext) (bool, *fsm.EventDesc) {
 	if r.game.Outcome() != octad.NoOutcome {
+		// keep track of match score
+		r.updateScore()
+
 		// send final game update to prevent further moves
 		channel.Broadcast(r.CurrentGameStateMessage(true, false), meta)
 		// broadcast game over message immediately
-		channel.Broadcast(r.gameOverMessage(abandoned), meta)
-
-		// keep track of match score
-		r.updateScore()
+		channel.Broadcast(r.gameOverMessage(), meta)
 
 		// record game result
 		wg := &sync.WaitGroup{}
@@ -685,8 +694,8 @@ func storeGame(g game.OctadGame) {
 	pgn := g.Game.String()
 	parts := strings.Split(pgn, " ")
 
-	// get game state message for Reason field
-	_, state := genGameOverState(&g)
+	// get game outcome reason message for Reason field
+	_, reasonMessage := getGameOverState(&g)
 
 	// encode PGN tag pairs
 	g.Game.AddTagPair("Event", "Lioctad Test Match")
@@ -697,7 +706,7 @@ func storeGame(g game.OctadGame) {
 	g.Game.AddTagPair("White", g.White)
 	g.Game.AddTagPair("Black", g.Black)
 	g.Game.AddTagPair("Result", parts[len(parts)-1])
-	g.Game.AddTagPair("Reason", state)
+	g.Game.AddTagPair("Reason", reasonMessage)
 	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
 
 	pgn = g.Game.String()
@@ -803,98 +812,125 @@ func (r *Instance) genBlackWinEvent() *fsm.EventDesc {
 	}
 }
 
-// gameOverState returns the game over state, or NoOutcome if still in progress
-func (r *Instance) gameOverState() (int, string) {
-	return genGameOverState(r.game)
+// gameOverStatus returns the game over status, or NoOutcome if still in progress
+func (r *Instance) gameOverStatus() proto.GameOverStatus {
+	status, _ := getGameOverState(r.game)
+	return status
 }
 
-func genGameOverState(g *game.OctadGame) (int, string) {
+// getGameOverState returns the game over status, and a reason string used
+// for the PGN Reason field when games are archived or exported
+func getGameOverState(g *game.OctadGame) (proto.GameOverStatus, string) {
 	switch g.Game.Outcome() {
 	case octad.NoOutcome:
-		return 0, "FREE, ONLINE OCTAD COMING SOON!"
+		return proto.InProgress, "FREE, ONLINE OCTAD COMING SOON!"
 	case octad.Draw:
-		return genDrawState(g)
+		return getDrawState(g)
 	case octad.WhiteWon:
-		return genWhiteWinState(g)
+		return getWhiteWinState(g)
 	default:
-		return genBlackWinState(g)
+		return getBlackWinState(g)
 	}
 }
 
-func genDrawState(g *game.OctadGame) (int, string) {
+// getDrawState returns the game over status for draws, and a reason string
+// used for the PGN Reason field when games are archived or exported
+func getDrawState(g *game.OctadGame) (proto.GameOverStatus, string) {
 	switch g.Game.Method() {
-	case octad.InsufficientMaterial:
-		return 3, "DRAWN DUE TO INSUFFICIENT MATERIAL"
-	case octad.Stalemate:
-		return 4, "DRAWN VIA STALEMATE"
 	case octad.DrawOffer:
-		return 5, "DRAWN BY AGREEMENT"
+		return proto.DrawAgreement, "DRAWN BY AGREEMENT"
+	case octad.InsufficientMaterial:
+		return proto.DrawInsufficientMaterial, "DRAWN DUE TO INSUFFICIENT MATERIAL"
 	case octad.ThreefoldRepetition:
-		return 6, "DRAWN BY REPETITION"
+		return proto.DrawRepetition, "DRAWN BY REPETITION"
+	case octad.Stalemate:
+		return proto.DrawStalemate, "DRAWN VIA STALEMATE"
 	case octad.TwentyFiveMoveRule:
-		return 11, "DRAWN DUE TO 25 MOVE RULE"
+		return proto.DrawTwentyFiveMoveRule, "DRAWN DUE TO 25 MOVE RULE"
 	default:
-		return -1, ""
+		return proto.InProgress, ""
 	}
 }
 
-func genWhiteWinState(g *game.OctadGame) (int, string) {
+// getWhiteWinState returns the game over status for white wins, and a reason
+// string used for the PGN Reason field when games are archived or exported
+func getWhiteWinState(g *game.OctadGame) (proto.GameOverStatus, string) {
 	if g.Clock.State(true).Victor == clock.White {
-		return 1, "BLACK OUT OF TIME - WHITE WINS"
+		return proto.WhiteWinsTimeout, "BLACK OUT OF TIME - WHITE WINS"
 	}
 
 	switch g.Game.Method() {
 	case octad.Checkmate:
-		return 1, "WHITE WINS BY CHECKMATE"
+		return proto.WhiteWinsCheckmate, "WHITE WINS BY CHECKMATE"
 	case octad.Resignation:
-		return 7, "BLACK RESIGNED - WHITE WINS"
+		return proto.WhiteWinsResignation, "BLACK RESIGNED - WHITE WINS"
 	}
-	return -1, ""
+	return proto.InProgress, ""
 }
 
-func genBlackWinState(g *game.OctadGame) (int, string) {
+// getBlackWinState returns the game over status for white wins, and a reason
+// string used for the PGN Reason field when games are archived or exported
+func getBlackWinState(g *game.OctadGame) (proto.GameOverStatus, string) {
 	if g.Clock.State(true).Victor == clock.Black {
-		return 2, "WHITE OUT OF TIME - BLACK WINS"
+		return proto.BlackWinsTimeout, "WHITE OUT OF TIME - BLACK WINS"
 	}
 
 	switch g.Game.Method() {
 	case octad.Checkmate:
-		return 2, "BLACK WINS BY CHECKMATE"
+		return proto.BlackWinsCheckmate, "BLACK WINS BY CHECKMATE"
 	case octad.Resignation:
-		return 8, "WHITE RESIGNED - BLACK WINS"
+		return proto.BlackWinsResignation, "WHITE RESIGNED - BLACK WINS"
 	}
-	return -1, ""
+	return proto.InProgress, ""
 }
 
-func (r *Instance) gameOverMessage(abandoned bool) []byte {
-	var id int
-	var status string
+// gameOverMessage prepares the game over message based on the current
+// game state and abandoned flag
+func (r *Instance) gameOverMessage() []byte {
+	var statusId proto.GameOverStatus
 
-	if abandoned {
-		id = -1
-		status = "PLAYER ABANDONED - MATCH OVER"
+	if r.abandoned {
+		statusId = -1
 	} else {
-		id, status = r.gameOverState()
+		statusId = r.gameOverStatus()
 	}
 
 	gameOver := proto.GameOverPayload{
-		Winner:   getWinnerString(id),
-		StatusID: id,
-		Status:   status,
-		Clock:    r.currentClock(),
-		Score:    r.players.ScoreMap(),
-		RoomOver: abandoned,
+		WinnerColor: r.getWinnerString(),
+		WinnerUID:   r.getWinnerUID(),
+		StatusID:    statusId,
+		Clock:       r.currentClock(),
+		Score:       r.players.ScoreMapUIDs(),
+		RoomOver:    r.abandoned,
 	}
 
 	return gameOver.Marshal()
 }
 
-func getWinnerString(statusId int) string {
-	switch statusId {
-	case 1, 7:
+// getWinnerString returns either the first letter of the winner color,
+// d for a draw, or an empty string for a game with no outcome yet
+func (r *Instance) getWinnerString() string {
+	switch r.Game().Outcome() {
+	case octad.NoOutcome:
+		return ""
+	case octad.Draw:
+		return "d"
+	case octad.WhiteWon:
 		return "w"
-	case 2, 8:
+	default:
 		return "b"
 	}
-	return "d"
+}
+
+// getWinnerUID returns the UID of the winning player, or an empty string
+// if there is a draw or when there is not currently a winner
+func (r *Instance) getWinnerUID() string {
+	switch r.Game().Outcome() {
+	case octad.NoOutcome, octad.Draw:
+		return ""
+	case octad.WhiteWon:
+		return r.players[octad.White].ID
+	default:
+		return r.players[octad.Black].ID
+	}
 }

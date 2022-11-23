@@ -64,10 +64,20 @@ func (p Players) ScoreDraw() {
 }
 
 // ScoreMap returns a compatible ScorePayload map of the current player scores
+// keyed by current player color
 func (p Players) ScoreMap() proto.ScorePayload {
 	return proto.ScorePayload{
 		octad.White.String(): p[octad.White].Score(),
 		octad.Black.String(): p[octad.Black].Score(),
+	}
+}
+
+// ScoreMapUIDs returns a compatible ScorePayload map of the current player scores
+// keyed by player UID
+func (p Players) ScoreMapUIDs() proto.ScorePayload {
+	return proto.ScorePayload{
+		p[octad.White].ID: p[octad.White].Score(),
+		p[octad.Black].ID: p[octad.Black].Score(),
 	}
 }
 
