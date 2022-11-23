@@ -2,20 +2,24 @@ package message
 
 import (
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/variant"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
-type RoomTemplatePayload struct {
-	RoomID        string
-	PlayerColor   string
-	OpponentColor string
-	VariantName   string
-	Variant       variant.Variant
-	IsCreator     bool
-	IsJoining     bool
-	CancelToken   string
-	JoinToken     string
+type RoomStatusPayload struct {
+	RoomID    string
+	RoomState proto.RoomState
+	Variant   variant.Variant
+	Players   player.Players
+}
+
+type RoomLobbyPayload struct {
+	RoomID      string
+	RoomState   proto.RoomState
+	PlayerColor string
+	Variant     variant.Variant
+	IsCreator   bool
 }
 
 type RoomMove struct {

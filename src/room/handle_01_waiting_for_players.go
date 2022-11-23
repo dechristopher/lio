@@ -63,15 +63,15 @@ func (r *Instance) handleWaitingForPlayers() {
 				numPlayers = 2
 			}
 
-			// both players connected, transition to StateGameReady
-			if numPlayers == 2 {
-				util.DebugFlag("room", str.CRoom, "[%s] players connected, game ready", r.ID)
-				err := r.event(EventPlayersConnected)
-				if err != nil {
-					panic(err)
-				}
-				return
-			}
+			// both players connected, transition to StateGameReady TODO this is moved to room.Join()
+			//if numPlayers == 2 {
+			//	util.DebugFlag("room", str.CRoom, "[%s] players connected, game ready", r.ID)
+			//	err := r.event(EventPlayersConnected)
+			//	if err != nil {
+			//		panic(err)
+			//	}
+			//	return
+			//}
 		case <-cleanupTimer.C:
 			r.abandoned = true
 			// room expired, clean up

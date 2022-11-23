@@ -8,7 +8,7 @@ import classNames from "classnames";
 import Image from "next/image";
 import Button from "../components/Button/Button";
 import { useRouter } from "next/navigation";
-import { VariantPools, Variant, Color } from "@/types";
+import { Color, Variant, VariantPools } from "@client/types";
 
 type NewGamePayload = {
 	"time-control": string;
@@ -40,7 +40,7 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 				"time-control": selectedVariant.html_name,
 				color: selectedColor === Color.WHITE ? "w" : "b",
 			};
-			fetch("/api/new/human", {
+			fetch("/api/room/new/human", {
 				method: "POST",
 				headers: {
 					Accept: "application/json",

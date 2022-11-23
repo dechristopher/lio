@@ -1,3 +1,5 @@
+"use client";
+
 import React, { FC } from "react";
 import styles from "./Clock.module.scss";
 import classNames from "classnames";

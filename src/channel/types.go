@@ -77,6 +77,11 @@ func (s *SockMap) Get(uid string) *Socket {
 	return s.sockets[uid]
 }
 
+// Has returns true if the SockMap is tracking a Socket belonging to the uid
+func (s *SockMap) Has(uid string) bool {
+	return s.Get(uid) != nil
+}
+
 // Empty returns true if the SockMap is tracking no connected sockets
 func (s *SockMap) Empty() bool {
 	return s.Length() == 0

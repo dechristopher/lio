@@ -1,19 +1,16 @@
-import { Color, VariantPool } from "@client/types";
+"use client";
+
 import classNames from "classnames";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { FC, useEffect, useState } from "react";
-import Button from "../Button/Button";
-import styles from "./Lobby.module.scss";
+import Button from "../../components/Button/Button";
+import GameSettings, { GameSettingsProps } from "./GameSettings";
+import styles from "./CreatorLobby.module.scss";
 
-interface LobbyProps {
-	playerColor: Color;
-	variantName: string;
-	variantGroup: VariantPool;
-}
-
-const Lobby: FC<LobbyProps> = (props) => {
+const CreatorLobby: FC<GameSettingsProps> = (props) => {
 	const router = useRouter();
+	const pathName = usePathname();
 	const [hasCopied, setHasCopied] = useState(false);
 	const [inviteLink, setInviteLink] = useState<string | null>(null);
 
@@ -28,12 +25,7 @@ const Lobby: FC<LobbyProps> = (props) => {
 				Challenge to a game
 			</div>
 
-			<div className={styles.gameSettings}>
-				<div className={styles.variant}>
-					{`${props.variantName} ${props.variantGroup}`}
-				</div>
-				<div>{props.playerColor.toUpperCase()} • CASUAL</div>
-			</div>
+			<GameSettings {...props} />
 
 			<div
 				className="mt-6"
@@ -95,7 +87,13 @@ const Lobby: FC<LobbyProps> = (props) => {
 			<Button
 				className={styles.cancelBtn}
 				onClick={() => {
-					router.push("/");
+					fetch(`/api/room${pathName}/cancel`, {
+						method: "POST",
+					}).then((response) => {
+						if (response.status === 200) {
+							router.push(response.url);
+						}
+					});
 				}}
 			>
 				× CANCEL GAME
@@ -104,4 +102,4 @@ const Lobby: FC<LobbyProps> = (props) => {
 	);
 };
 
-export default Lobby;
+export default CreatorLobby;

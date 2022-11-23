@@ -19,17 +19,17 @@ func (p Players) FlipColor() {
 
 // HasTwoPlayers returns true if both players are configured, and
 // the color of the missing player if only one player is missing
-func (p Players) HasTwoPlayers() (hasTwo bool, missing octad.Color) {
+func (p Players) HasTwoPlayers() (hasTwo bool, missingColor octad.Color) {
 	hasTwo = util.BothColors(func(color octad.Color) bool {
 		return p[color].ID != ""
 	})
 
 	if p[octad.White].ID == "" && !p[octad.White].IsBot {
-		missing = octad.White
+		missingColor = octad.White
 	} else if p[octad.Black].ID == "" && !p[octad.Black].IsBot {
-		missing = octad.Black
+		missingColor = octad.Black
 	} else {
-		missing = octad.NoColor
+		missingColor = octad.NoColor
 	}
 
 	return

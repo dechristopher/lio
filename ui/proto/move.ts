@@ -5,15 +5,7 @@ import {
 	SerializedScorePayload,
 	WsPayloadBaseClass,
 } from "./proto";
-
-export enum RoomState {
-	Init = "init",
-	WaitingForPlayers = "waiting_for_players",
-	GameReady = "game_ready",
-	GameOngoing = "game_ongoing",
-	GameOver = "game_over",
-	RoomOver = "room_over",
-}
+import { RoomState } from "./room";
 
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly

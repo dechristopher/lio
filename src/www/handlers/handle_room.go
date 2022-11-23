@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"fmt"
-
+	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/octad"
 	"github.com/gofiber/fiber/v2"
 
@@ -43,42 +43,25 @@ func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 	return uid, roomInstance, nil, false
 }
 
-// RoomHandler executes the room page template
+// RoomStatusesHandler returns important room information
+func RoomStatusesHandler(c *fiber.Ctx) error {
+	rooms := room.GetAll()
+	var roomStatuses []message.RoomStatusPayload
+	for _, currRoom := range rooms {
+		roomStatuses = append(roomStatuses, currRoom.GenStatusPayload())
+	}
+
+	return c.Status(200).JSON(roomStatuses)
+}
+
+// RoomHandler returns important room information
 func RoomHandler(c *fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
 		return err
 	}
 
-	// figure out how user is allowed to join this room
-	asPlayer, asSpectator := roomInstance.CanJoin(uid)
-
-	// get template payload for user
-	payload := roomInstance.GenTemplatePayload(uid)
-
-	if asPlayer { // user is player
-		// if game waiting state, enable waiting room / join room templates
-		// but only if both players are humans
-		roomInstance.HandlePreGame(uid, &payload)
-
-		// render template
-		return util.HandleTemplate(c, 200, roomTemplate,
-			payload.VariantName, payload)
-	} else if asSpectator { // user is spectator
-		// TODO signal to JS that this player is a spectator
-		// by excluding some player-specific scripts
-		// --->
-		// only receive game updates
-		// only able to draw on board and scroll moves
-
-		// payload.IsSpectator = true?
-
-		// TODO spectator page template
-		return c.Redirect("/#TODO")
-	} else {
-		// no spectators allowed
-		return c.Redirect("/#noSpec")
-	}
+	return c.Status(200).JSON(roomInstance.GenLobbyPayload(uid))
 }
 
 // RoomJoinHandler joins the player to the room
@@ -88,17 +71,8 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 		return err
 	}
 
-	joinPayload := struct {
-		Token string `form:"join_token"`
-	}{}
-
-	err = c.BodyParser(&joinPayload)
-	if err != nil {
-		return c.Redirect("/#errJoin")
-	}
-
 	// attempt to join room
-	if roomInstance.Join(uid, joinPayload.Token) {
+	if roomInstance.Join(uid) {
 		// broadcast message to waiting player(s)
 		go roomInstance.NotifyWaiting()
 		// redirect player to game room
@@ -116,16 +90,7 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 		return err
 	}
 
-	cancelPayload := struct {
-		Token string `form:"cancel_token"`
-	}{}
-
-	err = c.BodyParser(&cancelPayload)
-	if err != nil {
-		return c.Redirect("/#errCancel")
-	}
-
-	if !roomInstance.IsCreator(uid) || cancelPayload.Token != roomInstance.CancelToken() {
+	if !roomInstance.IsCreator(uid) {
 		return c.Redirect("/", fiber.StatusForbidden)
 	}
 
@@ -151,8 +116,6 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 // NewCustomRoomVsHuman creates a game against a human player with time control
 // and color selected by the creator
 func NewCustomRoomVsHuman(c *fiber.Ctx) error {
-	fmt.Println("NEW CUSTOM")
-
 	selectedColor := octad.White
 
 	payload := struct {
@@ -192,7 +155,6 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 // NewRoomVsComputer creates a new game against a computer opponent with the
 // default time control and randomized color
 func NewRoomVsComputer(c *fiber.Ctx) error {
-	fmt.Println("COMPUTER")
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       variant.HalfOneBlitz,
@@ -204,8 +166,6 @@ func NewRoomVsComputer(c *fiber.Ctx) error {
 // newRoom handles room creation and the validation of room payload parameters
 func newRoom(payload newRoomPayload) error {
 	uid := user.GetID(payload.c)
-
-	fmt.Printf("UID %v\n", uid)
 
 	if uid == "" {
 		// TODO prevent anonymous users from creating games when we have accounts

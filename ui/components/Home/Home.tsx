@@ -30,7 +30,7 @@ export default function Home() {
 					title="Quick game vs the computer"
 					aria-label="Quick game versus the computer"
 					onClick={() => {
-						fetch("api/new/computer").then((response) => {
+						fetch("api/room/new/computer").then((response) => {
 							if (response.status === 200) {
 								router.push(response.url);
 							}

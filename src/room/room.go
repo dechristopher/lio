@@ -53,6 +53,17 @@ func Get(id string) (*Instance, error) {
 	return instance, nil
 }
 
+// GetAll room instances
+func GetAll() []*Instance {
+	// Convert map to slice of values.
+	var values []*Instance
+	for _, value := range rooms {
+		values = append(values, value)
+	}
+
+	return values
+}
+
 // Count returns the number of active rooms
 func Count() int {
 	return len(rooms)
@@ -279,24 +290,6 @@ func (r *Instance) IsReady() bool {
 	return hasTwoPlayers || r.HasBot()
 }
 
-// HandlePreGame sets flags and token info in the RoomTemplatePayload if the
-// room is in the pre-game state
-func (r *Instance) HandlePreGame(uid string, payload *message.RoomTemplatePayload) {
-	if !r.IsReady() {
-		payload.IsCreator = r.IsCreator(uid)
-		payload.IsJoining = !payload.IsCreator
-
-		// set cancel token in payload
-		if payload.IsCreator {
-			payload.CancelToken = r.CancelToken()
-		}
-		// set new join token in payload
-		if payload.IsJoining {
-			payload.JoinToken = r.NewJoinToken()
-		}
-	}
-}
-
 // Cancel will cancel the room if not past waiting for players state
 func (r *Instance) Cancel() bool {
 	// only allow room cancellation in the waiting state
@@ -320,7 +313,7 @@ func (r *Instance) Cancel() bool {
 }
 
 // CanJoin returns true if the given player by uid can participate in the match
-// either as a player or a spectator
+// either as a player or a spectator TODO is this needed?
 func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
 	hasPlayers, _ := r.players.HasTwoPlayers()
 
@@ -335,31 +328,34 @@ func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
 }
 
 // Join attempts to join the room as a human player
-func (r *Instance) Join(uid, joinToken string) bool {
-	// validate provided join token
-	if joinToken != r.joinToken {
-		return false
-	}
-
-	// if room established with both players
-	hasPlayers, missing := r.players.HasTwoPlayers()
+func (r *Instance) Join(uid string) bool {
+	// if room established with both players // TODO this could update to check the socket connections
+	hasTwo, missingColor := r.players.HasTwoPlayers()
 
 	// if second player joining
-	if !hasPlayers && missing != octad.NoColor {
-		// set missing player
-		r.players[missing] = &player.Player{
+	if !hasTwo && missingColor != octad.NoColor {
+		// set joining player
+		r.players[missingColor] = &player.Player{
 			ID: uid,
 		}
 
 		// set internal game instance state
-		if missing == octad.White {
+		if missingColor == octad.White {
 			r.game.White = uid
 		} else {
 			r.game.Black = uid
 		}
 
-		// joined properly
-		return true
+		sockets := channel.Map.GetSockMap(r.ID)
+		if sockets.Has(uid) && sockets.Has(r.creator) {
+			err := r.event(EventPlayersConnected)
+			if err != nil {
+				panic(err)
+			}
+
+			// joined properly
+			return true
+		}
 	}
 
 	// game already has both players
@@ -397,6 +393,11 @@ func (r *Instance) NewJoinToken() string {
 // such that they may cancel the challenge before games start
 func (r *Instance) CancelToken() string {
 	return r.cancelToken
+}
+
+// Players returns the players in the room
+func (r *Instance) Players() player.Players {
+	return r.players
 }
 
 // State returns the current room state
@@ -443,8 +444,6 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 		GameStart: gameStart,
 		RoomState: r.State(),
 	}
-
-	fmt.Printf("Game RoomState %v\n", r.State())
 
 	// set legal moves if we're in GameReady or GameOngoing
 	// to prevent first moves before moves are allowed to be played
@@ -728,17 +727,39 @@ func (r *Instance) GameState() octad.Outcome {
 	return r.game.Outcome()
 }
 
-// GenTemplatePayload generates a RoomTemplatePayload for the given player by id
-func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
-	_, playerColor := r.players.Lookup(id)
-
-	return message.RoomTemplatePayload{
-		RoomID:        r.ID,
-		PlayerColor:   playerColor.String(),
-		OpponentColor: playerColor.Other().String(),
-		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
-		Variant:       r.game.Variant,
+// GenStatusPayload generates a RoomStatusPayload
+func (r *Instance) GenStatusPayload() message.RoomStatusPayload {
+	payload := message.RoomStatusPayload{
+		RoomID:    r.ID,
+		RoomState: r.State(),
+		Variant:   r.Game().Variant,
+		Players:   r.Players(),
 	}
+
+	return payload
+}
+
+// GenLobbyPayload generates a RoomLobbyPayload for the given player by id
+func (r *Instance) GenLobbyPayload(uid string) message.RoomLobbyPayload {
+	isCreator := r.IsCreator(uid)
+	playerColor := octad.NoColor
+
+	if isCreator {
+		_, playerColor = r.players.Lookup(uid)
+	} else {
+		_, creatorColor := r.players.Lookup(r.creator)
+		playerColor = creatorColor.Other()
+	}
+
+	payload := message.RoomLobbyPayload{
+		RoomID:      r.ID,
+		RoomState:   r.State(),
+		IsCreator:   isCreator,
+		PlayerColor: playerColor.String(),
+		Variant:     r.game.Variant,
+	}
+
+	return payload
 }
 
 func (r *Instance) gameOverEvent() *fsm.EventDesc {

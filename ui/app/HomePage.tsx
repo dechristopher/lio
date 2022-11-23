@@ -19,7 +19,11 @@ export default function HomePage() {
 					title="Quick game vs human"
 					aria-label="Quick game versus human"
 					onClick={() => {
-						// TODO do something
+						fetch("api/room/new/human/quick").then((response) => {
+							if (response.status === 200) {
+								router.push(response.url);
+							}
+						});
 					}}
 				>
 					👶
@@ -32,7 +36,7 @@ export default function HomePage() {
 					title="Quick game vs the computer"
 					aria-label="Quick game versus the computer"
 					onClick={() => {
-						fetch("api/new/computer").then((response) => {
+						fetch("api/room/new/computer").then((response) => {
 							if (response.status === 200) {
 								router.push(response.url);
 							}

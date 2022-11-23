@@ -1,3 +1,5 @@
+"use client";
+
 import "react-octadground/dist/styles/octadground.css";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -7,7 +9,6 @@ import Octadground, {
 	Key,
 } from "react-octadground/octadground";
 import useWebSocket from "react-use-websocket";
-import Clock from "../Clock/Clock";
 import { Howl } from "howler";
 import { useAnimationFrame } from "@hooks/useAnimationFrame";
 import { GameOverPayload, GameOverPayloadSerialized } from "@proto/game_over";
@@ -19,6 +20,7 @@ import {
 import { SocketResponse } from "@proto/proto";
 import { GetBrowserId, IsMobile } from "@utils/index";
 import { Color } from "@client/types";
+import Clock from "./Clock";
 
 export const MoveSound = new Howl({
 	src: ["/sfx/move.ogg"],
@@ -98,7 +100,7 @@ const Board = () => {
 	const [opponentClockBarWidth, setOpponentClockBarWidth] = useState(0);
 
 	const { sendMessage } = useWebSocket(
-		`ws://localhost:3000/api/socket${pathName}`,
+		`ws://localhost:3000/api/ws/socket${pathName}`,
 		{
 			share: true,
 			onOpen: () => {

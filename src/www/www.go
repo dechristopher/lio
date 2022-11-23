@@ -2,6 +2,8 @@ package www
 
 import (
 	"embed"
+	"github.com/dechristopher/lio/www/handlers"
+	"github.com/dechristopher/lio/www/ws"
 	"log"
 	"net/http"
 	"os"
@@ -12,8 +14,6 @@ import (
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/handlers"
-	"github.com/dechristopher/lio/www/handlers/api"
 	"github.com/dechristopher/lio/www/middleware"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -100,24 +100,9 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
-	// TODO remove because moved to api.go
-	//// websocket upgrade middleware
-	//r.Use("/socket", ws.UpgradeHandler)
-	//// websocket connection listener
-	//r.Get("/socket/:chan", websocket.New(ws.ConnHandler))
-	//// websocket
-	//r.Get("/socket/:type/:chan", websocket.New(ws.ConnHandler))
-
 	// evaluate / set user context
 	// TODO rebuild this every time someone logs in
 	r.Use(user.ContextMiddleware)
-
-	if env.IsProd() {
-		// TODO update to serve the built React files
-		//r.Static("/", "./views", fiber.Static{
-		//	Index: "test.html",
-		//})
-	}
 
 	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")
@@ -125,47 +110,35 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// wire up all middleware components
 	middleware.Wire(sub, staticFs)
 
-	// group for /api routes
+	// /api/* - this grouping helps with local development using request proxying
 	apiGroup := sub.Group("/api")
+	// rating pools
+	apiGroup.Get("/pools", handlers.RatingPoolsHandler)
 
-	// wire all the api handlers
-	api.Wire(apiGroup)
+	// /api/ws/*
+	wsGroup := apiGroup.Group("/ws")
+	// websocket upgrade middleware
+	wsGroup.Use("/socket", ws.UpgradeHandler)
+	// websocket connection listener
+	wsGroup.Get("/socket/:chan", ws.ConnHandler())
+	wsGroup.Get("/socket/:type/:chan", ws.ConnHandler())
 
-	// TODO remove because handled by the UI
-	// home handler
-	//r.Get("/", handlers.IndexHandler)
+	// /api/room/*
+	roomGroup := apiGroup.Group("/room")
+	// existing room routes
+	roomGroup.Get("/", handlers.RoomStatusesHandler)
+	roomGroup.Get("/:id", handlers.RoomHandler)
+	roomGroup.Post("/:id/join", handlers.RoomJoinHandler)
+	roomGroup.Post("/:id/cancel", handlers.RoomCancelHandler)
+	// room creation routes
+	roomGroup.Post("/new/human", handlers.NewCustomRoomVsHuman)
+	roomGroup.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
+	roomGroup.Get("/new/computer", handlers.NewRoomVsComputer)
 
-	// TODO remove because handled by the UI
-	// other pages
-	//r.Get("/about", handlers.AboutHandler)
-	//r.Get("/about/board", handlers.AboutBoardHandler)
-	//r.Get("/about/rules", handlers.AboutRulesHandler)
-	//r.Get("/about/misc", handlers.AboutMiscHandler)
-
-	// TODO remove because handled by the UI
-	// game database page handler
-	//r.Get("/db", handlers.DBHandler)
-
-	// TODO remove because moved to api.go
-	//// JSON service health / status handler
-	//r.Get("/lio", handlers.StatusHandler)
-	//// room handler
-	//r.Get("/:id", handlers.RoomHandler)
-	//// new room creation routes
-	//r.Post("/new/human", handlers.NewCustomRoomVsHuman)
-	//r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
-	//r.Get("/new/computer", handlers.NewRoomVsComputer)
-
-	// room handlers
-	r.Get("/:id", handlers.RoomHandler)
-	r.Post("/:id/join", handlers.RoomJoinHandler)
-	r.Post("/:id/cancel", handlers.RoomCancelHandler)
-
-	// return static index.html for all other paths and let
-	// React handle 404s so that we get nice error pages
-	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
-
-	// TODO remove because handled by the UI
-	// Custom 404 page
-	//middleware.NotFound(r)
+	// /api/stat/*
+	statGroup := apiGroup.Group("/stat")
+	// site activity
+	statGroup.Get("/site", handlers.SiteStatsHandler)
+	// service health
+	statGroup.Get("/lio", handlers.StatusHandler)
 }
