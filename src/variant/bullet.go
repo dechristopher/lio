@@ -6,30 +6,30 @@ import (
 	"github.com/dechristopher/lio/clock"
 )
 
-// QuarterZeroBullet is the 15 second, zero second increment bullet variant
-var QuarterZeroBullet = Variant{
-	Name:     "¼ + 0",
-	HTMLName: "quarter-zero-blitz",
+// FiveZeroBullet is the 5 second, zero second increment bullet variant
+var FiveZeroBullet = Variant{
+	Name:     ":05",
+	HTMLName: "five-zero-bullet",
 	Group:    BulletGroup,
-	Control:  QuarterZeroBulletTC,
+	Control:  FiveZeroBulletTC,
 }
 
-// QuarterZeroBulletTC is the 15 second, zero second increment bullet time control
-var QuarterZeroBulletTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 15),
+// FiveZeroBulletTC is the 5 second, zero second increment bullet time control
+var FiveZeroBulletTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 5),
 	Increment: clock.ToCTime(time.Second * 0),
 }
 
-// QuarterOneBullet is the 15 second, one second increment bullet variant
-var QuarterOneBullet = Variant{
-	Name:     "¼ + 1",
-	HTMLName: "quarter-one-blitz",
+// FiveOneBullet is the 5 second, one second increment bullet variant
+var FiveOneBullet = Variant{
+	Name:     ":05 + 1",
+	HTMLName: "five-one-bullet",
 	Group:    BulletGroup,
-	Control:  QuarterOneBulletTC,
+	Control:  FiveOneBulletTC,
 }
 
-// QuarterOneBulletTC is the 15 second, one second increment bullet time control
-var QuarterOneBulletTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 15),
+// FiveOneBulletTC is the 5 second, one second increment bullet time control
+var FiveOneBulletTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 5),
 	Increment: clock.ToCTime(time.Second * 1),
 }

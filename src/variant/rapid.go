@@ -6,30 +6,30 @@ import (
 	"github.com/dechristopher/lio/clock"
 )
 
-// OneZeroRapid is the one minute, zero second increment rapid variant
-var OneZeroRapid = Variant{
-	Name:     "1 + 0",
-	HTMLName: "one-zero-rapid",
+// HalfZeroRapid is the half minute, one second increment rapid variant
+var HalfZeroRapid = Variant{
+	Name:     "½ + 1",
+	HTMLName: "half-one-rapid",
 	Group:    RapidGroup,
-	Control:  OneZeroRapidTC,
+	Control:  HalfZeroRapidTC,
 }
 
-// OneZeroRapidTC is the one minute, zero second increment rapid time control
-var OneZeroRapidTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 60),
-	Increment: clock.ToCTime(time.Second * 0),
+// HalfZeroRapidTC is the half minute, zero second increment rapid time control
+var HalfZeroRapidTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 30),
+	Increment: clock.ToCTime(time.Second * 1),
 }
 
-// OneTwoRapid is the one minute, two second increment rapid variant
-var OneTwoRapid = Variant{
-	Name:     "1 + 2",
-	HTMLName: "one-two-rapid",
+// HalfTwoRapid is the half minute, two second increment rapid variant
+var HalfTwoRapid = Variant{
+	Name:     "½ + 2",
+	HTMLName: "half-two-rapid",
 	Group:    RapidGroup,
-	Control:  OneTwoRapidTC,
+	Control:  HalfTwoRapidTC,
 }
 
-// OneTwoRapidTC is the one minute, two second increment rapid time control
-var OneTwoRapidTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 60),
+// HalfTwoRapidTC is the one minute, two second increment rapid time control
+var HalfTwoRapidTC = clock.TimeControl{
+	Time:      clock.ToCTime(time.Second * 30),
 	Increment: clock.ToCTime(time.Second * 2),
 }

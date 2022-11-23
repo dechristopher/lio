@@ -81,7 +81,7 @@ type Instance struct {
 
 	stateChannel   chan proto.RoomState
 	moveChannel    chan *message.RoomMove
-	controlChannel chan message.RoomControl
+	controlChannel chan *message.RoomControl
 
 	players player.Players
 	rematch player.Agreement
@@ -142,7 +142,7 @@ func Create(params Params) (*Instance, error) {
 
 		stateChannel:   make(chan proto.RoomState, 1),
 		moveChannel:    make(chan *message.RoomMove),
-		controlChannel: make(chan message.RoomControl),
+		controlChannel: make(chan *message.RoomControl),
 
 		players: params.Players,
 		rematch: player.Agreement{},
@@ -301,7 +301,7 @@ func (r *Instance) Cancel() bool {
 	r.cancelled = true
 
 	// emit control message to signal room routine handler to exit
-	r.controlChannel <- message.RoomControl{
+	r.controlChannel <- &message.RoomControl{
 		Type: message.Cancel,
 		Ctx: channel.SocketContext{
 			Channel: r.ID,

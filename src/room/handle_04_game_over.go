@@ -26,7 +26,7 @@ func (r *Instance) handleGameOver() {
 		})
 
 		// trigger routine
-		r.controlChannel <- message.RoomControl{
+		r.controlChannel <- &message.RoomControl{
 			Type: message.Rematch,
 			Ctx: channel.SocketContext{
 				Channel: r.ID,

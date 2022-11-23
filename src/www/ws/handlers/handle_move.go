@@ -17,11 +17,13 @@ import (
 func HandleMove(m []byte, meta channel.SocketContext) []byte {
 	thisRoom, err := room.Get(meta.RoomID)
 	if err != nil {
+		util.DebugFlag("h-move", str.CHMov, "no room with id: %s", meta.RoomID)
 		return nil
 	}
 
 	// quickly return board state on new connection
 	if fastjson.GetInt(m, "d", "a") == 0 {
+		util.DebugFlag("h-move", str.CHMov, "quick state sent")
 		return thisRoom.CurrentGameStateMessage(true, false)
 	}
 

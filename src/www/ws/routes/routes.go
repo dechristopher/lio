@@ -21,5 +21,5 @@ var (
 
 // Unimplemented is a placeholder for routing unimplemented handler functions
 func Unimplemented(_ []byte, _ channel.SocketContext) []byte {
-	return []byte("{\"ok\": false}")
+	return nil
 }
