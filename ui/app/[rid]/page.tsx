@@ -1,7 +1,7 @@
 import { RoomInfo, RoomState } from "@client/proto/room";
 import { headers } from "next/headers";
-import JoinerLobby from "./JoinerLobby";
-import CreatorLobby from "./CreatorLobby";
+import Board from "./Board";
+import Lobby from "./Lobby";
 
 async function getRoomData(roomId: string): Promise<RoomInfo> {
 	const headersList = headers();
@@ -34,24 +34,8 @@ export default async function Page({ params }: { params: { rid: string } }) {
 	console.log("Room Data", roomData);
 
 	if (roomData.RoomState === RoomState.WaitingForPlayers) {
-		if (roomData.IsCreator) {
-			return (
-				<CreatorLobby
-					playerColor={roomData.PlayerColor}
-					variantName={roomData.Variant.name}
-					variantGroup={roomData.Variant.group}
-				/>
-			);
-		} else {
-			return (
-				<JoinerLobby
-					playerColor={roomData.PlayerColor}
-					variantName={roomData.Variant.name}
-					variantGroup={roomData.Variant.group}
-				/>
-			);
-		}
+		return <Lobby {...roomData} />;
 	} else {
-		return <div>{`Game in progress ${roomData.RoomID}`}</div>;
+		return <Board />;
 	}
 }

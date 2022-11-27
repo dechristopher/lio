@@ -32,13 +32,13 @@ var gamePub = bus.NewPublisher("game", game.Channel)
 type Type string
 
 const (
-	room    Type = ""
-	waiting Type = "wait/"
+	room Type = ""
+	wait Type = "wait/"
 )
 
 var roomChannelTypes = []Type{
 	room,
-	waiting,
+	wait,
 }
 
 // rooms is a mapping from room ID to instance
@@ -346,16 +346,17 @@ func (r *Instance) Join(uid string) bool {
 			r.game.Black = uid
 		}
 
-		sockets := channel.Map.GetSockMap(r.ID)
-		if sockets.Has(uid) && sockets.Has(r.creator) {
-			err := r.event(EventPlayersConnected)
-			if err != nil {
-				panic(err)
-			}
-
-			// joined properly
-			return true
+		// emit control message to signal room routine handler to update state
+		r.controlChannel <- &message.RoomControl{
+			Type: message.Join,
+			Ctx: channel.SocketContext{
+				Channel: r.ID,
+				MT:      1,
+			},
 		}
+
+		// joined properly
+		return true
 	}
 
 	// game already has both players
@@ -365,7 +366,7 @@ func (r *Instance) Join(uid string) bool {
 // NotifyWaiting notifies the waiting player(s) that games have begun
 // by sending redirect messages to the room
 func (r *Instance) NotifyWaiting() {
-	waitingChannelName := fmt.Sprintf("%s%s", waiting, r.ID)
+	waitingChannelName := fmt.Sprintf("%s%s", wait, r.ID)
 	// ensure channel exists before notifying players
 	if waitingChannel := channel.Map.GetSockMap(waitingChannelName); waitingChannel != nil {
 		meta := channel.SocketContext{

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/octad"
 	"github.com/gofiber/fiber/v2"
@@ -14,8 +13,6 @@ import (
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
 )
-
-const roomTemplate = "room"
 
 type newRoomPayload struct {
 	c             *fiber.Ctx
@@ -75,12 +72,10 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 	if roomInstance.Join(uid) {
 		// broadcast message to waiting player(s)
 		go roomInstance.NotifyWaiting()
-		// redirect player to game room
-		return c.Redirect(fmt.Sprintf("/%s", roomInstance.ID))
 	}
 
-	// error out if join failed
-	return c.Redirect("/#errJoinExpired")
+	// TODO should we error out if join failed? for successes is there something else that makes more sense than a redirect?
+	return c.Redirect("/" + roomInstance.ID)
 }
 
 // RoomCancelHandler cancels the room immediately

@@ -21,12 +21,6 @@ var EventRoomInitialized = fsm.EventDesc{
 	Dst:  string(StateWaitingForPlayers),
 }
 
-var EventPlayerConnected = fsm.EventDesc{
-	Name: "player_connected",
-	Src:  []string{string(StateWaitingForPlayers)},
-	Dst:  string(StateWaitingForPlayers),
-}
-
 var EventPlayersConnected = fsm.EventDesc{
 	Name: "players_connected",
 	Src:  []string{string(StateWaitingForPlayers)},
@@ -135,7 +129,6 @@ func newStateMachine() *fsm.FSM {
 		string(StateInit),
 		fsm.Events{
 			EventRoomInitialized,
-			EventPlayerConnected,
 			EventPlayersConnected,
 			EventStartGame,
 			EventWhiteWinsCheckmate,

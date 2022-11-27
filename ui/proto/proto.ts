@@ -39,6 +39,7 @@ export enum MessageTag {
 	MoveAckTag = "a", // MoveAckTag is the message type tag for the MoveAckPayload
 	CrowdTag = "c", // CrowdTag is the message type tag for the CrowdPayload
 	GameOverTag = "g", // GameOverTag is the message type tag for the GameOverPayload
+	RoomTag = "r"
 }
 
 type Payload =

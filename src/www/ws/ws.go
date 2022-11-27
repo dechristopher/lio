@@ -35,7 +35,7 @@ func UpgradeHandler(c *fiber.Ctx) error {
 	// requested upgrade to the WebSocket protocol and
 	// originates from a trusted origin.
 	if websocket.IsWebSocketUpgrade(c) && okOrigin(c) {
-		util.Debug(str.CWS, str.EWSNotOk)
+		//util.Debug(str.CWS, str.EWSNotOk) TODO is this correct to log not OK?
 		return c.Next()
 	}
 	return fiber.ErrUpgradeRequired

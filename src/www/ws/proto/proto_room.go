@@ -1,8 +1,8 @@
 package proto
 
-// Marshal fully JSON marshals the MovePayload and
+// Marshal fully JSON marshals the RoomPayload and
 // Wraps it in a Message struct
-func (m *RoomMessage) Marshal() []byte {
+func (m *RoomPayload) Marshal() []byte {
 	message := Message{
 		Tag:  string(RoomTag),
 		Data: m,

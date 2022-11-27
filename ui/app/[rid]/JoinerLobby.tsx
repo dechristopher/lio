@@ -25,7 +25,7 @@ export default function JoinerLobby(props: GameSettingsProps) {
 						method: "POST",
 					}).then((response) => {
 						if (response.status === 200) {
-							// router.push(response.url);
+							router.push(response.url);
 						}
 					});
 				}}

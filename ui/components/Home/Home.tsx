@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Button from "../Button/Button";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 // import CreateGameModal from "../../app/CustomGameModal";
 
 export default function Home() {

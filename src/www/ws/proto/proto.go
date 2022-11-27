@@ -24,7 +24,7 @@ const (
 	CrowdTag PayloadTag = "c"
 	// GameOverTag is the message type tag for the GameOverPayload
 	GameOverTag PayloadTag = "g"
-	// RoomTag is the message type tag for the RoomMessage
+	// RoomTag is the message type tag for the RoomPayload
 	RoomTag PayloadTag = "r"
 	// RedirectTag is the message type tag for the RedirectMessage
 	RedirectTag PayloadTag = "e"
@@ -124,13 +124,19 @@ type GameOverPayload struct {
 	RoomOver bool         `json:"o,omitempty"`
 }
 
-// RoomMessage contains room state data
-type RoomMessage struct {
+// RoomPayload contains room state data
+type RoomPayload struct {
 	RoomID  string `json:"id,omitempty"`
 	Query   bool   `json:"q,omitempty"`
 	Ready   bool   `json:"r,omitempty"`
 	P1Score int    `json:"p1,omitempty"`
 	P2Score int    `json:"p2,omitempty"`
+}
+
+// MessageRoom contains a RoomPayload message
+type MessageRoom struct {
+	Tag  string      `json:"t"` // message type tag
+	Data RoomPayload `json:"d"` // room data payload
 }
 
 // RedirectMessage instructs the client to redirect to a different page
