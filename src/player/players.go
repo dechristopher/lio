@@ -1,10 +1,10 @@
 package player
 
 import (
+	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/octad"
 
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // Players map for use anywhere two players compete
@@ -65,19 +65,10 @@ func (p Players) ScoreDraw() {
 
 // ScoreMap returns a compatible ScorePayload map of the current player scores
 // keyed by current player color
-func (p Players) ScoreMap() proto.ScorePayload {
-	return proto.ScorePayload{
-		octad.White.String(): p[octad.White].Score(),
-		octad.Black.String(): p[octad.Black].Score(),
-	}
-}
-
-// ScoreMapUIDs returns a compatible ScorePayload map of the current player scores
-// keyed by player UID
-func (p Players) ScoreMapUIDs() proto.ScorePayload {
-	return proto.ScorePayload{
-		p[octad.White].ID: p[octad.White].Score(),
-		p[octad.Black].ID: p[octad.Black].Score(),
+func (p Players) ScoreMap() wsv1.ScorePayload {
+	return wsv1.ScorePayload{
+		White: float32(p[octad.White].Score()),
+		Black: float32(p[octad.Black].Score()),
 	}
 }
 

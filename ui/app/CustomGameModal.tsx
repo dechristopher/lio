@@ -5,15 +5,16 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import styles from "./CustomGameModal.module.scss";
 import classNames from "classnames";
-import Image from "next/image";
 import Button from "../components/Button/Button";
 import { useRouter } from "next/navigation";
-import { Color, Variant, VariantPools } from "@client/types";
-
-type NewGamePayload = {
-	"time-control": string;
-	color: "w" | "b";
-};
+import {
+	NewCustomRoomPayload,
+	PlayerColor,
+	Variant,
+	VariantGroup,
+	VariantPools,
+} from "@client/proto/ws_pb";
+import { Piece, PieceType, SplitPiece } from "@client/components/Piece/Piece";
 
 interface CreateGameModalProps {
 	open: boolean;
@@ -22,34 +23,41 @@ interface CreateGameModalProps {
 
 const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 	const router = useRouter();
-	const [variantPools, setVariantPools] = useState<VariantPools>({});
+	const [variantPools, setVariantPools] = useState<VariantPools | null>(null);
 	const [selectedVariant, setSelectedVariant] = useState<Variant | null>(
 		null,
 	);
-	const [selectedColor, setSelectedColor] = useState<Color | null>(null);
+	const [selectedColor, setSelectedColor] = useState<PlayerColor | null>(
+		null,
+	);
 
 	useEffect(() => {
-		fetch("/api/pools")
-			.then((res) => res.json())
-			.then((data) => setVariantPools(data));
+		fetch("/api/pools").then(async (res) => {
+			if (res.status === 200) {
+				const data = await res.json();
+				setVariantPools(VariantPools.fromJson(data));
+			}
+		});
 	}, []);
 
 	useEffect(() => {
-		if (!!selectedVariant && !!selectedColor) {
-			const payload: NewGamePayload = {
-				"time-control": selectedVariant.html_name,
-				color: selectedColor === Color.WHITE ? "w" : "b",
-			};
+		if (!!selectedVariant && selectedColor !== null) {
 			fetch("/api/room/new/human", {
 				method: "POST",
 				headers: {
 					Accept: "application/json",
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(payload),
+				body: new NewCustomRoomPayload({
+					playerColor: selectedColor,
+					variantHtmlName: selectedVariant.htmlName,
+				}).toBinary(),
 			}).then((response) => {
 				if (response.status === 200) {
 					router.push(response.url);
+				} else {
+					console.log("Error");
+					// TODO handle error
 				}
 			});
 		}
@@ -130,7 +138,7 @@ const CreateGameModal: FC<CreateGameModalProps> = (props) => {
 };
 
 interface VariantSelectorProps {
-	ratingPools: VariantPools;
+	ratingPools: VariantPools | null;
 	selectedVariant: Variant | null;
 	setVariant: (variant: Variant) => void;
 }
@@ -138,31 +146,35 @@ interface VariantSelectorProps {
 const VariantSelector = (props: VariantSelectorProps) => {
 	return (
 		<div className={styles.variantBtnContainer}>
-			{Object.values(props.ratingPools).map((poolGroup) =>
-				poolGroup.map((pool) => (
-					<Button
-						key={`${pool.group}-${pool.html_name}`}
-						onClick={() => props.setVariant(pool)}
-						className={classNames([
-							styles.variantBtn,
-							{
-								[styles.selected]:
-									pool.name === props.selectedVariant?.name,
-							},
-						])}
-					>
-						<div className="text-lg">{pool.name}</div>
-						<div className="italic">{pool.group}</div>
-					</Button>
-				)),
-			)}
+			{props.ratingPools?.pools &&
+				Object.values(props.ratingPools.pools).map((poolGroup) =>
+					poolGroup.variants.map((pool) => (
+						<Button
+							key={`${pool.group}-${pool.htmlName}`}
+							onClick={() => props.setVariant(pool)}
+							className={classNames([
+								styles.variantBtn,
+								{
+									[styles.selected]:
+										pool.name ===
+										props.selectedVariant?.name,
+								},
+							])}
+						>
+							<div className="text-lg">{pool.name}</div>
+							<div className="italic">
+								{VariantGroup[pool.group].toLowerCase()}
+							</div>
+						</Button>
+					)),
+				)}
 		</div>
 	);
 };
 
 interface ColorSelectorProps {
 	disabled: boolean;
-	setColor: (color: Color) => void;
+	setColor: (color: PlayerColor) => void;
 }
 
 const ColorSelector = (props: ColorSelectorProps) => {
@@ -170,52 +182,42 @@ const ColorSelector = (props: ColorSelectorProps) => {
 		<div className="flex gap-x-2 items-center justify-center py-4">
 			<Button
 				disabled={props.disabled}
+				title="Play the white pieces first"
 				className={classNames(styles.colorSelectBtn, {
 					[styles.disabled]: props.disabled,
 				})}
-				onClick={() => props.setColor(Color.WHITE)}
+				onClick={() => props.setColor(PlayerColor.WHITE)}
 			>
-				<Image
-					width="48"
-					height="48"
-					src="/images/pieces/wK.svg"
-					alt="Play the white pieces first"
+				<Piece
+					pieceType={PieceType.KING}
+					pieceColor={PlayerColor.WHITE}
 				/>
 			</Button>
 
 			<Button
 				disabled={props.disabled}
+				title="Play either set of pieces first"
 				className={classNames(styles.colorSelectBtn, styles.big, {
 					[styles.disabled]: props.disabled,
 				})}
 				onClick={() => {
-					if (Math.random() > 0.5) {
-						props.setColor(Color.WHITE);
-					} else {
-						props.setColor(Color.BLACK);
-					}
+					props.setColor(PlayerColor.UNSPECIFIED);
 				}}
 			>
-				<Image
-					width="48"
-					height="48"
-					src="/images/pieces/wbK.svg"
-					alt="Play either set of pieces first"
-				/>
+				<SplitPiece />
 			</Button>
 
 			<Button
 				disabled={props.disabled}
+				title="Play the black pieces first"
 				className={classNames(styles.colorSelectBtn, {
 					[styles.disabled]: props.disabled,
 				})}
-				onClick={() => props.setColor(Color.BLACK)}
+				onClick={() => props.setColor(PlayerColor.BLACK)}
 			>
-				<Image
-					width="48"
-					height="48"
-					src="/images/pieces/bK.svg"
-					alt="Play the black pieces first"
+				<Piece
+					pieceType={PieceType.KING}
+					pieceColor={PlayerColor.BLACK}
 				/>
 			</Button>
 		</div>

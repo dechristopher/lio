@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @import "./variables.scss";
+@import "./themes/board/green.css";
+@import "./themes/piece/alpha.css";
+@import "./themes/piece/cburnett.css";
+@import "./themes/piece/merida.css";
 
 html,
 body {

@@ -1,52 +1,65 @@
+.container {
+	position: absolute;
+	top: 0;
+	display: grid;
+	grid-template-columns: repeat(4, 9.5vw);
+	grid-template-rows: repeat(4, 9.5vw);
+}
+
 .promoShade {
-  z-index: 10;
-  width: 320px;
-  height: 320px;
-  position: absolute;
-  background-color: rgba(50, 50, 50, 0.6);
+	z-index: 10;
+	width: 100%;
+	height: 100%;
+	position: absolute;
+	background-color: rgba(50, 50, 50, 0.6);
 }
 
-.promo {
-  z-index: 11;
-  position: absolute;
+.box {
+	z-index: 11;
+	justify-self: center;
+	align-self: center;
+	position: relative;
+	width: 95%;
+	height: 95%;
+	background-color: #b7b7a3;
+	border: 2px solid black;
+	-webkit-transition: all 200ms ease-in-out;
+	-ms-transition: all 200ms ease-in-out;
+	transition: all 200ms ease-in-out;
+
+	&:hover {
+		background-color: #a5b0b8;
+	}
 }
 
-.promo.fa {
-  padding-left: 0;
+.columnOne {
+	grid-column: 1;
 }
 
-.promo.fb {
-  padding-left: 80px;
+.columnTwo {
+	grid-column: 2;
 }
 
-.promo.fc {
-  padding-left: 160px;
+.columnThree {
+	grid-column: 3;
 }
 
-.promo.fd {
-  padding-left: 240px;
+.columnFour {
+	grid-column: 4;
 }
 
-.piece {
-  display: block;
-  position: relative;
-  width: 74px;
-  height: 74px;
-  background-color: #b7b7a3;
-  background-size: 74px;
-  background-position: center;
-  -webkit-transition: all 200ms ease-in-out;
-  -ms-transition: all 200ms ease-in-out;
-  transition: all 200ms ease-in-out;
-  box-sizing: border-box;
-  border: 2px solid black;
-  margin: 3px 4px 6px 3px;
+.rowOne {
+	grid-row: 1;
 }
 
-.piece:hover {
-  background-color: #a5b0b8;
-  background-size: 80px;
-  -webkit-transition: all 200ms ease-in-out;
-  -ms-transition: all 200ms ease-in-out;
-  transition: all 200ms ease-in-out;
+.rowTwo {
+	grid-row: 2;
+}
+
+.rowThree {
+	grid-row: 3;
+}
+
+.rowFour {
+	grid-row: 4;
 }

@@ -1,0 +1,39 @@
+.cburnett .pawn.white {
+	background-image: url("/images/cburnett/wP.svg") !important;
+}
+.cburnett .knight.white {
+	background-image: url("/images/cburnett/wN.svg") !important;
+}
+.cburnett .bishop.white {
+	background-image: url("/images/cburnett/wB.svg") !important;
+}
+.cburnett .rook.white {
+	background-image: url("/images/cburnett/wR.svg") !important;
+}
+.cburnett .queen.white {
+	background-image: url("/images/cburnett/wQ.svg") !important;
+}
+.cburnett .king.white {
+	background-image: url("/images/cburnett/wK.svg") !important;
+}
+.cburnett .pawn.black {
+	background-image: url("/images/cburnett/bP.svg") !important;
+}
+.cburnett .knight.black {
+	background-image: url("/images/cburnett/bN.svg") !important;
+}
+.cburnett .bishop.black {
+	background-image: url("/images/cburnett/bB.svg") !important;
+}
+.cburnett .rook.black {
+	background-image: url("/images/cburnett/bR.svg") !important;
+}
+.cburnett .queen.black {
+	background-image: url("/images/cburnett/bQ.svg") !important;
+}
+.cburnett .king.black {
+	background-image: url("/images/cburnett/bK.svg") !important;
+}
+.cburnett .split {
+	background-image: url("/images/cburnett/wbK.svg") !important;
+}

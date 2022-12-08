@@ -1,0 +1,36 @@
+.alpha .pawn.white {
+	background-image: url("/images/alpha/wP.svg") !important;
+}
+.alpha .knight.white {
+	background-image: url("/images/alpha/wN.svg") !important;
+}
+.alpha .bishop.white {
+	background-image: url("/images/alpha/wB.svg") !important;
+}
+.alpha .rook.white {
+	background-image: url("/images/alpha/wR.svg") !important;
+}
+.alpha .queen.white {
+	background-image: url("/images/alpha/wQ.svg") !important;
+}
+.alpha .king.white {
+	background-image: url("/images/alpha/wK.svg") !important;
+}
+.alpha .pawn.black {
+	background-image: url("/images/alpha/bP.svg") !important;
+}
+.alpha .knight.black {
+	background-image: url("/images/alpha/bN.svg") !important;
+}
+.alpha .bishop.black {
+	background-image: url("/images/alpha/bB.svg") !important;
+}
+.alpha .rook.black {
+	background-image: url("/images/alpha/bR.svg") !important;
+}
+.alpha .queen.black {
+	background-image: url("/images/alpha/bQ.svg") !important;
+}
+.alpha .king.black {
+	background-image: url("/images/alpha/bK.svg") !important;
+}

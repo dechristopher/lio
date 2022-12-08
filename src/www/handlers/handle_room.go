@@ -2,21 +2,22 @@ package handlers
 
 import (
 	"github.com/dechristopher/lio/message"
-	"github.com/dechristopher/octad"
-	"github.com/gofiber/fiber/v2"
-
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
+	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
+	"github.com/dechristopher/octad"
+	"github.com/gofiber/fiber/v2"
+	"google.golang.org/protobuf/proto"
 )
 
 type newRoomPayload struct {
 	c             *fiber.Ctx
-	variant       variant.Variant
+	variant       *wsv1.Variant
 	selectedColor octad.Color
 	vsBot         bool
 }
@@ -111,32 +112,30 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 // NewCustomRoomVsHuman creates a game against a human player with time control
 // and color selected by the creator
 func NewCustomRoomVsHuman(c *fiber.Ctx) error {
-	selectedColor := octad.White
+	selectedColor := octad.NoColor
 
-	payload := struct {
-		TimeControl string `json:"time-control"`
-		Color       string `json:"color"`
-	}{}
-
-	if err := c.BodyParser(&payload); err != nil {
+	payload := &wsv1.NewCustomRoomPayload{}
+	if err := proto.Unmarshal(c.Body(), payload); err != nil {
 		util.Error(str.CRoom, "failed to create room via human handler: bad payload provided")
 		return c.Redirect("/#error")
 	}
 
-	selectedVariant, ok := pools.Map[payload.TimeControl]
+	selectedVariant, ok := pools.Map[payload.VariantHtmlName]
 	if !ok {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid time control")
 		return c.Redirect("/")
 	}
 
-	if payload.Color == "w" {
+	if payload.PlayerColor == wsv1.PlayerColor_PLAYER_COLOR_WHITE {
 		selectedColor = octad.White
-	} else if payload.Color == "b" {
+	} else if payload.PlayerColor == wsv1.PlayerColor_PLAYER_COLOR_BLACK {
 		selectedColor = octad.Black
-	} else if payload.Color == "r" {
+	} else if payload.PlayerColor == wsv1.PlayerColor_PLAYER_COLOR_UNSPECIFIED {
 		selectedColor = util.RandomColor()
 	} else {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid color selected")
+		// TODO a better way to handle errors?
+		//fiber.NewError(fiber.StatusBadRequest, "Test")
 		return c.Redirect("/")
 	}
 

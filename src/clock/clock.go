@@ -1,6 +1,7 @@
 package clock
 
 import (
+	wsv1 "github.com/dechristopher/lio/proto"
 	"sync"
 	"time"
 
@@ -14,7 +15,7 @@ const Channel bus.Channel = "lio:clock"
 
 // Clock represents the clock for a single game
 type Clock struct {
-	timeControl TimeControl
+	timeControl wsv1.TimeControl
 
 	victor    Victor
 	turn      octad.Color
@@ -37,26 +38,31 @@ type Clock struct {
 }
 
 func (c *Clock) hasIncrement() bool {
-	return c.timeControl.Increment.t > 0
+	return c.timeControl.IncrementSeconds > 0
 }
 
 // time container for a single player
 type playerClock struct {
 	//lag *lag.Tracker
-	control TimeControl
+	control wsv1.TimeControl
 	elapsed CTime
 }
 
 // remaining time budget considering elapsed time
 func (pc *playerClock) remaining() CTime {
-	return pc.control.Time.Diff(pc.elapsed)
+	cTime := CTime{
+		t: time.Duration(pc.control.Seconds),
+	}
+	return cTime.Diff(pc.elapsed)
 }
 
 // giveTime adds the given time to the player's elapsed time
 func (pc *playerClock) giveTime(t CTime) {
 	pc.elapsed = pc.elapsed.Add(t)
-	if pc.elapsed.t > pc.control.Time.t {
-		pc.elapsed = pc.control.Time
+	if pc.elapsed.t > time.Duration(pc.control.Seconds) {
+		pc.elapsed = CTime{
+			t: time.Duration(pc.control.Seconds),
+		}
 	}
 }
 
@@ -73,7 +79,7 @@ func (pc *playerClock) flagged() bool {
 
 // NewClock returns a clock configured for the given players at
 // the specified time timeControl
-func NewClock(tc TimeControl) *Clock {
+func NewClock(tc wsv1.TimeControl) *Clock {
 	clock := &Clock{
 		timeControl:    tc,
 		victor:         NoVictor, // game in progress
@@ -164,8 +170,8 @@ func (c *Clock) Start() {
 
 	go func(cl *Clock) {
 		// set up delay timer
-		if cl.timeControl.Delay.t != 0 {
-			cl.delayTimer = time.NewTimer(cl.timeControl.Delay.t)
+		if cl.timeControl.DelaySeconds != 0 {
+			cl.delayTimer = time.NewTimer(time.Duration(cl.timeControl.DelaySeconds))
 		} else {
 			// default to true for immediate decrement
 			cl.delayTimer = time.NewTimer(time.Hour)

@@ -28,6 +28,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         [null, {\
           "packageLocation": "./",\
           "packageDependencies": [\
+            ["@bufbuild/protobuf", "npm:0.3.0"],\
             ["@headlessui/react", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:1.7.4"],\
             ["@heroicons/react", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:2.0.13"],\
             ["@types/classnames", "npm:2.3.0"],\
@@ -75,6 +76,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@babel/runtime-corejs3", "npm:7.20.1"],\
             ["core-js-pure", "npm:3.26.0"],\
             ["regenerator-runtime", "npm:0.13.10"]\
+          ],\
+          "linkType": "HARD"\
+        }]\
+      ]],\
+      ["@bufbuild/protobuf", [\
+        ["npm:0.3.0", {\
+          "packageLocation": "./.yarn/cache/@bufbuild-protobuf-npm-0.3.0-af7427e3b2-df68879658.zip/node_modules/@bufbuild/protobuf/",\
+          "packageDependencies": [\
+            ["@bufbuild/protobuf", "npm:0.3.0"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -2909,6 +2919,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./",\
           "packageDependencies": [\
             ["lio", "workspace:."],\
+            ["@bufbuild/protobuf", "npm:0.3.0"],\
             ["@headlessui/react", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:1.7.4"],\
             ["@heroicons/react", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:2.0.13"],\
             ["@types/classnames", "npm:2.3.0"],\

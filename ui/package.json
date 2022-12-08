@@ -21,6 +21,7 @@
 		"release": "npm version patch"
 	},
 	"dependencies": {
+		"@bufbuild/protobuf": "^0.3.0",
 		"@headlessui/react": "1.7.4",
 		"@heroicons/react": "^2.0.13",
 		"@types/classnames": "2.3.0",

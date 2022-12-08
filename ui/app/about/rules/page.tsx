@@ -39,7 +39,7 @@ export default function Page() {
 							<Image
 								width="95"
 								height="95"
-								src="/images/octad2.svg"
+								src="/images/first-move.svg"
 								alt="octad board layout 2"
 							/>
 						</td>
@@ -47,7 +47,7 @@ export default function Page() {
 							<Image
 								width="95"
 								height="95"
-								src="/images/octad3.svg"
+								src="/images/second-move.svg"
 								alt="octad board layout 3"
 							/>
 						</td>

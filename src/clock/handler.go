@@ -40,13 +40,15 @@ func (c *Clock) handleCommand(cmd Command) bool {
 
 			// add increment if enabled
 			if c.hasIncrement() {
-				c.players[c.turn].takeTime(c.timeControl.Increment)
+				c.players[c.turn].takeTime(CTime{
+					t: time.Duration(c.timeControl.IncrementSeconds),
+				})
 			}
 		}
 
 		// reset delay if enabled
-		if c.delayTimer != nil && c.timeControl.Delay.t != 0 {
-			c.delayTimer.Reset(c.timeControl.Delay.t)
+		if c.delayTimer != nil && c.timeControl.DelaySeconds != 0 {
+			c.delayTimer.Reset(time.Duration(c.timeControl.DelaySeconds))
 			c.delayExpired = false
 		}
 

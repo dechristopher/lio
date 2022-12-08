@@ -30,7 +30,7 @@ func (r *Instance) handleGameOver() {
 			Type: message.Rematch,
 			Ctx: channel.SocketContext{
 				Channel: r.ID,
-				MT:      1,
+				MT:      2,
 			},
 		}
 	}()

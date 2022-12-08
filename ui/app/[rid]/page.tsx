@@ -1,9 +1,9 @@
-import { RoomInfo, RoomState } from "@client/proto/room";
+import { RoomPayload, RoomState, VariantGroup } from "@client/proto/ws_pb";
 import { headers } from "next/headers";
 import Board from "./Board";
 import Lobby from "./Lobby";
 
-async function getRoomData(roomId: string): Promise<RoomInfo> {
+async function getRoomData(roomId: string): Promise<RoomPayload> {
 	const headersList = headers();
 	const cookie = headersList.get("cookie");
 	const requestHeaders: HeadersInit = new Headers();
@@ -21,7 +21,8 @@ async function getRoomData(roomId: string): Promise<RoomInfo> {
 		throw new Error("Failed to fetch room data");
 	}
 
-	return res.json();
+	const data = await res.json();
+	return RoomPayload.fromJson(data);
 }
 
 export default async function Page({ params }: { params: { rid: string } }) {
@@ -33,8 +34,23 @@ export default async function Page({ params }: { params: { rid: string } }) {
 	const roomData = await getRoomData(params.rid);
 	console.log("Room Data", roomData);
 
-	if (roomData.RoomState === RoomState.WaitingForPlayers) {
-		return <Lobby {...roomData} />;
+	if (roomData.roomState === RoomState.WAITING_FOR_PLAYERS) {
+		return (
+			/**
+			 * we must pass singular props here because we are going from a server component to a client component. the following
+			 * warning is thrown if we pass the entire room payload: Warning: Only plain objects can be passed to Client Components
+			 * from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple
+			 * value before passing it to props.
+			 */
+			<Lobby
+				isCreator={roomData.isCreator}
+				playerColor={roomData.playerColor}
+				variantName={roomData.variant?.name ?? ""}
+				variantGroup={
+					roomData.variant?.group ?? VariantGroup.UNSPECIFIED
+				}
+			/>
+		);
 	} else {
 		return <Board />;
 	}

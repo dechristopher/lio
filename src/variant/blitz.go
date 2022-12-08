@@ -1,35 +1,36 @@
 package variant
 
 import (
+	wsv1 "github.com/dechristopher/lio/proto"
 	"time"
 
 	"github.com/dechristopher/lio/clock"
 )
 
 // QuarterZeroBlitz is the 15 second, zero second increment blitz variant
-var QuarterZeroBlitz = Variant{
+var QuarterZeroBlitz = &wsv1.Variant{
 	Name:     "¼",
-	HTMLName: "quarter-zero-blitz",
-	Group:    BlitzGroup,
+	HtmlName: "quarter-zero-blitz",
+	Group:    wsv1.VariantGroup_VARIANT_GROUP_BLITZ,
 	Control:  QuarterZeroBlitzTC,
 }
 
 // QuarterZeroBlitzTC is the 15 second, zero second increment blitz time control
-var QuarterZeroBlitzTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 15),
-	Increment: clock.ToCTime(time.Second * 0),
+var QuarterZeroBlitzTC = &wsv1.TimeControl{
+	Seconds:          clock.ToCTime(time.Second * 15).Seconds(),
+	IncrementSeconds: clock.ToCTime(time.Second * 0).Seconds(),
 }
 
 // QuarterOneBlitz is the 15 second, one second increment blitz variant
-var QuarterOneBlitz = Variant{
+var QuarterOneBlitz = &wsv1.Variant{
 	Name:     "¼ + 1",
-	HTMLName: "quarter-one-blitz",
-	Group:    BlitzGroup,
+	HtmlName: "quarter-one-blitz",
+	Group:    wsv1.VariantGroup_VARIANT_GROUP_BLITZ,
 	Control:  QuarterOneBlitzTC,
 }
 
 // QuarterOneBlitzTC is the 15 second, one second increment blitz time control
-var QuarterOneBlitzTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 15),
-	Increment: clock.ToCTime(time.Second * 1),
+var QuarterOneBlitzTC = &wsv1.TimeControl{
+	Seconds:          clock.ToCTime(time.Second * 15).Seconds(),
+	IncrementSeconds: clock.ToCTime(time.Second * 1).Seconds(),
 }

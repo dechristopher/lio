@@ -1,7 +1,6 @@
 package room
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/dechristopher/octad"
@@ -26,7 +25,7 @@ func (r *Instance) handleGameOngoing() {
 		select {
 		// handle move events
 		case move := <-r.moveChannel:
-			fmt.Printf("Move Data %v", move)
+			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.Uoi, move.Player, r.game.White, r.game.Black)
 			moveStart := time.Now()
 			// if not player's turn, send previous position and continue
 			if !r.isTurn(move) {
@@ -70,7 +69,7 @@ func (r *Instance) handleGameOngoing() {
 			}
 
 			// run game over routine and get transition event type
-			_, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, false)
+			_, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 2}, false)
 
 			// make state transition and exit the gameOngoing routine
 			err := r.event(*event)
@@ -147,7 +146,7 @@ func (r *Instance) handleGameOngoing() {
 			}
 
 			// run game over routine
-			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, true)
+			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 2}, true)
 
 			r.abandoned = true
 

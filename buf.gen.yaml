@@ -1,0 +1,12 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/dechristopher/lio/src/proto
+plugins:
+  - name: go
+    out: src
+    opt: paths=source_relative
+  - name: es
+    opt: target=ts
+    out: ui

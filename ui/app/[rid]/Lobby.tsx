@@ -1,13 +1,18 @@
 "use client";
 
-import { RoomInfo } from "@client/proto/room";
+import { WebsocketMessage } from "@client/proto/ws_pb";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import useWebSocket from "react-use-websocket";
 import CreatorLobby from "./CreatorLobby";
+import { GameSettingsProps } from "./GameSettings";
 import JoinerLobby from "./JoinerLobby";
 
-export default function Lobby(props: Omit<RoomInfo, "RoomState">) {
+interface LobbyProps extends GameSettingsProps {
+	isCreator: boolean;
+}
+
+export default function Lobby(props: LobbyProps) {
 	const router = useRouter();
 	const pathName = usePathname();
 
@@ -24,30 +29,26 @@ export default function Lobby(props: Omit<RoomInfo, "RoomState">) {
 		onMessage: (event) => {
 			console.log("[Websocket - Lobby] Received message", event);
 			if (event.data) {
-				const socketResponse = JSON.parse(event.data);
-				console.log(socketResponse);
-				if (socketResponse?.d?.l) {
-					router.push(socketResponse?.d?.l);
-				}
+				parseSocketMessage(event.data);
 			}
 		},
 	});
 
-	if (props.IsCreator) {
-		return (
-			<CreatorLobby
-				playerColor={props.PlayerColor}
-				variantName={props.Variant.name}
-				variantGroup={props.Variant.group}
-			/>
-		);
+	async function parseSocketMessage(res: Blob) {
+		const buffer = await res.arrayBuffer();
+		const message = WebsocketMessage.fromBinary(new Uint8Array(buffer));
+
+		switch (message.data.case) {
+			case "redirectPayload":
+				router.push(message.data.value.location);
+				break;
+			default:
+		}
+	}
+
+	if (props.isCreator) {
+		return <CreatorLobby {...props} />;
 	} else {
-		return (
-			<JoinerLobby
-				playerColor={props.PlayerColor}
-				variantName={props.Variant.name}
-				variantGroup={props.Variant.group}
-			/>
-		);
+		return <JoinerLobby {...props} />;
 	}
 }

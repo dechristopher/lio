@@ -20,7 +20,7 @@ func (r *Instance) handleGameReady() {
 	// broadcast reset board state to all
 	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{
 		Channel: r.ID,
-		MT:      1,
+		MT:      2,
 	})
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for white to move", r.ID)
@@ -34,7 +34,7 @@ func (r *Instance) handleGameReady() {
 	for {
 		select {
 		case move := <-r.moveChannel:
-			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.UOI, move.Player, r.game.White, r.game.Black)
+			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.Uoi, move.Player, r.game.White, r.game.Black)
 
 			// don't allow moves out of order
 			if !r.isTurn(move) {

@@ -1,20 +1,16 @@
 package handlers
 
 import (
-	"encoding/json"
-
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/message"
+	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/lio/room"
-	"github.com/valyala/fastjson"
-
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // HandleMove processes game update messages
-func HandleMove(m []byte, meta channel.SocketContext) []byte {
+func HandleMove(payload *wsv1.MovePayload, meta channel.SocketContext) []byte {
 	thisRoom, err := room.Get(meta.RoomID)
 	if err != nil {
 		util.DebugFlag("h-move", str.CHMov, "no room with id: %s", meta.RoomID)
@@ -22,21 +18,14 @@ func HandleMove(m []byte, meta channel.SocketContext) []byte {
 	}
 
 	// quickly return board state on new connection
-	if fastjson.GetInt(m, "d", "a") == 0 {
+	if payload.Ack == 0 {
 		util.DebugFlag("h-move", str.CHMov, "quick state sent")
 		return thisRoom.CurrentGameStateMessage(true, false)
 	}
 
-	var msg proto.MessageMove
-	err = json.Unmarshal(m, &msg)
-	if err != nil {
-		util.Error(str.CHMov, str.EMoveUnmarshal, m, err)
-		return thisRoom.CurrentGameStateMessage(false, false)
-	}
-
 	// send move to room
 	thisRoom.SendMove(&message.RoomMove{
-		Player: meta.UID, Move: msg.Data, Ctx: meta,
+		Player: meta.UID, Move: payload, Ctx: meta,
 	})
 
 	return nil

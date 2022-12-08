@@ -1,21 +1,22 @@
 package variant
 
 import (
+	wsv1 "github.com/dechristopher/lio/proto"
 	"time"
 
 	"github.com/dechristopher/lio/clock"
 )
 
 // ThreeZeroHyper is the three second, zero second increment hyper variant
-var ThreeZeroHyper = Variant{
+var ThreeZeroHyper = &wsv1.Variant{
 	Name:     ":03",
-	HTMLName: "three-zero-hyper",
-	Group:    HyperGroup,
+	HtmlName: "three-zero-hyper",
+	Group:    wsv1.VariantGroup_VARIANT_GROUP_HYPER,
 	Control:  ThreeZeroHyperTC,
 }
 
 // ThreeZeroHyperTC is the three second, zero second increment hyper time control
-var ThreeZeroHyperTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 3),
-	Increment: clock.ToCTime(time.Second * 0),
+var ThreeZeroHyperTC = &wsv1.TimeControl{
+	Seconds:          clock.ToCTime(time.Second * 3).Seconds(),
+	IncrementSeconds: clock.ToCTime(time.Second * 0).Seconds(),
 }

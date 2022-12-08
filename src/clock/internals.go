@@ -14,6 +14,11 @@ type CTime struct {
 	t time.Duration
 }
 
+// Seconds returns the time in seconds
+func (t CTime) Seconds() int64 {
+	return int64(t.t)
+}
+
 // Centi returns the time in centi-seconds
 func (t CTime) Centi() int64 {
 	return int64(t.t / Centisecond)
@@ -54,16 +59,6 @@ func (t CTime) String() string {
 // ToCTime wraps a time.Duration in CTime
 func ToCTime(duration time.Duration) CTime {
 	return CTime{t: duration}
-}
-
-// TimeControl stores the start time per player
-// and information about the game's increment or delay
-type TimeControl struct {
-	Time      CTime `json:"t"` // time in seconds
-	Increment CTime `json:"i"` // seconds gained after each move
-	Delay     CTime `json:"d"` // seconds before time starts to decrement
-	// TODO extra time after x time passes?
-	// TODO Bronstein delay?
 }
 
 // Centisecond represents one centi-second

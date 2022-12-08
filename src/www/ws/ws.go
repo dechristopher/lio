@@ -2,12 +2,11 @@ package ws
 
 import (
 	"fmt"
+	wsv1 "github.com/dechristopher/lio/proto"
+	"github.com/dechristopher/lio/www/ws/handlers"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/websocket/v2"
-	"github.com/valyala/fastjson"
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/config"
@@ -16,8 +15,8 @@ import (
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/ws/proto"
-	"github.com/dechristopher/lio/www/ws/routes"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/websocket/v2"
 )
 
 // UpgradeHandler catches anything under /socket/** and gates
@@ -87,9 +86,9 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 		// websocket.Conn bindings
 		// https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
 		var (
-			mt  int
-			b   []byte
-			err error
+			messageType int
+			bytePayload []byte
+			err         error
 		)
 
 		// track this socket in the corresponding SockMap
@@ -105,61 +104,62 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 
 		for {
 			// read raw incoming messages from socket
-			if mt, b, err = c.ReadMessage(); err != nil {
+			if messageType, bytePayload, err = c.ReadMessage(); err != nil {
 				// don't log clean websocket close messages
 				if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
 					util.Info(str.CWS, str.EWSRead, err.Error())
 				}
 				break
 			}
-
-			if fastjson.GetInt(b, "pi") == 1 {
-				// write pong message asap and continue
-				lock.Lock()
-				_ = c.WriteMessage(mt, proto.Pong())
-				lock.Unlock()
-				continue
+			message := wsv1.WebsocketMessage{}
+			err := proto.Unmarshal(bytePayload, &message)
+			if err != nil {
+				util.Error(str.CWS, str.EWSRead, bytePayload, err.Error())
+				break
 			}
 
-			// TODO improve safety of heartbeats to prevent DoS
-			//if len(b) == 4 {
-			//fmt.Println(mt, b)
-			// write heartbeat ack asap and continue
-			//lock.Lock()
-			//_ = c.WriteMessage(mt, []byte("0"))
-			//lock.Unlock()
-			//	continue
-			//}
+			util.DebugFlag("ws", str.CWS, str.DWSRecv, message.Data)
 
-			util.DebugFlag("ws", str.CWS, str.DWSRecv, string(b))
-
-			// pull message tag for routing decision
-			tag := fastjson.GetString(b, "t")
-
-			// ignore if no route
-			if !validTag(tag) {
-				continue
-			}
-
-			// route message to proper handler and await response
-			resp := routes.Map[proto.PayloadTag(tag)](b, channel.SocketContext{
+			var resp []byte
+			socketCtx := channel.SocketContext{
 				UID:     uid,
 				Channel: thisChannel,
 				RoomID:  roomId,
-				MT:      mt,
-			})
+				MT:      messageType,
+			}
 
+			switch payloadType := message.Data.(type) {
+			case *wsv1.WebsocketMessage_PingPayload:
+				resp = handlers.HandlePing()
+				break
+			case *wsv1.WebsocketMessage_MovePayload:
+				resp = handlers.HandleMove(payloadType.MovePayload, socketCtx)
+				break
+			case *wsv1.WebsocketMessage_KeepAlivePayload:
+				continue
+			default:
+				util.Error(str.CWS, "[%s @ %s] unimplemented ws message handler: %v", uid, roomId, payloadType)
+				continue
+			}
+
+			// avoid sending empty messages
 			if resp == nil {
 				continue
 			}
 
-			// return immediate response if any given
-			// print response to debug out
-			util.DebugFlag("ws", str.CWS, str.DWSSend, string(resp))
+			// TODO improve safety of heartbeats to prevent DoS
+			//if len(bytePayload) == 4 {
+			//fmt.Println(payloadType, bytePayload)
+			// write heartbeat ack asap and continue
+			//lock.Lock()
+			//_ = c.WriteMessage(payloadType, []byte("0"))
+			//lock.Unlock()
+			//	continue
+			//}
 
 			lock.Lock()
 			// acquire socket lock, write bytes, and release lock
-			if err = c.WriteMessage(mt, resp); err != nil {
+			if err = c.WriteMessage(messageType, resp); err != nil {
 				util.Error(str.CWS, str.EWSWrite, resp, err.Error())
 				break
 			}
@@ -174,12 +174,6 @@ func killSocket(conn *websocket.Conn, thisChannel string, uid string) {
 	util.Info(str.CWS, str.MWSDisc, uid, thisChannel, conn.RemoteAddr())
 	channel.Map.GetSockMap(thisChannel).UnTrack(uid)
 	_ = conn.Close()
-}
-
-// validTag returns true if the message tag has a valid handler route
-func validTag(tag string) bool {
-	_, ok := routes.Map[proto.PayloadTag(tag)]
-	return ok
 }
 
 // okOrigin approves a websocket connection if it comes from an origin we trust

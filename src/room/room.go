@@ -2,6 +2,8 @@ package room
 
 import (
 	"fmt"
+	wsv1 "github.com/dechristopher/lio/proto"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
 	"time"
@@ -22,8 +24,6 @@ import (
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/variant"
-	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 var gamePub = bus.NewPublisher("game", game.Channel)
@@ -79,7 +79,7 @@ type Instance struct {
 
 	stateMachine *fsm.FSM
 
-	stateChannel   chan proto.RoomState
+	stateChannel   chan wsv1.RoomState
 	moveChannel    chan *message.RoomMove
 	controlChannel chan *message.RoomControl
 
@@ -93,7 +93,7 @@ type Instance struct {
 	cancelled bool
 }
 
-// Params for room Instance creation
+// Params for room Instance creation1
 type Params struct {
 	Creator    string
 	Players    player.Players
@@ -102,7 +102,7 @@ type Params struct {
 
 // NewParams returns a new parameters object configured
 // using the given variant
-func NewParams(creatorId string, variant variant.Variant) Params {
+func NewParams(creatorId string, variant *wsv1.Variant) Params {
 	return Params{
 		Creator: creatorId,
 		Players: make(player.Players),
@@ -140,7 +140,7 @@ func Create(params Params) (*Instance, error) {
 		stateMachine: newStateMachine(),
 		params:       params,
 
-		stateChannel:   make(chan proto.RoomState, 1),
+		stateChannel:   make(chan wsv1.RoomState, 1),
 		moveChannel:    make(chan *message.RoomMove),
 		controlChannel: make(chan *message.RoomControl),
 
@@ -214,15 +214,15 @@ func (r *Instance) routine() {
 	for {
 		util.DebugFlag("room", str.CRoom, "[%s] room state transition - %s", r.ID, r.State())
 		switch r.State() {
-		case StateWaitingForPlayers:
+		case wsv1.RoomState_ROOM_STATE_WAITING_FOR_PLAYERS:
 			r.handleWaitingForPlayers()
-		case StateGameReady:
+		case wsv1.RoomState_ROOM_STATE_GAME_READY:
 			r.handleGameReady()
-		case StateGameOngoing:
+		case wsv1.RoomState_ROOM_STATE_GAME_ONGOING:
 			r.handleGameOngoing()
-		case StateGameOver:
+		case wsv1.RoomState_ROOM_STATE_GAME_OVER:
 			r.handleGameOver()
-		case StateRoomOver:
+		case wsv1.RoomState_ROOM_STATE_ROOM_OVER:
 			// housekeeping items go here
 			r.handleRoomOver()
 			return
@@ -293,7 +293,7 @@ func (r *Instance) IsReady() bool {
 // Cancel will cancel the room if not past waiting for players state
 func (r *Instance) Cancel() bool {
 	// only allow room cancellation in the waiting state
-	if r.State() != StateWaitingForPlayers {
+	if r.State() != wsv1.RoomState_ROOM_STATE_WAITING_FOR_PLAYERS {
 		return false
 	}
 
@@ -305,7 +305,7 @@ func (r *Instance) Cancel() bool {
 		Type: message.Cancel,
 		Ctx: channel.SocketContext{
 			Channel: r.ID,
-			MT:      1,
+			MT:      2,
 		},
 	}
 
@@ -351,7 +351,7 @@ func (r *Instance) Join(uid string) bool {
 			Type: message.Join,
 			Ctx: channel.SocketContext{
 				Channel: r.ID,
-				MT:      1,
+				MT:      2,
 			},
 		}
 
@@ -371,14 +371,20 @@ func (r *Instance) NotifyWaiting() {
 	if waitingChannel := channel.Map.GetSockMap(waitingChannelName); waitingChannel != nil {
 		meta := channel.SocketContext{
 			Channel: waitingChannelName,
-			MT:      1,
+			MT:      2,
 		}
-		// create redirect message
-		redir := proto.RedirectMessage{
+
+		websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_RedirectPayload{RedirectPayload: &wsv1.RedirectPayload{
 			Location: fmt.Sprintf("/%s", r.ID),
+		}}}
+
+		payload, err := proto.Marshal(&websocketMessage)
+		if err != nil {
+			util.Error(str.CChan, "error encoding redirect message err=%s", err.Error())
 		}
+
 		// broadcast redirect message
-		channel.Broadcast(redir.Marshal(), meta)
+		channel.Broadcast(payload, meta)
 	}
 }
 
@@ -402,8 +408,9 @@ func (r *Instance) Players() player.Players {
 }
 
 // State returns the current room state
-func (r *Instance) State() proto.RoomState {
-	return proto.RoomState(r.stateMachine.Current())
+func (r *Instance) State() wsv1.RoomState {
+	state := wsv1.RoomState_value[r.stateMachine.Current()]
+	return wsv1.RoomState(state)
 }
 
 // IsCreator returns true if the given player by ID is the creator of the room
@@ -425,46 +432,66 @@ func (r *Instance) Game() *game.OctadGame {
 // to be consumed by a listening routine
 func (r *Instance) SendMove(move *message.RoomMove) {
 	// prevent first moves before moves are allowed to be played
-	if r.State() != StateWaitingForPlayers {
+	if r.State() != wsv1.RoomState_ROOM_STATE_WAITING_FOR_PLAYERS {
 		r.moveChannel <- move
 	}
 }
 
 // CurrentGameStateMessage returns the octad position, marshalled as a move payload
 func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte {
-	curr := proto.MovePayload{
-		Clock:     r.currentClock(),
-		OFEN:      r.game.OFEN(),
-		MoveNum:   len(r.game.Moves()) / 2,
-		Check:     r.game.Position().InCheck(),
-		Moves:     r.game.MoveHistory(),
-		Latency:   clock.ToCTime(0),
-		White:     r.players[octad.White].ID,
-		Black:     r.players[octad.Black].ID,
-		Score:     r.players.ScoreMap(),
+	moveMessage := wsv1.MovePayload{
+		Clock:   r.currentClock(),
+		Ofen:    r.game.OFEN(),
+		MoveNum: int32(len(r.game.Moves()) / 2),
+		Check:   r.game.Position().InCheck(),
+		Moves: &wsv1.Moves{
+			Moves: r.game.MoveHistory(),
+		},
+		ValidMoves: r.game.LegalMoves(),
+		Latency:    clock.ToCTime(0).Centi(), // TODO confirm if centi-seconds is correct
+		White:      r.players[octad.White].ID,
+		Black:      r.players[octad.Black].ID,
+		Score: &wsv1.ScorePayload{
+			Black: r.players.ScoreMap().Black,
+			White: r.players.ScoreMap().White,
+		},
 		GameStart: gameStart,
 		RoomState: r.State(),
 	}
 
 	// set legal moves if we're in GameReady or GameOngoing
 	// to prevent first moves before moves are allowed to be played
-	if r.State() != StateWaitingForPlayers {
-		curr.ValidMoves = r.game.LegalMoves()
+	if r.State() != wsv1.RoomState_ROOM_STATE_WAITING_FOR_PLAYERS {
+		moveMessage.ValidMoves = r.game.LegalMoves()
 	}
 
 	// add last move SAN if enabled
 	if addLast {
-		curr.SAN = r.getSAN()
+		moveMessage.San = r.getSAN()
 	}
 
-	return curr.Marshal()
+	websocketMessage := wsv1.WebsocketMessage{
+		Data: &wsv1.WebsocketMessage_MovePayload{
+			MovePayload: &moveMessage,
+		},
+	}
+
+	payload, err := proto.Marshal(&websocketMessage)
+	if err != nil {
+		util.Error(str.CRoom, "error encoding move message err=%s", err.Error())
+	}
+
+	util.DebugFlag("ws", str.CWS, str.DWSSend, websocketMessage.Data)
+
+	return payload
 }
 
 // currentClock returns the current clock state via a ClockPayload
-func (r *Instance) currentClock() proto.ClockPayload {
+func (r *Instance) currentClock() *wsv1.ClockPayload {
 	state := r.game.Clock.State(true)
-	return proto.ClockPayload{
-		Control:      r.game.Variant.Control.Time.Centi(),
+	control := clock.ToCTime(time.Duration(r.game.Variant.Control.Seconds))
+	return &wsv1.ClockPayload{
+		Control:      control.Centi(),
 		Black:        state.BlackTime.Centi(),
 		White:        state.WhiteTime.Centi(),
 		Lag:          clock.ToCTime(lag.Move.Get()).Centi(),
@@ -545,7 +572,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		} else {
 			// engine gave bad move, major issue
 			// TODO handle this somehow if we ever see it
-			util.Error(str.CRoom, "engine provided bad move ofen=%s move=%s", r.game.OFEN(), move.Move.UOI)
+			util.Error(str.CRoom, "engine provided bad move ofen=%s move=%s", r.game.OFEN(), move.Move.Uoi)
 		}
 		return false
 	}
@@ -564,7 +591,7 @@ func (r *Instance) requestEngineMove() {
 	go dispatch.SubmitEngine(dispatch.EngineRequest{
 		Ctx: channel.SocketContext{
 			Channel: r.ID,
-			MT:      1,
+			MT:      2,
 		},
 		ResponseChannel: r.moveChannel,
 		OFEN:            r.game.OFEN(),
@@ -574,9 +601,9 @@ func (r *Instance) requestEngineMove() {
 
 // legalMove checks to see if the given move is legal and returns
 // its corresponding octad move, or nil if invalid
-func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
+func (r *Instance) legalMove(move *wsv1.MovePayload) *octad.Move {
 	for _, mov := range r.game.ValidMoves() {
-		if mov.String() == move.UOI {
+		if mov.String() == move.Uoi {
 			return mov
 		}
 	}
@@ -601,8 +628,9 @@ func (r *Instance) calcDepth(color octad.Color) int {
 	// depth 7 is about the best we can do in a reasonable timeframe
 	// on a good CPU, but it won't work well for bullet
 	var depth int
+	control := clock.ToCTime(time.Duration(r.game.Variant.Control.Seconds))
 
-	switch tc := r.game.Variant.Control.Time.Centi(); {
+	switch tc := control.Centi(); {
 	case tc >= 6000:
 		depth = 7
 	case tc >= 3000:
@@ -623,7 +651,7 @@ func (r *Instance) calcDepth(color octad.Color) int {
 		remaining = clockState.BlackTime.Centi()
 	}
 
-	modifier := float64(remaining) / float64(r.game.Variant.Control.Time.Centi())
+	modifier := float64(remaining) / float64(control.Centi())
 	if modifier > 1.0 {
 		modifier = 1.0
 	}
@@ -741,7 +769,7 @@ func (r *Instance) GenStatusPayload() message.RoomStatusPayload {
 }
 
 // GenLobbyPayload generates a RoomLobbyPayload for the given player by id
-func (r *Instance) GenLobbyPayload(uid string) message.RoomLobbyPayload {
+func (r *Instance) GenLobbyPayload(uid string) wsv1.RoomPayload {
 	isCreator := r.IsCreator(uid)
 	playerColor := octad.NoColor
 
@@ -752,15 +780,21 @@ func (r *Instance) GenLobbyPayload(uid string) message.RoomLobbyPayload {
 		playerColor = creatorColor.Other()
 	}
 
-	payload := message.RoomLobbyPayload{
-		RoomID:      r.ID,
-		RoomState:   r.State(),
-		IsCreator:   isCreator,
-		PlayerColor: playerColor.String(),
-		Variant:     r.game.Variant,
+	color := wsv1.PlayerColor_PLAYER_COLOR_UNSPECIFIED
+
+	if playerColor == octad.White {
+		color = wsv1.PlayerColor_PLAYER_COLOR_WHITE
+	} else if playerColor == octad.Black {
+		color = wsv1.PlayerColor_PLAYER_COLOR_BLACK
 	}
 
-	return payload
+	return wsv1.RoomPayload{
+		RoomId:      r.ID,
+		RoomState:   r.State(),
+		IsCreator:   isCreator,
+		PlayerColor: color,
+		Variant:     r.game.Variant,
+	}
 }
 
 func (r *Instance) gameOverEvent() *fsm.EventDesc {
@@ -904,16 +938,28 @@ func (r *Instance) gameOverMessage(abandoned bool) []byte {
 		id, status = r.gameOverState()
 	}
 
-	gameOver := proto.GameOverPayload{
-		Winner:   getWinnerString(id),
-		StatusID: id,
-		Status:   status,
-		Clock:    r.currentClock(),
-		Score:    r.players.ScoreMap(),
-		RoomOver: abandoned,
+	websocketMessage := wsv1.WebsocketMessage{
+		Data: &wsv1.WebsocketMessage_GameOverPayload{
+			GameOverPayload: &wsv1.GameOverPayload{
+				Winner:   getWinnerString(id),
+				StatusId: int32(id),
+				Status:   status,
+				Clock:    r.currentClock(),
+				Score: &wsv1.ScorePayload{
+					Black: r.players.ScoreMap().Black,
+					White: r.players.ScoreMap().White,
+				},
+				RoomOver: abandoned,
+			},
+		},
 	}
 
-	return gameOver.Marshal()
+	payload, err := proto.Marshal(&websocketMessage)
+	if err != nil {
+		util.Error(str.CRoom, "error encoding game over message err=%s", err.Error())
+	}
+
+	return payload
 }
 
 func getWinnerString(statusId int) string {

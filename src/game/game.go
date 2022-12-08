@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	wsv1 "github.com/dechristopher/lio/proto"
 	"time"
 
 	"github.com/dechristopher/octad"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/dechristopher/lio/bus"
 	"github.com/dechristopher/lio/clock"
-	"github.com/dechristopher/lio/variant"
 )
 
 // Channel is the engine monitoring bus channel
@@ -18,13 +18,13 @@ const Channel bus.Channel = "lio:game"
 // OctadGame wraps octad game and clock
 type OctadGame struct {
 	octad.Game
-	ID      string          `json:"i"` // game id
-	Start   time.Time       `json:"t"` // game start time
-	White   string          `json:"w"` // white userid
-	Black   string          `json:"b"` // black userid
-	ToMove  octad.Color     `json:"m"` // color to move
-	Variant variant.Variant // octad variant
-	Clock   *clock.Clock    // clock instance
+	ID      string        `json:"i"` // game id
+	Start   time.Time     `json:"t"` // game start time
+	White   string        `json:"w"` // white userid
+	Black   string        `json:"b"` // black userid
+	ToMove  octad.Color   `json:"m"` // color to move
+	Variant *wsv1.Variant // octad variant
+	Clock   *clock.Clock  // clock instance
 }
 
 // NewOctadGame returns a new OctadGame instance from the given configuration
@@ -40,7 +40,7 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 		Game:    *game,
 		ToMove:  game.Position().Turn(),
 		Variant: config.Variant,
-		Clock:   clock.NewClock(config.Variant.Control),
+		Clock:   clock.NewClock(*config.Variant.Control),
 		White:   config.White,
 		Black:   config.Black,
 	}
@@ -50,14 +50,16 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 
 // LegalMoves returns all legal moves in a map of origin square
 // to all legal destination squares
-func (g *OctadGame) LegalMoves() map[string][]string {
-	legalMoves := make(map[string][]string)
+func (g *OctadGame) LegalMoves() map[string]*wsv1.Moves {
+	legalMoves := make(map[string]*wsv1.Moves)
 	for _, move := range g.Game.ValidMoves() {
 		if legalMoves[move.S1().String()] == nil {
-			legalMoves[move.S1().String()] = make([]string, 0)
+			legalMoves[move.S1().String()] = &wsv1.Moves{
+				Moves: make([]string, 0),
+			}
 		}
-		legalMoves[move.S1().String()] =
-			append(legalMoves[move.S1().String()], move.S2().String())
+		legalMoves[move.S1().String()].Moves =
+			append(legalMoves[move.S1().String()].Moves, move.S2().String())
 	}
 	return legalMoves
 }

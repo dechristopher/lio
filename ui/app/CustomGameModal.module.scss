@@ -64,7 +64,7 @@
 .colorSelectBtn {
 	height: 48px;
 	width: 64px;
-	padding: 0;
+	padding: 0 !important;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -72,6 +72,7 @@
 	&.big {
 		height: 64px;
 		width: 80px;
+		padding: 4px 0 !important;
 	}
 
 	&.disabled {
