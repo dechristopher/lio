@@ -2,11 +2,12 @@ package room
 
 import (
 	"fmt"
-	wsv1 "github.com/dechristopher/lio/proto"
-	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
 	"time"
+
+	wsv1 "github.com/dechristopher/lio/proto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/dechristopher/octad"
 	"github.com/looplab/fsm"
@@ -865,14 +866,14 @@ func (r *Instance) genBlackWinEvent() *fsm.EventDesc {
 }
 
 // gameOverState returns the game over state, or NoOutcome if still in progress
-func (r *Instance) gameOverState() (int, string) {
+func (r *Instance) gameOverState() (wsv1.GameOutcome, string) {
 	return genGameOverState(r.game)
 }
 
-func genGameOverState(g *game.OctadGame) (int, string) {
+func genGameOverState(g *game.OctadGame) (wsv1.GameOutcome, string) {
 	switch g.Game.Outcome() {
 	case octad.NoOutcome:
-		return 0, "FREE, ONLINE OCTAD COMING SOON!"
+		return wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED, "FREE, ONLINE OCTAD COMING SOON!"
 	case octad.Draw:
 		return genDrawState(g)
 	case octad.WhiteWon:
@@ -882,74 +883,72 @@ func genGameOverState(g *game.OctadGame) (int, string) {
 	}
 }
 
-func genDrawState(g *game.OctadGame) (int, string) {
+func genDrawState(g *game.OctadGame) (wsv1.GameOutcome, string) {
 	switch g.Game.Method() {
 	case octad.InsufficientMaterial:
-		return 3, "DRAWN DUE TO INSUFFICIENT MATERIAL"
+		return wsv1.GameOutcome_GAME_OUTCOME_DRAW, "DRAWN DUE TO INSUFFICIENT MATERIAL"
 	case octad.Stalemate:
-		return 4, "DRAWN VIA STALEMATE"
+		return wsv1.GameOutcome_GAME_OUTCOME_DRAW, "DRAWN VIA STALEMATE"
 	case octad.DrawOffer:
-		return 5, "DRAWN BY AGREEMENT"
+		return wsv1.GameOutcome_GAME_OUTCOME_DRAW, "DRAWN BY AGREEMENT"
 	case octad.ThreefoldRepetition:
-		return 6, "DRAWN BY REPETITION"
+		return wsv1.GameOutcome_GAME_OUTCOME_DRAW, "DRAWN BY REPETITION"
 	case octad.TwentyFiveMoveRule:
-		return 11, "DRAWN DUE TO 25 MOVE RULE"
+		return wsv1.GameOutcome_GAME_OUTCOME_DRAW, "DRAWN DUE TO 25 MOVE RULE"
 	default:
-		return -1, ""
+		return wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED, ""
 	}
 }
 
-func genWhiteWinState(g *game.OctadGame) (int, string) {
+func genWhiteWinState(g *game.OctadGame) (wsv1.GameOutcome, string) {
 	if g.Clock.State(true).Victor == clock.White {
-		return 1, "BLACK OUT OF TIME - WHITE WINS"
+		return wsv1.GameOutcome_GAME_OUTCOME_WHITE_WINS, "BLACK OUT OF TIME - WHITE WINS"
 	}
 
 	switch g.Game.Method() {
 	case octad.Checkmate:
-		return 1, "WHITE WINS BY CHECKMATE"
+		return wsv1.GameOutcome_GAME_OUTCOME_WHITE_WINS, "WHITE WINS BY CHECKMATE"
 	case octad.Resignation:
-		return 7, "BLACK RESIGNED - WHITE WINS"
+		return wsv1.GameOutcome_GAME_OUTCOME_WHITE_WINS, "BLACK RESIGNED - WHITE WINS"
 	}
-	return -1, ""
+	return wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED, ""
 }
 
-func genBlackWinState(g *game.OctadGame) (int, string) {
+func genBlackWinState(g *game.OctadGame) (wsv1.GameOutcome, string) {
 	if g.Clock.State(true).Victor == clock.Black {
-		return 2, "WHITE OUT OF TIME - BLACK WINS"
+		return wsv1.GameOutcome_GAME_OUTCOME_BLACK_WINS, "WHITE OUT OF TIME - BLACK WINS"
 	}
 
 	switch g.Game.Method() {
 	case octad.Checkmate:
-		return 2, "BLACK WINS BY CHECKMATE"
+		return wsv1.GameOutcome_GAME_OUTCOME_BLACK_WINS, "BLACK WINS BY CHECKMATE"
 	case octad.Resignation:
-		return 8, "WHITE RESIGNED - BLACK WINS"
+		return wsv1.GameOutcome_GAME_OUTCOME_BLACK_WINS, "WHITE RESIGNED - BLACK WINS"
 	}
-	return -1, ""
+	return wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED, ""
 }
 
 func (r *Instance) gameOverMessage(abandoned bool) []byte {
-	var id int
-	var status string
+	var gameOutcome wsv1.GameOutcome
+	var outcomeDetails string
 
 	if abandoned {
-		id = -1
-		status = "PLAYER ABANDONED - MATCH OVER"
+		gameOutcome = wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED
+		outcomeDetails = "PLAYER ABANDONED - MATCH OVER"
 	} else {
-		id, status = r.gameOverState()
+		gameOutcome, outcomeDetails = r.gameOverState()
 	}
 
 	websocketMessage := wsv1.WebsocketMessage{
 		Data: &wsv1.WebsocketMessage_GameOverPayload{
 			GameOverPayload: &wsv1.GameOverPayload{
-				Winner:   getWinnerString(id),
-				StatusId: int32(id),
-				Status:   status,
-				Clock:    r.currentClock(),
+				RoomOver:       abandoned,
+				GameOutcome:    gameOutcome,
+				OutcomeDetails: outcomeDetails,
 				Score: &wsv1.ScorePayload{
 					Black: r.players.ScoreMap().Black,
 					White: r.players.ScoreMap().White,
 				},
-				RoomOver: abandoned,
 			},
 		},
 	}
@@ -960,14 +959,4 @@ func (r *Instance) gameOverMessage(abandoned bool) []byte {
 	}
 
 	return payload
-}
-
-func getWinnerString(statusId int) string {
-	switch statusId {
-	case 1, 7:
-		return "w"
-	case 2, 8:
-		return "b"
-	}
-	return "d"
 }

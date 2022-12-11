@@ -127,6 +127,38 @@ proto3.util.setEnumType(VariantGroup, "ws.v1.VariantGroup", [
 ]);
 
 /**
+ * @generated from enum ws.v1.GameOutcome
+ */
+export enum GameOutcome {
+  /**
+   * @generated from enum value: GAME_OUTCOME_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: GAME_OUTCOME_DRAW = 1;
+   */
+  DRAW = 1,
+
+  /**
+   * @generated from enum value: GAME_OUTCOME_BLACK_WINS = 2;
+   */
+  BLACK_WINS = 2,
+
+  /**
+   * @generated from enum value: GAME_OUTCOME_WHITE_WINS = 3;
+   */
+  WHITE_WINS = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(GameOutcome)
+proto3.util.setEnumType(GameOutcome, "ws.v1.GameOutcome", [
+  { no: 0, name: "GAME_OUTCOME_UNSPECIFIED" },
+  { no: 1, name: "GAME_OUTCOME_DRAW" },
+  { no: 2, name: "GAME_OUTCOME_BLACK_WINS" },
+  { no: 3, name: "GAME_OUTCOME_WHITE_WINS" },
+]);
+
+/**
  * @generated from message ws.v1.TimeControl
  */
 export class TimeControl extends Message<TimeControl> {
@@ -777,17 +809,14 @@ export class MovePayload extends Message<MovePayload> {
  */
 export class CrowdPayload extends Message<CrowdPayload> {
   /**
-   * @generated from field: bool black = 1;
+   * if the white and black players are in the room
+   *
+   * @generated from field: bool has_two_players = 1;
    */
-  black = false;
+  hasTwoPlayers = false;
 
   /**
-   * @generated from field: bool white = 2;
-   */
-  white = false;
-
-  /**
-   * @generated from field: int32 spectators = 3;
+   * @generated from field: int32 spectators = 2;
    */
   spectators = 0;
 
@@ -799,9 +828,8 @@ export class CrowdPayload extends Message<CrowdPayload> {
   static readonly runtime = proto3;
   static readonly typeName = "ws.v1.CrowdPayload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "black", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "white", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "spectators", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 1, name: "has_two_players", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "spectators", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CrowdPayload {
@@ -952,38 +980,31 @@ export class ScorePayload extends Message<ScorePayload> {
  */
 export class GameOverPayload extends Message<GameOverPayload> {
   /**
-   * @generated from field: string winner = 1;
+   * @generated from field: ws.v1.PlayerColor winning_color = 1;
    */
-  winner = "";
+  winningColor = PlayerColor.UNSPECIFIED;
 
   /**
-   * @generated from field: int32 status_id = 2;
+   * @generated from field: ws.v1.GameOutcome game_outcome = 2;
    */
-  statusId = 0;
+  gameOutcome = GameOutcome.UNSPECIFIED;
 
   /**
-   * @generated from field: string status = 3;
+   * @generated from field: string outcome_details = 3;
    */
-  status = "";
-
-  /**
-   * clock state
-   *
-   * @generated from field: ws.v1.ClockPayload clock = 4;
-   */
-  clock?: ClockPayload;
+  outcomeDetails = "";
 
   /**
    * score state
    *
-   * @generated from field: ws.v1.ScorePayload score = 5;
+   * @generated from field: ws.v1.ScorePayload score = 4;
    */
   score?: ScorePayload;
 
   /**
    * whether the room has ended
    *
-   * @generated from field: bool room_over = 6;
+   * @generated from field: bool room_over = 5;
    */
   roomOver = false;
 
@@ -995,12 +1016,11 @@ export class GameOverPayload extends Message<GameOverPayload> {
   static readonly runtime = proto3;
   static readonly typeName = "ws.v1.GameOverPayload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "winner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "status_id", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "status", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "clock", kind: "message", T: ClockPayload },
-    { no: 5, name: "score", kind: "message", T: ScorePayload },
-    { no: 6, name: "room_over", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "winning_color", kind: "enum", T: proto3.getEnumType(PlayerColor) },
+    { no: 2, name: "game_outcome", kind: "enum", T: proto3.getEnumType(GameOutcome) },
+    { no: 3, name: "outcome_details", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "score", kind: "message", T: ScorePayload },
+    { no: 5, name: "room_over", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GameOverPayload {

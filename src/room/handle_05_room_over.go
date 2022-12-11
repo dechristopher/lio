@@ -15,8 +15,9 @@ func (r *Instance) handleRoomOver() {
 	// send game over message if match expired
 	if r.abandoned && r.game.Outcome() == octad.NoOutcome {
 		websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_GameOverPayload{GameOverPayload: &wsv1.GameOverPayload{
-			Status:   "Match expired. Leaving room..",
-			RoomOver: true,
+			GameOutcome:    wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED,
+			OutcomeDetails: "Match expired. Leaving room..",
+			RoomOver:       true,
 		}}}
 
 		payload, err := proto.Marshal(&websocketMessage)

@@ -1,0 +1,78 @@
+@import "@styles/variables.scss";
+
+.header {
+	padding: 12px 0 4px 0;
+
+	&.win {
+		background-color: $primary-green;
+	}
+
+	&.lose {
+		background-color: $primary-red;
+	}
+
+	&.draw {
+		background-color: gray;
+	}
+
+	.outcome {
+		font-weight: bold;
+		font-size: 48px;
+	}
+
+	.outcomeDetails {
+		font-size: 28px;
+	}
+}
+
+.body {
+	padding: 24px 36px;
+	background-color: $primary-tan;
+	border-top: 2px solid $brown-border;
+	border-bottom: 2px solid $brown-border;
+
+	.player {
+		font-size: 24px;
+
+		.piece {
+			width: 160px;
+			height: 160px;
+			margin-bottom: 4px;
+			background-color: #f0f0f1;
+			border: 3px solid #434343;
+
+			&.win {
+				border: 5px solid $primary-green;
+			}
+
+			&.lose {
+				border: 5px solid $primary-red;
+			}
+		}
+	}
+
+	.scores {
+		padding: 0 24px;
+		font-size: 36px;
+		font-weight: bold;
+	}
+
+	.elo {
+		margin-top: 24px;
+		font-size: 36px;
+		font-weight: bold;
+	}
+}
+
+.footer {
+	gap: 8px;
+	display: flex;
+	padding: 12px;
+	display: flex;
+	justify-content: center;
+
+	button {
+		font-size: 24px;
+		font-weight: bold;
+	}
+}

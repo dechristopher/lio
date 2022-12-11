@@ -49,6 +49,13 @@ message VariantPools {
 	map<string, Variants> pools = 1;
 }
 
+enum GameOutcome {
+	GAME_OUTCOME_UNSPECIFIED = 0;
+	GAME_OUTCOME_DRAW = 1;
+	GAME_OUTCOME_BLACK_WINS = 2;
+	GAME_OUTCOME_WHITE_WINS = 3;
+}
+
 message NewCustomRoomPayload {
 	string variant_html_name = 1;
 	PlayerColor player_color = 2;
@@ -101,9 +108,8 @@ message MovePayload {
 }
 
 message CrowdPayload {
-	bool black = 1;
-	bool white = 2;
-	int32 spectators = 3;
+	bool has_two_players = 1; // if the white and black players are in the room
+	int32 spectators = 2;
 }
 
 message ClockPayload {
@@ -121,12 +127,11 @@ message ScorePayload {
 }
 
 message GameOverPayload {
-	string winner = 1;
-	int32 status_id = 2;
-	string status = 3;
-	ClockPayload clock = 4; // clock state
-	ScorePayload score = 5; // score state
-	bool room_over = 6; // whether the room has ended
+	PlayerColor winning_color = 1;
+	GameOutcome game_outcome = 2;
+	string outcome_details = 3;
+	ScorePayload score = 4; // score state
+	bool room_over = 5; // whether the room has ended
 }
 
 message RedirectPayload {

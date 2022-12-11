@@ -39,13 +39,13 @@ export const CaptureSound = new Howl({
 	volume: 0.9,
 });
 
-export const ConfirmationSound = new Howl({
+export const GameStartSound = new Howl({
 	src: ["/sfx/confirmation.ogg"],
 	preload: true,
 	volume: 0.99,
 });
 
-export const NotificationSound = new Howl({
+export const GameOverSound = new Howl({
 	src: ["/sfx/end.ogg"],
 	preload: true,
 	volume: 0.6,
@@ -98,6 +98,11 @@ const Board = () => {
 	const [orig, setOrig] = useState<Key | null>(null);
 	const [dest, setDest] = useState<Key | null>(null);
 	const [numClients, setNumClients] = useState(0);
+	const [showRematchModal, setShowRematchModal] = useState(true);
+	const [
+		gameOverPayload,
+		setGameOverPayload,
+	] = useState<GameOverPayload | null>(null);
 
 	const { sendMessage } = useWebSocket(
 		`ws://localhost:3000/api/ws/socket${pathName}`,
@@ -266,7 +271,7 @@ const Board = () => {
 		setPlayerRemainingTime(timeControl);
 		setOpponentRemainingTime(timeControl);
 
-		NotificationSound.play();
+		GameOverSound.play();
 
 		// disallow further moves
 		setOctadgroundState((oldState) => ({
@@ -276,14 +281,15 @@ const Board = () => {
 			},
 		}));
 
-		// TODO show rematch modal
+		setShowRematchModal(true);
+		setGameOverPayload(payload);
 
 		// if room over, redirect home after a second
-		if (payload.roomOver === true) {
-			setTimeout(() => {
-				window.location.href = "/";
-			}, 3000);
-		}
+		// if (payload.roomOver === true) {
+		// 	setTimeout(() => {
+		// 		window.location.href = "/";
+		// 	}, 3000);
+		// }
 	}
 
 	/**
@@ -317,7 +323,7 @@ const Board = () => {
 		// game sounds
 		if (message.gameStart) {
 			// play confirmation sound on game start
-			ConfirmationSound.play();
+			GameStartSound.play();
 		} else {
 			// play move sounds if game is not starting
 			// and only if board ofen is different from current
@@ -511,6 +517,15 @@ const Board = () => {
 					<div>{`(${latency}ms)`}</div>
 				</div>
 			</div>
+
+			{/* {gameOverPayload && playerColor && (
+				<RematchModal
+					open={showRematchModal}
+					playerColor={playerColor}
+					gameOverPayload={gameOverPayload}
+					close={() => setShowRematchModal(false)}
+				/>
+			)} */}
 		</div>
 	);
 };
