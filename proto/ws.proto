@@ -28,9 +28,9 @@ enum VariantGroup {
 }
 
 message TimeControl {
-	int64 seconds = 1; // initial player time
-	int64 increment_seconds = 2; // seconds gained after each move
-	int64 delay_seconds = 3; // seconds before time starts to decrement
+	int64 initial_time = 1; // time the clocks start at
+	int64 increment = 2; // time gained after each move
+	int64 delay = 3; // time before time starts to decrement
 }
 
 message Variant {
@@ -75,15 +75,8 @@ message PingPayload {}
 // PongPayload is the response to the Ping message
 message PongPayload {}
 
+// KeepAlivePayload maintains an open websocket connection with the server
 message KeepAlivePayload {}
-
-message OFENPayload {
-  string ofen = 1;       // OFEN (position, toMove)
-	string last_move = 2;   // last move played in UOI notation
-	string black_clock = 3; // black clock in seconds
-	string white_clock = 4; // white clock in seconds
-	string game_id = 5; // game id for routing message to board
-}
 
 message Moves {
 	repeated string moves = 1; // array of game moves
@@ -94,31 +87,26 @@ message MovePayload {
 	string ofen = 2; // (position, toMove)
 	string san = 3; 
 	string uoi = 4; 
-	int32 move_num = 5; // move count
-	bool check = 6; // whether the player's king is in check
-	Moves moves = 7; // moves that have been played
-	map<string, Moves> valid_moves = 8; // moves the player can make
-	int64 latency = 9; // player latency
-	int32 ack = 10; // move ack from player
-	string black = 11; // black player ID
-	string white = 12; // white player ID
-	ScorePayload score = 13; // score state
-	bool game_start = 14; // whether the first move has been played
-	RoomState room_state = 15; // room state
+	bool check = 5; // whether the player's king is in check
+	Moves moves = 6; // moves that have been played
+	map<string, Moves> valid_moves = 7; // moves the player can make
+	string black_player_id = 8;
+	string white_player_id = 9;
+	ScorePayload score = 10; // player scores
+	RoomState room_state = 11; // enum depicting the state of the room
 }
 
+// GameStatePayload is an empty message new connections use to request board state
+message GameStatePayload {}
+
 message CrowdPayload {
-	bool has_two_players = 1; // if the white and black players are in the room
-	int32 spectators = 2;
+	int32 connections = 1; // the number of websocket connections within the room
 }
 
 message ClockPayload {
-	int64 control = 1; // time control total time
-	int64 black = 2; // black clock in centi-seconds
-	int64 white = 3; // white clock in centi-seconds
-	int64 lag = 4; // internal server lag in milliseconds
-	string variant_name = 5; // variant name
-	string variant_group = 6; // variant group name
+	int64 black = 1; // black clock in centi-seconds
+	int64 white = 2; // white clock in centi-seconds
+	Variant variant = 3; // time variant the game is being played in
 }
 
 message ScorePayload {
@@ -127,15 +115,21 @@ message ScorePayload {
 }
 
 message GameOverPayload {
-	PlayerColor winning_color = 1;
-	GameOutcome game_outcome = 2;
-	string outcome_details = 3;
-	ScorePayload score = 4; // score state
-	bool room_over = 5; // whether the room has ended
+	GameOutcome game_outcome = 1;
+	string outcome_details = 2; // details of the game-end event
+	ScorePayload score = 3; // player scores
+	bool room_over = 4; // whether the room has ended
 }
 
 message RedirectPayload {
 	string location = 1;
+}
+
+message RematchPayload {
+	bool both_players_present = 1;
+	bool white_requested = 2;
+	bool black_requested = 3;
+	bool rematch_ready = 4;
 }
 
 message WebsocketMessage {
@@ -144,9 +138,10 @@ message WebsocketMessage {
 		MovePayload move_payload = 2;
 		GameOverPayload game_over_payload = 3;
 		CrowdPayload crowd_payload = 4;
-		OFENPayload ofen_payload = 5;
 		RedirectPayload redirect_payload = 6;
 		PongPayload pong_payload = 7;
 		KeepAlivePayload keep_alive_payload = 8;
+		RematchPayload rematch_payload = 9;
+		GameStatePayload game_state_payload = 10;
 	}
 }

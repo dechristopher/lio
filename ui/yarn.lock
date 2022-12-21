@@ -984,6 +984,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dayjs@npm:^1.11.7":
+  version: 1.11.7
+  resolution: "dayjs@npm:1.11.7"
+  checksum: 5003a7c1dd9ed51385beb658231c3548700b82d3548c0cfbe549d85f2d08e90e972510282b7506941452c58d32136d6362f009c77ca55381a09c704e9f177ebb
+  languageName: node
+  linkType: hard
+
 "debug@npm:4, debug@npm:^4.1.0, debug@npm:^4.1.1, debug@npm:^4.3.2, debug@npm:^4.3.3, debug@npm:^4.3.4":
   version: 4.3.4
   resolution: "debug@npm:4.3.4"
@@ -2285,6 +2292,7 @@ __metadata:
     "@typescript-eslint/parser": ^5.42.1
     autoprefixer: 10.2.4
     classnames: 2.3.2
+    dayjs: ^1.11.7
     eslint: 8.27.0
     eslint-config-next: latest
     eslint-config-prettier: ^8.5.0

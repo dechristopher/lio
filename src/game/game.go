@@ -40,7 +40,7 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 		Game:    *game,
 		ToMove:  game.Position().Turn(),
 		Variant: config.Variant,
-		Clock:   clock.NewClock(*config.Variant.Control),
+		Clock:   clock.NewClock(config.Variant.Control),
 		White:   config.White,
 		Black:   config.Black,
 	}

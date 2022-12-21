@@ -1,32 +1,29 @@
 package room
 
 import (
+	"fmt"
+	"github.com/dechristopher/lio/channel"
 	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/octad"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/dechristopher/lio/channel"
 )
 
 // handleGameOver handles room finalization and player notification
 func (r *Instance) handleRoomOver() {
-	// send game over message if match expired
-	if r.abandoned && r.game.Outcome() == octad.NoOutcome {
-		websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_GameOverPayload{GameOverPayload: &wsv1.GameOverPayload{
-			GameOutcome:    wsv1.GameOutcome_GAME_OUTCOME_UNSPECIFIED,
-			OutcomeDetails: "Match expired. Leaving room..",
-			RoomOver:       true,
-		}}}
+	// TODO would a "RoomOver" message make more sense than a redirect?
+	websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_RedirectPayload{RedirectPayload: &wsv1.RedirectPayload{
+		Location: "/",
+	}}}
 
-		payload, err := proto.Marshal(&websocketMessage)
-		if err != nil {
-			util.Error(str.CChan, "error encoding game over message err=%s", err.Error())
-		}
-
+	payload, err := proto.Marshal(&websocketMessage)
+	if err != nil {
+		util.Error(str.CChan, "error encoding redirect message err=%s", err.Error())
+	}
+	// broadcast a redirect to every room channel
+	for _, channelType := range roomChannelTypes {
 		channel.Broadcast(payload, channel.SocketContext{
-			Channel: r.ID,
+			Channel: fmt.Sprintf("%s%s", channelType, r.ID),
 			MT:      2,
 		})
 	}

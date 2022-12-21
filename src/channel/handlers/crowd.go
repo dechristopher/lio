@@ -15,11 +15,11 @@ func HandleCrowd(thisChannel string) {
 		Channel: thisChannel,
 		MT:      2,
 	}
-	var spectators int
+	var connections int
 	// range over channel entries until it is closed, then exit routine
-	for spectators = range channel.Map.GetSockMap(thisChannel).Listen() {
-		util.DebugFlag("crowd", str.CChan, "spec: %d", spectators)
-		websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_CrowdPayload{CrowdPayload: &wsv1.CrowdPayload{Spectators: int32(spectators)}}}
+	for connections = range channel.Map.GetSockMap(thisChannel).Listen() {
+		util.DebugFlag("crowd", str.CChan, "spec: %d", connections)
+		websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_CrowdPayload{CrowdPayload: &wsv1.CrowdPayload{Connections: int32(connections)}}}
 
 		payload, err := proto.Marshal(&websocketMessage)
 		if err != nil {

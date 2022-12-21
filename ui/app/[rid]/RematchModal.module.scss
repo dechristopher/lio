@@ -74,5 +74,33 @@
 	button {
 		font-size: 24px;
 		font-weight: bold;
+
+		&.denied {
+			opacity: 80%;
+			background-color: $primary-red;
+			border-right-color: $button-border-alt-dark;
+			border-bottom-color: $button-border-alt-dark;
+			border-left-color: $button-border-alt-light;
+			border-top-color: $button-border-alt-light;
+		}
+
+		&.waiting {
+			opacity: 65%;
+			background-color: $button-primary-bg;
+		}
+
+		&.requested {
+			animation: glowing 1500ms infinite;
+		}
+
+		@keyframes glowing {
+			50% {
+				background-color: $button-pulse-bg;
+				border-right-color: $button-border-alt-dark;
+				border-bottom-color: $button-border-alt-dark;
+				border-left-color: $button-border-alt-light;
+				border-top-color: $button-border-alt-light;
+			}
+		}
 	}
 }

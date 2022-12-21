@@ -163,25 +163,25 @@ proto3.util.setEnumType(GameOutcome, "ws.v1.GameOutcome", [
  */
 export class TimeControl extends Message<TimeControl> {
   /**
-   * initial player time
+   * time the clocks start at
    *
-   * @generated from field: int64 seconds = 1;
+   * @generated from field: int64 initial_time = 1;
    */
-  seconds = protoInt64.zero;
+  initialTime = protoInt64.zero;
 
   /**
-   * seconds gained after each move
+   * time gained after each move
    *
-   * @generated from field: int64 increment_seconds = 2;
+   * @generated from field: int64 increment = 2;
    */
-  incrementSeconds = protoInt64.zero;
+  increment = protoInt64.zero;
 
   /**
-   * seconds before time starts to decrement
+   * time before time starts to decrement
    *
-   * @generated from field: int64 delay_seconds = 3;
+   * @generated from field: int64 delay = 3;
    */
-  delaySeconds = protoInt64.zero;
+  delay = protoInt64.zero;
 
   constructor(data?: PartialMessage<TimeControl>) {
     super();
@@ -191,9 +191,9 @@ export class TimeControl extends Message<TimeControl> {
   static readonly runtime = proto3;
   static readonly typeName = "ws.v1.TimeControl";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "seconds", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 2, name: "increment_seconds", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "delay_seconds", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 1, name: "initial_time", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "increment", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "delay", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TimeControl {
@@ -517,6 +517,8 @@ export class PongPayload extends Message<PongPayload> {
 }
 
 /**
+ * KeepAlivePayload maintains an open websocket connection with the server
+ *
  * @generated from message ws.v1.KeepAlivePayload
  */
 export class KeepAlivePayload extends Message<KeepAlivePayload> {
@@ -544,77 +546,6 @@ export class KeepAlivePayload extends Message<KeepAlivePayload> {
 
   static equals(a: KeepAlivePayload | PlainMessage<KeepAlivePayload> | undefined, b: KeepAlivePayload | PlainMessage<KeepAlivePayload> | undefined): boolean {
     return proto3.util.equals(KeepAlivePayload, a, b);
-  }
-}
-
-/**
- * @generated from message ws.v1.OFENPayload
- */
-export class OFENPayload extends Message<OFENPayload> {
-  /**
-   * OFEN (position, toMove)
-   *
-   * @generated from field: string ofen = 1;
-   */
-  ofen = "";
-
-  /**
-   * last move played in UOI notation
-   *
-   * @generated from field: string last_move = 2;
-   */
-  lastMove = "";
-
-  /**
-   * black clock in seconds
-   *
-   * @generated from field: string black_clock = 3;
-   */
-  blackClock = "";
-
-  /**
-   * white clock in seconds
-   *
-   * @generated from field: string white_clock = 4;
-   */
-  whiteClock = "";
-
-  /**
-   * game id for routing message to board
-   *
-   * @generated from field: string game_id = 5;
-   */
-  gameId = "";
-
-  constructor(data?: PartialMessage<OFENPayload>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime = proto3;
-  static readonly typeName = "ws.v1.OFENPayload";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "ofen", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "last_move", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "black_clock", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "white_clock", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "game_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OFENPayload {
-    return new OFENPayload().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OFENPayload {
-    return new OFENPayload().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OFENPayload {
-    return new OFENPayload().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: OFENPayload | PlainMessage<OFENPayload> | undefined, b: OFENPayload | PlainMessage<OFENPayload> | undefined): boolean {
-    return proto3.util.equals(OFENPayload, a, b);
   }
 }
 
@@ -686,79 +617,47 @@ export class MovePayload extends Message<MovePayload> {
   uoi = "";
 
   /**
-   * move count
-   *
-   * @generated from field: int32 move_num = 5;
-   */
-  moveNum = 0;
-
-  /**
    * whether the player's king is in check
    *
-   * @generated from field: bool check = 6;
+   * @generated from field: bool check = 5;
    */
   check = false;
 
   /**
    * moves that have been played
    *
-   * @generated from field: ws.v1.Moves moves = 7;
+   * @generated from field: ws.v1.Moves moves = 6;
    */
   moves?: Moves;
 
   /**
    * moves the player can make
    *
-   * @generated from field: map<string, ws.v1.Moves> valid_moves = 8;
+   * @generated from field: map<string, ws.v1.Moves> valid_moves = 7;
    */
   validMoves: { [key: string]: Moves } = {};
 
   /**
-   * player latency
-   *
-   * @generated from field: int64 latency = 9;
+   * @generated from field: string black_player_id = 8;
    */
-  latency = protoInt64.zero;
+  blackPlayerId = "";
 
   /**
-   * move ack from player
-   *
-   * @generated from field: int32 ack = 10;
+   * @generated from field: string white_player_id = 9;
    */
-  ack = 0;
+  whitePlayerId = "";
 
   /**
-   * black player ID
+   * player scores
    *
-   * @generated from field: string black = 11;
-   */
-  black = "";
-
-  /**
-   * white player ID
-   *
-   * @generated from field: string white = 12;
-   */
-  white = "";
-
-  /**
-   * score state
-   *
-   * @generated from field: ws.v1.ScorePayload score = 13;
+   * @generated from field: ws.v1.ScorePayload score = 10;
    */
   score?: ScorePayload;
 
   /**
-   * whether the first move has been played
+   * enum depicting the state of the room
    *
-   * @generated from field: bool game_start = 14;
-   */
-  gameStart = false;
-
-  /**
-   * room state
-   *
-   * @generated from field: ws.v1.RoomState room_state = 15;
+   * @generated from field: ws.v1.RoomState room_state = 11;
    */
   roomState = RoomState.UNSPECIFIED;
 
@@ -774,17 +673,13 @@ export class MovePayload extends Message<MovePayload> {
     { no: 2, name: "ofen", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "san", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "uoi", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "move_num", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 6, name: "check", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "moves", kind: "message", T: Moves },
-    { no: 8, name: "valid_moves", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Moves} },
-    { no: 9, name: "latency", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 10, name: "ack", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 11, name: "black", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 12, name: "white", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 13, name: "score", kind: "message", T: ScorePayload },
-    { no: 14, name: "game_start", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 15, name: "room_state", kind: "enum", T: proto3.getEnumType(RoomState) },
+    { no: 5, name: "check", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "moves", kind: "message", T: Moves },
+    { no: 7, name: "valid_moves", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Moves} },
+    { no: 8, name: "black_player_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "white_player_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "score", kind: "message", T: ScorePayload },
+    { no: 11, name: "room_state", kind: "enum", T: proto3.getEnumType(RoomState) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MovePayload {
@@ -805,20 +700,48 @@ export class MovePayload extends Message<MovePayload> {
 }
 
 /**
+ * GameStatePayload is an empty message new connections use to request board state
+ *
+ * @generated from message ws.v1.GameStatePayload
+ */
+export class GameStatePayload extends Message<GameStatePayload> {
+  constructor(data?: PartialMessage<GameStatePayload>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "ws.v1.GameStatePayload";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GameStatePayload {
+    return new GameStatePayload().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GameStatePayload {
+    return new GameStatePayload().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GameStatePayload {
+    return new GameStatePayload().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GameStatePayload | PlainMessage<GameStatePayload> | undefined, b: GameStatePayload | PlainMessage<GameStatePayload> | undefined): boolean {
+    return proto3.util.equals(GameStatePayload, a, b);
+  }
+}
+
+/**
  * @generated from message ws.v1.CrowdPayload
  */
 export class CrowdPayload extends Message<CrowdPayload> {
   /**
-   * if the white and black players are in the room
+   * the number of websocket connections within the room
    *
-   * @generated from field: bool has_two_players = 1;
+   * @generated from field: int32 connections = 1;
    */
-  hasTwoPlayers = false;
-
-  /**
-   * @generated from field: int32 spectators = 2;
-   */
-  spectators = 0;
+  connections = 0;
 
   constructor(data?: PartialMessage<CrowdPayload>) {
     super();
@@ -828,8 +751,7 @@ export class CrowdPayload extends Message<CrowdPayload> {
   static readonly runtime = proto3;
   static readonly typeName = "ws.v1.CrowdPayload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "has_two_players", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "spectators", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 1, name: "connections", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CrowdPayload {
@@ -854,46 +776,25 @@ export class CrowdPayload extends Message<CrowdPayload> {
  */
 export class ClockPayload extends Message<ClockPayload> {
   /**
-   * time control total time
-   *
-   * @generated from field: int64 control = 1;
-   */
-  control = protoInt64.zero;
-
-  /**
    * black clock in centi-seconds
    *
-   * @generated from field: int64 black = 2;
+   * @generated from field: int64 black = 1;
    */
   black = protoInt64.zero;
 
   /**
    * white clock in centi-seconds
    *
-   * @generated from field: int64 white = 3;
+   * @generated from field: int64 white = 2;
    */
   white = protoInt64.zero;
 
   /**
-   * internal server lag in milliseconds
+   * time variant the game is being played in
    *
-   * @generated from field: int64 lag = 4;
+   * @generated from field: ws.v1.Variant variant = 3;
    */
-  lag = protoInt64.zero;
-
-  /**
-   * variant name
-   *
-   * @generated from field: string variant_name = 5;
-   */
-  variantName = "";
-
-  /**
-   * variant group name
-   *
-   * @generated from field: string variant_group = 6;
-   */
-  variantGroup = "";
+  variant?: Variant;
 
   constructor(data?: PartialMessage<ClockPayload>) {
     super();
@@ -903,12 +804,9 @@ export class ClockPayload extends Message<ClockPayload> {
   static readonly runtime = proto3;
   static readonly typeName = "ws.v1.ClockPayload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "control", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 2, name: "black", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "white", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 4, name: "lag", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 5, name: "variant_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "variant_group", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "black", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "white", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "variant", kind: "message", T: Variant },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClockPayload {
@@ -980,31 +878,28 @@ export class ScorePayload extends Message<ScorePayload> {
  */
 export class GameOverPayload extends Message<GameOverPayload> {
   /**
-   * @generated from field: ws.v1.PlayerColor winning_color = 1;
-   */
-  winningColor = PlayerColor.UNSPECIFIED;
-
-  /**
-   * @generated from field: ws.v1.GameOutcome game_outcome = 2;
+   * @generated from field: ws.v1.GameOutcome game_outcome = 1;
    */
   gameOutcome = GameOutcome.UNSPECIFIED;
 
   /**
-   * @generated from field: string outcome_details = 3;
+   * details of the game-end event
+   *
+   * @generated from field: string outcome_details = 2;
    */
   outcomeDetails = "";
 
   /**
-   * score state
+   * player scores
    *
-   * @generated from field: ws.v1.ScorePayload score = 4;
+   * @generated from field: ws.v1.ScorePayload score = 3;
    */
   score?: ScorePayload;
 
   /**
    * whether the room has ended
    *
-   * @generated from field: bool room_over = 5;
+   * @generated from field: bool room_over = 4;
    */
   roomOver = false;
 
@@ -1016,11 +911,10 @@ export class GameOverPayload extends Message<GameOverPayload> {
   static readonly runtime = proto3;
   static readonly typeName = "ws.v1.GameOverPayload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "winning_color", kind: "enum", T: proto3.getEnumType(PlayerColor) },
-    { no: 2, name: "game_outcome", kind: "enum", T: proto3.getEnumType(GameOutcome) },
-    { no: 3, name: "outcome_details", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "score", kind: "message", T: ScorePayload },
-    { no: 5, name: "room_over", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "game_outcome", kind: "enum", T: proto3.getEnumType(GameOutcome) },
+    { no: 2, name: "outcome_details", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "score", kind: "message", T: ScorePayload },
+    { no: 4, name: "room_over", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GameOverPayload {
@@ -1078,6 +972,61 @@ export class RedirectPayload extends Message<RedirectPayload> {
 }
 
 /**
+ * @generated from message ws.v1.RematchPayload
+ */
+export class RematchPayload extends Message<RematchPayload> {
+  /**
+   * @generated from field: bool both_players_present = 1;
+   */
+  bothPlayersPresent = false;
+
+  /**
+   * @generated from field: bool white_requested = 2;
+   */
+  whiteRequested = false;
+
+  /**
+   * @generated from field: bool black_requested = 3;
+   */
+  blackRequested = false;
+
+  /**
+   * @generated from field: bool rematch_ready = 4;
+   */
+  rematchReady = false;
+
+  constructor(data?: PartialMessage<RematchPayload>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "ws.v1.RematchPayload";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "both_players_present", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "white_requested", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "black_requested", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "rematch_ready", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RematchPayload {
+    return new RematchPayload().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RematchPayload {
+    return new RematchPayload().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RematchPayload {
+    return new RematchPayload().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RematchPayload | PlainMessage<RematchPayload> | undefined, b: RematchPayload | PlainMessage<RematchPayload> | undefined): boolean {
+    return proto3.util.equals(RematchPayload, a, b);
+  }
+}
+
+/**
  * @generated from message ws.v1.WebsocketMessage
  */
 export class WebsocketMessage extends Message<WebsocketMessage> {
@@ -1110,12 +1059,6 @@ export class WebsocketMessage extends Message<WebsocketMessage> {
     case: "crowdPayload";
   } | {
     /**
-     * @generated from field: ws.v1.OFENPayload ofen_payload = 5;
-     */
-    value: OFENPayload;
-    case: "ofenPayload";
-  } | {
-    /**
      * @generated from field: ws.v1.RedirectPayload redirect_payload = 6;
      */
     value: RedirectPayload;
@@ -1132,6 +1075,18 @@ export class WebsocketMessage extends Message<WebsocketMessage> {
      */
     value: KeepAlivePayload;
     case: "keepAlivePayload";
+  } | {
+    /**
+     * @generated from field: ws.v1.RematchPayload rematch_payload = 9;
+     */
+    value: RematchPayload;
+    case: "rematchPayload";
+  } | {
+    /**
+     * @generated from field: ws.v1.GameStatePayload game_state_payload = 10;
+     */
+    value: GameStatePayload;
+    case: "gameStatePayload";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<WebsocketMessage>) {
@@ -1146,10 +1101,11 @@ export class WebsocketMessage extends Message<WebsocketMessage> {
     { no: 2, name: "move_payload", kind: "message", T: MovePayload, oneof: "data" },
     { no: 3, name: "game_over_payload", kind: "message", T: GameOverPayload, oneof: "data" },
     { no: 4, name: "crowd_payload", kind: "message", T: CrowdPayload, oneof: "data" },
-    { no: 5, name: "ofen_payload", kind: "message", T: OFENPayload, oneof: "data" },
     { no: 6, name: "redirect_payload", kind: "message", T: RedirectPayload, oneof: "data" },
     { no: 7, name: "pong_payload", kind: "message", T: PongPayload, oneof: "data" },
     { no: 8, name: "keep_alive_payload", kind: "message", T: KeepAlivePayload, oneof: "data" },
+    { no: 9, name: "rematch_payload", kind: "message", T: RematchPayload, oneof: "data" },
+    { no: 10, name: "game_state_payload", kind: "message", T: GameStatePayload, oneof: "data" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WebsocketMessage {

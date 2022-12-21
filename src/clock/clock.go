@@ -15,7 +15,7 @@ const Channel bus.Channel = "lio:clock"
 
 // Clock represents the clock for a single game
 type Clock struct {
-	timeControl wsv1.TimeControl
+	timeControl *wsv1.TimeControl
 
 	victor    Victor
 	turn      octad.Color
@@ -38,48 +38,43 @@ type Clock struct {
 }
 
 func (c *Clock) hasIncrement() bool {
-	return c.timeControl.IncrementSeconds > 0
+	return c.timeControl.Increment > 0
 }
 
 // time container for a single player
 type playerClock struct {
 	//lag *lag.Tracker
-	control wsv1.TimeControl
-	elapsed CTime
+	control *wsv1.TimeControl
+	elapsed time.Duration
 }
 
 // remaining time budget considering elapsed time
-func (pc *playerClock) remaining() CTime {
-	cTime := CTime{
-		t: time.Duration(pc.control.Seconds),
-	}
-	return cTime.Diff(pc.elapsed)
+func (pc *playerClock) remaining() time.Duration {
+	return time.Duration(pc.control.InitialTime) - pc.elapsed
 }
 
 // giveTime adds the given time to the player's elapsed time
-func (pc *playerClock) giveTime(t CTime) {
-	pc.elapsed = pc.elapsed.Add(t)
-	if pc.elapsed.t > time.Duration(pc.control.Seconds) {
-		pc.elapsed = CTime{
-			t: time.Duration(pc.control.Seconds),
-		}
+func (pc *playerClock) giveTime(t time.Duration) {
+	pc.elapsed = pc.elapsed + t
+	if pc.elapsed > time.Duration(pc.control.InitialTime) {
+		pc.elapsed = time.Duration(pc.control.InitialTime)
 	}
 }
 
 // takeTime subtracts the given time from the player's elapsed time
-func (pc *playerClock) takeTime(t CTime) {
-	pc.elapsed = pc.elapsed.Diff(t)
+func (pc *playerClock) takeTime(t time.Duration) {
+	pc.elapsed = pc.elapsed - t
 }
 
 // flagged returns true if the player has exceeded their time budget
 // exceeding time budget is quantified as time remaining > 0
 func (pc *playerClock) flagged() bool {
-	return pc.remaining().t <= flagged.t
+	return pc.remaining() <= 0
 }
 
 // NewClock returns a clock configured for the given players at
 // the specified time timeControl
-func NewClock(tc wsv1.TimeControl) *Clock {
+func NewClock(tc *wsv1.TimeControl) *Clock {
 	clock := &Clock{
 		timeControl:    tc,
 		victor:         NoVictor, // game in progress
@@ -95,8 +90,8 @@ func NewClock(tc wsv1.TimeControl) *Clock {
 		publisher:      bus.NewPublisher("clock", Channel),
 	}
 
-	clock.players[octad.White] = &playerClock{control: tc, elapsed: ToCTime(0)}
-	clock.players[octad.Black] = &playerClock{control: tc, elapsed: ToCTime(0)}
+	clock.players[octad.White] = &playerClock{control: tc, elapsed: 0}
+	clock.players[octad.Black] = &playerClock{control: tc, elapsed: 0}
 
 	clock.ackChannels[octad.White] = make(chan bool)
 	clock.ackChannels[octad.Black] = make(chan bool)
@@ -118,7 +113,7 @@ func (c *Clock) flagged() bool {
 }
 
 // EstimateRemaining time budget for the given color estimated based on elapsed time since last move
-func (c *Clock) EstimateRemaining(color octad.Color) CTime {
+func (c *Clock) EstimateRemaining(color octad.Color) time.Duration {
 	// estimate remaining time budget
 	if c.turn == color {
 		rem := c.players[color].remaining()
@@ -130,11 +125,11 @@ func (c *Clock) EstimateRemaining(color octad.Color) CTime {
 
 		// subtract time since last timestamp from remaining to get estimate
 		additional := time.Since(c.timestamp)
-		estimate := rem.Diff(ToCTime(additional))
+		estimate := rem - additional
 
 		// if flagged, no need to return negative times
-		if estimate.t <= flagged.t {
-			return flagged
+		if estimate <= 0 {
+			return 0
 		}
 
 		// return estimate
@@ -151,7 +146,7 @@ func (c *Clock) EstimateFlagged() bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	// player's estimated remaining time budget has fallen to zero
-	return c.EstimateRemaining(c.turn).t <= flagged.t
+	return c.EstimateRemaining(c.turn) <= 0
 }
 
 // GetAck returns the ack channel for the current player
@@ -170,8 +165,8 @@ func (c *Clock) Start() {
 
 	go func(cl *Clock) {
 		// set up delay timer
-		if cl.timeControl.DelaySeconds != 0 {
-			cl.delayTimer = time.NewTimer(time.Duration(cl.timeControl.DelaySeconds))
+		if cl.timeControl.Delay != 0 {
+			cl.delayTimer = time.NewTimer(time.Duration(cl.timeControl.Delay))
 		} else {
 			// default to true for immediate decrement
 			cl.delayTimer = time.NewTimer(time.Hour)
@@ -207,8 +202,8 @@ func (c *Clock) Start() {
 // Reset the clock times and prepare for another game
 func (c *Clock) Reset() {
 	c.Stop(false, true)
-	c.players[octad.White].elapsed = ToCTime(0)
-	c.players[octad.Black].elapsed = ToCTime(0)
+	c.players[octad.White].elapsed = 0
+	c.players[octad.Black].elapsed = 0
 
 	c.ControlChannel = make(chan Command)
 	c.StateChannel = make(chan State)

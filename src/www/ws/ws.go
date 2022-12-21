@@ -135,6 +135,9 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 			case *wsv1.WebsocketMessage_MovePayload:
 				resp = handlers.HandleMove(payloadType.MovePayload, socketCtx)
 				break
+			case *wsv1.WebsocketMessage_GameStatePayload:
+				resp = handlers.HandleGameState(socketCtx)
+				break
 			case *wsv1.WebsocketMessage_KeepAlivePayload:
 				continue
 			default:

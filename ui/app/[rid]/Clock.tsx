@@ -1,19 +1,66 @@
 "use client";
 
-import React, { FC } from "react";
+import React, { FC, useMemo, useState } from "react";
 import styles from "./Clock.module.scss";
 import classNames from "classnames";
+import { useAnimationFrame } from "@client/hooks/useAnimationFrame";
+import { PlayerColor } from "@client/proto/ws_pb";
+import dayjs from "dayjs";
+import duration, { Duration } from "dayjs/plugin/duration";
+dayjs.extend(duration);
 
-interface ClockProps {
-	time: string;
+export type ClockState = {
 	score: number;
-	isWhite: boolean;
-	isActive: boolean;
-	barWidth: number;
-	flipOrientation?: boolean;
+	isPlayerTurn: boolean;
+	gameStarted: boolean;
+	initialTime: Duration;
+	timeRemaining: Duration;
+	playerColor: PlayerColor.WHITE | PlayerColor.BLACK;
+};
+
+export interface ClockProps {
+	state: ClockState;
+	flipOrientation: boolean;
+	setIsActive: (isActive: boolean) => void;
 }
 
 const Clock: FC<ClockProps> = (props) => {
+	const [barWidth, setBarWidth] = useState<number>(100);
+	const [time, setTime] = useState<string>(
+		formatDuration(props.state.initialTime),
+	);
+	const animateClock = useMemo(() => {
+		if (!props.state.gameStarted) {
+			setBarWidth(100);
+			setTime(formatDuration(props.state.initialTime));
+		}
+
+		return props.state.isPlayerTurn && props.state.gameStarted;
+	}, [
+		props.state.gameStarted,
+		props.state.initialTime,
+		props.state.isPlayerTurn,
+	]);
+
+	const clockAnimationFrameHandler = (
+		frameTime: number, // when the clock started to animate in ms
+	) => {
+		const elapsedTime = performance.now() - frameTime;
+		const remainingTime = props.state.timeRemaining.subtract(
+			elapsedTime,
+			"milliseconds",
+		);
+
+		if (remainingTime.asMilliseconds() < 0) {
+			props.setIsActive(false);
+		} else {
+			setTime(formatDuration(remainingTime));
+			setBarWidth(calcBarWidth(props.state.initialTime, remainingTime));
+		}
+	};
+
+	useAnimationFrame(clockAnimationFrameHandler, animateClock);
+
 	return (
 		<div
 			className={classNames({
@@ -24,7 +71,7 @@ const Clock: FC<ClockProps> = (props) => {
 			<div
 				className={classNames({
 					[styles.clockContainer]: true,
-					[styles.active]: props.isActive,
+					[styles.active]: animateClock,
 					[styles.flip]: !props.flipOrientation,
 				})}
 			>
@@ -33,24 +80,26 @@ const Clock: FC<ClockProps> = (props) => {
 					<div
 						className={classNames({
 							[styles.clockName]: true,
-							[styles.playerWhite]: props.isWhite,
-							[styles.playerBlack]: !props.isWhite,
+							[styles.playerWhite]:
+								props.state.playerColor === PlayerColor.WHITE,
+							[styles.playerBlack]:
+								props.state.playerColor === PlayerColor.BLACK,
 						})}
 					>
 						Opponent
 					</div>
 					<div className={styles.clockRatingNumber}>
-						{props.score}
+						{props.state.score}
 					</div>
 				</div>
 
 				<div
 					className={classNames({
 						[styles.clockTime]: true,
-						[styles.active]: props.isActive,
+						[styles.active]: animateClock,
 					})}
 				>
-					{props.time}
+					{time}
 				</div>
 			</div>
 
@@ -58,10 +107,10 @@ const Clock: FC<ClockProps> = (props) => {
 				<div
 					className={classNames({
 						[styles.clockProgressBar]: true,
-						[styles.active]: props.isActive,
+						[styles.active]: animateClock,
 					})}
 					style={{
-						width: `${props.barWidth}%`,
+						width: `${barWidth}%`,
 					}}
 				></div>
 				<div className={styles.clockProgressBg}></div>
@@ -69,5 +118,24 @@ const Clock: FC<ClockProps> = (props) => {
 		</div>
 	);
 };
+
+/**
+ * Returns a CSS width percentage based on the percentage of
+ * the clock time remaining for the given time control
+ * @param timeControl - time control total centiseconds
+ * @param time - centiseconds remaining
+ * @returns {`${number}%`}
+ */
+const calcBarWidth = (timeControl: Duration, time: Duration): number => {
+	return Math.min(
+		(time.asMilliseconds() / timeControl.asMilliseconds()) * 100,
+		100,
+	);
+};
+
+function formatDuration(duration: Duration): string {
+	const durationStr = duration.format("mm:ss:SSS");
+	return durationStr.slice(0, durationStr.length - 2);
+}
 
 export default Clock;

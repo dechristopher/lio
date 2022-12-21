@@ -19,7 +19,6 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/game"
-	"github.com/dechristopher/lio/lag"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/store"
@@ -364,6 +363,36 @@ func (r *Instance) Join(uid string) bool {
 	return false
 }
 
+// Rematch attempts to accept a players request for a rematch
+func (r *Instance) Rematch(uid string) bool {
+	if r.State() == wsv1.RoomState_ROOM_STATE_GAME_OVER {
+		roomSocketMap := channel.Map.GetSockMap(r.ID)
+		blackPlayer := r.players[octad.Black]
+		whitePlayer := r.players[octad.White]
+		blackPlayerPresent := blackPlayer.IsBot || roomSocketMap.Has(blackPlayer.ID)
+		whitePlayerPresent := whitePlayer.IsBot || roomSocketMap.Has(whitePlayer.ID)
+		bothPlayersPresent := blackPlayerPresent && whitePlayerPresent
+
+		if bothPlayersPresent {
+			// emit control message to signal room routine handler to update state
+			r.controlChannel <- &message.RoomControl{
+				Type: message.Rematch,
+				Ctx: channel.SocketContext{
+					Channel: r.ID,
+					UID:     uid,
+					MT:      2,
+				},
+			}
+
+			// player's rematch request was accepted
+			return true
+		}
+	}
+
+	// player's rematch request was denied
+	return false
+}
+
 // NotifyWaiting notifies the waiting player(s) that games have begun
 // by sending redirect messages to the room
 func (r *Instance) NotifyWaiting() {
@@ -438,37 +467,30 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 	}
 }
 
-// CurrentGameStateMessage returns the octad position, marshalled as a move payload
-func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte {
+// GetSerializedGameState returns the current game state in a marshalled move payload
+func (r *Instance) GetSerializedGameState() []byte {
 	moveMessage := wsv1.MovePayload{
-		Clock:   r.currentClock(),
-		Ofen:    r.game.OFEN(),
-		MoveNum: int32(len(r.game.Moves()) / 2),
-		Check:   r.game.Position().InCheck(),
+		RoomState:     r.State(),
+		San:           r.getSAN(),
+		Ofen:          r.game.OFEN(),
+		Clock:         r.currentClock(),
+		ValidMoves:    r.game.LegalMoves(),
+		Check:         r.game.Position().InCheck(),
+		WhitePlayerId: r.players[octad.White].ID,
+		BlackPlayerId: r.players[octad.Black].ID,
 		Moves: &wsv1.Moves{
 			Moves: r.game.MoveHistory(),
 		},
-		ValidMoves: r.game.LegalMoves(),
-		Latency:    clock.ToCTime(0).Centi(), // TODO confirm if centi-seconds is correct
-		White:      r.players[octad.White].ID,
-		Black:      r.players[octad.Black].ID,
 		Score: &wsv1.ScorePayload{
 			Black: r.players.ScoreMap().Black,
 			White: r.players.ScoreMap().White,
 		},
-		GameStart: gameStart,
-		RoomState: r.State(),
 	}
 
 	// set legal moves if we're in GameReady or GameOngoing
 	// to prevent first moves before moves are allowed to be played
 	if r.State() != wsv1.RoomState_ROOM_STATE_WAITING_FOR_PLAYERS {
 		moveMessage.ValidMoves = r.game.LegalMoves()
-	}
-
-	// add last move SAN if enabled
-	if addLast {
-		moveMessage.San = r.getSAN()
 	}
 
 	websocketMessage := wsv1.WebsocketMessage{
@@ -490,14 +512,10 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 // currentClock returns the current clock state via a ClockPayload
 func (r *Instance) currentClock() *wsv1.ClockPayload {
 	state := r.game.Clock.State(true)
-	control := clock.ToCTime(time.Duration(r.game.Variant.Control.Seconds))
 	return &wsv1.ClockPayload{
-		Control:      control.Centi(),
-		Black:        state.BlackTime.Centi(),
-		White:        state.WhiteTime.Centi(),
-		Lag:          clock.ToCTime(lag.Move.Get()).Centi(),
-		VariantName:  r.game.Variant.Name,
-		VariantGroup: r.game.Variant.Group.String(),
+		Variant: clock.ConvertVariantTimeControl(r.game.Variant),
+		Black:   state.BlackTime.Milliseconds(),
+		White:   state.WhiteTime.Milliseconds(),
 	}
 }
 
@@ -569,7 +587,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	// current position and wait for another move
 	if !ok {
 		if move.Ctx.IsHuman() {
-			channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
+			channel.Unicast(r.GetSerializedGameState(), move.Ctx)
 		} else {
 			// engine gave bad move, major issue
 			// TODO handle this somehow if we ever see it
@@ -579,9 +597,9 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	}
 
 	// broadcast move to everyone and send response back to player
-	channel.BroadcastEx(r.CurrentGameStateMessage(true, false), move.Ctx)
+	channel.BroadcastEx(r.GetSerializedGameState(), move.Ctx)
 	if move.Ctx.IsHuman() {
-		channel.Unicast(r.CurrentGameStateMessage(true, false), move.Ctx)
+		channel.Unicast(r.GetSerializedGameState(), move.Ctx)
 	}
 
 	return true
@@ -629,9 +647,10 @@ func (r *Instance) calcDepth(color octad.Color) int {
 	// depth 7 is about the best we can do in a reasonable timeframe
 	// on a good CPU, but it won't work well for bullet
 	var depth int
-	control := clock.ToCTime(time.Duration(r.game.Variant.Control.Seconds))
+	control := time.Duration(r.game.Variant.Control.InitialTime)
 
-	switch tc := control.Centi(); {
+	// TODO need to evaluate these values
+	switch tc := control; {
 	case tc >= 6000:
 		depth = 7
 	case tc >= 3000:
@@ -647,12 +666,12 @@ func (r *Instance) calcDepth(color octad.Color) int {
 	var remaining int64
 	clockState := r.game.Clock.State(true)
 	if color == octad.White {
-		remaining = clockState.WhiteTime.Centi()
+		remaining = clockState.WhiteTime.Nanoseconds()
 	} else {
-		remaining = clockState.BlackTime.Centi()
+		remaining = clockState.BlackTime.Nanoseconds()
 	}
 
-	modifier := float64(remaining) / float64(control.Centi())
+	modifier := float64(remaining) / float64(control.Nanoseconds())
 	if modifier > 1.0 {
 		modifier = 1.0
 	}
@@ -670,7 +689,7 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// restart game if over
 	if r.game.Outcome() != octad.NoOutcome {
 		// send final game update to prevent further moves
-		channel.Broadcast(r.CurrentGameStateMessage(true, false), meta)
+		channel.Broadcast(r.GetSerializedGameState(), meta)
 		// broadcast game over message immediately
 		channel.Broadcast(r.gameOverMessage(abandoned), meta)
 
@@ -794,7 +813,7 @@ func (r *Instance) GenLobbyPayload(uid string) wsv1.RoomPayload {
 		RoomState:   r.State(),
 		IsCreator:   isCreator,
 		PlayerColor: color,
-		Variant:     r.game.Variant,
+		Variant:     clock.ConvertVariantTimeControl(r.game.Variant),
 	}
 }
 

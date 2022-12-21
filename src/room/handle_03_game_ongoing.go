@@ -14,12 +14,11 @@ import (
 
 // handleGameOngoing handles moves, player controls, and flag detection
 func (r *Instance) handleGameOngoing() {
+	var cleanupTimer = time.NewTimer(time.Hour)
+	defer cleanupTimer.Stop()
+
 	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
 	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
-
-	// set up abandon timer beyond any regular game duration
-	var abandonTimer = time.NewTimer(time.Hour)
-	defer abandonTimer.Stop()
 
 	for {
 		select {
@@ -29,7 +28,7 @@ func (r *Instance) handleGameOngoing() {
 			moveStart := time.Now()
 			// if not player's turn, send previous position and continue
 			if !r.isTurn(move) {
-				channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
+				channel.Unicast(r.GetSerializedGameState(), move.Ctx)
 				continue
 			}
 
@@ -49,8 +48,8 @@ func (r *Instance) handleGameOngoing() {
 					panic(err)
 				}
 
-				// stop abandon timer
-				abandonTimer.Stop()
+				// stop cleanup timer
+				cleanupTimer.Stop()
 
 				return
 			}
@@ -61,7 +60,7 @@ func (r *Instance) handleGameOngoing() {
 
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:
-			//automatically resign game if clock expires
+			// automatically resign game if clock expires
 			if flaggedState.Victor == clock.White {
 				r.game.Resign(octad.Black)
 			} else {
@@ -77,8 +76,8 @@ func (r *Instance) handleGameOngoing() {
 				panic(err)
 			}
 
-			// stop abandon timer
-			abandonTimer.Stop()
+			// stop cleanup timer
+			cleanupTimer.Stop()
 
 			return
 		// handle start/stop of abandon timer when players connect and disconnect
@@ -95,23 +94,22 @@ func (r *Instance) handleGameOngoing() {
 
 			if playersConnected {
 				util.DebugFlag("room", str.CRoom, "[%s] both players connected, cancelling abandon timer", r.ID)
-				// stop abandonTimer
-				if abandonTimer != nil {
-					abandonTimer.Stop()
+				if cleanupTimer != nil {
+					cleanupTimer.Stop()
 				}
 				continue
 			}
 
 			util.DebugFlag("room", str.CRoom, "[%s] players not connected, starting abandon timer", r.ID)
 
-			// start abandon timer if both players are not connected
-			if abandonTimer == nil {
-				abandonTimer = time.NewTimer(abandonTimeout)
+			// start cleanup timer if both players are not connected
+			if cleanupTimer == nil {
+				cleanupTimer = time.NewTimer(abandonTimeout)
 			} else {
-				abandonTimer.Reset(abandonTimeout)
+				cleanupTimer.Reset(abandonTimeout)
 			}
 		// figure out who abandoned and resign the game
-		case <-abandonTimer.C:
+		case <-cleanupTimer.C:
 			// determine who isn't connected
 			connected := make(map[octad.Color]bool)
 

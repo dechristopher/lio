@@ -3,8 +3,6 @@ package variant
 import (
 	wsv1 "github.com/dechristopher/lio/proto"
 	"time"
-
-	"github.com/dechristopher/lio/clock"
 )
 
 // QuarterZeroBlitz is the 15 second, zero second increment blitz variant
@@ -17,8 +15,8 @@ var QuarterZeroBlitz = &wsv1.Variant{
 
 // QuarterZeroBlitzTC is the 15 second, zero second increment blitz time control
 var QuarterZeroBlitzTC = &wsv1.TimeControl{
-	Seconds:          clock.ToCTime(time.Second * 15).Seconds(),
-	IncrementSeconds: clock.ToCTime(time.Second * 0).Seconds(),
+	InitialTime: time.Second.Nanoseconds() * 15,
+	Increment:   time.Second.Nanoseconds() * 0,
 }
 
 // QuarterOneBlitz is the 15 second, one second increment blitz variant
@@ -31,6 +29,6 @@ var QuarterOneBlitz = &wsv1.Variant{
 
 // QuarterOneBlitzTC is the 15 second, one second increment blitz time control
 var QuarterOneBlitzTC = &wsv1.TimeControl{
-	Seconds:          clock.ToCTime(time.Second * 15).Seconds(),
-	IncrementSeconds: clock.ToCTime(time.Second * 1).Seconds(),
+	InitialTime: time.Second.Nanoseconds() * 15,
+	Increment:   time.Second.Nanoseconds() * 1,
 }

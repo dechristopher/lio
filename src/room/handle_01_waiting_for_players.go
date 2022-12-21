@@ -11,10 +11,8 @@ import (
 )
 
 // handle waiting for players period
-// waits for <roomExpiryTime> seconds if all players are disconnected and will
-// proceed to clean up the room if exceeded
 func (r *Instance) handleWaitingForPlayers() {
-	cleanupTimer := time.NewTimer(roomExpiryTime)
+	cleanupTimer := time.NewTimer(lobbyExpiryTime)
 	defer cleanupTimer.Stop()
 
 	waitingRoom := channel.Map.GetSockMap(fmt.Sprintf("%s%s", wait, r.ID))
@@ -39,7 +37,7 @@ func (r *Instance) handleWaitingForPlayers() {
 		case <-cleanupTimer.C:
 			r.abandoned = true
 			// room expired, clean up
-			util.DebugFlag("room", str.CRoom, "[%s] room expired, cleaning up", r.ID)
+			util.DebugFlag("room", str.CRoom, "[%s] lobby expired, cleaning up", r.ID)
 			err := r.event(EventPlayerAbandons)
 			if err != nil {
 				panic(err)

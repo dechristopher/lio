@@ -40,6 +40,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@typescript-eslint/parser", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:5.42.1"],\
             ["autoprefixer", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:10.2.4"],\
             ["classnames", "npm:2.3.2"],\
+            ["dayjs", "npm:1.11.7"],\
             ["eslint", "npm:8.27.0"],\
             ["eslint-config-next", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:13.0.3"],\
             ["eslint-config-prettier", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:8.5.0"],\
@@ -1308,6 +1309,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "packageLocation": "./.yarn/cache/damerau-levenshtein-npm-1.0.8-bda7311c69-d240b77575.zip/node_modules/damerau-levenshtein/",\
           "packageDependencies": [\
             ["damerau-levenshtein", "npm:1.0.8"]\
+          ],\
+          "linkType": "HARD"\
+        }]\
+      ]],\
+      ["dayjs", [\
+        ["npm:1.11.7", {\
+          "packageLocation": "./.yarn/cache/dayjs-npm-1.11.7-d5cd5b2919-5003a7c1dd.zip/node_modules/dayjs/",\
+          "packageDependencies": [\
+            ["dayjs", "npm:1.11.7"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -2931,6 +2941,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@typescript-eslint/parser", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:5.42.1"],\
             ["autoprefixer", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:10.2.4"],\
             ["classnames", "npm:2.3.2"],\
+            ["dayjs", "npm:1.11.7"],\
             ["eslint", "npm:8.27.0"],\
             ["eslint-config-next", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:13.0.3"],\
             ["eslint-config-prettier", "virtual:401552c5f650278bd5cd41a6c41af3fc05374bcbe9aff8c2daaa9c34cf17efbb389b61ca4812329d390cd5a8e1a8c8bbcb16c8a0ed393b79c5cf86c8a081454b#npm:8.5.0"],\

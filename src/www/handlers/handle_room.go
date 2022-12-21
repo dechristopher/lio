@@ -79,6 +79,23 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 	return c.Redirect("/" + roomInstance.ID)
 }
 
+// RoomRematchHandler handles a players request for a rematch
+func RoomRematchHandler(c *fiber.Ctx) error {
+	uid, roomInstance, err, redirected := getUserAndRoom(c)
+	if err != nil || redirected {
+		return err
+	}
+
+	// attempt to request/accept a rematch
+	if roomInstance.Rematch(uid) {
+		// success
+		return c.SendStatus(200)
+	}
+
+	// failure // TODO do we care if it fails?
+	return c.SendStatus(200)
+}
+
 // RoomCancelHandler cancels the room immediately
 func RoomCancelHandler(c *fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)

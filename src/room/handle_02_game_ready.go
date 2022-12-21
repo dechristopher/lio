@@ -11,14 +11,12 @@ import (
 )
 
 // handle waiting for white to make first move and start game
-// waits for one minute before timing out and terminating game and room
 func (r *Instance) handleGameReady() {
-	// one-minute abandon timer after game start
-	cleanupTimer := time.NewTimer(time.Minute)
+	cleanupTimer := time.NewTimer(gameReadyExpiryTime)
 	defer cleanupTimer.Stop()
 
 	// broadcast reset board state to all
-	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{
+	channel.Broadcast(r.GetSerializedGameState(), channel.SocketContext{
 		Channel: r.ID,
 		MT:      2,
 	})
@@ -38,7 +36,7 @@ func (r *Instance) handleGameReady() {
 
 			// don't allow moves out of order
 			if !r.isTurn(move) {
-				channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
+				channel.Unicast(r.GetSerializedGameState(), move.Ctx)
 				continue
 			}
 

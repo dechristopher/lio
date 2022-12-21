@@ -6,10 +6,13 @@ import {
 	GameOverPayload,
 	NewCustomRoomPayload,
 	PlayerColor,
+	RematchPayload,
+	WebsocketMessage,
 } from "@client/proto/ws_pb";
 import classNames from "classnames";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import useWebSocket from "react-use-websocket";
 import styles from "./RematchModal.module.scss";
 
 enum PlayerOutcome {
@@ -18,65 +21,173 @@ enum PlayerOutcome {
 	DRAW,
 }
 
+enum RematchButtonState {
+	INITIAL,
+	WAITING,
+	REQUESTED,
+	DENIED,
+}
+
+const RematchButtonTextMap: Record<RematchButtonState, string> = {
+	[RematchButtonState.INITIAL]: "Rematch",
+	[RematchButtonState.WAITING]: "Rematch Requested",
+	[RematchButtonState.REQUESTED]: "Accept Rematch?",
+	[RematchButtonState.DENIED]: "Rematch Denied",
+};
+
+type MatchDetails = {
+	playerOutcome: PlayerOutcome;
+	opponentOutcome: PlayerOutcome;
+	gameOutcomeString: string;
+	playerScoresStr: string;
+};
+
 interface RematchModalProps extends Omit<ModalProps, "children"> {
 	playerColor: PlayerColor.WHITE | PlayerColor.BLACK;
-	gameOverPayload: GameOverPayload;
 	variantHtmlName: string;
 }
 
 export function RematchModal(props: RematchModalProps) {
 	const router = useRouter();
-	const [playerOutcome, setPlayerOutcome] = useState<PlayerOutcome | null>(
-		null,
+	const pathName = usePathname();
+	const [canRematch, setCanRematch] = useState<boolean>(false);
+	const [rematchBtnState, setRematchBtnState] = useState(
+		RematchButtonState.INITIAL,
 	);
 	const [
-		opponentOutcome,
-		setOpponentOutcome,
-	] = useState<PlayerOutcome | null>(null);
+		gameOverPayload,
+		setGameOverPayload,
+	] = useState<GameOverPayload | null>(null);
 
-	const gameOutcome = useMemo((): string => {
-		switch (props.gameOverPayload.gameOutcome) {
+	useWebSocket(`ws://localhost:3000/api/ws/socket${pathName}`, {
+		share: true,
+		onOpen: () => {
+			console.log("[Websocket] Connected to lioctad.org");
+		},
+		onClose: (event) => {
+			console.warn("[Websocket] Lost connection to lioctad.org", event);
+		},
+		onMessage: (event) => {
+			// console.log("[Websocket] Received message", event);
+			if (event.data) {
+				parseSocketResponse(event.data);
+			}
+		},
+		shouldReconnect: () => true,
+		onError: (event) =>
+			console.log("[Websocket] Encountered error ", event),
+	});
+
+	async function parseSocketResponse(res: Blob) {
+		const buffer = await res.arrayBuffer();
+		const message = WebsocketMessage.fromBinary(new Uint8Array(buffer));
+
+		switch (message.data.case) {
+			case "rematchPayload":
+				handleRematch(message.data.value);
+				break;
+			case "gameOverPayload":
+				setGameOverPayload(message.data.value);
+				break;
+			default:
+			// console.warn(
+			// 	`[Websocket] Unimplemented message handler! (${message.data.case})`,
+			// );
+		}
+	}
+
+	function handleRematch(payload: RematchPayload) {
+		if (payload.rematchReady) {
+			handleOnClose();
+			return;
+		}
+
+		if (!payload.bothPlayersPresent) {
+			setCanRematch(false);
+			// show a "denied" status if a player requests a rematch but then one leaves
+			if (payload.blackRequested || payload.whiteRequested) {
+				setRematchBtnState(RematchButtonState.DENIED);
+			}
+			return;
+		}
+
+		setCanRematch(true);
+		if (payload.blackRequested) {
+			if (props.playerColor === PlayerColor.BLACK) {
+				setRematchBtnState(RematchButtonState.WAITING);
+			} else {
+				setRematchBtnState(RematchButtonState.REQUESTED);
+			}
+		}
+
+		if (payload.whiteRequested) {
+			if (props.playerColor === PlayerColor.WHITE) {
+				setRematchBtnState(RematchButtonState.WAITING);
+			} else {
+				setRematchBtnState(RematchButtonState.REQUESTED);
+			}
+		}
+	}
+
+	const matchDetails = useMemo((): MatchDetails | null => {
+		if (!gameOverPayload) {
+			return null;
+		}
+
+		let playerOutcome: PlayerOutcome | null = null;
+		let opponentOutcome: PlayerOutcome | null = null;
+		let gameOutcomeString: string | null = null;
+		let playerScoresString: string | null = null;
+
+		const playerScores = gameOverPayload.score;
+		if (props.playerColor === PlayerColor.WHITE) {
+			playerScoresString = `${playerScores?.white} - ${playerScores?.black}`;
+		} else {
+			playerScoresString = `${playerScores?.black} - ${playerScores?.white}`;
+		}
+
+		switch (gameOverPayload.gameOutcome) {
 			case GameOutcome.UNSPECIFIED:
 				// TODO handle errors?
-				return "Err";
+				return null;
 			case GameOutcome.DRAW:
-				setPlayerOutcome(PlayerOutcome.DRAW);
-				setOpponentOutcome(PlayerOutcome.DRAW);
-				return "Draw!";
+				gameOutcomeString = "Draw!";
+				playerOutcome = PlayerOutcome.DRAW;
+				opponentOutcome = PlayerOutcome.DRAW;
+				break;
 			case GameOutcome.BLACK_WINS:
 				if (props.playerColor === PlayerColor.BLACK) {
-					setPlayerOutcome(PlayerOutcome.WIN);
-					setOpponentOutcome(PlayerOutcome.LOSE);
-					return "You won!";
+					gameOutcomeString = "You won!";
+					playerOutcome = PlayerOutcome.WIN;
+					opponentOutcome = PlayerOutcome.LOSE;
 				} else {
-					setPlayerOutcome(PlayerOutcome.LOSE);
-					setOpponentOutcome(PlayerOutcome.WIN);
-					return "Opponent won!";
+					gameOutcomeString = "Opponent won!";
+					playerOutcome = PlayerOutcome.LOSE;
+					opponentOutcome = PlayerOutcome.WIN;
 				}
+				break;
 			case GameOutcome.WHITE_WINS:
 				if (props.playerColor === PlayerColor.WHITE) {
-					setPlayerOutcome(PlayerOutcome.WIN);
-					setOpponentOutcome(PlayerOutcome.LOSE);
-					return "You won!";
+					gameOutcomeString = "You won!";
+					playerOutcome = PlayerOutcome.WIN;
+					opponentOutcome = PlayerOutcome.LOSE;
 				} else {
-					setPlayerOutcome(PlayerOutcome.LOSE);
-					setOpponentOutcome(PlayerOutcome.WIN);
-					return "Opponent won!";
+					gameOutcomeString = "Opponent won!";
+					playerOutcome = PlayerOutcome.LOSE;
+					opponentOutcome = PlayerOutcome.WIN;
 				}
+				break;
 		}
-	}, [props.gameOverPayload.gameOutcome, props.playerColor]);
 
-	const scores = useMemo((): string => {
-		const playerScores = props.gameOverPayload.score;
+		return {
+			playerOutcome,
+			opponentOutcome,
+			gameOutcomeString,
+			playerScoresStr: playerScoresString,
+		};
+	}, [gameOverPayload, props.playerColor]);
 
-		if (props.playerColor === PlayerColor.WHITE) {
-			return `${playerScores?.white} - ${playerScores?.black}`;
-		} else {
-			return `${playerScores?.black} - ${playerScores?.white}`;
-		}
-	}, [props.gameOverPayload.score, props.playerColor]);
-
-	function handleNewGame() {
+	function newGame() {
 		fetch("/api/room/new/human", {
 			method: "POST",
 			headers: {
@@ -95,35 +206,55 @@ export function RematchModal(props: RematchModalProps) {
 		});
 	}
 
-	// function handleRematch() {
+	function requestRematch() {
+		fetch(`/api/room${pathName}/rematch`, {
+			method: "POST",
+		});
+	}
 
-	// }
+	// reset state and close the modal
+	function handleOnClose(): void {
+		setCanRematch(false);
+		setRematchBtnState(RematchButtonState.INITIAL);
+		props.close();
+	}
+
+	// TODO handle nulls
+	if (!gameOverPayload || !matchDetails) {
+		return null;
+	}
 
 	return (
-		<Modal open={props.open} close={props.close}>
+		<Modal open={props.open} close={handleOnClose}>
 			<div>
 				<div
 					className={classNames([styles.header], {
-						[styles.win]: playerOutcome === PlayerOutcome.WIN,
-						[styles.lose]: playerOutcome === PlayerOutcome.LOSE,
-						[styles.draw]: playerOutcome === PlayerOutcome.DRAW,
+						[styles.win]:
+							matchDetails.playerOutcome === PlayerOutcome.WIN,
+						[styles.lose]:
+							matchDetails.playerOutcome === PlayerOutcome.LOSE,
+						[styles.draw]:
+							matchDetails.playerOutcome === PlayerOutcome.DRAW,
 					})}
 				>
-					<div className={styles.outcome}>{gameOutcome}</div>
+					<div className={styles.outcome}>
+						{matchDetails.gameOutcomeString}
+					</div>
 					<div className={styles.outcomeDetails}>
-						{props.gameOverPayload.outcomeDetails}
+						{gameOverPayload.outcomeDetails}
 					</div>
 				</div>
-
 				<div className={styles.body}>
 					<div className="flex justify-center items-center">
 						<div className={styles.player}>
 							<div
 								className={classNames([styles.piece], {
 									[styles.win]:
-										playerOutcome === PlayerOutcome.WIN,
+										matchDetails.playerOutcome ===
+										PlayerOutcome.WIN,
 									[styles.lose]:
-										playerOutcome === PlayerOutcome.LOSE,
+										matchDetails.playerOutcome ===
+										PlayerOutcome.LOSE,
 								})}
 							>
 								<Piece
@@ -133,14 +264,18 @@ export function RematchModal(props: RematchModalProps) {
 							</div>
 							<div>You</div>
 						</div>
-						<div className={styles.scores}>{scores}</div>
+						<div className={styles.scores}>
+							{matchDetails.playerScoresStr}
+						</div>
 						<div className={styles.player}>
 							<div
 								className={classNames([styles.piece], {
 									[styles.win]:
-										opponentOutcome === PlayerOutcome.WIN,
+										matchDetails?.opponentOutcome ===
+										PlayerOutcome.WIN,
 									[styles.lose]:
-										opponentOutcome === PlayerOutcome.LOSE,
+										matchDetails.opponentOutcome ===
+										PlayerOutcome.LOSE,
 								})}
 							>
 								<Piece
@@ -159,10 +294,26 @@ export function RematchModal(props: RematchModalProps) {
 					{/* TODO add back when Elo is tracked */}
 					{/* <div className={styles.elo}>2144 +7</div> */}
 				</div>
-
 				<div className={styles.footer}>
-					<Button onClick={() => handleNewGame()}>New Game</Button>
-					<Button>Rematch</Button>
+					<Button onClick={() => newGame()}>New Game</Button>
+					<Button
+						disabled={
+							!canRematch ||
+							rematchBtnState === RematchButtonState.WAITING
+						}
+						onClick={requestRematch}
+						className={classNames({
+							[styles.denied]:
+								rematchBtnState === RematchButtonState.DENIED,
+							[styles.waiting]:
+								rematchBtnState === RematchButtonState.WAITING,
+							[styles.requested]:
+								rematchBtnState ===
+								RematchButtonState.REQUESTED,
+						})}
+					>
+						{RematchButtonTextMap[rematchBtnState]}
+					</Button>
 				</div>
 			</div>
 		</Modal>

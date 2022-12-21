@@ -129,6 +129,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	roomGroup.Get("/", handlers.RoomStatusesHandler)
 	roomGroup.Get("/:id", handlers.RoomHandler)
 	roomGroup.Post("/:id/join", handlers.RoomJoinHandler)
+	roomGroup.Post("/:id/rematch", handlers.RoomRematchHandler)
 	roomGroup.Post("/:id/cancel", handlers.RoomCancelHandler)
 	// room creation routes
 	roomGroup.Post("/new/human", handlers.NewCustomRoomVsHuman)

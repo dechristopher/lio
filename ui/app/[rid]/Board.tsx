@@ -1,7 +1,7 @@
 "use client";
 
 import "react-octadground/dist/styles/octadground.css";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import Octadground, {
 	OctadgroundProps,
@@ -10,20 +10,23 @@ import Octadground, {
 } from "react-octadground/octadground";
 import useWebSocket from "react-use-websocket";
 import { Howl } from "howler";
-import { useAnimationFrame } from "@hooks/useAnimationFrame";
 import { GetBrowserId, IsMobile } from "@utils/index";
-import Clock from "./Clock";
+import Clock, { ClockState } from "./Clock";
 import {
 	WebsocketMessage,
 	MovePayload,
-	Moves,
 	GameOverPayload,
 	PlayerColor,
+	Variant,
 } from "@client/proto/ws_pb";
 import PromotionModal, {
 	BoardColumns,
 	PromoPiece,
 } from "@client/components/PromotionModal/PromotionModal";
+import { RematchModal } from "./RematchModal";
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
+dayjs.extend(duration);
 
 export const MoveSound = new Howl({
 	src: ["/sfx/move.ogg"],
@@ -51,11 +54,16 @@ export const GameOverSound = new Howl({
 	volume: 0.6,
 });
 
+export type ValidColors = PlayerColor.BLACK | PlayerColor.WHITE;
+
 const WhitePlayerString = "white";
 const BlackPlayerString = "black";
 
 const Board = () => {
 	const pathName = usePathname();
+	const router = useRouter();
+
+	// board state
 	const [playPremoveFn, setPlayPremoveFn] = useState<(() => boolean) | null>(
 		null,
 	);
@@ -72,24 +80,12 @@ const Board = () => {
 		onMove: (orig, dest, pieces) => doMove(orig, dest, pieces),
 	});
 
-	const [moveCount, setMoveCount] = useState(1);
-	const [playerTime, setPlayerTime] = useState<string>("");
-	const [playerRemainingTime, setPlayerRemainingTime] = useState(0);
-	const [opponentRemainingTime, setOpponentRemainingTime] = useState(0);
-	const [lastPingTime, setLastPingTime] = useState<number>(Date.now());
-	const [pongCount, setPongCount] = useState(0);
 	const [latency, setLatency] = useState(0);
-	const [timeControl, setTimeControl] = useState<number>(0);
-	const [opponentTime, setOpponentTime] = useState<string>("");
-	const [playerScore, setPlayerScore] = useState<number>(0);
-	const [opponentScore, setOpponentScore] = useState<number>(0);
+	const [pongCount, setPongCount] = useState(0);
+	const [numConnections, setNumConnections] = useState(0);
+	const [lastPingTime, setLastPingTime] = useState<number | null>(null);
 
-	const [playerColor, setPlayerColor] = useState<PlayerColor | null>(null);
-	const [isPlayerTurn, setIsPlayerTurn] = useState(false);
-	const [playerClockActive, setPlayerClockActive] = useState(false);
-	const [opponentClockActive, setOpponentClockActive] = useState(false);
-	const [playerClockBarWidth, setPlayerClockBarWidth] = useState(0);
-	const [opponentClockBarWidth, setOpponentClockBarWidth] = useState(0);
+	// promotion modal
 	const [showPromoModal, setShowPromoModal] = useState(false);
 	const [
 		promoPieceColumn,
@@ -97,20 +93,29 @@ const Board = () => {
 	] = useState<BoardColumns | null>(null);
 	const [orig, setOrig] = useState<Key | null>(null);
 	const [dest, setDest] = useState<Key | null>(null);
-	const [numClients, setNumClients] = useState(0);
+
+	// rematch modal
 	const [showRematchModal, setShowRematchModal] = useState(true);
-	const [
-		gameOverPayload,
-		setGameOverPayload,
-	] = useState<GameOverPayload | null>(null);
+
+	const [playerClock, setPlayerClock] = useState<ClockState | null>(null);
+	const [opponentClock, setOpponentClock] = useState<ClockState | null>(null);
+	const [variant, setVariant] = useState<Variant | null>(null);
 
 	const { sendMessage } = useWebSocket(
 		`ws://localhost:3000/api/ws/socket${pathName}`,
 		{
+			share: true,
 			onOpen: () => {
 				console.log("[Websocket] Connected to lioctad.org");
-				// sends an empty move message to prompt a response with board info
-				requestBoardInfo();
+				// immediately request game state
+				sendMessage(
+					new WebsocketMessage({
+						data: {
+							case: "gameStatePayload",
+							value: {},
+						},
+					}).toBinary(),
+				);
 			},
 			onClose: (event) => {
 				console.warn(
@@ -128,9 +133,9 @@ const Board = () => {
 				}));
 			},
 			onMessage: (event) => {
-				console.log("[Websocket] Received message", event);
+				// console.log("[Websocket] Received message", event);
 				if (event.data) {
-					parseSocketResponse(event.data);
+					parseSocketMessage(event.data);
 				}
 			},
 			shouldReconnect: () => true,
@@ -139,40 +144,8 @@ const Board = () => {
 		},
 	);
 
-	const playerClockAnimationFrameHandler = (clockStartFrameTime: number) => {
-		// converting milliseconds to centiseconds
-		const elapsedTime = (performance.now() - clockStartFrameTime) / 10;
-		const remainingTime = playerRemainingTime - elapsedTime;
-
-		if (remainingTime < 0) {
-			setPlayerClockActive(false);
-		} else {
-			setPlayerTime(timeFormatter(Math.max(remainingTime, 0)));
-			setPlayerClockBarWidth(calcBarWidth(timeControl, remainingTime));
-		}
-	};
-
-	const opponentClockAnimationFrameHandler = (
-		clockStartFrameTime: number,
-	) => {
-		// converting milliseconds to centiseconds
-		const elapsedTime = (performance.now() - clockStartFrameTime) / 10;
-		const remainingTime = opponentRemainingTime - elapsedTime;
-
-		if (remainingTime < 0) {
-			setOpponentClockActive(false);
-		} else {
-			setOpponentTime(timeFormatter(Math.max(remainingTime, 0)));
-			setOpponentClockBarWidth(calcBarWidth(timeControl, remainingTime));
-		}
-	};
-
-	useAnimationFrame(playerClockAnimationFrameHandler, playerClockActive);
-	useAnimationFrame(opponentClockAnimationFrameHandler, opponentClockActive);
-
-	// kick things off, on component mount
+	// setup interval runner on component mount
 	useEffect(() => {
-		// requestBoardInfo();
 		// TODO add polyfills
 		// window.requestAnimationFrame = (function () {
 		// 	return function (callback: FrameRequestCallback): number {
@@ -182,7 +155,7 @@ const Board = () => {
 
 		// sends a keep-alive message, requesting the socket stay open
 		const keepAlive = setInterval(() => {
-			console.log("[Websocket] Sending keep alive...");
+			// console.log("[Websocket] Sending keep alive...");
 			sendMessage(
 				new WebsocketMessage({
 					data: {
@@ -192,9 +165,10 @@ const Board = () => {
 				}).toBinary(),
 			);
 		}, 3000);
-		// pings the backend server every, used for calculating client latency
+		// repeatedly pings the backend server, allowing us to calculate client latency
 		const pingRunner = setInterval(() => {
-			console.log("[Websocket] Sending ping...");
+			// console.log("[Websocket] Sending ping...");
+			setLastPingTime(Date.now());
 			sendMessage(
 				new WebsocketMessage({
 					data: {
@@ -203,7 +177,6 @@ const Board = () => {
 					},
 				}).toBinary(),
 			);
-			setLastPingTime(Date.now());
 		}, 5000);
 
 		// clears intervals when the component un-mounts
@@ -215,21 +188,8 @@ const Board = () => {
 		};
 	}, []);
 
-	function requestBoardInfo() {
-		sendMessage(
-			new WebsocketMessage({
-				data: {
-					case: "movePayload",
-					value: {
-						ack: 0,
-					},
-				},
-			}).toBinary(),
-		);
-	}
-
-	async function parseSocketResponse(res: Blob) {
-		const buffer = await res.arrayBuffer();
+	async function parseSocketMessage(rawMessage: Blob) {
+		const buffer = await rawMessage.arrayBuffer();
 		const message = WebsocketMessage.fromBinary(new Uint8Array(buffer));
 
 		switch (message.data.case) {
@@ -243,18 +203,19 @@ const Board = () => {
 				handleGameOver(message.data.value);
 				break;
 			case "crowdPayload":
-				setNumClients(message.data.value.spectators);
+				setNumConnections(message.data.value.connections);
+				break;
+			case "redirectPayload":
+				router.push(message.data.value.location);
 				break;
 			default:
-				console.warn(
-					`[Websocket] Unimplemented message handler! (${message.data.case})`,
-				);
+			// TODO do we want to do anything for the default case?
 		}
 	}
 
 	function handlePing() {
-		console.log("[Websocket] Received pong");
-		const currentLag = Math.min(Date.now() - lastPingTime, 10000);
+		// console.log("[Websocket] Received pong");
+		const currentLag = Math.min(Date.now() - (lastPingTime ?? 0), 10000);
 		const newPongCount = pongCount + 1;
 
 		// average first few pings and then move to weighted moving average
@@ -266,12 +227,17 @@ const Board = () => {
 	}
 
 	function handleGameOver(payload: GameOverPayload) {
-		setPlayerClockActive(false);
-		setOpponentClockActive(false);
-		setPlayerRemainingTime(timeControl);
-		setOpponentRemainingTime(timeControl);
-
 		GameOverSound.play();
+		setPlayerClock(
+			(oldState) =>
+				({
+					...oldState,
+					isPlayerTurn: false,
+				} as ClockState),
+		);
+		setOpponentClock(
+			(oldState) => ({ ...oldState, isPlayerTurn: false } as ClockState),
+		);
 
 		// disallow further moves
 		setOctadgroundState((oldState) => ({
@@ -281,48 +247,89 @@ const Board = () => {
 			},
 		}));
 
-		setShowRematchModal(true);
-		setGameOverPayload(payload);
-
-		// if room over, redirect home after a second
-		// if (payload.roomOver === true) {
-		// 	setTimeout(() => {
-		// 		window.location.href = "/";
-		// 	}, 3000);
-		// }
+		if (payload.roomOver) {
+			// TODO add a delay with notification that the user will be redirected
+			router.push("/");
+		} else {
+			setShowRematchModal(true);
+		}
 	}
 
-	/**
-	 * Handle incoming move messages, update board state, update UI and clocks
-	 * @param message
-	 */
 	const handleMove = (message: MovePayload) => {
-		console.log("[Game] Move Payload", message);
-		const ofenParts: string[] = message.ofen.split(" ") ?? [];
+		console.log("Move Payload", message);
+		const moves = message.moves?.moves;
+		const variant = message.clock?.variant;
 
-		const isPlayerWhite = message.white === GetBrowserId() ? true : false;
-		const isWhitesTurn = ofenParts[1] === "w";
-		const isPlayersTurn =
-			(isPlayerWhite && isWhitesTurn) ||
-			(!isPlayerWhite && !isWhitesTurn);
-		setIsPlayerTurn(isPlayersTurn);
-		setPlayerColor(isPlayerWhite ? PlayerColor.WHITE : PlayerColor.BLACK);
+		// TODO handle undefined values
+		if (!variant?.control || !moves || !message.score || !message.clock) {
+			return;
+		}
 
-		// these are in centiseconds
-		const whiteTime = message.clock?.white;
-		const blackTime = message.clock?.black;
-		const playerTime = (isPlayerWhite ? whiteTime : blackTime) ?? 0;
-		const opponentTime = (isPlayerWhite ? blackTime : whiteTime) ?? 0;
-		setPlayerRemainingTime(Number(playerTime));
-		setOpponentRemainingTime(Number(opponentTime));
+		const ofenParts: string[] = message.ofen.split(" ");
+		const isPlayerWhite =
+			message.whitePlayerId === GetBrowserId() ? true : false;
+		const isWhitePlayerTurn = ofenParts[1] === "w";
+		const whitePlayerTime = dayjs.duration(
+			Number(message.clock.white),
+			"milliseconds",
+		);
+		const blackPlayerTime = dayjs.duration(
+			Number(message.clock.black),
+			"milliseconds",
+		);
 
-		// ensure both clocks are stopped
-		setPlayerClockActive(false);
-		setOpponentClockActive(false);
+		const whitePlayerScore = message.score.white;
+		const blackPlayerScore = message.score.black;
+		const playerColorString = isPlayerWhite
+			? WhitePlayerString
+			: BlackPlayerString;
+		const initialTime = dayjs.duration(
+			Number(variant.control.initialTime),
+			"milliseconds",
+		);
+		const isPlayerTurn =
+			(isPlayerWhite && isWhitePlayerTurn) ||
+			(!isPlayerWhite && !isWhitePlayerTurn);
+		const gameStarted = moves.length > 0;
 
-		// game sounds
-		if (message.gameStart) {
-			// play confirmation sound on game start
+		if (isPlayerWhite) {
+			setPlayerClock({
+				initialTime,
+				gameStarted,
+				isPlayerTurn,
+				score: whitePlayerScore,
+				timeRemaining: whitePlayerTime,
+				playerColor: PlayerColor.WHITE,
+			});
+			setOpponentClock({
+				initialTime,
+				gameStarted,
+				score: blackPlayerScore,
+				timeRemaining: blackPlayerTime,
+				playerColor: PlayerColor.BLACK,
+				isPlayerTurn: !isPlayerTurn,
+			});
+		} else {
+			setPlayerClock({
+				initialTime,
+				gameStarted,
+				isPlayerTurn,
+				score: blackPlayerScore,
+				timeRemaining: blackPlayerTime,
+				playerColor: PlayerColor.BLACK,
+			});
+			setOpponentClock({
+				initialTime,
+				gameStarted,
+				isPlayerTurn: !isPlayerTurn,
+				score: whitePlayerScore,
+				timeRemaining: whitePlayerTime,
+				playerColor: PlayerColor.WHITE,
+			});
+		}
+
+		// play game sounds
+		if (!gameStarted) {
 			GameStartSound.play();
 		} else {
 			// play move sounds if game is not starting
@@ -336,75 +343,45 @@ const Board = () => {
 			}
 		}
 
-		const getLastMove = (moves: string[]): [string, string] | [] => {
-			if (moves && moves.length > 0) {
+		const getLastMove = (): [string, string] | [] => {
+			if (gameStarted) {
 				const move = moves[moves.length - 1];
 				return [move.substring(0, 2), move.substring(2, 4)];
 			}
+
 			return [];
 		};
 
-		const getLegalMoves = (moves: { [key: string]: Moves }) => {
+		const getLegalMoves = () => {
 			const allMoves = new Map<Key, Key[]>();
-			if (moves) {
-				Object.entries(moves).forEach(([s1, dests]) => {
-					allMoves.set(s1 as Key, dests.moves as Key[]);
-				});
-			}
+			Object.entries(message.validMoves).forEach(([s1, dests]) => {
+				allMoves.set(s1 as Key, dests.moves as Key[]);
+			});
+
 			return allMoves;
 		};
 
-		setTimeControl(Number(message.clock?.control) ?? 0);
-
-		const playerColor = isPlayerWhite
-			? WhitePlayerString
-			: BlackPlayerString;
+		setVariant(variant);
 		setOctadgroundState((oldState) => ({
 			...oldState,
 			ofen: ofenParts[0],
-			check: message.check ?? false,
-			orientation: playerColor,
-			lastMove: getLastMove(message.moves?.moves ?? []),
-			turnColor: isWhitesTurn ? WhitePlayerString : BlackPlayerString,
+			check: message.check,
+			orientation: playerColorString,
+			lastMove: getLastMove(),
+			turnColor: isWhitePlayerTurn
+				? WhitePlayerString
+				: BlackPlayerString,
 			selectable: {
 				enabled: IsMobile(),
 			},
 			movable: {
 				free: false,
-				color: playerColor,
-				dests: getLegalMoves(message.validMoves),
+				color: playerColorString,
+				dests: getLegalMoves(),
 			},
 		}));
 
-		const whiteScore = message.score?.white;
-		const blackScore = message.score?.black;
-		if (whiteScore !== undefined && blackScore !== undefined) {
-			if (isPlayerWhite) {
-				setPlayerScore(whiteScore);
-				setOpponentScore(blackScore);
-			} else {
-				setPlayerScore(blackScore);
-				setOpponentScore(whiteScore);
-			}
-		}
-
-		// run at the start of the game
-		if (!message.moves?.moves.length) {
-			setMoveCount(1);
-			setPlayerTime(timeFormatter(Math.max(Number(playerTime), 0)));
-			setOpponentTime(timeFormatter(Math.max(Number(opponentTime), 0)));
-			setPlayerClockBarWidth(100);
-			setOpponentClockBarWidth(100);
-		} else {
-			// all subsequent moves
-			if (isPlayersTurn) {
-				setPlayerClockActive(true);
-			} else {
-				setOpponentClockActive(true);
-			}
-		}
-
-		// perform pre-move if set
+		// play pre-move if set
 		if (playPremoveFn) {
 			playPremoveFn();
 		}
@@ -435,14 +412,12 @@ const Board = () => {
 		}
 
 		console.log("[Websocket] Sending game move...");
-		setMoveCount((oldMove) => oldMove++);
 		sendMessage(
 			new WebsocketMessage({
 				data: {
 					case: "movePayload",
 					value: {
 						uoi: orig + dest,
-						ack: moveCount,
 					},
 				},
 			}).toBinary(),
@@ -456,7 +431,6 @@ const Board = () => {
 	const doMovePromo = (promo: PromoPiece) => {
 		console.log("doMovePromo", orig, dest, promo);
 		if (orig && dest) {
-			setMoveCount((oldMove) => oldMove++);
 			setShowPromoModal(false);
 			setPromoPieceColumn(null);
 			sendMessage(
@@ -465,7 +439,6 @@ const Board = () => {
 						case: "movePayload",
 						value: {
 							uoi: orig + dest + promo,
-							ack: moveCount,
 						},
 					},
 				}).toBinary(),
@@ -473,20 +446,28 @@ const Board = () => {
 		}
 	};
 
+	if (!variant || !variant.control || !playerClock || !opponentClock) {
+		console.log(variant, playerClock, opponentClock);
+		return <div>Loading...</div>;
+	}
+
 	return (
 		<div className="flex flex-col items-center pt-8">
+			{GetBrowserId()}
 			<div className="font-bold text-3xl italic mb-2 leading-none">
-				½ + 1 Blitz
+				{variant.name}
 			</div>
 
 			<div className="flex flex-col items-center">
 				<Clock
-					flipOrientation
-					time={opponentTime}
-					score={opponentScore}
-					isActive={!isPlayerTurn}
-					barWidth={opponentClockBarWidth}
-					isWhite={!(playerColor === PlayerColor.WHITE)}
+					state={opponentClock}
+					flipOrientation={true}
+					setIsActive={() =>
+						setOpponentClock(
+							(s) =>
+								({ ...s, isPlayerTurn: false } as ClockState),
+						)
+					}
 				/>
 				<div className="relative">
 					<Octadground
@@ -495,84 +476,42 @@ const Board = () => {
 						height="38vw"
 					/>
 
-					{!!promoPieceColumn && !!playerColor && (
+					{!!promoPieceColumn && (
 						<PromotionModal
 							open={showPromoModal}
 							boardColumn={promoPieceColumn}
-							playerColor={playerColor}
+							playerColor={playerClock.playerColor}
 							onPieceSelection={doMovePromo}
 						/>
 					)}
 				</div>
 				<Clock
-					time={playerTime}
-					score={playerScore}
-					isActive={isPlayerTurn}
-					barWidth={playerClockBarWidth}
-					isWhite={playerColor === PlayerColor.WHITE}
+					state={playerClock}
+					flipOrientation={true}
+					setIsActive={() =>
+						setPlayerClock(
+							(s) =>
+								({ ...s, isPlayerTurn: false } as ClockState),
+						)
+					}
 				/>
 
 				<div className="flex justify-center pt-2 pb-1 octad-tan text-2xs w-11/12 rounded-b">
-					<div className="mr-1">{`${numClients} CONNECTED`}</div>
+					<div className="mr-1">{`${numConnections} CONNECTED`}</div>
 					<div>{`(${latency}ms)`}</div>
 				</div>
 			</div>
 
-			{/* {gameOverPayload && playerColor && (
-				<RematchModal
-					open={showRematchModal}
-					playerColor={playerColor}
-					gameOverPayload={gameOverPayload}
-					close={() => setShowRematchModal(false)}
-				/>
-			)} */}
+			<RematchModal
+				open={showRematchModal}
+				variantHtmlName={variant.htmlName}
+				playerColor={playerClock.playerColor}
+				close={() => {
+					setShowRematchModal(false);
+				}}
+			/>
 		</div>
 	);
-};
-
-/**
- * Format time in MM:SS.CC
- * @param centiSeconds - number of centiseconds remaining
- * @returns {string} formatted time
- */
-const timeFormatter = (centiSeconds: number): string => {
-	const padZero = (time: number, slice: number): string =>
-		`0${time}`.slice(slice);
-
-	const minutes = (centiSeconds / 6000) | 0;
-	let minutesFmt: string | null;
-	if (minutes > 9) {
-		minutesFmt = padZero((centiSeconds / 6000) | 0, 1);
-	} else {
-		minutesFmt = padZero((centiSeconds / 6000) | 0, 0);
-	}
-
-	let seconds = ((centiSeconds / 100) | 0) % 60;
-	if (seconds < 0) {
-		seconds = 0;
-	}
-	const secondsFmt = padZero(seconds, -2);
-
-	const centis = centiSeconds % 100;
-	let centiFmt: string | null;
-	if (centis < 10) {
-		centiFmt = padZero(centis, 0).slice(0, 1);
-	} else {
-		centiFmt = `${centis}`.slice(0, 1);
-	}
-
-	return `${minutesFmt}:${secondsFmt}.${centiFmt}`;
-};
-
-/**
- * Returns a CSS width percentage based on the percentage of
- * the clock time remaining for the given time control
- * @param timeControl - time control total centiseconds
- * @param time - centiseconds remaining
- * @returns {`${number}%`}
- */
-const calcBarWidth = (timeControl: number, time: number): number => {
-	return Math.min((time / timeControl) * 100, 100);
 };
 
 export default Board;

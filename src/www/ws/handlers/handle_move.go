@@ -17,12 +17,6 @@ func HandleMove(payload *wsv1.MovePayload, meta channel.SocketContext) []byte {
 		return nil
 	}
 
-	// quickly return board state on new connection
-	if payload.Ack == 0 {
-		util.DebugFlag("h-move", str.CHMov, "quick state sent")
-		return thisRoom.CurrentGameStateMessage(true, false)
-	}
-
 	// send move to room
 	thisRoom.SendMove(&message.RoomMove{
 		Player: meta.UID, Move: payload, Ctx: meta,

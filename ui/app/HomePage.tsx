@@ -1,16 +1,9 @@
 "use client";
 
-import {
-	PlayerColor,
-	GameOverPayload,
-	GameOutcome,
-	ScorePayload,
-} from "@client/proto/ws_pb";
 import Button from "@components/Button/Button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import CustomGameModal from "./CustomGameModal";
-import { RematchModal } from "./[rid]/RematchModal";
 
 export default function HomePage() {
 	const router = useRouter();
@@ -72,24 +65,6 @@ export default function HomePage() {
 			<CustomGameModal
 				open={modalOpen}
 				close={() => setModalOpen(false)}
-			/>
-
-			<RematchModal
-				open
-				playerColor={PlayerColor.BLACK}
-				variantHtmlName="five-zero-bullet"
-				gameOverPayload={
-					new GameOverPayload({
-						gameOutcome: GameOutcome.DRAW,
-						outcomeDetails: "by checkmate",
-						roomOver: false,
-						score: new ScorePayload({
-							black: 1,
-							white: 0,
-						}),
-					})
-				}
-				close={() => {}}
 			/>
 		</div>
 	);

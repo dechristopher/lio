@@ -11,7 +11,9 @@ export default function Button(props: ButtonProps) {
 	return (
 		<button
 			{...props}
-			className={classNames(styles.libtn, props.className)}
+			className={classNames(styles.libtn, props.className, {
+				[styles.disabled]: props.disabled,
+			})}
 		>
 			{props.children}
 		</button>
