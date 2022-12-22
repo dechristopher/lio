@@ -135,7 +135,10 @@ const calcBarWidth = (timeControl: Duration, time: Duration): number => {
 
 function formatDuration(duration: Duration): string {
 	const durationStr = duration.format("mm:ss:SSS");
-	return durationStr.slice(0, durationStr.length - 2);
+	// show to the decisecond when time >= 10
+	// show to the centisecond when time < 10
+	const sliceEnd = duration.asSeconds() < 10 ? 1 : 2;
+	return durationStr.slice(0, durationStr.length - sliceEnd);
 }
 
 export default Clock;
