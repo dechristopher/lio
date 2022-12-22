@@ -690,12 +690,10 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	if r.game.Outcome() != octad.NoOutcome {
 		// send final game update to prevent further moves
 		channel.Broadcast(r.GetSerializedGameState(), meta)
-		// broadcast game over message immediately
-		channel.Broadcast(r.gameOverMessage(abandoned), meta)
-
 		// keep track of match score
 		r.updateScore()
-
+		// broadcast game over message immediately
+		channel.Broadcast(r.gameOverMessage(abandoned), meta)
 		// record game result
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
