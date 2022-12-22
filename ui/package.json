@@ -51,5 +51,10 @@
 		"@typescript-eslint/eslint-plugin": "^5.42.1",
 		"@typescript-eslint/parser": "^5.42.1",
 		"eslint-plugin-unused-imports": "^2.0.0"
+	},
+	"dependenciesMeta": {
+		"next@13.0.3": {
+			"unplugged": true
+		}
 	}
 }
