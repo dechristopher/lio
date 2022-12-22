@@ -442,8 +442,7 @@ const Board = () => {
 	}
 
 	return (
-		<div className="flex flex-col items-center pt-8">
-			{GetBrowserId()}
+		<div className="flex flex-col items-center">
 			<div className="font-bold text-3xl italic mb-2 leading-none">
 				{variant.name}
 			</div>
@@ -477,7 +476,7 @@ const Board = () => {
 				</div>
 				<Clock
 					state={playerClock}
-					flipOrientation={true}
+					flipOrientation={false}
 					setIsActive={() =>
 						setPlayerClock(
 							(s) =>
@@ -500,6 +499,8 @@ const Board = () => {
 				close={(closeWebsocket) => {
 					setShowRematchModal(false);
 					if (closeWebsocket) {
+						setLatency(0);
+						setNumConnections(0);
 						setWebsocketOpen(false);
 					}
 				}}
