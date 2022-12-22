@@ -11,7 +11,7 @@ import {
 } from "@client/proto/ws_pb";
 import classNames from "classnames";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import useWebSocket from "react-use-websocket";
 import styles from "./RematchModal.module.scss";
 
@@ -39,6 +39,7 @@ type MatchDetails = {
 	playerOutcome: PlayerOutcome;
 	opponentOutcome: PlayerOutcome;
 	gameOutcomeString: string;
+	outcomeDetails: string;
 	playerScoresStr: string;
 };
 
@@ -56,10 +57,7 @@ export function RematchModal(props: RematchModalProps) {
 	const [rematchBtnState, setRematchBtnState] = useState(
 		RematchButtonState.INITIAL,
 	);
-	const [
-		gameOverPayload,
-		setGameOverPayload,
-	] = useState<GameOverPayload | null>(null);
+	const [matchDetails, setMatchDetails] = useState<MatchDetails | null>(null);
 
 	useWebSocket(
 		`ws://localhost:3000/api/ws/socket${pathName}`,
@@ -98,7 +96,7 @@ export function RematchModal(props: RematchModalProps) {
 				handleRematch(message.data.value);
 				break;
 			case "gameOverPayload":
-				setGameOverPayload(message.data.value);
+				handleGameOver(message.data.value);
 				break;
 			default:
 			// TODO do we want to handle the default case?
@@ -138,9 +136,11 @@ export function RematchModal(props: RematchModalProps) {
 		}
 	}
 
-	const matchDetails = useMemo((): MatchDetails | null => {
-		if (!gameOverPayload) {
-			return null;
+	function handleGameOver(payload: GameOverPayload): void {
+		const playerScores = payload.score;
+		if (!playerScores) {
+			// TODO handle error
+			return;
 		}
 
 		let playerOutcome: PlayerOutcome | null = null;
@@ -148,17 +148,16 @@ export function RematchModal(props: RematchModalProps) {
 		let gameOutcomeString: string | null = null;
 		let playerScoresString: string | null = null;
 
-		const playerScores = gameOverPayload.score;
 		if (props.playerColor === PlayerColor.WHITE) {
-			playerScoresString = `${playerScores?.white} - ${playerScores?.black}`;
+			playerScoresString = `${playerScores.white} - ${playerScores.black}`;
 		} else {
-			playerScoresString = `${playerScores?.black} - ${playerScores?.white}`;
+			playerScoresString = `${playerScores.black} - ${playerScores.white}`;
 		}
 
-		switch (gameOverPayload.gameOutcome) {
+		switch (payload.gameOutcome) {
 			case GameOutcome.UNSPECIFIED:
-				// TODO handle errors?
-				return null;
+				// TODO handle error
+				return;
 			case GameOutcome.DRAW:
 				gameOutcomeString = "Draw!";
 				playerOutcome = PlayerOutcome.DRAW;
@@ -188,13 +187,14 @@ export function RematchModal(props: RematchModalProps) {
 				break;
 		}
 
-		return {
+		setMatchDetails({
 			playerOutcome,
 			opponentOutcome,
 			gameOutcomeString,
 			playerScoresStr: playerScoresString,
-		};
-	}, [gameOverPayload, props.playerColor]);
+			outcomeDetails: payload.outcomeDetails,
+		});
+	}
 
 	function newGame() {
 		fetch("/api/room/new/human", {
@@ -229,7 +229,7 @@ export function RematchModal(props: RematchModalProps) {
 	}
 
 	// TODO handle nulls
-	if (!gameOverPayload || !matchDetails) {
+	if (!matchDetails) {
 		return null;
 	}
 
@@ -250,7 +250,7 @@ export function RematchModal(props: RematchModalProps) {
 						{matchDetails.gameOutcomeString}
 					</div>
 					<div className={styles.outcomeDetails}>
-						{gameOverPayload.outcomeDetails}
+						{matchDetails.outcomeDetails}
 					</div>
 				</div>
 				<div className={styles.body}>
