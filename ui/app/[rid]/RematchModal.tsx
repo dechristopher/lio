@@ -42,9 +42,11 @@ type MatchDetails = {
 	playerScoresStr: string;
 };
 
-interface RematchModalProps extends Omit<ModalProps, "children"> {
+interface RematchModalProps extends Omit<ModalProps, "children" | "close"> {
 	playerColor: PlayerColor.WHITE | PlayerColor.BLACK;
 	variantHtmlName: string;
+	websocketOpen: boolean;
+	close: (closeWebsocket: boolean) => void;
 }
 
 export function RematchModal(props: RematchModalProps) {
@@ -59,24 +61,33 @@ export function RematchModal(props: RematchModalProps) {
 		setGameOverPayload,
 	] = useState<GameOverPayload | null>(null);
 
-	useWebSocket(`ws://localhost:3000/api/ws/socket${pathName}`, {
-		share: true,
-		onOpen: () => {
-			console.log("[Websocket] Connected to lioctad.org");
+	useWebSocket(
+		`ws://localhost:3000/api/ws/socket${pathName}`,
+		{
+			share: true,
+			onOpen: () => {
+				console.log("[Websocket] Connected to lioctad.org");
+			},
+			onClose: (event) => {
+				console.warn(
+					"[Websocket] Lost connection to lioctad.org",
+					event,
+				);
+			},
+			onMessage: (event) => {
+				if (event.data) {
+					parseSocketResponse(event.data);
+				} else {
+					// TODO handle error
+				}
+			},
+			shouldReconnect: () => true,
+			onError: (event) =>
+				console.log("[Websocket] Encountered error ", event),
+			// TODO add logging
 		},
-		onClose: (event) => {
-			console.warn("[Websocket] Lost connection to lioctad.org", event);
-		},
-		onMessage: (event) => {
-			// console.log("[Websocket] Received message", event);
-			if (event.data) {
-				parseSocketResponse(event.data);
-			}
-		},
-		shouldReconnect: () => true,
-		onError: (event) =>
-			console.log("[Websocket] Encountered error ", event),
-	});
+		props.websocketOpen,
+	);
 
 	async function parseSocketResponse(res: Blob) {
 		const buffer = await res.arrayBuffer();
@@ -90,15 +101,13 @@ export function RematchModal(props: RematchModalProps) {
 				setGameOverPayload(message.data.value);
 				break;
 			default:
-			// console.warn(
-			// 	`[Websocket] Unimplemented message handler! (${message.data.case})`,
-			// );
+			// TODO do we want to handle the default case?
 		}
 	}
 
 	function handleRematch(payload: RematchPayload) {
 		if (payload.rematchReady) {
-			handleOnClose();
+			handleOnClose(false);
 			return;
 		}
 
@@ -213,10 +222,10 @@ export function RematchModal(props: RematchModalProps) {
 	}
 
 	// reset state and close the modal
-	function handleOnClose(): void {
+	function handleOnClose(closeWebsocket: boolean): void {
 		setCanRematch(false);
 		setRematchBtnState(RematchButtonState.INITIAL);
-		props.close();
+		props.close(closeWebsocket);
 	}
 
 	// TODO handle nulls
@@ -225,7 +234,7 @@ export function RematchModal(props: RematchModalProps) {
 	}
 
 	return (
-		<Modal open={props.open} close={handleOnClose}>
+		<Modal open={props.open} close={() => handleOnClose(true)}>
 			<div>
 				<div
 					className={classNames([styles.header], {

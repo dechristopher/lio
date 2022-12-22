@@ -63,7 +63,6 @@ const Board = () => {
 	const pathName = usePathname();
 	const router = useRouter();
 
-	// board state
 	const [playPremoveFn, setPlayPremoveFn] = useState<(() => boolean) | null>(
 		null,
 	);
@@ -79,13 +78,10 @@ const Board = () => {
 		},
 		onMove: (orig, dest, pieces) => doMove(orig, dest, pieces),
 	});
-
 	const [latency, setLatency] = useState(0);
 	const [pongCount, setPongCount] = useState(0);
 	const [numConnections, setNumConnections] = useState(0);
 	const [lastPingTime, setLastPingTime] = useState<number | null>(null);
-
-	// promotion modal
 	const [showPromoModal, setShowPromoModal] = useState(false);
 	const [
 		promoPieceColumn,
@@ -93,13 +89,11 @@ const Board = () => {
 	] = useState<BoardColumns | null>(null);
 	const [orig, setOrig] = useState<Key | null>(null);
 	const [dest, setDest] = useState<Key | null>(null);
-
-	// rematch modal
 	const [showRematchModal, setShowRematchModal] = useState(true);
-
 	const [playerClock, setPlayerClock] = useState<ClockState | null>(null);
 	const [opponentClock, setOpponentClock] = useState<ClockState | null>(null);
 	const [variant, setVariant] = useState<Variant | null>(null);
+	const [webSocketOpen, setWebsocketOpen] = useState(true);
 
 	const { sendMessage } = useWebSocket(
 		`ws://localhost:3000/api/ws/socket${pathName}`,
@@ -133,26 +127,22 @@ const Board = () => {
 				}));
 			},
 			onMessage: (event) => {
-				// console.log("[Websocket] Received message", event);
 				if (event.data) {
 					parseSocketMessage(event.data);
+				} else {
+					// TODO handle errors
 				}
 			},
 			shouldReconnect: () => true,
 			onError: (event) =>
+				// TODO add logging
 				console.log("[Websocket] Encountered error ", event),
 		},
+		webSocketOpen,
 	);
 
-	// setup interval runner on component mount
+	// setup interval runners on component mount
 	useEffect(() => {
-		// TODO add polyfills
-		// window.requestAnimationFrame = (function () {
-		// 	return function (callback: FrameRequestCallback): number {
-		// 		return window.setTimeout(callback, 1000 / 60);¡¡
-		// 	};
-		// })();
-
 		// sends a keep-alive message, requesting the socket stay open
 		const keepAlive = setInterval(() => {
 			// console.log("[Websocket] Sending keep alive...");
@@ -504,10 +494,14 @@ const Board = () => {
 
 			<RematchModal
 				open={showRematchModal}
+				websocketOpen={webSocketOpen}
 				variantHtmlName={variant.htmlName}
 				playerColor={playerClock.playerColor}
-				close={() => {
+				close={(closeWebsocket) => {
 					setShowRematchModal(false);
+					if (closeWebsocket) {
+						setWebsocketOpen(false);
+					}
 				}}
 			/>
 		</div>
