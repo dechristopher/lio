@@ -291,15 +291,19 @@ func (r *Instance) IsReady() bool {
 }
 
 // Cancel will cancel the room if not past waiting for players state
-func (r *Instance) Cancel() bool {
+func (r *Instance) Cancel(uid string) bool {
 	// only allow room cancellation in the waiting state
 	if r.State() != wsv1.RoomState_ROOM_STATE_WAITING_FOR_PLAYERS {
 		return false
 	}
-
+	// only the room creator can cancel it
+	if !r.IsCreator(uid) {
+		return false
+	}
 	// set cancelled flag to halt room routine loop
 	r.cancelled = true
-
+	// redirect all players waiting back home
+	r.RedirectLobby("/")
 	// emit control message to signal room routine handler to exit
 	r.controlChannel <- &message.RoomControl{
 		Type: message.Cancel,
@@ -355,6 +359,9 @@ func (r *Instance) Join(uid string) bool {
 			},
 		}
 
+		// redirect all players waiting to the game
+		go r.RedirectLobby(fmt.Sprintf("/%s", r.ID))
+
 		// joined properly
 		return true
 	}
@@ -393,9 +400,8 @@ func (r *Instance) Rematch(uid string) bool {
 	return false
 }
 
-// NotifyWaiting notifies the waiting player(s) that games have begun
-// by sending redirect messages to the room
-func (r *Instance) NotifyWaiting() {
+// RedirectLobby notifies the waiting player(s) that the room state has change
+func (r *Instance) RedirectLobby(location string) {
 	waitingChannelName := fmt.Sprintf("%s%s", wait, r.ID)
 	// ensure channel exists before notifying players
 	if waitingChannel := channel.Map.GetSockMap(waitingChannelName); waitingChannel != nil {
@@ -405,7 +411,7 @@ func (r *Instance) NotifyWaiting() {
 		}
 
 		websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_RedirectPayload{RedirectPayload: &wsv1.RedirectPayload{
-			Location: fmt.Sprintf("/%s", r.ID),
+			Location: location,
 		}}}
 
 		payload, err := proto.Marshal(&websocketMessage)

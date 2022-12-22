@@ -26,8 +26,8 @@ export default function Lobby(props: LobbyProps) {
 				"[Websocket - Lobby] Lost connection to lioctad.org",
 				event,
 			),
+		shouldReconnect: () => true,
 		onMessage: (event) => {
-			console.log("[Websocket - Lobby] Received message", event);
 			if (event.data) {
 				parseSocketMessage(event.data);
 			}

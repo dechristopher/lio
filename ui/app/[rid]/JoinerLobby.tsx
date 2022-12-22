@@ -1,13 +1,12 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React from "react";
 import Button from "../../components/Button/Button";
 import GameSettings, { GameSettingsProps } from "./GameSettings";
 import styles from "./JoinerLobby.module.scss";
 
 export default function JoinerLobby(props: GameSettingsProps) {
-	const router = useRouter();
 	const pathName = usePathname();
 
 	return (
@@ -23,10 +22,6 @@ export default function JoinerLobby(props: GameSettingsProps) {
 				onClick={() => {
 					fetch(`/api/room${pathName}/join`, {
 						method: "POST",
-					}).then((response) => {
-						if (response.status === 200) {
-							router.push(response.url);
-						}
 					});
 				}}
 			>

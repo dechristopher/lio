@@ -71,12 +71,11 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 
 	// attempt to join room
 	if roomInstance.Join(uid) {
-		// broadcast message to waiting player(s)
-		go roomInstance.NotifyWaiting()
+		// success
+		return c.SendStatus(200)
 	}
-
-	// TODO should we error out if join failed? for successes is there something else that makes more sense than a redirect?
-	return c.Redirect("/" + roomInstance.ID)
+	// failure
+	return c.Redirect("/", fiber.StatusBadRequest)
 }
 
 // RoomRematchHandler handles a players request for a rematch
@@ -91,9 +90,8 @@ func RoomRematchHandler(c *fiber.Ctx) error {
 		// success
 		return c.SendStatus(200)
 	}
-
-	// failure // TODO do we care if it fails?
-	return c.SendStatus(200)
+	// failure
+	return c.Redirect("/", fiber.StatusBadRequest)
 }
 
 // RoomCancelHandler cancels the room immediately
@@ -103,17 +101,13 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 		return err
 	}
 
-	if !roomInstance.IsCreator(uid) {
-		return c.Redirect("/", fiber.StatusForbidden)
+	// attempt to cancel the room
+	if roomInstance.Cancel(uid) {
+		// success
+		return c.SendStatus(200)
 	}
-
-	// cancel the game if we're allowed to
-	if !roomInstance.Cancel() {
-		return c.Redirect("/", fiber.StatusBadRequest)
-	}
-
-	// redirect home after room cancellation
-	return c.Redirect("/")
+	// failure
+	return c.Redirect("/", fiber.StatusBadRequest)
 }
 
 // NewQuickRoomVsHuman creates a game against a human player with the default

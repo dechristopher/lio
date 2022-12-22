@@ -2,14 +2,13 @@
 
 import classNames from "classnames";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React, { FC, useEffect, useState } from "react";
 import Button from "../../components/Button/Button";
 import GameSettings, { GameSettingsProps } from "./GameSettings";
 import styles from "./CreatorLobby.module.scss";
 
 const CreatorLobby: FC<GameSettingsProps> = (props) => {
-	const router = useRouter();
 	const pathName = usePathname();
 	const [hasCopied, setHasCopied] = useState(false);
 	const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -89,10 +88,6 @@ const CreatorLobby: FC<GameSettingsProps> = (props) => {
 				onClick={() => {
 					fetch(`/api/room${pathName}/cancel`, {
 						method: "POST",
-					}).then((response) => {
-						if (response.status === 200) {
-							router.push(response.url);
-						}
 					});
 				}}
 			>
