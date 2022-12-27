@@ -117,6 +117,9 @@ type Listener chan int
 // UnListen closes a listener channel and un-tracks it from
 // the list of listener channels used by the broadcast routine
 func (s *SockMap) UnListen(listener Listener) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
 	for i := range s.listenChannels {
 		if s.listenChannels[i] == listener {
 			close(s.listenChannels[i])
