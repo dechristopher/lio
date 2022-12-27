@@ -26,6 +26,8 @@ func MakeMonitor(name string) *Monitor {
 
 // Get EWMA lag for the given monitor
 func (m *Monitor) Get() time.Duration {
+	m.mut.Lock()
+	defer m.mut.Unlock()
 	return time.Duration(m.avg.Value())
 }
 
