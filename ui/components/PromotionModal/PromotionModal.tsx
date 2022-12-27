@@ -1,10 +1,11 @@
+import { ValidColors } from "@client/app/[rid]/Board";
 import { PlayerColor } from "@client/proto/ws_pb";
 import classNames from "classnames";
 import React, { FC } from "react";
 import { Piece, PieceType } from "../Piece/Piece";
 import styles from "./PromotionModal.module.scss";
 
-export enum BoardColumns {
+export enum File {
 	A = "a",
 	B = "b",
 	C = "c",
@@ -21,8 +22,8 @@ export enum PromoPiece {
 
 interface PromotionModalProps {
 	open: boolean;
-	boardColumn: BoardColumns;
-	playerColor: PlayerColor.BLACK | PlayerColor.WHITE;
+	file: File;
+	playerColor: ValidColors;
 	onPieceSelection: (piece: PromoPiece) => void;
 }
 
@@ -31,16 +32,29 @@ const PromotionModal: FC<PromotionModalProps> = (props) => {
 		return null;
 	}
 
-	function getColumn(): string {
-		switch (props.boardColumn) {
-			case BoardColumns.A:
-				return styles.columnOne;
-			case BoardColumns.B:
-				return styles.columnTwo;
-			case BoardColumns.C:
-				return styles.columnThree;
-			case BoardColumns.D:
-				return styles.columnFour;
+	function getFile(): string {
+		if (props.playerColor === PlayerColor.WHITE) {
+			switch (props.file) {
+				case File.A:
+					return styles.columnOne;
+				case File.B:
+					return styles.columnTwo;
+				case File.C:
+					return styles.columnThree;
+				case File.D:
+					return styles.columnFour;
+			}
+		} else {
+			switch (props.file) {
+				case File.A:
+					return styles.columnFour;
+				case File.B:
+					return styles.columnThree;
+				case File.C:
+					return styles.columnTwo;
+				case File.D:
+					return styles.columnOne;
+			}
 		}
 	}
 
@@ -48,7 +62,7 @@ const PromotionModal: FC<PromotionModalProps> = (props) => {
 		<div className={styles.container}>
 			<div className={styles.promoShade} />
 			<div
-				className={classNames([styles.box, styles.rowOne, getColumn()])}
+				className={classNames([styles.box, styles.rowOne, getFile()])}
 				onClick={() => props.onPieceSelection(PromoPiece.QUEEN)}
 			>
 				<Piece
@@ -57,7 +71,7 @@ const PromotionModal: FC<PromotionModalProps> = (props) => {
 				/>
 			</div>
 			<div
-				className={classNames([styles.box, styles.rowTwo, getColumn()])}
+				className={classNames([styles.box, styles.rowTwo, getFile()])}
 				onClick={() => props.onPieceSelection(PromoPiece.ROOK)}
 			>
 				<Piece
@@ -66,11 +80,7 @@ const PromotionModal: FC<PromotionModalProps> = (props) => {
 				/>
 			</div>
 			<div
-				className={classNames([
-					styles.box,
-					styles.rowThree,
-					getColumn(),
-				])}
+				className={classNames([styles.box, styles.rowThree, getFile()])}
 				onClick={() => props.onPieceSelection(PromoPiece.BISHOP)}
 			>
 				<Piece
@@ -79,11 +89,7 @@ const PromotionModal: FC<PromotionModalProps> = (props) => {
 				/>
 			</div>
 			<div
-				className={classNames([
-					styles.box,
-					styles.rowFour,
-					getColumn(),
-				])}
+				className={classNames([styles.box, styles.rowFour, getFile()])}
 				onClick={() => props.onPieceSelection(PromoPiece.KNIGHT)}
 			>
 				<Piece

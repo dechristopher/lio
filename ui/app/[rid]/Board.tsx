@@ -20,7 +20,7 @@ import {
 	Variant,
 } from "@client/proto/ws_pb";
 import PromotionModal, {
-	BoardColumns,
+	File,
 	PromoPiece,
 } from "@client/components/PromotionModal/PromotionModal";
 import { RematchModal } from "./RematchModal";
@@ -83,10 +83,7 @@ const Board = () => {
 	const [numConnections, setNumConnections] = useState(0);
 	const [lastPingTime, setLastPingTime] = useState<number | null>(null);
 	const [showPromoModal, setShowPromoModal] = useState(false);
-	const [
-		promoPieceColumn,
-		setPromoPieceColumn,
-	] = useState<BoardColumns | null>(null);
+	const [promoPieceFile, setPromoPieceFile] = useState<File | null>(null);
 	const [orig, setOrig] = useState<Key | null>(null);
 	const [dest, setDest] = useState<Key | null>(null);
 	const [showRematchModal, setShowRematchModal] = useState(true);
@@ -218,6 +215,7 @@ const Board = () => {
 
 	function handleGameOver(payload: GameOverPayload) {
 		GameOverSound.play();
+		setShowPromoModal(false);
 		setPlayerClock(
 			(oldState) =>
 				({
@@ -394,7 +392,7 @@ const Board = () => {
 				setOrig(orig);
 				setDest(dest);
 				setShowPromoModal(true);
-				setPromoPieceColumn(dest[0] as BoardColumns);
+				setPromoPieceFile(dest[0] as File);
 
 				// return early and wait for doMovePromo to run
 				return;
@@ -422,7 +420,7 @@ const Board = () => {
 		console.log("doMovePromo", orig, dest, promo);
 		if (orig && dest) {
 			setShowPromoModal(false);
-			setPromoPieceColumn(null);
+			setPromoPieceFile(null);
 			sendMessage(
 				new WebsocketMessage({
 					data: {
@@ -465,10 +463,10 @@ const Board = () => {
 						height="38vw"
 					/>
 
-					{!!promoPieceColumn && (
+					{!!promoPieceFile && (
 						<PromotionModal
 							open={showPromoModal}
-							boardColumn={promoPieceColumn}
+							file={promoPieceFile}
 							playerColor={playerClock.playerColor}
 							onPieceSelection={doMovePromo}
 						/>
