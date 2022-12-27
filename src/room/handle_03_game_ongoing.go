@@ -60,6 +60,7 @@ func (r *Instance) handleGameOngoing() {
 
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:
+			util.DebugFlag("room", str.CRoom, "[%s] flagged clock state: %+v", flaggedState)
 			// automatically resign game if clock expires
 			if flaggedState.Victor == clock.White {
 				r.game.Resign(octad.Black)
@@ -81,18 +82,9 @@ func (r *Instance) handleGameOngoing() {
 
 			return
 		// handle start/stop of abandon timer when players connect and disconnect
-		case <-connectionListener:
-			// both players connected, no issues
-			playersConnected := util.BothColors(func(color octad.Color) bool {
-				if r.players[color].IsBot {
-					return true
-				}
-
-				// return whether the player is connected
-				return channel.Map.GetSockMap(r.ID).Get(r.players[color].ID) != nil
-			})
-
-			if playersConnected {
+		case numConnections := <-connectionListener:
+			util.DebugFlag("room", str.CRoom, "[%s] room player count changed: %d", r.ID, numConnections)
+			if r.BothPlayersConnected() {
 				util.DebugFlag("room", str.CRoom, "[%s] both players connected, cancelling abandon timer", r.ID)
 				if cleanupTimer != nil {
 					cleanupTimer.Stop()
@@ -110,22 +102,8 @@ func (r *Instance) handleGameOngoing() {
 			}
 		// figure out who abandoned and resign the game
 		case <-cleanupTimer.C:
-			// determine who isn't connected
-			connected := make(map[octad.Color]bool)
-
-			util.DoBothColors(func(color octad.Color) {
-				if r.players[color].IsBot {
-					connected[color] = true
-				}
-
-				// set whether the player by color is connected
-				connected[color] = channel.Map.GetSockMap(r.ID).Get(r.players[color].ID) != nil
-			})
-
 			// if both players abandoned
-			if util.BothColors(func(color octad.Color) bool {
-				return connected[color]
-			}) {
+			if !r.BothPlayersConnected() {
 				util.DebugFlag("room", str.CRoom, "[%s] both players abandoned, game drawn", r.ID)
 				// draw the game immediately
 				err := r.game.Draw(octad.DrawOffer)
@@ -133,6 +111,7 @@ func (r *Instance) handleGameOngoing() {
 					panic(err)
 				}
 			} else {
+				connected := r.GetConnectedPlayers()
 				// otherwise find abandoning player and resign them
 				if !connected[octad.White] {
 					util.DebugFlag("room", str.CRoom, "[%s] white abandoned, black wins", r.ID)

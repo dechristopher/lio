@@ -64,7 +64,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 	}
 
 	// ensure room exists for connection
-	if thisRoom, err := room.Get(roomId); thisRoom == nil {
+	if thisRoom, err := room.Map.Get(roomId); thisRoom == nil {
 		util.Error(str.CWS, str.EWSConn, err.Error())
 		return func(conn *websocket.Conn) {
 			_ = conn.Close()
@@ -118,7 +118,7 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 				break
 			}
 
-			util.DebugFlag("ws", str.CWS, str.DWSRecv, message.Data)
+			//util.DebugFlag("ws", str.CWS, str.DWSRecv, message.Data)
 
 			var resp []byte
 			socketCtx := channel.SocketContext{

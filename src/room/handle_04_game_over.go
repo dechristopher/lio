@@ -39,15 +39,10 @@ func (r *Instance) handleGameOver() {
 				panic(err)
 			}
 			return
-		case _ = <-connectionListener:
-			blackPlayer := r.players[octad.Black]
-			whitePlayer := r.players[octad.White]
-			blackPlayerPresent := blackPlayer.IsBot || roomSocketMap.Has(blackPlayer.ID)
-			whitePlayerPresent := whitePlayer.IsBot || roomSocketMap.Has(whitePlayer.ID)
-			bothPlayersPresent := blackPlayerPresent && whitePlayerPresent
-
+		case numConnections := <-connectionListener:
+			util.DebugFlag("room", str.CRoom, "[%s] room player count changed: %d", r.ID, numConnections)
 			websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_RematchPayload{RematchPayload: &wsv1.RematchPayload{
-				BothPlayersPresent: bothPlayersPresent,
+				BothPlayersPresent: r.BothPlayersConnected(),
 				WhiteRequested:     r.rematch[octad.White],
 				BlackRequested:     r.rematch[octad.Black],
 			}}}
@@ -60,14 +55,18 @@ func (r *Instance) handleGameOver() {
 			channel.Broadcast(payload, meta)
 		case control := <-r.controlChannel:
 			if control.Type == message.Rematch {
+				util.DebugFlag("room", str.CRoom, "[%s] processing rematch request", r.ID)
+				blackPlayer, whitePlayer := r.players.GetPlayers()
 				// track agreement for player looked up via context. auto-agree if either player is a bot
-				util.DoBothColors(func(color octad.Color) {
-					if r.players[color].ID == control.Ctx.UID || r.players[color].IsBot {
-						r.rematch.Agree(color)
-					}
-				})
+				if whitePlayer.ID == control.Ctx.UID || whitePlayer.IsBot {
+					r.rematch.Agree(octad.White)
+				}
+				if blackPlayer.ID == control.Ctx.UID || blackPlayer.IsBot {
+					r.rematch.Agree(octad.Black)
+				}
 
 				if r.rematch.Agreed() {
+					util.DebugFlag("room", str.CRoom, "[%s] rematch agreed, restarting room", r.ID)
 					err := r.event(EventRematchAgreed)
 					if err != nil {
 						panic(err)
@@ -101,6 +100,7 @@ func (r *Instance) handleGameOver() {
 
 					return
 				} else {
+					util.DebugFlag("room", str.CRoom, "[%s] rematch requested by player: %+v", r.ID, r.rematch)
 					websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_RematchPayload{RematchPayload: &wsv1.RematchPayload{
 						BothPlayersPresent: true, // is it fine to assume?
 						BlackRequested:     r.rematch[octad.Black],

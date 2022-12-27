@@ -21,7 +21,7 @@ func HandlePing() []byte {
 		return nil
 	}
 
-	util.DebugFlag("ws", str.CWS, str.DWSSend, pong.Data)
+	//util.DebugFlag("ws", str.CWS, str.DWSSend, pong.Data)
 
 	return payload
 }

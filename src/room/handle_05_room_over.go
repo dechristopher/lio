@@ -11,6 +11,7 @@ import (
 
 // handleGameOver handles room finalization and player notification
 func (r *Instance) handleRoomOver() {
+	util.DebugFlag("room", str.CRoom, "[%s] ending room..", r.ID)
 	// TODO would a "RoomOver" message make more sense than a redirect?
 	websocketMessage := wsv1.WebsocketMessage{Data: &wsv1.WebsocketMessage_RedirectPayload{RedirectPayload: &wsv1.RedirectPayload{
 		Location: "/",

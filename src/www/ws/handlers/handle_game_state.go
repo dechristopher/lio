@@ -9,7 +9,7 @@ import (
 
 // HandleGameState returns the current game state
 func HandleGameState(meta channel.SocketContext) []byte {
-	thisRoom, err := room.Get(meta.RoomID)
+	thisRoom, err := room.Map.Get(meta.RoomID)
 	if err != nil {
 		util.DebugFlag("h-move", str.CHMov, "no room with id: %s", meta.RoomID)
 		return nil

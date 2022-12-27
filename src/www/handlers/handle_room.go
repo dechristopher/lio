@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/dechristopher/lio/message"
-	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
 	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/lio/room"
@@ -32,7 +31,7 @@ func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 	}
 
 	// grab room instance
-	roomInstance, err := room.Get(c.Params("id"))
+	roomInstance, err := room.Map.Get(c.Params("id"))
 	if err != nil || roomInstance == nil {
 		// continue to 404 page if room not found
 		return "", nil, c.Status(fiber.StatusNotFound).Next(), true
@@ -43,7 +42,7 @@ func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 
 // RoomStatusesHandler returns important room information
 func RoomStatusesHandler(c *fiber.Ctx) error {
-	rooms := room.GetAll()
+	rooms := room.Map.GetAll()
 	var roomStatuses []message.RoomStatusPayload
 	for _, currRoom := range rooms {
 		roomStatuses = append(roomStatuses, currRoom.GenStatusPayload())
@@ -180,18 +179,11 @@ func newRoom(payload newRoomPayload) error {
 	// establish room parameters
 	params := room.NewParams(uid, payload.variant)
 
-	// set creating player ID in players map
-	params.Players[payload.selectedColor] = &player.Player{
-		ID: uid,
-	}
-
-	// configure room with player to join via URL
-	toJoin := player.ToJoin
-	params.Players[payload.selectedColor.Other()] = &toJoin
-
-	// set bot=true if game is configured with computer opponent
-	if payload.vsBot {
-		params.Players[payload.selectedColor.Other()].IsBot = true
+	// configure the players
+	err := params.Players.AddPlayer(uid, payload.selectedColor, payload.vsBot)
+	if err != nil {
+		util.Error(str.CRoom, "failed to create room: %s", err.Error())
+		return payload.c.Redirect("/")
 	}
 
 	// create room and handle resultant errors

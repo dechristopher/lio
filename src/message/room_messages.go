@@ -2,15 +2,17 @@ package message
 
 import (
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/player"
 	wsv1 "github.com/dechristopher/lio/proto"
 )
 
 type RoomStatusPayload struct {
-	RoomID    string
-	RoomState wsv1.RoomState
-	Variant   *wsv1.Variant
-	Players   player.Players
+	RoomID     string
+	RoomState  wsv1.RoomState
+	Variant    *wsv1.Variant
+	Players    *player.Players
+	ClockState clock.State
 }
 
 type RoomMove struct {

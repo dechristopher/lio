@@ -11,9 +11,9 @@ import (
 
 // HandleMove processes game update messages
 func HandleMove(payload *wsv1.MovePayload, meta channel.SocketContext) []byte {
-	thisRoom, err := room.Get(meta.RoomID)
+	thisRoom, err := room.Map.Get(meta.RoomID)
 	if err != nil {
-		util.DebugFlag("h-move", str.CHMov, "no room with id: %s", meta.RoomID)
+		util.DebugFlag("ws", str.CWS, "no room with id: %s", meta.RoomID)
 		return nil
 	}
 

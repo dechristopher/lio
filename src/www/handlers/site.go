@@ -44,7 +44,7 @@ func SiteStatsHandler(c *fiber.Ctx) error {
 			})
 			memStats = stats{
 				Players: players,
-				Games:   room.Count(),
+				Games:   room.Map.Count(),
 			}
 			lastStats = time.Now()
 			statLock.Unlock()

@@ -41,32 +41,47 @@ var roomChannelTypes = []Type{
 	wait,
 }
 
-// rooms is a mapping from room ID to instance
-var rooms = make(map[string]*Instance)
+// Rooms is a map[roomId] -> *Instance
+type Rooms struct {
+	*sync.Map
+}
+
+var (
+	Map = Rooms{Map: &sync.Map{}}
+)
 
 // Get room instance by id
-func Get(id string) (*Instance, error) {
-	instance := rooms[id]
-	if instance == nil {
+func (r *Rooms) Get(id string) (*Instance, error) {
+	instanceRaw, ok := r.Load(id)
+	if !ok {
 		return nil, ErrNoRoom{ID: id}
 	}
+	instance := instanceRaw.(*Instance)
 	return instance, nil
 }
 
 // GetAll room instances
-func GetAll() []*Instance {
+func (r *Rooms) GetAll() []*Instance {
 	// Convert map to slice of values.
 	var values []*Instance
-	for _, value := range rooms {
-		values = append(values, value)
-	}
+	r.Range(func(_, value any) bool {
+		instance := value.(*Instance)
+		values = append(values, instance)
+		return true
+	})
 
 	return values
 }
 
 // Count returns the number of active rooms
-func Count() int {
-	return len(rooms)
+func (r *Rooms) Count() int {
+	var numRooms = 0
+	r.Range(func(_, _ any) bool {
+		numRooms++
+		return true
+	})
+
+	return numRooms
 }
 
 // Instance is a struct that represents an ongoing match between
@@ -83,7 +98,7 @@ type Instance struct {
 	moveChannel    chan *message.RoomMove
 	controlChannel chan *message.RoomControl
 
-	players player.Players
+	players *player.Players
 	rematch player.Agreement
 
 	joinToken   string // token to control joining challenges
@@ -96,7 +111,7 @@ type Instance struct {
 // Params for room Instance creation1
 type Params struct {
 	Creator    string
-	Players    player.Players
+	Players    *player.Players
 	GameConfig game.OctadGameConfig
 }
 
@@ -105,7 +120,7 @@ type Params struct {
 func NewParams(creatorId string, variant *wsv1.Variant) Params {
 	return Params{
 		Creator: creatorId,
-		Players: make(player.Players),
+		Players: player.NewPlayers(),
 		GameConfig: game.OctadGameConfig{
 			Variant: variant,
 		},
@@ -114,27 +129,27 @@ func NewParams(creatorId string, variant *wsv1.Variant) Params {
 
 // Create a room instance from the given parameters
 func Create(params Params) (*Instance, error) {
+	blackPlayer, whitePlayer := params.Players.GetPlayers()
 	// make sure both players are configured
-	if len(params.Players) != 2 {
+	if blackPlayer == nil || whitePlayer == nil {
 		return nil, ErrBadParamsPlayers{}
 	}
 
 	// TODO no support for two bots at the moment
 	// P1 must be a human for P2 to be a bot
 	// (internal engine vs internal engine)
-	if util.BothColors(func(c octad.Color) bool {
-		return params.Players[c].IsBot
-	}) {
+	if params.Players.HasTwoBots() {
 		return nil, ErrBadParamsTwoBots{}
 	}
 
 	roomId := config.GenerateCode(7, config.Base58)
 
-	for rooms[roomId] != nil {
-		roomId = config.GenerateCode(7, config.Base58)
-	}
+	// TODO not sure what this did so it got commented out
+	//for rooms[roomId] != nil {
+	//	roomId = config.GenerateCode(7, config.Base58)
+	//}
 
-	r := &Instance{
+	roomInstance := &Instance{
 		ID:           roomId,
 		creator:      params.Creator,
 		stateMachine: newStateMachine(),
@@ -151,41 +166,40 @@ func Create(params Params) (*Instance, error) {
 	}
 
 	// randomize join token before anybody joins to prevent abuse
-	r.NewJoinToken()
+	roomInstance.NewJoinToken()
 
 	// Keep track of all channels for off-rpc broadcasts
 	// Create new SockMaps and track them under the channel key
 	// for each room channel type
 	for _, channelType := range roomChannelTypes {
-		channel.Map.GetSockMap(fmt.Sprintf("%s%s", channelType, r.ID))
+		channel.Map.GetSockMap(fmt.Sprintf("%s%s", channelType, roomInstance.ID))
 	}
 
 	// handle crowd messages for primary room channel
-	go handlers.HandleCrowd(r.ID)
+	go handlers.HandleCrowd(roomInstance.ID)
 
-	r.populateGameConfig()
+	roomInstance.populateGameConfig()
 
 	// create a new game instance using the provided game config
 	var err error
-	r.game, err = game.NewOctadGame(r.params.GameConfig)
+	roomInstance.game, err = game.NewOctadGame(roomInstance.params.GameConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// begin room routine
-	err = r.init()
+	err = roomInstance.init()
 	if err != nil {
 		return nil, err
 	}
 
 	// store room in rooms map
-	// TODO sync.Map
-	rooms[r.ID] = r
+	Map.Store(roomInstance.ID, roomInstance)
 
 	// log room creation
-	util.Info(str.CRoom, "[%s] room created by uid %s", r.ID, params.Creator)
+	util.Info(str.CRoom, "[%s] room created by uid %s", roomInstance.ID, params.Creator)
 
-	return r, nil
+	return roomInstance, nil
 }
 
 // init begins the room routine and initializes the room state
@@ -209,7 +223,7 @@ func (r *Instance) routine() {
 		}
 	}()
 	// defer room cleanup, still runs in case of a panic, thanks go
-	defer r.cleanup()
+	defer Map.Delete(r.ID)
 
 	for {
 		util.DebugFlag("room", str.CRoom, "[%s] room state transition - %s", r.ID, r.State())
@@ -248,7 +262,8 @@ func (r *Instance) cleanup() {
 		}
 	}
 	// delete room instance from rooms map
-	delete(rooms, r.ID)
+	Map.Delete(r.ID)
+
 }
 
 // event runs a state machine transition using the given EventDesc and args
@@ -275,19 +290,14 @@ func (r *Instance) flipBoard() {
 // populateGameConfig copies relevant parameter values to the game config parameter
 // before generating a new game during init, or when flipping the board
 func (r *Instance) populateGameConfig() {
-	if r.params.GameConfig.White == "" && r.players[octad.White] != nil {
-		r.params.GameConfig.White = r.players[octad.White].ID
+	blackPlayer, whitePlayer := r.players.GetPlayers()
+	if r.params.GameConfig.White == "" {
+		r.params.GameConfig.White = whitePlayer.ID
 	}
 
-	if r.params.GameConfig.Black == "" && r.players[octad.Black] != nil {
-		r.params.GameConfig.Black = r.players[octad.Black].ID
+	if r.params.GameConfig.Black == "" {
+		r.params.GameConfig.Black = blackPlayer.ID
 	}
-}
-
-// IsReady returns true if the room is ready for games to be played
-func (r *Instance) IsReady() bool {
-	hasTwoPlayers, _ := r.players.HasTwoPlayers()
-	return hasTwoPlayers || r.HasBot()
 }
 
 // Cancel will cancel the room if not past waiting for players state
@@ -316,35 +326,12 @@ func (r *Instance) Cancel(uid string) bool {
 	return true
 }
 
-// CanJoin returns true if the given player by uid can participate in the match
-// either as a player or a spectator TODO is this needed?
-func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
-	hasPlayers, _ := r.players.HasTwoPlayers()
-
-	// force into spectator mode if match has both players
-	if hasPlayers && !r.players.IsPlayer(uid) {
-		// TODO track spectator somehow
-		return false, true
-	}
-
-	// player can return if P1, or join as P2
-	return true, false
-}
-
 // Join attempts to join the room as a human player
 func (r *Instance) Join(uid string) bool {
-	// if room established with both players // TODO this could update to check the socket connections
-	hasTwo, missingColor := r.players.HasTwoPlayers()
-
-	// if second player joining
-	if !hasTwo && missingColor != octad.NoColor {
-		// set joining player
-		r.players[missingColor] = &player.Player{
-			ID: uid,
-		}
-
+	// try to add the player
+	if playerAdded, playerColor := r.players.AddMissingPlayer(uid); playerAdded {
 		// set internal game instance state
-		if missingColor == octad.White {
+		if playerColor == octad.White {
 			r.game.White = uid
 		} else {
 			r.game.Black = uid
@@ -373,14 +360,7 @@ func (r *Instance) Join(uid string) bool {
 // Rematch attempts to accept a players request for a rematch
 func (r *Instance) Rematch(uid string) bool {
 	if r.State() == wsv1.RoomState_ROOM_STATE_GAME_OVER {
-		roomSocketMap := channel.Map.GetSockMap(r.ID)
-		blackPlayer := r.players[octad.Black]
-		whitePlayer := r.players[octad.White]
-		blackPlayerPresent := blackPlayer.IsBot || roomSocketMap.Has(blackPlayer.ID)
-		whitePlayerPresent := whitePlayer.IsBot || roomSocketMap.Has(whitePlayer.ID)
-		bothPlayersPresent := blackPlayerPresent && whitePlayerPresent
-
-		if bothPlayersPresent {
+		if r.BothPlayersConnected() {
 			// emit control message to signal room routine handler to update state
 			r.controlChannel <- &message.RoomControl{
 				Type: message.Rematch,
@@ -439,7 +419,7 @@ func (r *Instance) CancelToken() string {
 }
 
 // Players returns the players in the room
-func (r *Instance) Players() player.Players {
+func (r *Instance) Players() *player.Players {
 	return r.players
 }
 
@@ -464,6 +444,27 @@ func (r *Instance) Game() *game.OctadGame {
 	return r.game
 }
 
+func (r *Instance) GetConnectedPlayers() map[octad.Color]bool {
+	connected := make(map[octad.Color]bool)
+	roomSocketMap := channel.Map.GetSockMap(r.ID)
+
+	blackPlayer, whitePlayer := r.players.GetPlayers()
+	blackPlayerPresent := blackPlayer.IsBot || roomSocketMap.Has(blackPlayer.ID)
+	whitePlayerPresent := whitePlayer.IsBot || roomSocketMap.Has(whitePlayer.ID)
+
+	connected[octad.White] = whitePlayerPresent
+	connected[octad.Black] = blackPlayerPresent
+
+	return connected
+}
+
+func (r *Instance) BothPlayersConnected() bool {
+	connected := r.GetConnectedPlayers()
+	return util.BothColors(func(color octad.Color) bool {
+		return connected[color]
+	})
+}
+
 // SendMove writes a move to the room's moveChannel
 // to be consumed by a listening routine
 func (r *Instance) SendMove(move *message.RoomMove) {
@@ -475,6 +476,7 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 
 // GetSerializedGameState returns the current game state in a marshalled move payload
 func (r *Instance) GetSerializedGameState() []byte {
+	blackPlayer, whitePlayer := r.players.GetPlayers()
 	moveMessage := wsv1.MovePayload{
 		RoomState:     r.State(),
 		San:           r.getSAN(),
@@ -482,8 +484,8 @@ func (r *Instance) GetSerializedGameState() []byte {
 		Clock:         r.currentClock(),
 		ValidMoves:    r.game.LegalMoves(),
 		Check:         r.game.Position().InCheck(),
-		WhitePlayerId: r.players[octad.White].ID,
-		BlackPlayerId: r.players[octad.Black].ID,
+		WhitePlayerId: whitePlayer.ID,
+		BlackPlayerId: blackPlayer.ID,
 		Moves: &wsv1.Moves{
 			Moves: r.game.MoveHistory(),
 		},
@@ -568,7 +570,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		errMove := r.game.Move(mov)
 		if errMove != nil {
 			// bad if this happens
-			util.Error(str.CRoom, "bad move given err=%s", errMove.Error())
+			util.Error(str.CRoom, "[%s] bad move given err=%s", r.ID, errMove.Error())
 			return false
 		}
 
@@ -587,6 +589,8 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		if !move.Ctx.IsBot && r.players.HasBot() && r.game.Outcome() == octad.NoOutcome {
 			r.requestEngineMove()
 		}
+	} else {
+		util.Error(str.CRoom, "[%s] move is not legal", r.ID)
 	}
 
 	// if no move or illegal move provided, return to
@@ -602,11 +606,8 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		return false
 	}
 
-	// broadcast move to everyone and send response back to player
-	channel.BroadcastEx(r.GetSerializedGameState(), move.Ctx)
-	if move.Ctx.IsHuman() {
-		channel.Unicast(r.GetSerializedGameState(), move.Ctx)
-	}
+	// broadcast updated game state to everyone
+	channel.Broadcast(r.GetSerializedGameState(), move.Ctx)
 
 	return true
 }
@@ -657,13 +658,13 @@ func (r *Instance) calcDepth(color octad.Color) int {
 
 	// TODO need to evaluate these values
 	switch tc := control; {
-	case tc >= 6000:
+	case tc >= time.Second*60:
 		depth = 7
-	case tc >= 3000:
+	case tc >= time.Second*30:
 		depth = 6
-	case tc >= 1500:
+	case tc >= time.Second*15:
 		depth = 5
-	case tc >= 5:
+	case tc >= time.Second*5:
 		depth = 4
 	default:
 		depth = 4
@@ -783,10 +784,11 @@ func (r *Instance) GameState() octad.Outcome {
 // GenStatusPayload generates a RoomStatusPayload
 func (r *Instance) GenStatusPayload() message.RoomStatusPayload {
 	payload := message.RoomStatusPayload{
-		RoomID:    r.ID,
-		RoomState: r.State(),
-		Variant:   r.Game().Variant,
-		Players:   r.Players(),
+		RoomID:     r.ID,
+		RoomState:  r.State(),
+		Variant:    r.Game().Variant,
+		ClockState: r.Game().Clock.State(true),
+		Players:    r.Players(),
 	}
 
 	return payload

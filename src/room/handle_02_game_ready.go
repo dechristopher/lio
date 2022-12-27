@@ -15,7 +15,7 @@ func (r *Instance) handleGameReady() {
 	cleanupTimer := time.NewTimer(gameReadyExpiryTime)
 	defer cleanupTimer.Stop()
 
-	// broadcast reset board state to all
+	// broadcast game state to everyone
 	channel.Broadcast(r.GetSerializedGameState(), channel.SocketContext{
 		Channel: r.ID,
 		MT:      2,
@@ -36,6 +36,7 @@ func (r *Instance) handleGameReady() {
 
 			// don't allow moves out of order
 			if !r.isTurn(move) {
+				util.DebugFlag("room", str.CRoom, "[%s] not player's turn, ignoring move", r.ID)
 				channel.Unicast(r.GetSerializedGameState(), move.Ctx)
 				continue
 			}
@@ -45,6 +46,8 @@ func (r *Instance) handleGameReady() {
 			if r.game.Clock.State(true).IsPaused {
 				util.DebugFlag("room", str.CRoom, "[%s] starting clock", r.ID)
 				r.game.Clock.Start()
+			} else {
+				util.Error(str.CRoom, "[%s] clock was running before first move was made: %+v", r.ID, r.game.Clock.State(true))
 			}
 
 			// make move and continue routine if move failed
@@ -54,6 +57,7 @@ func (r *Instance) handleGameReady() {
 
 				// re-request engine first move
 				if r.players.GetBotColor() == octad.White {
+					util.DebugFlag("room", str.CRoom, "[%s] re-requesting move from engine..", r.ID)
 					r.requestEngineMove()
 				}
 				continue
@@ -69,9 +73,8 @@ func (r *Instance) handleGameReady() {
 
 			return
 		case <-cleanupTimer.C:
-			r.abandoned = true
-			// game expired, white timed out making first move
 			util.DebugFlag("room", str.CRoom, "[%s] game expired, white timed out making first move, cleaning up", r.ID)
+			r.abandoned = true
 			err := r.event(EventPlayerAbandons)
 			if err != nil {
 				panic(err)
