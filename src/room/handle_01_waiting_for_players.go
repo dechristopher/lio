@@ -25,6 +25,15 @@ func (r *Instance) handleWaitingForPlayers() {
 		select {
 		case numConnections := <-connectionListener:
 			util.DebugFlag("room", str.CRoom, "[%s] lobby player count changed: %d", r.ID, numConnections)
+
+			if numConnections > 0 {
+				util.DebugFlag("room", str.CRoom, "[%s] stopping lobby clean up timer", r.ID)
+				cleanupTimer.Stop()
+			} else {
+				util.DebugFlag("room", str.CRoom, "[%s] resuming lobby clean up timer", r.ID)
+				cleanupTimer.Reset(lobbyExpiryTime)
+			}
+
 			// immediately start the game if one of the players is a bot
 			if r.players.HasBot() {
 				util.DebugFlag("room", str.CRoom, "[%s] room has bot, game ready", r.ID)
