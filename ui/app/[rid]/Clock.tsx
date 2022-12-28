@@ -86,7 +86,7 @@ const Clock: FC<ClockProps> = (props) => {
 								props.state.playerColor === PlayerColor.BLACK,
 						})}
 					>
-						{props.flipOrientation ? "Opponent" : "Player"}
+						{props.flipOrientation ? "OPPONENT" : "YOU"}
 					</div>
 					<div className={styles.clockRatingNumber}>
 						{props.state.score}

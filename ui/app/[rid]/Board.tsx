@@ -459,8 +459,8 @@ const Board = () => {
 				<div className="relative">
 					<Octadground
 						{...octadGroundState}
-						width="38vw"
-						height="38vw"
+						width="320px"
+						height="320px"
 					/>
 
 					{!!promoPieceFile && (

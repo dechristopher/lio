@@ -46,9 +46,13 @@ export default function Lobby(props: LobbyProps) {
 		}
 	}
 
-	if (props.isCreator) {
-		return <CreatorLobby {...props} />;
-	} else {
-		return <JoinerLobby {...props} />;
-	}
+	return (
+		<div className="container">
+			{props.isCreator ? (
+				<CreatorLobby {...props} />
+			) : (
+				<JoinerLobby {...props} />
+			)}
+		</div>
+	);
 }

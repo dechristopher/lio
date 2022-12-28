@@ -50,7 +50,7 @@ var (
 	Map = Rooms{Map: &sync.Map{}}
 )
 
-// Get room instance by id
+// Get room instance by id TODO we should close or redirect ws connections when a room isn't found
 func (r *Rooms) Get(id string) (*Instance, error) {
 	instanceRaw, ok := r.Load(id)
 	if !ok {

@@ -20,6 +20,17 @@ body {
 	-webkit-user-select: none;
 }
 
+.container {
+	background-color: $primary-brown;
+	padding: 12px 16px;
+	border-radius: 3px;
+	margin-bottom: 4px;
+
+	&.standard-width {
+		width: 352px;
+	}
+}
+
 .octad-green {
 	color: $primary-green;
 }
@@ -100,6 +111,21 @@ body {
 
 .octad-tan {
 	background-color: $primary-brown;
+}
+
+.og-wrap coords {
+	font-family: "Poppins", sans-serif !important;
+	font-size: 12px !important;
+	font-weight: 600;
+}
+
+.og-wrap coords.ranks {
+	top: -30px !important;
+	left: 2px !important;
+}
+
+.og-wrap coords.files {
+	left: 33px !important;
 }
 
 /* noto-sans-regular - latin */

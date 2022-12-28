@@ -10,7 +10,7 @@ export default function HomePage() {
 	const [modalOpen, setModalOpen] = useState(false);
 
 	return (
-		<div className="flex flex-col items-center">
+		<div className="container flex flex-col items-center">
 			<div className="text-xl italic font-bold">QUICK GAME</div>
 
 			<div className="flex items-center">

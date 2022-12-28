@@ -1,108 +1,98 @@
 .container {
-  display: flex;
-  flex-direction: column;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
 
-  &.flip {
-    flex-direction: column-reverse;
-  }
+	&.flip {
+		flex-direction: column-reverse;
+	}
 }
 
 .clockContainer {
-  display: flex;
-  background-color: #a8a397;
-  width: 38vw;
-  border-radius: 3px 3px 0 0;
-  padding: 4;
-  justify-content: space-between;
-  align-items: center;
+	display: flex;
+	background-color: #a8a397;
+	border-radius: 3px 3px 0 0;
+	padding: 4;
+	justify-content: space-between;
+	align-items: center;
 
-  &.active {
-    background-color: #A68D6D;
-  }
+	&.active {
+		background-color: #a68d6d;
+	}
 
-  &.flip {
-    border-radius: 0 0 3px 3px;
-  }
+	&.flip {
+		border-radius: 0 0 3px 3px;
+	}
 }
 
 .clockNameContainer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 
-  padding-left: 6px;
+	padding-left: 6px;
 }
 
 .clockScore {
-  color: #FFF0DB;
-  font-size: 17px;
-  font-weight: 700;
+	color: #fff0db;
+	font-size: 17px;
+	font-weight: 700;
 
-  padding-right: 12px;
+	padding-right: 12px;
 }
 
 .clockName {
-  font-size: 15px;
-  font-weight: 600;
+	font-size: 15px;
+	font-weight: 600;
 
-  &.playerWhite {
-    color: #FFF;
-  }
+	&.playerWhite {
+		color: #fff;
+	}
 
-  &.playerBlack {
-    color: #000;
-  }
+	&.playerBlack {
+		color: #000;
+	}
 }
 
 .clockRatingNumber {
-  padding-left: 6px;
-  color: #FFF0DB;
-  font-weight: 600;
-  font-size: 11px;
-  margin-top: 2px;
+	padding-left: 6px;
+	color: #fff0db;
+	font-weight: 600;
+	font-size: 11px;
+	margin-top: 2px;
 }
 
 .clockTime {
-  color: #FFF0DB;
-  font-size: 28px;
-  font-weight: 500;
-  font-family: 'Noto Sans Mono', monospace;
+	color: #fff0db;
+	font-size: 28px;
+	font-weight: 500;
+	font-family: "Noto Sans Mono", monospace;
 
-  padding-right: 6px;
+	padding-right: 6px;
 
-  &.active {
-    color: #B1EB9A;
-  }
+	&.active {
+		color: #b1eb9a;
+	}
 }
 
-
-
-
-
-
-
-
-
-
-
 .clockProgress {
-  display: block;
-  position: relative;
+	display: block;
+	position: relative;
 }
 
 .clockProgressBar {
-  position: absolute;
-  background-color: #FFF0DB;;
-  height: 4px;
-  width: 100%;
+	position: absolute;
+	background-color: #fff0db;
+	height: 4px;
+	width: 100%;
 
-  &.active {
-    background-color: #B1EB9A;
-  }
+	&.active {
+		background-color: #b1eb9a;
+	}
 }
 
 .clockProgressBg {
-  background-color: #BFAB91;
-  height: 4px;
-  width: 100%;
+	background-color: #bfab91;
+	height: 4px;
+	width: 100%;
 }

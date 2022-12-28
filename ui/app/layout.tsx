@@ -1,6 +1,5 @@
 import { Footer } from "@components/Footer/Footer";
 import { Header } from "@components/Header/Header";
-import styles from "./HomePage.module.scss";
 import "../styles/global.scss";
 import { PieceTheme } from "@client/components/Piece/Piece";
 import classNames from "classnames";
@@ -18,7 +17,7 @@ export default function RootLayout({
 			<body className={classNames([PieceTheme.CBURNETT])}>
 				<div className="flex flex-col items-center pt-8">
 					<Header />
-					<div className={styles.body}>{children}</div>
+					{children}
 					<Footer />
 				</div>
 			</body>

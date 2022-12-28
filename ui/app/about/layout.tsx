@@ -8,7 +8,7 @@ export default function AboutLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="text-left w-80">
+		<div className="container standard-width text-left">
 			<Link href="/about">
 				<div className={styles.header}>About lioctad.org</div>
 			</Link>
