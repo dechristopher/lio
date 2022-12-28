@@ -14,7 +14,7 @@ export default function RootLayout({
 			<head />
 			{/* TODO retrieve from planned user preference system */}
 			{/* TODO evaluate green.css theme */}
-			<body className={classNames([PieceTheme.CBURNETT])}>
+			<body className={classNames([PieceTheme.CBURNETT], "green")}>
 				<div className="flex flex-col items-center pt-8">
 					<Header />
 					{children}

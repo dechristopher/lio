@@ -1,58 +1,74 @@
-.green .og-wrap {
-	background-image: url('/res/img/board.svg');
+.green og-board {
+	background-image: url("/images/green-board.svg") !important;
 }
 
 .green .og-wrap coords.ranks > coord:nth-child(odd) {
-	color: #FFFFDF;
+	color: #ffffdf !important;
 }
 
 .green .og-wrap coords.ranks > coord:nth-child(even) {
-	color: #93AF6C;
+	color: #93af6c !important;
 }
 
 .green .og-wrap coords.files > coord:nth-child(odd) {
-	color: #FFFFDF;
+	color: #ffffdf !important;
 }
 
 .green .og-wrap coords.files > coord:nth-child(even) {
-	color: #93AF6C;
+	color: #93af6c !important;
 }
 
 .green .og-wrap coords.ranks.black > coord:nth-child(odd) {
-	color: #93AF6C;
+	color: #93af6c !important;
 }
 
 .green .og-wrap coords.ranks.black > coord:nth-child(even) {
-	color: #FFFFDF;
+	color: #ffffdf !important;
 }
 
 .green .og-wrap coords.files.black > coord:nth-child(odd) {
-	color: #93AF6C;
+	color: #93af6c !important;
 }
 
 .green .og-wrap coords.files.black > coord:nth-child(even) {
-	color: #FFFFDF;
+	color: #ffffdf !important;
 }
 
 .green square.last-move {
-	background-color: rgba(0,155,199,0.41);
+	background-color: rgba(0, 155, 199, 0.41);
 }
 
 .green square.move-dest {
-	background: radial-gradient(rgba(20,85,30,0.5) 19%, rgba(0,0,0,0) 20%);
+	background: radial-gradient(
+		rgba(20, 85, 30, 0.5) 19%,
+		rgba(0, 0, 0, 0) 20%
+	);
 	pointer-events: auto;
 }
 
 .green square.premove-dest {
-	background: radial-gradient(rgba(20, 30, 85, 0.5) 22%, #203085 0, rgba(0, 0, 0, 0.3) 0, rgba(0, 0, 0, 0) 0);
+	background: radial-gradient(
+		rgba(20, 30, 85, 0.5) 22%,
+		#203085 0,
+		rgba(0, 0, 0, 0.3) 0,
+		rgba(0, 0, 0, 0) 0
+	);
 }
 
 .green square.oc.move-dest {
-	background: radial-gradient(transparent 0%, transparent 80%, rgba(20, 85, 0, 0.3) 80%);
+	background: radial-gradient(
+		transparent 0%,
+		transparent 80%,
+		rgba(20, 85, 0, 0.3) 80%
+	);
 }
 
 .green square.oc.premove-dest {
-	background: radial-gradient(transparent 0%, transparent 80%, rgba(20, 30, 85, 0.2) 80%);
+	background: radial-gradient(
+		transparent 0%,
+		transparent 80%,
+		rgba(20, 30, 85, 0.2) 80%
+	);
 }
 
 .green square.move-dest:hover {
@@ -64,16 +80,16 @@
 }
 
 .green square.selected {
-	background-color: rgba(20,85,30,0.5);
+	background-color: rgba(20, 85, 30, 0.5);
 }
 
 .green square.check {
 	background: radial-gradient(
-			ellipse at center,
-			rgba(255, 0, 0, 1) 0%,
-			rgba(231, 0, 0, 1) 25%,
-			rgba(169, 0, 0, 0) 89%,
-			rgba(158, 0, 0, 0) 100%
+		ellipse at center,
+		rgba(255, 0, 0, 1) 0%,
+		rgba(231, 0, 0, 1) 25%,
+		rgba(169, 0, 0, 0) 89%,
+		rgba(158, 0, 0, 0) 100%
 	);
 }
 
