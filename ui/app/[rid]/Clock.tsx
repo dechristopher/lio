@@ -7,6 +7,7 @@ import { useAnimationFrame } from "@client/hooks/useAnimationFrame";
 import { PlayerColor } from "@client/proto/ws_pb";
 import dayjs from "dayjs";
 import duration, { Duration } from "dayjs/plugin/duration";
+import { ValidColors } from "./Board";
 dayjs.extend(duration);
 
 export type ClockState = {
@@ -15,7 +16,7 @@ export type ClockState = {
 	gameStarted: boolean;
 	initialTime: Duration;
 	timeRemaining: Duration;
-	playerColor: PlayerColor.WHITE | PlayerColor.BLACK;
+	playerColor: ValidColors;
 };
 
 export interface ClockProps {

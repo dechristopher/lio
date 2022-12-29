@@ -13,6 +13,7 @@ import classNames from "classnames";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import useWebSocket from "react-use-websocket";
+import { ValidColors } from "./Board";
 import styles from "./RematchModal.module.scss";
 
 enum PlayerOutcome {
@@ -44,7 +45,7 @@ type MatchDetails = {
 };
 
 interface RematchModalProps extends Omit<ModalProps, "children" | "close"> {
-	playerColor: PlayerColor.WHITE | PlayerColor.BLACK;
+	playerColor: ValidColors;
 	variantHtmlName: string;
 	websocketOpen: boolean;
 	close: (closeWebsocket: boolean) => void;

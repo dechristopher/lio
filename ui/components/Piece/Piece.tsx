@@ -1,3 +1,4 @@
+import { ValidColors } from "@client/app/[rid]/Board";
 import { PlayerColor } from "@client/proto/ws_pb";
 import classNames from "classnames";
 import styles from "./Piece.module.scss";
@@ -19,7 +20,7 @@ export enum PieceType {
 
 interface PieceProps {
 	pieceType: PieceType;
-	pieceColor: PlayerColor.WHITE | PlayerColor.BLACK;
+	pieceColor: ValidColors;
 }
 
 export function Piece(props: PieceProps) {
