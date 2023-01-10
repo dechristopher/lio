@@ -1,0 +1,25 @@
+{
+  "name": "lio",
+  "version": "1.0.0",
+  "description": "[![Go Report Card](https://goreportcard.com/badge/github.com/dechristopher/lio)](https://goreportcard.com/report/github.com/dechristopher/lio) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://raw.githubusercontent.com/dechristopher/lio/master/LICENSE)",
+  "main": "index.js",
+  "scripts": {
+    "buf:gen": "rm -rf ./**/*pb.{ts,go} && buf generate"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dechristopher/lio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dechristopher/lio/issues"
+  },
+  "homepage": "https://github.com/dechristopher/lio#readme",
+  "type": "module",
+  "dependencies": {
+    "@bufbuild/protobuf": "0.3.0",
+    "@bufbuild/protoc-gen-es": "0.3.0"
+  }
+}

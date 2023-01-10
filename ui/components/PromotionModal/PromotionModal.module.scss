@@ -1,0 +1,65 @@
+.container {
+	position: absolute;
+	top: 0;
+	display: grid;
+	grid-template-columns: repeat(4, 80px);
+	grid-template-rows: repeat(4, 80px);
+}
+
+.promoShade {
+	z-index: 10;
+	width: 100%;
+	height: 100%;
+	position: absolute;
+	background-color: rgba(50, 50, 50, 0.6);
+}
+
+.box {
+	z-index: 11;
+	justify-self: center;
+	align-self: center;
+	position: relative;
+	width: 95%;
+	height: 95%;
+	background-color: #b7b7a3;
+	border: 2px solid black;
+	-webkit-transition: all 200ms ease-in-out;
+	-ms-transition: all 200ms ease-in-out;
+	transition: all 200ms ease-in-out;
+
+	&:hover {
+		background-color: #a5b0b8;
+	}
+}
+
+.columnOne {
+	grid-column: 1;
+}
+
+.columnTwo {
+	grid-column: 2;
+}
+
+.columnThree {
+	grid-column: 3;
+}
+
+.columnFour {
+	grid-column: 4;
+}
+
+.rowOne {
+	grid-row: 1;
+}
+
+.rowTwo {
+	grid-row: 2;
+}
+
+.rowThree {
+	grid-row: 3;
+}
+
+.rowFour {
+	grid-row: 4;
+}

@@ -1,35 +1,34 @@
 package variant
 
 import (
+	wsv1 "github.com/dechristopher/lio/proto"
 	"time"
-
-	"github.com/dechristopher/lio/clock"
 )
 
-// OneZeroRapid is the one minute, zero second increment rapid variant
-var OneZeroRapid = Variant{
-	Name:     "1 + 0",
-	HTMLName: "one-zero-rapid",
-	Group:    RapidGroup,
-	Control:  OneZeroRapidTC,
+// HalfZeroRapid is the half minute, one second increment rapid variant
+var HalfZeroRapid = &wsv1.Variant{
+	Name:     "½ + 1",
+	HtmlName: "half-one-rapid",
+	Group:    wsv1.VariantGroup_VARIANT_GROUP_RAPID,
+	Control:  HalfZeroRapidTC,
 }
 
-// OneZeroRapidTC is the one minute, zero second increment rapid time control
-var OneZeroRapidTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 60),
-	Increment: clock.ToCTime(time.Second * 0),
+// HalfZeroRapidTC is the half minute, zero second increment rapid time control
+var HalfZeroRapidTC = &wsv1.TimeControl{
+	InitialTime: time.Second.Nanoseconds() * 30,
+	Increment:   time.Second.Nanoseconds() * 1,
 }
 
-// OneTwoRapid is the one minute, two second increment rapid variant
-var OneTwoRapid = Variant{
-	Name:     "1 + 2",
-	HTMLName: "one-two-rapid",
-	Group:    RapidGroup,
-	Control:  OneTwoRapidTC,
+// HalfTwoRapid is the half minute, two second increment rapid variant
+var HalfTwoRapid = &wsv1.Variant{
+	Name:     "½ + 2",
+	HtmlName: "half-two-rapid",
+	Group:    wsv1.VariantGroup_VARIANT_GROUP_RAPID,
+	Control:  HalfTwoRapidTC,
 }
 
-// OneTwoRapidTC is the one minute, two second increment rapid time control
-var OneTwoRapidTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 60),
-	Increment: clock.ToCTime(time.Second * 2),
+// HalfTwoRapidTC is the one minute, two second increment rapid time control
+var HalfTwoRapidTC = &wsv1.TimeControl{
+	InitialTime: time.Second.Nanoseconds() * 30,
+	Increment:   time.Second.Nanoseconds() * 2,
 }

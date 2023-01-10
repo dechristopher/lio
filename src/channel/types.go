@@ -77,6 +77,11 @@ func (s *SockMap) Get(uid string) *Socket {
 	return s.sockets[uid]
 }
 
+// Has returns true if the SockMap is tracking a Socket belonging to the uid
+func (s *SockMap) Has(uid string) bool {
+	return s.Get(uid) != nil
+}
+
 // Empty returns true if the SockMap is tracking no connected sockets
 func (s *SockMap) Empty() bool {
 	return s.Length() == 0
@@ -112,6 +117,9 @@ type Listener chan int
 // UnListen closes a listener channel and un-tracks it from
 // the list of listener channels used by the broadcast routine
 func (s *SockMap) UnListen(listener Listener) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
 	for i := range s.listenChannels {
 		if s.listenChannels[i] == listener {
 			close(s.listenChannels[i])
@@ -143,11 +151,13 @@ func (s *SockMap) broadcastToListeners() {
 	for {
 		select {
 		case update := <-s.updateChannel:
+			s.mut.Lock()
 			for i := range s.listenChannels {
 				if s.listenChannels[i] != nil {
 					s.listenChannels[i] <- update
 				}
 			}
+			s.mut.Unlock()
 		case <-s.cleanup:
 			return
 		}

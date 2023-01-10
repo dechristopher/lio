@@ -11,16 +11,14 @@ import (
 )
 
 // handle waiting for white to make first move and start game
-// waits for one minute before timing out and terminating game and room
 func (r *Instance) handleGameReady() {
-	// one-minute abandon timer after game start
-	cleanupTimer := time.NewTimer(time.Minute)
+	cleanupTimer := time.NewTimer(gameReadyExpiryTime)
 	defer cleanupTimer.Stop()
 
-	// broadcast reset board state to all
-	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{
+	// broadcast game state to everyone
+	channel.Broadcast(r.GetSerializedGameState(), channel.SocketContext{
 		Channel: r.ID,
-		MT:      1,
+		MT:      2,
 	})
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for white to move", r.ID)
@@ -34,11 +32,12 @@ func (r *Instance) handleGameReady() {
 	for {
 		select {
 		case move := <-r.moveChannel:
-			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.UOI, move.Player, r.game.White, r.game.Black)
+			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.Uoi, move.Player, r.game.White, r.game.Black)
 
 			// don't allow moves out of order
 			if !r.isTurn(move) {
-				channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
+				util.DebugFlag("room", str.CRoom, "[%s] not player's turn, ignoring move", r.ID)
+				channel.Unicast(r.GetSerializedGameState(), move.Ctx)
 				continue
 			}
 
@@ -47,6 +46,8 @@ func (r *Instance) handleGameReady() {
 			if r.game.Clock.State(true).IsPaused {
 				util.DebugFlag("room", str.CRoom, "[%s] starting clock", r.ID)
 				r.game.Clock.Start()
+			} else {
+				util.Error(str.CRoom, "[%s] clock was running before first move was made: %+v", r.ID, r.game.Clock.State(true))
 			}
 
 			// make move and continue routine if move failed
@@ -56,6 +57,7 @@ func (r *Instance) handleGameReady() {
 
 				// re-request engine first move
 				if r.players.GetBotColor() == octad.White {
+					util.DebugFlag("room", str.CRoom, "[%s] re-requesting move from engine..", r.ID)
 					r.requestEngineMove()
 				}
 				continue
@@ -71,9 +73,8 @@ func (r *Instance) handleGameReady() {
 
 			return
 		case <-cleanupTimer.C:
-			r.abandoned = true
-			// game expired, white timed out making first move
 			util.DebugFlag("room", str.CRoom, "[%s] game expired, white timed out making first move, cleaning up", r.ID)
+			r.abandoned = true
 			err := r.event(EventPlayerAbandons)
 			if err != nil {
 				panic(err)

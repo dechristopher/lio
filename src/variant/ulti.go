@@ -1,22 +1,21 @@
 package variant
 
 import (
+	wsv1 "github.com/dechristopher/lio/proto"
 	"time"
-
-	"github.com/dechristopher/lio/clock"
 )
 
 // ZeroFiveUlti is the zero second, five second delay ulti variant
-var ZeroFiveUlti = Variant{
+var ZeroFiveUlti = &wsv1.Variant{
 	Name:     ":00 ~5",
-	HTMLName: "zero-five-ulti",
-	Group:    UltiGroup,
+	HtmlName: "zero-five-ulti",
+	Group:    wsv1.VariantGroup_VARIANT_GROUP_ULTI,
 	Control:  ZeroFiveUltiTC,
 }
 
 // ZeroFiveUltiTC is the zero second, five-second delay ulti time control
-var ZeroFiveUltiTC = clock.TimeControl{
-	Time:      clock.ToCTime(time.Second * 0),
-	Increment: clock.ToCTime(time.Second * 0),
-	Delay:     clock.ToCTime(time.Second * 5),
+var ZeroFiveUltiTC = &wsv1.TimeControl{
+	InitialTime: time.Second.Nanoseconds() * 0,
+	Increment:   time.Second.Nanoseconds() * 0,
+	Delay:       time.Second.Nanoseconds() * 5,
 }

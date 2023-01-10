@@ -1,0 +1,98 @@
+.container {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+
+	&.flip {
+		flex-direction: column-reverse;
+	}
+}
+
+.clockContainer {
+	display: flex;
+	background-color: #a8a397;
+	border-radius: 3px 3px 0 0;
+	padding: 4;
+	justify-content: space-between;
+	align-items: center;
+
+	&.active {
+		background-color: #a68d6d;
+	}
+
+	&.flip {
+		border-radius: 0 0 3px 3px;
+	}
+}
+
+.clockNameContainer {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+
+	padding-left: 6px;
+}
+
+.clockScore {
+	color: #fff0db;
+	font-size: 17px;
+	font-weight: 700;
+
+	padding-right: 12px;
+}
+
+.clockName {
+	font-size: 15px;
+	font-weight: 600;
+
+	&.playerWhite {
+		color: #fff;
+	}
+
+	&.playerBlack {
+		color: #000;
+	}
+}
+
+.clockRatingNumber {
+	padding-left: 6px;
+	color: #fff0db;
+	font-weight: 600;
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+.clockTime {
+	color: #fff0db;
+	font-size: 28px;
+	font-weight: 500;
+	font-family: "Noto Sans Mono", monospace;
+
+	padding-right: 6px;
+
+	&.active {
+		color: #b1eb9a;
+	}
+}
+
+.clockProgress {
+	display: block;
+	position: relative;
+}
+
+.clockProgressBar {
+	position: absolute;
+	background-color: #fff0db;
+	height: 4px;
+	width: 100%;
+
+	&.active {
+		background-color: #b1eb9a;
+	}
+}
+
+.clockProgressBg {
+	background-color: #bfab91;
+	height: 4px;
+	width: 100%;
+}

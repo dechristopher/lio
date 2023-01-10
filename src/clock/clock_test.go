@@ -64,7 +64,7 @@ func Test_playerClock_takeTime(t *testing.T) {
 				control: tt.fields.control,
 				elapsed: tt.fields.elapsed,
 			}
-			pc.takeTime(tt.args.t)
+			pc.giveTime(tt.args.t)
 
 			if pc.remaining() != tt.expected {
 				t.Errorf(errFmt, tt.expected.String(), pc.remaining().String())
@@ -120,7 +120,7 @@ func Test_playerClock_giveTime(t *testing.T) {
 				control: tt.fields.control,
 				elapsed: tt.fields.elapsed,
 			}
-			pc.giveTime(tt.args.t)
+			pc.takeTime(tt.args.t)
 
 			if pc.remaining() != tt.expected {
 				t.Errorf(errFmt, tt.expected.String(), pc.remaining().String())
@@ -186,7 +186,7 @@ func Test_playerClock_flagged(t *testing.T) {
 				elapsed: tt.fields.elapsed,
 			}
 
-			pc.takeTime(tt.args.t)
+			pc.giveTime(tt.args.t)
 
 			if got := pc.flagged(); got != tt.want {
 				t.Errorf("flagged() = %v, want %v", got, tt.want)

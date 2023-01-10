@@ -2,28 +2,23 @@ package www
 
 import (
 	"embed"
+	"github.com/dechristopher/lio/www/handlers"
+	"github.com/dechristopher/lio/www/ws"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/template/html"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/handlers"
-	"github.com/dechristopher/lio/www/handlers/api"
 	"github.com/dechristopher/lio/www/middleware"
-	"github.com/dechristopher/lio/www/ws"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/template/html"
 )
 
 var (
@@ -39,32 +34,32 @@ func Serve(views, static embed.FS) {
 	util.Info(str.CMain, str.MInit, config.Version)
 
 	// make filesystem location decision based on environment
-	viewsFs = util.PickFS(env.IsLocal(), views, "./views")
+	//viewsFs = util.PickFS(env.IsLocal(), views, "./views")
 	staticFs = util.PickFS(env.IsLocal(), static, "./static")
 	// populate template engine from views filesystem
-	engine = html.NewFileSystem(viewsFs, ".html")
+	//engine = html.NewFileSystem(viewsFs, ".html")
 
 	// enable template engine reloading on dev
-	engine.Reload(env.IsLocal())
+	//engine.Reload(env.IsLocal())
 
-	toUpperAny := func(s any) string {
-		return strings.ToUpper(s.(string))
-	}
+	//toUpperAny := func(s any) string {
+	//	return strings.ToUpper(s.(string))
+	//}
 
 	// custom template rendering functions
-	engine.AddFuncMap(map[string]interface{}{
-		"ToUpper":    strings.ToUpper,
-		"ToUpperAny": toUpperAny,
-		"ToLower":    strings.ToLower,
-		"Title":      cases.Title(language.English).String,
-	})
+	//engine.AddFuncMap(map[string]interface{}{
+	//	"ToUpper":    strings.ToUpper,
+	//	"ToUpperAny": toUpperAny,
+	//	"ToLower":    strings.ToLower,
+	//	"Title":      cases.Title(language.English).String,
+	//})
 
 	r := fiber.New(fiber.Config{
 		ServerHeader:          "lioctad.org " + config.Version,
 		CaseSensitive:         true,
 		ErrorHandler:          nil,
 		DisableStartupMessage: true,
-		Views:                 engine,
+		//Views:                 engine,
 	})
 
 	// wire up all route handlers
@@ -109,57 +104,42 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// TODO rebuild this every time someone logs in
 	r.Use(user.ContextMiddleware)
 
-	// websocket upgrade middleware
-	r.Use("/socket", ws.UpgradeHandler)
-
-	// websocket connection listener
-	r.Get("/socket/:chan", ws.ConnHandler())
-	// websocket
-	r.Get("/socket/:type/:chan", ws.ConnHandler())
-
 	// sub-router with compression and other middleware enabled
 	sub := r.Group("/")
 
 	// wire up all middleware components
 	middleware.Wire(sub, staticFs)
 
-	// JSON service health / status handler
-	r.Get("/lio", handlers.StatusHandler)
-
-	// group for /api routes
+	// /api/* - this grouping helps with local development using request proxying
 	apiGroup := sub.Group("/api")
+	// rating pools
+	apiGroup.Get("/pools", handlers.RatingPoolsHandler)
 
-	// wire all the api handlers
-	api.Wire(apiGroup)
+	// /api/ws/*
+	wsGroup := apiGroup.Group("/ws")
+	// websocket upgrade middleware
+	wsGroup.Use("/socket", ws.UpgradeHandler)
+	// websocket connection listener
+	wsGroup.Get("/socket/:chan", ws.ConnHandler())
+	wsGroup.Get("/socket/:type/:chan", ws.ConnHandler())
 
-	// home handler
-	// TODO not needed once we default SPAHandler
-	r.Get("/", handlers.IndexHandler)
+	// /api/room/*
+	roomGroup := apiGroup.Group("/room")
+	// existing room routes
+	roomGroup.Get("/", handlers.RoomStatusesHandler)
+	roomGroup.Get("/:id", handlers.RoomHandler)
+	roomGroup.Post("/:id/join", handlers.RoomJoinHandler)
+	roomGroup.Post("/:id/rematch", handlers.RoomRematchHandler)
+	roomGroup.Post("/:id/cancel", handlers.RoomCancelHandler)
+	// room creation routes
+	roomGroup.Post("/new/human", handlers.NewCustomRoomVsHuman)
+	roomGroup.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
+	roomGroup.Get("/new/computer", handlers.NewRoomVsComputer)
 
-	// other pages
-	r.Get("/about", handlers.AboutHandler)
-	r.Get("/about/board", handlers.AboutBoardHandler)
-	r.Get("/about/rules", handlers.AboutRulesHandler)
-	r.Get("/about/misc", handlers.AboutMiscHandler)
-
-	// game database page handler
-	r.Get("/db", handlers.DBHandler)
-
-	// new room creation routes
-	r.Post("/new/human", handlers.NewCustomRoomVsHuman)
-	r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
-	r.Get("/new/computer", handlers.NewRoomVsComputer)
-
-	// room handlers
-	r.Get("/:id", handlers.RoomHandler)
-	r.Post("/:id/join", handlers.RoomJoinHandler)
-	r.Post("/:id/cancel", handlers.RoomCancelHandler)
-
-	// return static index.html for all other paths and let
-	// React handle 404s so that we get nice error pages
-	//r.Get("/*", handlers.SPAHandlerInit(staticFs))
-
-	// Custom 404 page
-	// TODO not needed once we default SPAHandler
-	middleware.NotFound(r)
+	// /api/stat/*
+	statGroup := apiGroup.Group("/stat")
+	// site activity
+	statGroup.Get("/site", handlers.SiteStatsHandler)
+	// service health
+	statGroup.Get("/lio", handlers.StatusHandler)
 }

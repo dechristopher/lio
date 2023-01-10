@@ -15,7 +15,7 @@ type status struct {
 
 // StatusHandler returns a JSON object with status info
 func StatusHandler(c *fiber.Ctx) error {
-	return c.JSON(status{
+	return c.Status(200).JSON(status{
 		Version:  config.Version,
 		Uptime:   util.TimeSinceBoot().Seconds(),
 		BootTime: config.BootTime.UnixNano(),

@@ -1,0 +1,83 @@
+@import "@styles/variables.scss";
+
+.body {
+	border-radius: 3px;
+	background-color: $primary-brown;
+	position: relative;
+	filter: drop-shadow(0 20px 13px rgb(0 0 0 / 0.03))
+		drop-shadow(0 8px 5px rgb(0 0 0 / 0.08));
+}
+
+.close {
+	color: #fff;
+	width: 24px;
+	height: 24px;
+	background: #444;
+	border-radius: 50%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+
+	position: absolute;
+	top: 0;
+	right: 0;
+	transform: translate(50%, -50%);
+
+	&:hover,
+	&:focus {
+		background: #d30020;
+		text-decoration: none;
+		cursor: pointer;
+	}
+}
+
+.variantBtnContainer {
+	margin-top: 0.375rem;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+	padding: 12px 24px;
+	background-color: $primary-tan;
+	border-top: 1px solid $brown-border;
+	border-bottom: 1px solid $brown-border;
+
+	.variantBtn {
+		line-height: 0.75rem;
+		font-size: 14px;
+		font-weight: 600;
+
+		&:hover,
+		&.selected {
+			background: $primary-green;
+			color: #fff;
+		}
+
+		&:hover {
+			border-top-color: $green-hover-light;
+			border-left-color: $green-hover-light;
+			border-bottom-color: $green-hover-dark;
+			border-right-color: $green-hover-dark;
+		}
+	}
+}
+
+.colorSelectBtn {
+	height: 48px;
+	width: 64px;
+	padding: 0 !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	&.big {
+		height: 64px;
+		width: 80px;
+		padding: 4px 0 !important;
+	}
+
+	&.disabled {
+		background-color: #aeaeae;
+		opacity: 50%;
+		pointer-events: none;
+	}
+}

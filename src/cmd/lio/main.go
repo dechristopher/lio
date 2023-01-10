@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"flag"
+	"github.com/dechristopher/lio/www"
 	"math/rand"
 	"strings"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/systems"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www"
 )
 
 var (

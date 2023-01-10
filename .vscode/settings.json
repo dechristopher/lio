@@ -1,0 +1,33 @@
+{
+  "search.exclude": {
+    "**/.yarn": true,
+    "**/.pnp.*": true
+  },
+  "eslint.packageManager": "yarn",
+  "eslint.nodePath": "./ui/.yarn/sdks",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "prettier.prettierPath": "./ui/.yarn/sdks/prettier/index.js",
+  "typescript.tsdk": "./ui/.yarn/sdks/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "cSpell.words": [
+    "adless",
+    "centi",
+    "centis",
+    "centisecond",
+    "centiseconds",
+    "Dechristopher",
+    "dests",
+    "headlessui",
+    "heroicons",
+    "lioctad",
+    "Octadground",
+    "OFEN",
+    "Premove",
+    "tailwindcss",
+    "Toubeau"
+  ],
+}

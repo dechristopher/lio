@@ -1,0 +1,19 @@
+.gameSettings {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	border: 2px solid rgba(0, 0, 0, 0.85);
+	border-radius: 8px;
+	background-color: #dcdcdc;
+	font-weight: 500;
+	font-size: 1.1rem;
+	box-shadow: 2px 3px 0;
+	width: 100%;
+	margin-top: 16px;
+	padding: 4px 60px;
+
+	.variant {
+		font-size: 1.8rem;
+		font-weight: 600;
+	}
+}

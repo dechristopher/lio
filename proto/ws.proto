@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package ws.v1;
+
+enum PlayerColor {
+	PLAYER_COLOR_UNSPECIFIED = 0;
+	PLAYER_COLOR_WHITE = 1;
+	PLAYER_COLOR_BLACK = 2;
+}
+
+enum RoomState {
+	ROOM_STATE_UNSPECIFIED = 0;
+	ROOM_STATE_INIT = 1;
+	ROOM_STATE_WAITING_FOR_PLAYERS = 2;
+	ROOM_STATE_GAME_READY = 3;
+	ROOM_STATE_GAME_ONGOING = 4;
+	ROOM_STATE_GAME_OVER = 5;
+	ROOM_STATE_ROOM_OVER = 6;
+}
+
+enum VariantGroup {
+	VARIANT_GROUP_UNSPECIFIED = 0;
+	VARIANT_GROUP_BLITZ = 1;
+	VARIANT_GROUP_RAPID = 2;
+	VARIANT_GROUP_HYPER = 3;
+	VARIANT_GROUP_ULTI = 4;
+	VARIANT_GROUP_BULLET = 5;
+}
+
+message TimeControl {
+	int64 initial_time = 1; // time the clocks start at
+	int64 increment = 2; // time gained after each move
+	int64 delay = 3; // time before time starts to decrement
+}
+
+message Variant {
+	string name = 1;
+	string html_name = 2;
+	VariantGroup group = 3;
+	TimeControl control = 4;
+}
+
+message Variants {
+	repeated Variant variants = 1; // array of variants
+}
+
+message VariantPools {
+	// we can't use enums for keys within a map but using an int provides a workaround
+	map<string, Variants> pools = 1;
+}
+
+enum GameOutcome {
+	GAME_OUTCOME_UNSPECIFIED = 0;
+	GAME_OUTCOME_DRAW = 1;
+	GAME_OUTCOME_BLACK_WINS = 2;
+	GAME_OUTCOME_WHITE_WINS = 3;
+}
+
+message NewCustomRoomPayload {
+	string variant_html_name = 1;
+	PlayerColor player_color = 2;
+}
+
+message RoomPayload {
+  string room_id = 1;
+	RoomState room_state = 2;
+	PlayerColor player_color = 3;
+	bool is_creator = 4;
+	Variant variant = 5;
+}
+
+// PingPayload is used to determine socket latency to server
+message PingPayload {}
+
+// PongPayload is the response to the Ping message
+message PongPayload {}
+
+// KeepAlivePayload maintains an open websocket connection with the server
+message KeepAlivePayload {}
+
+message Moves {
+	repeated string moves = 1; // array of game moves
+}
+
+message MovePayload {
+	ClockPayload clock = 1; // clock state
+	string ofen = 2; // (position, toMove)
+	string san = 3; 
+	string uoi = 4; 
+	bool check = 5; // whether the player's king is in check
+	Moves moves = 6; // moves that have been played
+	map<string, Moves> valid_moves = 7; // moves the player can make
+	string black_player_id = 8;
+	string white_player_id = 9;
+	ScorePayload score = 10; // player scores
+	RoomState room_state = 11; // enum depicting the state of the room
+}
+
+// GameStatePayload is an empty message new connections use to request board state
+message GameStatePayload {}
+
+message CrowdPayload {
+	int32 connections = 1; // the number of websocket connections within the room
+}
+
+message ClockPayload {
+	int64 black = 1; // black clock in centi-seconds
+	int64 white = 2; // white clock in centi-seconds
+	Variant variant = 3; // time variant the game is being played in
+}
+
+message ScorePayload {
+	float black = 1; // black player score
+	float white = 2; // white player score
+}
+
+message GameOverPayload {
+	GameOutcome game_outcome = 1;
+	string outcome_details = 2; // details of the game-end event
+	ScorePayload score = 3; // player scores
+	bool room_over = 4; // whether the room has ended
+}
+
+message RedirectPayload {
+	string location = 1;
+}
+
+message RematchPayload {
+	bool both_players_present = 1;
+	bool white_requested = 2;
+	bool black_requested = 3;
+	bool rematch_ready = 4;
+}
+
+message WebsocketMessage {
+	oneof data {
+		PingPayload ping_payload = 1;
+		MovePayload move_payload = 2;
+		GameOverPayload game_over_payload = 3;
+		CrowdPayload crowd_payload = 4;
+		RedirectPayload redirect_payload = 6;
+		PongPayload pong_payload = 7;
+		KeepAlivePayload keep_alive_payload = 8;
+		RematchPayload rematch_payload = 9;
+		GameStatePayload game_state_payload = 10;
+	}
+}

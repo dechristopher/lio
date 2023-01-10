@@ -34,7 +34,7 @@ var (
 		GenerateCode(7, Base58))
 
 	// CryptoKey for use with cryptographic operations in lio
-	CryptoKey = ReadSecretFallback("crypto_key")
+	CryptoKey = "testkeyforthelioctadcryptosystem" //ReadSecretFallback("crypto_key")
 
 	// DebugFlagPtr contains raw debug flags direct from STDIN
 	DebugFlagPtr *string
@@ -134,5 +134,6 @@ func CorsOrigins() string {
 	}
 	return "http://localhost:4444, " +
 		"http://localhost:8080, " +
-		"https://dev.lioctad.org"
+		"https://dev.lioctad.org, " +
+		"http://localhost:3000"
 }

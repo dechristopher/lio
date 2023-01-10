@@ -1,0 +1,15 @@
+.joinBtn {
+	margin-top: 12px;
+	width: 100%;
+	background-color: #98ff65 !important;
+	font-family: "Noto Sans", sans-serif !important;
+	font-size: 15.5px;
+	font-weight: 600;
+
+	&:hover {
+		border-right-color: #8ce461 !important;
+		border-bottom-color: #8ce461 !important;
+		border-left-color: #9cf471 !important;
+		border-top-color: #9cf471 !important;
+	}
+}

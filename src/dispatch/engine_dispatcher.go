@@ -4,9 +4,9 @@ import (
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/message"
+	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // EngineRequest is a request for engine evaluation
@@ -63,9 +63,9 @@ func (d *EngineDispatcher) worker(r EngineRequest) {
 	r.ResponseChannel <- &message.RoomMove{
 		Player: "engine",
 		GameID: r.GameID,
-		Move: proto.MovePayload{
-			Clock: proto.ClockPayload{},
-			UOI:   move.Move.String(),
+		Move: &wsv1.MovePayload{
+			Clock: &wsv1.ClockPayload{},
+			Uoi:   move.Move.String(),
 		},
 		Ctx: r.Ctx,
 	}

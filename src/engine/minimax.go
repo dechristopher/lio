@@ -9,7 +9,6 @@ import (
 	"github.com/dechristopher/octad"
 	"github.com/pkg/errors"
 
-	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
@@ -26,8 +25,10 @@ type minimaxABParams struct {
 // searchMinimaxAB is the root for minimax with alpha-beta pruning
 func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	// sleep for a random amount of time to make the engine easier to beat,
-	// anywhere from a fraction of a second to 1.25 seconds
-	time.Sleep(clock.Centisecond * 5 * time.Duration(rand.Intn(25)))
+	// anywhere from .25 seconds to 1.25 seconds
+	min := time.Millisecond * 250
+	max := time.Millisecond * 1250
+	time.Sleep(time.Duration(rand.Intn(int(max.Nanoseconds()-min.Nanoseconds()+1)) + int(min.Nanoseconds())))
 
 	isWhite := situation.Position().Turn() == octad.White
 	bestMoveEval := math.Inf(1)

@@ -1,0 +1,46 @@
+@import "@styles/variables.scss";
+
+.libtn {
+	padding: 12px;
+	min-height: 3rem;
+	cursor: pointer;
+	transition: all 250ms;
+	text-decoration: none;
+	justify-content: center;
+	background-color: $button-primary-bg;
+	touch-action: manipulation;
+	border-width: 2px;
+	border-radius: 0.25rem;
+	border-right-color: $button-border-dark;
+	border-bottom-color: $button-border-dark;
+	border-left-color: $button-border-light;
+	border-top-color: $button-border-light;
+	box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+
+	&:hover {
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+		color: rgba(0, 0, 0, 0.65);
+		transform: translateY(-1px);
+	}
+
+	&:focus {
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+		color: rgba(0, 0, 0, 0.65);
+	}
+
+	&:active {
+		background-color: #f0f0f1;
+		border-color: rgba(0, 0, 0, 0.15);
+		box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
+		color: rgba(0, 0, 0, 0.65);
+		transform: translateY(0);
+	}
+
+	&.disabled {
+		opacity: 50%;
+		pointer-events: none;
+		background-color: $button-disabled-bg;
+	}
+}

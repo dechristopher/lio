@@ -1,25 +1,22 @@
 package handlers
 
 import (
-	"fmt"
-
-	"github.com/dechristopher/octad"
-	"github.com/gofiber/fiber/v2"
-
-	"github.com/dechristopher/lio/player"
+	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/pools"
+	wsv1 "github.com/dechristopher/lio/proto"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
+	"github.com/dechristopher/octad"
+	"github.com/gofiber/fiber/v2"
+	"google.golang.org/protobuf/proto"
 )
-
-const roomTemplate = "room"
 
 type newRoomPayload struct {
 	c             *fiber.Ctx
-	variant       variant.Variant
+	variant       *wsv1.Variant
 	selectedColor octad.Color
 	vsBot         bool
 }
@@ -34,7 +31,7 @@ func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 	}
 
 	// grab room instance
-	roomInstance, err := room.Get(c.Params("id"))
+	roomInstance, err := room.Map.Get(c.Params("id"))
 	if err != nil || roomInstance == nil {
 		// continue to 404 page if room not found
 		return "", nil, c.Status(fiber.StatusNotFound).Next(), true
@@ -43,42 +40,25 @@ func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 	return uid, roomInstance, nil, false
 }
 
-// RoomHandler executes the room page template
+// RoomStatusesHandler returns important room information
+func RoomStatusesHandler(c *fiber.Ctx) error {
+	rooms := room.Map.GetAll()
+	var roomStatuses []message.RoomStatusPayload
+	for _, currRoom := range rooms {
+		roomStatuses = append(roomStatuses, currRoom.GenStatusPayload())
+	}
+
+	return c.Status(200).JSON(roomStatuses)
+}
+
+// RoomHandler returns important room information
 func RoomHandler(c *fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
 		return err
 	}
 
-	// figure out how user is allowed to join this room
-	asPlayer, asSpectator := roomInstance.CanJoin(uid)
-
-	// get template payload for user
-	payload := roomInstance.GenTemplatePayload(uid)
-
-	if asPlayer { // user is player
-		// if game waiting state, enable waiting room / join room templates
-		// but only if both players are humans
-		roomInstance.HandlePreGame(uid, &payload)
-
-		// render template
-		return util.HandleTemplate(c, 200, roomTemplate,
-			payload.VariantName, payload)
-	} else if asSpectator { // user is spectator
-		// TODO signal to JS that this player is a spectator
-		// by excluding some player-specific scripts
-		// --->
-		// only receive game updates
-		// only able to draw on board and scroll moves
-
-		// payload.IsSpectator = true?
-
-		// TODO spectator page template
-		return c.Redirect("/#TODO")
-	} else {
-		// no spectators allowed
-		return c.Redirect("/#noSpec")
-	}
+	return c.Status(200).JSON(roomInstance.GenLobbyPayload(uid))
 }
 
 // RoomJoinHandler joins the player to the room
@@ -88,25 +68,29 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 		return err
 	}
 
-	joinPayload := struct {
-		Token string `form:"join_token"`
-	}{}
-
-	err = c.BodyParser(&joinPayload)
-	if err != nil {
-		return c.Redirect("/#errJoin")
-	}
-
 	// attempt to join room
-	if roomInstance.Join(uid, joinPayload.Token) {
-		// broadcast message to waiting player(s)
-		go roomInstance.NotifyWaiting()
-		// redirect player to game room
-		return c.Redirect(fmt.Sprintf("/%s", roomInstance.ID))
+	if roomInstance.Join(uid) {
+		// success
+		return c.SendStatus(200)
+	}
+	// failure
+	return c.Redirect("/", fiber.StatusBadRequest)
+}
+
+// RoomRematchHandler handles a players request for a rematch
+func RoomRematchHandler(c *fiber.Ctx) error {
+	uid, roomInstance, err, redirected := getUserAndRoom(c)
+	if err != nil || redirected {
+		return err
 	}
 
-	// error out if join failed
-	return c.Redirect("/#errJoinExpired")
+	// attempt to request/accept a rematch
+	if roomInstance.Rematch(uid) {
+		// success
+		return c.SendStatus(200)
+	}
+	// failure
+	return c.Redirect("/", fiber.StatusBadRequest)
 }
 
 // RoomCancelHandler cancels the room immediately
@@ -116,26 +100,13 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 		return err
 	}
 
-	cancelPayload := struct {
-		Token string `form:"cancel_token"`
-	}{}
-
-	err = c.BodyParser(&cancelPayload)
-	if err != nil {
-		return c.Redirect("/#errCancel")
+	// attempt to cancel the room
+	if roomInstance.Cancel(uid) {
+		// success
+		return c.SendStatus(200)
 	}
-
-	if !roomInstance.IsCreator(uid) || cancelPayload.Token != roomInstance.CancelToken() {
-		return c.Redirect("/", fiber.StatusForbidden)
-	}
-
-	// cancel the game if we're allowed to
-	if !roomInstance.Cancel() {
-		return c.Redirect("/", fiber.StatusBadRequest)
-	}
-
-	// redirect home after room cancellation
-	return c.Redirect("/")
+	// failure
+	return c.Redirect("/", fiber.StatusBadRequest)
 }
 
 // NewQuickRoomVsHuman creates a game against a human player with the default
@@ -143,7 +114,7 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitz,
+		variant:       variant.HalfTwoRapid,
 		selectedColor: util.RandomColor(),
 	})
 }
@@ -151,33 +122,30 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 // NewCustomRoomVsHuman creates a game against a human player with time control
 // and color selected by the creator
 func NewCustomRoomVsHuman(c *fiber.Ctx) error {
+	selectedColor := octad.NoColor
 
-	selectedColor := octad.White
-
-	payload := struct {
-		TimeControl string `form:"time-control"`
-		Color       string `form:"color"`
-	}{}
-
-	if err := c.BodyParser(&payload); err != nil {
+	payload := &wsv1.NewCustomRoomPayload{}
+	if err := proto.Unmarshal(c.Body(), payload); err != nil {
 		util.Error(str.CRoom, "failed to create room via human handler: bad payload provided")
 		return c.Redirect("/#error")
 	}
 
-	selectedVariant, ok := pools.Map[payload.TimeControl]
+	selectedVariant, ok := pools.Map[payload.VariantHtmlName]
 	if !ok {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid time control")
 		return c.Redirect("/")
 	}
 
-	if payload.Color == "w" {
+	if payload.PlayerColor == wsv1.PlayerColor_PLAYER_COLOR_WHITE {
 		selectedColor = octad.White
-	} else if payload.Color == "b" {
+	} else if payload.PlayerColor == wsv1.PlayerColor_PLAYER_COLOR_BLACK {
 		selectedColor = octad.Black
-	} else if payload.Color == "r" {
+	} else if payload.PlayerColor == wsv1.PlayerColor_PLAYER_COLOR_UNSPECIFIED {
 		selectedColor = util.RandomColor()
 	} else {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid color selected")
+		// TODO a better way to handle errors?
+		//fiber.NewError(fiber.StatusBadRequest, "Test")
 		return c.Redirect("/")
 	}
 
@@ -193,7 +161,7 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 func NewRoomVsComputer(c *fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitz,
+		variant:       variant.HalfTwoRapid,
 		selectedColor: util.RandomColor(),
 		vsBot:         true,
 	})
@@ -211,18 +179,11 @@ func newRoom(payload newRoomPayload) error {
 	// establish room parameters
 	params := room.NewParams(uid, payload.variant)
 
-	// set creating player ID in players map
-	params.Players[payload.selectedColor] = &player.Player{
-		ID: uid,
-	}
-
-	// configure room with player to join via URL
-	toJoin := player.ToJoin
-	params.Players[payload.selectedColor.Other()] = &toJoin
-
-	// set bot=true if game is configured with computer opponent
-	if payload.vsBot {
-		params.Players[payload.selectedColor.Other()].IsBot = true
+	// configure the players
+	err := params.Players.AddPlayer(uid, payload.selectedColor, payload.vsBot)
+	if err != nil {
+		util.Error(str.CRoom, "failed to create room: %s", err.Error())
+		return payload.c.Redirect("/")
 	}
 
 	// create room and handle resultant errors
