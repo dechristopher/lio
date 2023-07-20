@@ -1,13 +1,20 @@
 package fiber
 
-// Handlers define a function to create hooks for Fiber.
-type OnRouteHandler = func(Route) error
-type OnNameHandler = OnRouteHandler
-type OnGroupHandler = func(Group) error
-type OnGroupNameHandler = OnGroupHandler
-type OnListenHandler = func() error
-type OnShutdownHandler = OnListenHandler
-type OnForkHandler = func(int) error
+import (
+	"log"
+)
+
+// OnRouteHandler Handlers define a function to create hooks for Fiber.
+type (
+	OnRouteHandler     = func(Route) error
+	OnNameHandler      = OnRouteHandler
+	OnGroupHandler     = func(Group) error
+	OnGroupNameHandler = OnGroupHandler
+	OnListenHandler    = func() error
+	OnShutdownHandler  = OnListenHandler
+	OnForkHandler      = func(int) error
+	OnMountHandler     = func(*App) error
+)
 
 // Hooks is a struct to use it with App.
 type Hooks struct {
@@ -22,6 +29,7 @@ type Hooks struct {
 	onListen    []OnListenHandler
 	onShutdown  []OnShutdownHandler
 	onFork      []OnForkHandler
+	onMount     []OnMountHandler
 }
 
 func newHooks(app *App) *Hooks {
@@ -34,6 +42,7 @@ func newHooks(app *App) *Hooks {
 		onListen:    make([]OnListenHandler, 0),
 		onShutdown:  make([]OnShutdownHandler, 0),
 		onFork:      make([]OnForkHandler, 0),
+		onMount:     make([]OnMountHandler, 0),
 	}
 }
 
@@ -94,7 +103,22 @@ func (h *Hooks) OnFork(handler ...OnForkHandler) {
 	h.app.mutex.Unlock()
 }
 
+// OnMount is a hook to execute user function after mounting process.
+// The mount event is fired when sub-app is mounted on a parent app. The parent app is passed as a parameter.
+// It works for app and group mounting.
+func (h *Hooks) OnMount(handler ...OnMountHandler) {
+	h.app.mutex.Lock()
+	h.onMount = append(h.onMount, handler...)
+	h.app.mutex.Unlock()
+}
+
 func (h *Hooks) executeOnRouteHooks(route Route) error {
+	// Check mounting
+	if h.app.mountFields.mountPath != "" {
+		route.path = h.app.mountFields.mountPath + route.path
+		route.Path = route.path
+	}
+
 	for _, v := range h.onRoute {
 		if err := v(route); err != nil {
 			return err
@@ -105,6 +129,12 @@ func (h *Hooks) executeOnRouteHooks(route Route) error {
 }
 
 func (h *Hooks) executeOnNameHooks(route Route) error {
+	// Check mounting
+	if h.app.mountFields.mountPath != "" {
+		route.path = h.app.mountFields.mountPath + route.path
+		route.Path = route.path
+	}
+
 	for _, v := range h.onName {
 		if err := v(route); err != nil {
 			return err
@@ -115,6 +145,11 @@ func (h *Hooks) executeOnNameHooks(route Route) error {
 }
 
 func (h *Hooks) executeOnGroupHooks(group Group) error {
+	// Check mounting
+	if h.app.mountFields.mountPath != "" {
+		group.Prefix = h.app.mountFields.mountPath + group.Prefix
+	}
+
 	for _, v := range h.onGroup {
 		if err := v(group); err != nil {
 			return err
@@ -125,6 +160,11 @@ func (h *Hooks) executeOnGroupHooks(group Group) error {
 }
 
 func (h *Hooks) executeOnGroupNameHooks(group Group) error {
+	// Check mounting
+	if h.app.mountFields.mountPath != "" {
+		group.Prefix = h.app.mountFields.mountPath + group.Prefix
+	}
+
 	for _, v := range h.onGroupName {
 		if err := v(group); err != nil {
 			return err
@@ -146,12 +186,26 @@ func (h *Hooks) executeOnListenHooks() error {
 
 func (h *Hooks) executeOnShutdownHooks() {
 	for _, v := range h.onShutdown {
-		_ = v()
+		if err := v(); err != nil {
+			log.Printf("failed to call shutdown hook: %v\n", err)
+		}
 	}
 }
 
 func (h *Hooks) executeOnForkHooks(pid int) {
 	for _, v := range h.onFork {
-		_ = v(pid)
+		if err := v(pid); err != nil {
+			log.Printf("failed to call fork hook: %v\n", err)
+		}
 	}
+}
+
+func (h *Hooks) executeOnMountHooks(app *App) error {
+	for _, v := range h.onMount {
+		if err := v(app); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -1,8 +1,9 @@
 package favicon
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,6 +21,11 @@ type Config struct {
 	// Optional. Default: ""
 	File string `json:"file"`
 
+	// URL for favicon handler
+	//
+	// Optional. Default: "/favicon.ico"
+	URL string `json:"url"`
+
 	// FileSystem is an optional alternate filesystem to search for the favicon in.
 	// An example of this could be an embedded or network filesystem
 	//
@@ -36,6 +42,7 @@ type Config struct {
 var ConfigDefault = Config{
 	Next:         nil,
 	File:         "",
+	URL:          fPath,
 	CacheControl: "public, max-age=31536000",
 }
 
@@ -59,6 +66,9 @@ func New(config ...Config) fiber.Handler {
 		if cfg.Next == nil {
 			cfg.Next = ConfigDefault.Next
 		}
+		if cfg.URL == "" {
+			cfg.URL = ConfigDefault.URL
+		}
 		if cfg.File == "" {
 			cfg.File = ConfigDefault.File
 		}
@@ -80,10 +90,10 @@ func New(config ...Config) fiber.Handler {
 			if err != nil {
 				panic(err)
 			}
-			if icon, err = ioutil.ReadAll(f); err != nil {
+			if icon, err = io.ReadAll(f); err != nil {
 				panic(err)
 			}
-		} else if icon, err = ioutil.ReadFile(cfg.File); err != nil {
+		} else if icon, err = os.ReadFile(cfg.File); err != nil {
 			panic(err)
 		}
 
@@ -98,7 +108,7 @@ func New(config ...Config) fiber.Handler {
 		}
 
 		// Only respond to favicon requests
-		if c.Path() != fPath {
+		if c.Path() != cfg.URL {
 			return c.Next()
 		}
 
