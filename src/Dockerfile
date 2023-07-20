@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.19.2-alpine3.16 AS build
+FROM golang:1.19.5-alpine3.16 AS build
 
 WORKDIR /build
 COPY . .
@@ -8,7 +8,7 @@ WORKDIR cmd/lio
 RUN CGO_ENABLED=0 go build -v -trimpath -o lio
 
 # final packaging
-FROM golang:1.19.2-alpine3.16
+FROM golang:1.19.5-alpine3.16
 
 # Run this here to ensure we always get up to date root certs
 RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
