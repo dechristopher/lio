@@ -24,12 +24,17 @@ type Config struct {
 
 	// ContextKey defines the key used when storing the request ID in
 	// the locals for a specific request.
+	// Should be a private type instead of string, but too many apps probably
+	// rely on this exact value.
 	//
-	// Optional. Default: requestid
-	ContextKey string
+	// Optional. Default: "requestid"
+	ContextKey interface{}
 }
 
 // ConfigDefault is the default config
+// It uses a fast UUID generator which will expose the number of
+// requests made to the server. To conceal this value for better
+// privacy, use the "utils.UUIDv4" generator.
 var ConfigDefault = Config{
 	Next:       nil,
 	Header:     fiber.HeaderXRequestID,
@@ -54,7 +59,7 @@ func configDefault(config ...Config) Config {
 	if cfg.Generator == nil {
 		cfg.Generator = ConfigDefault.Generator
 	}
-	if cfg.ContextKey == "" {
+	if cfg.ContextKey == nil {
 		cfg.ContextKey = ConfigDefault.ContextKey
 	}
 	return cfg

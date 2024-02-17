@@ -10,25 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 )
-
-// #nosec G103
-// UnsafeString returns a string pointer without allocation
-func UnsafeString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
-
-// #nosec G103
-// UnsafeBytes returns a byte pointer without allocation
-func UnsafeBytes(s string) (bs []byte) {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&bs))
-	bh.Data = sh.Data
-	bh.Len = sh.Len
-	bh.Cap = sh.Len
-	return
-}
 
 // CopyString copies a string to make it immutable
 func CopyString(s string) string {
@@ -43,7 +25,7 @@ func CopyBytes(b []byte) []byte {
 }
 
 const (
-	uByte = 1 << (10 * iota)
+	uByte = 1 << (10 * iota) // 1 << 10 == 1024
 	uKilobyte
 	uMegabyte
 	uGigabyte
@@ -88,7 +70,7 @@ func ByteSize(bytes uint64) string {
 
 // ToString Change arg to string
 func ToString(arg interface{}, timeFormat ...string) string {
-	var tmp = reflect.Indirect(reflect.ValueOf(arg)).Interface()
+	tmp := reflect.Indirect(reflect.ValueOf(arg)).Interface()
 	switch v := tmp.(type) {
 	case int:
 		return strconv.Itoa(v)

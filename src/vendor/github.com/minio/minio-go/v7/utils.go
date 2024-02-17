@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/md5"
 	fipssha256 "crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/xml"
@@ -28,7 +29,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
@@ -142,7 +142,7 @@ func closeResponse(resp *http.Response) {
 		// Without this closing connection would disallow re-using
 		// the same connection for future uses.
 		//  - http://stackoverflow.com/a/17961593/4465767
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}
 }
@@ -256,7 +256,7 @@ func parseRFC7231Time(lastModified string) (time.Time, error) {
 
 // ToObjectInfo converts http header values into ObjectInfo type,
 // extracts metadata and fills in all the necessary fields in ObjectInfo.
-func ToObjectInfo(bucketName string, objectName string, h http.Header) (ObjectInfo, error) {
+func ToObjectInfo(bucketName, objectName string, h http.Header) (ObjectInfo, error) {
 	var err error
 	// Trim off the odd double quotes from ETag in the beginning and end.
 	etag := trimEtag(h.Get("ETag"))
@@ -512,6 +512,32 @@ func isAmzHeader(headerKey string) bool {
 	return strings.HasPrefix(key, "x-amz-meta-") || strings.HasPrefix(key, "x-amz-grant-") || key == "x-amz-acl" || isSSEHeader(headerKey) || strings.HasPrefix(key, "x-amz-checksum-")
 }
 
+// supportedQueryValues is a list of query strings that can be passed in when using GetObject.
+var supportedQueryValues = map[string]bool{
+	"attributes":                   true,
+	"partNumber":                   true,
+	"versionId":                    true,
+	"response-cache-control":       true,
+	"response-content-disposition": true,
+	"response-content-encoding":    true,
+	"response-content-language":    true,
+	"response-content-type":        true,
+	"response-expires":             true,
+}
+
+// isStandardQueryValue will return true when the passed in query string parameter is supported rather than customized.
+func isStandardQueryValue(qsKey string) bool {
+	return supportedQueryValues[qsKey]
+}
+
+// Per documentation at https://docs.aws.amazon.com/AmazonS3/latest/userguide/LogFormat.html#LogFormatCustom, the
+// set of query params starting with "x-" are ignored by S3.
+const allowedCustomQueryPrefix = "x-"
+
+func isCustomQueryValue(qsKey string) bool {
+	return strings.HasPrefix(qsKey, allowedCustomQueryPrefix)
+}
+
 var (
 	md5Pool    = sync.Pool{New: func() interface{} { return md5.New() }}
 	sha256Pool = sync.Pool{New: func() interface{} { return sha256.New() }}
@@ -598,7 +624,7 @@ func IsNetworkOrHostDown(err error, expectTimeouts bool) bool {
 	urlErr := &url.Error{}
 	if errors.As(err, &urlErr) {
 		switch urlErr.Err.(type) {
-		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError, *tls.CertificateVerificationError:
 			return true
 		}
 	}
@@ -625,7 +651,12 @@ func IsNetworkOrHostDown(err error, expectTimeouts bool) bool {
 	case strings.Contains(err.Error(), "connection refused"):
 		// If err is connection refused
 		return true
-
+	case strings.Contains(err.Error(), "server gave HTTP response to HTTPS client"):
+		// If err is TLS client is used with HTTP server
+		return true
+	case strings.Contains(err.Error(), "Client sent an HTTP request to an HTTPS server"):
+		// If err is plain-text Client is used with a HTTPS server
+		return true
 	case strings.Contains(strings.ToLower(err.Error()), "503 service unavailable"):
 		// Denial errors
 		return true

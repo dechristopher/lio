@@ -3,7 +3,6 @@ package logger
 import (
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,9 +15,20 @@ type Config struct {
 	// Optional. Default: nil
 	Next func(c *fiber.Ctx) bool
 
+	// Done is a function that is called after the log string for a request is written to Output,
+	// and pass the log string as parameter.
+	//
+	// Optional. Default: nil
+	Done func(c *fiber.Ctx, logString []byte)
+
+	// tagFunctions defines the custom tag action
+	//
+	// Optional. Default: map[string]LogFunc
+	CustomTags map[string]LogFunc
+
 	// Format defines the logging tags
 	//
-	// Optional. Default: [${time}] ${status} - ${latency} ${method} ${path}\n
+	// Optional. Default: ${time} | ${status} | ${latency} | ${ip} | ${method} | ${path} | ${error}\n
 	Format string
 
 	// TimeFormat https://programming.guide/go/format-parse-string-time-date-example.html
@@ -41,34 +51,48 @@ type Config struct {
 	// Default: os.Stdout
 	Output io.Writer
 
+	// DisableColors defines if the logs output should be colorized
+	//
+	// Default: false
+	DisableColors bool
+
 	enableColors     bool
 	enableLatency    bool
 	timeZoneLocation *time.Location
 }
 
-// ConfigDefault is the default config
-var ConfigDefault = Config{
-	Next:         nil,
-	Format:       "[${time}] ${status} - ${latency} ${method} ${path}\n",
-	TimeFormat:   "15:04:05",
-	TimeZone:     "Local",
-	TimeInterval: 500 * time.Millisecond,
-	Output:       os.Stdout,
-	enableColors: true,
+const (
+	startTag       = "${"
+	endTag         = "}"
+	paramSeparator = ":"
+)
+
+type Buffer interface {
+	Len() int
+	ReadFrom(r io.Reader) (int64, error)
+	WriteTo(w io.Writer) (int64, error)
+	Bytes() []byte
+	Write(p []byte) (int, error)
+	WriteByte(c byte) error
+	WriteString(s string) (int, error)
+	Set(p []byte)
+	SetString(s string)
+	String() string
 }
 
-// Function to check if the logger format is compatible for coloring
-func validCustomFormat(format string) bool {
-	validTemplates := []string{"${status}", "${method}"}
-	if format == "" {
-		return true
-	}
-	for _, template := range validTemplates {
-		if strings.Contains(format, template) {
-			return true
-		}
-	}
-	return false
+type LogFunc func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error)
+
+// ConfigDefault is the default config
+var ConfigDefault = Config{
+	Next:          nil,
+	Done:          nil,
+	Format:        "${time} | ${status} | ${latency} | ${ip} | ${method} | ${path} | ${error}\n",
+	TimeFormat:    "15:04:05",
+	TimeZone:      "Local",
+	TimeInterval:  500 * time.Millisecond,
+	Output:        os.Stdout,
+	DisableColors: false,
+	enableColors:  true,
 }
 
 // Helper function to set default values
@@ -81,14 +105,12 @@ func configDefault(config ...Config) Config {
 	// Override default config
 	cfg := config[0]
 
-	// Enable colors if no custom format or output is given
-	if validCustomFormat(cfg.Format) && cfg.Output == nil {
-		cfg.enableColors = true
-	}
-
 	// Set default values
 	if cfg.Next == nil {
 		cfg.Next = ConfigDefault.Next
+	}
+	if cfg.Done == nil {
+		cfg.Done = ConfigDefault.Done
 	}
 	if cfg.Format == "" {
 		cfg.Format = ConfigDefault.Format
@@ -105,5 +127,10 @@ func configDefault(config ...Config) Config {
 	if cfg.Output == nil {
 		cfg.Output = ConfigDefault.Output
 	}
+
+	if !cfg.DisableColors && cfg.Output == ConfigDefault.Output {
+		cfg.enableColors = true
+	}
+
 	return cfg
 }

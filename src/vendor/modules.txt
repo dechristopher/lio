@@ -1,30 +1,24 @@
-# github.com/andybalholm/brotli v1.0.4
-## explicit; go 1.12
+# github.com/andybalholm/brotli v1.1.0
+## explicit; go 1.13
 github.com/andybalholm/brotli
+github.com/andybalholm/brotli/matchfinder
 # github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 ## explicit
 github.com/asaskevich/EventBus
 # github.com/dechristopher/octad v1.0.10
 ## explicit; go 1.19
 github.com/dechristopher/octad
-# github.com/dustin/go-humanize v1.0.0
-## explicit
-github.com/dustin/go-humanize
-# github.com/fasthttp/websocket v1.5.0
-## explicit; go 1.15
-github.com/fasthttp/websocket
-# github.com/gofiber/fiber/v2 v2.37.1
+# github.com/dustin/go-humanize v1.0.1
 ## explicit; go 1.16
+github.com/dustin/go-humanize
+# github.com/fasthttp/websocket v1.5.7
+## explicit; go 1.18
+github.com/fasthttp/websocket
+# github.com/gofiber/fiber/v2 v2.52.0
+## explicit; go 1.20
 github.com/gofiber/fiber/v2
-github.com/gofiber/fiber/v2/internal/bytebufferpool
-github.com/gofiber/fiber/v2/internal/colorable
-github.com/gofiber/fiber/v2/internal/dictpool
-github.com/gofiber/fiber/v2/internal/fasttemplate
-github.com/gofiber/fiber/v2/internal/fwd
-github.com/gofiber/fiber/v2/internal/isatty
-github.com/gofiber/fiber/v2/internal/msgp
 github.com/gofiber/fiber/v2/internal/schema
-github.com/gofiber/fiber/v2/internal/uuid
+github.com/gofiber/fiber/v2/log
 github.com/gofiber/fiber/v2/middleware/compress
 github.com/gofiber/fiber/v2/middleware/cors
 github.com/gofiber/fiber/v2/middleware/favicon
@@ -33,38 +27,53 @@ github.com/gofiber/fiber/v2/middleware/logger
 github.com/gofiber/fiber/v2/middleware/recover
 github.com/gofiber/fiber/v2/middleware/requestid
 github.com/gofiber/fiber/v2/utils
-# github.com/gofiber/template v1.7.1
-## explicit; go 1.16
-github.com/gofiber/template/html
-github.com/gofiber/template/utils
-# github.com/gofiber/websocket/v2 v2.0.25
-## explicit; go 1.14
+# github.com/gofiber/template v1.8.2
+## explicit; go 1.20
+github.com/gofiber/template
+# github.com/gofiber/template/html/v2 v2.1.0
+## explicit; go 1.20
+github.com/gofiber/template/html/v2
+# github.com/gofiber/utils v1.1.0
+## explicit; go 1.17
+github.com/gofiber/utils
+# github.com/gofiber/websocket/v2 v2.2.1
+## explicit; go 1.17
 github.com/gofiber/websocket/v2
-# github.com/google/uuid v1.3.0
+# github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/joho/godotenv v1.4.0
+# github.com/joho/godotenv v1.5.1
 ## explicit; go 1.12
 github.com/joho/godotenv
 # github.com/json-iterator/go v1.1.12
 ## explicit; go 1.12
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.9
-## explicit; go 1.16
+# github.com/klauspost/compress v1.17.6
+## explicit; go 1.19
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
+github.com/klauspost/compress/internal/race
 github.com/klauspost/compress/s2
 github.com/klauspost/compress/zlib
-# github.com/klauspost/cpuid/v2 v2.1.1
+# github.com/klauspost/cpuid/v2 v2.2.6
 ## explicit; go 1.15
 github.com/klauspost/cpuid/v2
-# github.com/looplab/fsm v0.3.0
+# github.com/looplab/fsm v1.0.1
 ## explicit; go 1.16
 github.com/looplab/fsm
+# github.com/mattn/go-colorable v0.1.13
+## explicit; go 1.15
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.20
+## explicit; go 1.15
+github.com/mattn/go-isatty
+# github.com/mattn/go-runewidth v0.0.15
+## explicit; go 1.9
+github.com/mattn/go-runewidth
 # github.com/minio/md5-simd v1.1.2
 ## explicit; go 1.14
 github.com/minio/md5-simd
-# github.com/minio/minio-go/v7 v7.0.42
+# github.com/minio/minio-go/v7 v7.0.67
 ## explicit; go 1.17
 github.com/minio/minio-go/v7
 github.com/minio/minio-go/v7/pkg/credentials
@@ -77,8 +86,8 @@ github.com/minio/minio-go/v7/pkg/set
 github.com/minio/minio-go/v7/pkg/signer
 github.com/minio/minio-go/v7/pkg/sse
 github.com/minio/minio-go/v7/pkg/tags
-# github.com/minio/sha256-simd v1.0.0
-## explicit; go 1.13
+# github.com/minio/sha256-simd v1.0.1
+## explicit; go 1.17
 github.com/minio/sha256-simd
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 ## explicit
@@ -89,48 +98,52 @@ github.com/modern-go/reflect2
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/rs/xid v1.4.0
+# github.com/rivo/uniseg v0.4.7
+## explicit; go 1.18
+github.com/rivo/uniseg
+# github.com/rs/xid v1.5.0
 ## explicit; go 1.12
 github.com/rs/xid
-# github.com/savsgio/gotils v0.0.0-20220530130905-52f3993e8d6d
-## explicit; go 1.13
+# github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee
+## explicit; go 1.20
 github.com/savsgio/gotils/strconv
-# github.com/sirupsen/logrus v1.9.0
+# github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.40.0
-## explicit; go 1.15
+# github.com/valyala/fasthttp v1.52.0
+## explicit; go 1.20
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttputil
 github.com/valyala/fasthttp/reuseport
 github.com/valyala/fasthttp/stackless
-# github.com/valyala/fastjson v1.6.3
+# github.com/valyala/fastjson v1.6.4
 ## explicit; go 1.12
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
 # github.com/valyala/tcplisten v1.0.0
 ## explicit; go 1.12
 github.com/valyala/tcplisten
-# golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
-## explicit; go 1.17
+# golang.org/x/crypto v0.19.0
+## explicit; go 1.18
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
-# golang.org/x/net v0.0.0-20220909164309-bea034e7d591
-## explicit; go 1.17
+# golang.org/x/net v0.21.0
+## explicit; go 1.18
 golang.org/x/net/http/httpguts
 golang.org/x/net/idna
+golang.org/x/net/internal/socks
+golang.org/x/net/proxy
 golang.org/x/net/publicsuffix
-# golang.org/x/sys v0.0.0-20220909162455-aba9fc2a8ff2
-## explicit; go 1.17
+# golang.org/x/sys v0.17.0
+## explicit; go 1.18
 golang.org/x/sys/cpu
-golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.7
-## explicit; go 1.17
+# golang.org/x/text v0.14.0
+## explicit; go 1.18
 golang.org/x/text/cases
 golang.org/x/text/internal
 golang.org/x/text/internal/language

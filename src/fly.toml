@@ -7,7 +7,7 @@ processes = []
 
 [env]
   DEPLOY = "prod"
-  PORT = 8080
+  PORT = "8080"
 
 [experimental]
   allowed_public_ports = []

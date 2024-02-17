@@ -1,6 +1,7 @@
 package room
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -242,7 +243,7 @@ func (r *Instance) cleanup() {
 
 // event runs a state machine transition using the given EventDesc and args
 func (r *Instance) event(event fsm.EventDesc, args ...interface{}) error {
-	err := r.stateMachine.Event(event.Name, args)
+	err := r.stateMachine.Event(context.TODO(), event.Name, args)
 	if err != nil {
 		return err
 	}
