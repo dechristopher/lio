@@ -20,7 +20,7 @@ window.notification = new Howl({
 
 const crowdTag = "c";
 
-const logMe = () => console.log(`© 2022 lioctad.org`);
+const logMe = () => console.log(`© 2024 lioctad.org`);
 
 // requestAnimFrame polyfill
 window.requestAnimFrame = (function () {
