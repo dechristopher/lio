@@ -21,7 +21,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.19
+        go-version: 1.22
 
     - name: Build
       run: cd src/cmd/lio && go build -v -o lio
@@ -34,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: 1.22
 
       - name: Test
         run: cd src && go test -parallel 4 -shuffle on -race -v ./...
