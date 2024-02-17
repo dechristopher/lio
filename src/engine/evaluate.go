@@ -1,8 +1,6 @@
 package engine
 
 import (
-	"math"
-
 	"github.com/dechristopher/octad"
 )
 
@@ -27,6 +25,8 @@ import (
 
 type materialValues = map[octad.Color]float64
 
+const WinVal = 10000
+
 // PieceVals contains the material evaluation value
 // of each piece type in octad
 var PieceVals = map[octad.PieceType]float64{
@@ -48,14 +48,14 @@ func Evaluate(situation *octad.Game) float64 {
 	switch situation.Outcome() {
 	case octad.WhiteWon:
 		if color == octad.White {
-			return math.Inf(1)
+			return WinVal
 		}
-		return math.Inf(-1)
+		return -WinVal
 	case octad.BlackWon:
 		if color == octad.White {
-			return math.Inf(-1)
+			return -WinVal
 		}
-		return math.Inf(1)
+		return WinVal
 	case octad.Draw:
 		return 0.0
 	default: // continue evaluation if no outcome

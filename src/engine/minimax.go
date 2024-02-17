@@ -113,9 +113,9 @@ func minimaxAB(
 	depth int,
 ) float64 {
 	if isMaxi {
-		return mmABMax(node, move, depth, math.Inf(-1), math.Inf(1))
+		return mmABMax(node, move, depth, -WinVal, WinVal)
 	}
-	return mmABMin(node, move, depth, math.Inf(-1), math.Inf(1))
+	return mmABMin(node, move, depth, -WinVal, WinVal)
 }
 
 // mmABMax is the maximizing routine for minimax with alpha-beta pruning
