@@ -29,6 +29,14 @@ type Clock struct {
 	StateChannel   chan State
 	ackChannels    map[octad.Color]chan bool
 
+	// quit terminates the running clock goroutine. Start creates a fresh one
+	// per run; Stop closes it. It is guarded by mutex.
+	quit chan struct{}
+	// stopped is closed by the clock goroutine when it exits. Reset waits on it
+	// so a subsequent Start cannot race the winding-down goroutine over the
+	// shared timer fields. Guarded by mutex.
+	stopped chan struct{}
+
 	flagTimer  *time.Timer // fires an event to check for a player flagging
 	delayTimer *time.Timer // fires an event to represent delay time expiring
 	mutex      *sync.Mutex // prevent concurrent clock state changes
@@ -83,10 +91,13 @@ func NewClock(tc TimeControl) *Clock {
 		clockPaused:    true,
 		delayExpired:   false,
 		ControlChannel: make(chan Command),
-		StateChannel:   make(chan State),
-		ackChannels:    make(map[octad.Color]chan bool),
-		mutex:          &sync.Mutex{},
-		publisher:      bus.NewPublisher("clock", Channel),
+		// buffered so Stop can publish the final (flagged) state without
+		// blocking on a consumer that may itself be blocked waiting on the
+		// flip acknowledgement — see Stop and handleCommand
+		StateChannel: make(chan State, 1),
+		ackChannels:  make(map[octad.Color]chan bool),
+		mutex:        &sync.Mutex{},
+		publisher:    bus.NewPublisher("clock", Channel),
 	}
 
 	clock.players[octad.White] = &playerClock{control: tc, elapsed: ToCTime(0)}
@@ -156,13 +167,24 @@ func (c *Clock) GetAck() chan bool {
 // Start begins the clock and its internal routines for
 // handling time decrement and player command input
 func (c *Clock) Start() {
+	c.mutex.Lock()
 	// "start" clock
 	c.clockPaused = false
 
+	// fresh quit/stopped channels so this run has its own lifecycle; Stop
+	// closes quit to terminate the goroutine, which closes stopped on exit so
+	// Reset can wait for it before a later Start reuses the timer fields
+	c.quit = make(chan struct{})
+	c.stopped = make(chan struct{})
+	quit := c.quit
+	stopped := c.stopped
+
 	// set flag timer so we can reset it later on
 	c.flagTimer = time.NewTimer(time.Nanosecond)
+	c.mutex.Unlock()
 
-	go func(cl *Clock) {
+	go func(cl *Clock, quit, stopped chan struct{}) {
+		defer close(stopped)
 		// set up delay timer
 		if cl.control.Delay.t != 0 {
 			cl.delayTimer = time.NewTimer(cl.control.Delay.t)
@@ -173,6 +195,9 @@ func (c *Clock) Start() {
 		}
 		for {
 			select {
+			case <-quit:
+				// clock stopped; terminate this goroutine
+				return
 			case cmd := <-cl.ControlChannel:
 				// process clock commands
 				if cl.handleCommand(cmd) {
@@ -184,37 +209,70 @@ func (c *Clock) Start() {
 			case <-cl.flagTimer.C:
 				// check to see if any player has flagged
 				if cl.EstimateFlagged() {
-					if c.turn == octad.Black {
-						c.victor = White
+					cl.mutex.Lock()
+					if cl.turn == octad.Black {
+						cl.victor = White
 					} else {
-						c.victor = Black
+						cl.victor = Black
 					}
+					cl.mutex.Unlock()
 
 					cl.Stop(true, true)
 					return
 				}
 			}
 		}
-	}(c)
+	}(c, quit, stopped)
 }
 
-// Reset the clock times and prepare for another game
+// Reset the clock times and prepare for another game. Stop terminates the
+// running goroutine (via quit), so the command/ack channels are safe to reuse;
+// only the state channel is recreated to discard any buffered flagged state.
 func (c *Clock) Reset() {
+	c.mutex.Lock()
+	running := !c.clockPaused
+	stopped := c.stopped
+	c.mutex.Unlock()
+
 	c.Stop(false, true)
+
+	// wait for the running goroutine to fully exit before mutating the shared
+	// timer fields below, so a subsequent Start cannot race it. Reset is only
+	// driven by the room routine on an invalid first move, when no flip is in
+	// flight, so the goroutine is parked in its select and exits promptly.
+	if running && stopped != nil {
+		<-stopped
+	}
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	c.players[octad.White].elapsed = ToCTime(0)
 	c.players[octad.Black].elapsed = ToCTime(0)
 
-	c.ControlChannel = make(chan Command)
-	c.StateChannel = make(chan State)
-	c.ackChannels[octad.White] = make(chan bool)
-	c.ackChannels[octad.Black] = make(chan bool)
+	// restore fresh-game state
+	c.firstMove = true
+	c.victor = NoVictor
+	c.turn = octad.White
+
+	// drop any buffered (flagged) state from the previous game
+	c.StateChannel = make(chan State, 1)
 }
 
-// Stop the clock and write state to state channel
+// Stop the clock, terminate its goroutine, and optionally publish the final
+// state. Safe to call multiple times (the clockPaused guard makes repeat calls
+// no-ops). The command/ack/state channels are intentionally left open so a
+// late flipClock send can never panic on a closed channel; the goroutine is
+// terminated via the quit channel instead.
 func (c *Clock) Stop(writeState, lock bool) {
 	if lock {
 		c.mutex.Lock()
 		defer c.mutex.Unlock()
+	}
+
+	// already stopped: avoid a double quit-close and duplicate state publish
+	if c.clockPaused {
+		return
 	}
 
 	c.clockPaused = true
@@ -227,12 +285,15 @@ func (c *Clock) Stop(writeState, lock bool) {
 	}
 
 	if writeState {
+		// StateChannel is buffered(1), so this never blocks
 		c.StateChannel <- c.State(false)
 	}
-	close(c.StateChannel)
-	close(c.ControlChannel)
-	close(c.ackChannels[octad.White])
-	close(c.ackChannels[octad.Black])
+
+	// signal the clock goroutine to exit
+	if c.quit != nil {
+		close(c.quit)
+		c.quit = nil
+	}
 }
 
 // State returns the current clock state

@@ -42,21 +42,28 @@ var roomChannelTypes = []Type{
 	waiting,
 }
 
-// rooms is a mapping from room ID to instance
-var rooms = make(map[string]*Instance)
+// rooms is a mapping from room ID to instance. It is accessed concurrently
+// by HTTP/WS handler goroutines (Get/Create) and room routines (cleanup),
+// so it must be a sync.Map to avoid fatal concurrent map access.
+var rooms = &sync.Map{}
 
 // Get room instance by id
 func Get(id string) (*Instance, error) {
-	instance := rooms[id]
-	if instance == nil {
+	instance, ok := rooms.Load(id)
+	if !ok {
 		return nil, ErrNoRoom{ID: id}
 	}
-	return instance, nil
+	return instance.(*Instance), nil
 }
 
 // Count returns the number of active rooms
 func Count() int {
-	return len(rooms)
+	count := 0
+	rooms.Range(func(_, _ interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 // Instance is a struct that represents an ongoing match between
@@ -72,6 +79,11 @@ type Instance struct {
 	stateChannel   chan State
 	moveChannel    chan *message.RoomMove
 	controlChannel chan message.RoomControl
+
+	// done is closed exactly once by cleanup when the room routine exits.
+	// Senders into the room's channels select on it so they can never block
+	// forever once the room is being torn down.
+	done chan struct{}
 
 	players player.Players
 	rematch player.Agreement
@@ -120,7 +132,10 @@ func Create(params Params) (*Instance, error) {
 
 	roomId := config.GenerateCode(7, config.Base58)
 
-	for rooms[roomId] != nil {
+	for {
+		if _, exists := rooms.Load(roomId); !exists {
+			break
+		}
 		roomId = config.GenerateCode(7, config.Base58)
 	}
 
@@ -132,7 +147,9 @@ func Create(params Params) (*Instance, error) {
 
 		stateChannel:   make(chan State, 1),
 		moveChannel:    make(chan *message.RoomMove),
-		controlChannel: make(chan message.RoomControl),
+		controlChannel: make(chan message.RoomControl, 1),
+
+		done: make(chan struct{}),
 
 		players: params.Players,
 		rematch: player.Agreement{},
@@ -169,8 +186,7 @@ func Create(params Params) (*Instance, error) {
 	}
 
 	// store room in rooms map
-	// TODO sync.Map
-	rooms[r.ID] = r
+	rooms.Store(r.ID, r)
 
 	// log room creation
 	util.Info(str.CRoom, "[%s] room created by uid %s", r.ID, params.Creator)
@@ -227,9 +243,13 @@ func (r *Instance) routine() {
 	}
 }
 
-// cleanup finishes, closes, and finalizes the room
+// cleanup finishes, closes, and finalizes the room. It runs exactly once,
+// from the room routine's deferred call, so the close(r.done) is safe.
 func (r *Instance) cleanup() {
 	util.DebugFlag("room", str.CRoom, "[%s] cleaning up", r.ID)
+	// release any goroutines blocked sending into the room's channels
+	// (SendMove / Cancel / engine dispatcher) before tearing anything down
+	close(r.done)
 	// clean up all existing room channels by type
 	for _, channelType := range roomChannelTypes {
 		c := fmt.Sprintf("%s%s", channelType, r.ID)
@@ -238,7 +258,7 @@ func (r *Instance) cleanup() {
 		}
 	}
 	// delete room instance from rooms map
-	delete(rooms, r.ID)
+	rooms.Delete(r.ID)
 }
 
 // event runs a state machine transition using the given EventDesc and args
@@ -298,26 +318,32 @@ func (r *Instance) HandlePreGame(uid string, payload *message.RoomTemplatePayloa
 	}
 }
 
-// Cancel will cancel the room if not past waiting for players state
+// Cancel will cancel the room if not past waiting for players state.
+// The cancelled flag is set by the room routine itself (on receipt of the
+// control message), never here, to avoid a cross-goroutine data race and to
+// prevent a cancel that loses the race against game start from tearing down
+// an in-progress game.
 func (r *Instance) Cancel() bool {
 	// only allow room cancellation in the waiting state
 	if r.State() != StateWaitingForPlayers {
 		return false
 	}
 
-	// set cancelled flag to halt room routine loop
-	r.cancelled = true
-
-	// emit control message to signal room routine handler to exit
-	r.controlChannel <- message.RoomControl{
+	// emit control message to signal room routine handler to exit.
+	// controlChannel is buffered, so this does not require the routine to be
+	// parked on a receive; the done case guards against a torn-down room.
+	select {
+	case r.controlChannel <- message.RoomControl{
 		Type: message.Cancel,
 		Ctx: channel.SocketContext{
 			Channel: r.ID,
 			MT:      1,
 		},
+	}:
+		return true
+	case <-r.done:
+		return false
 	}
-
-	return true
 }
 
 // CanJoin returns true if the given player by uid can participate in the match
@@ -420,12 +446,20 @@ func (r *Instance) Game() *game.OctadGame {
 	return r.game
 }
 
-// SendMove writes a move to the room's moveChannel
-// to be consumed by a listening routine
+// SendMove writes a move to the room's moveChannel to be consumed by the
+// room routine. moveChannel is only drained while the game is ready or
+// ongoing, so the send selects on r.done to guarantee it can never block a
+// caller goroutine (a WS read loop) forever once the room is torn down.
 func (r *Instance) SendMove(move *message.RoomMove) {
 	// prevent first moves before moves are allowed to be played
-	if r.State() != StateWaitingForPlayers {
-		r.moveChannel <- move
+	if r.State() == StateWaitingForPlayers {
+		return
+	}
+
+	select {
+	case r.moveChannel <- move:
+	case <-r.done:
+		// room is being torn down; drop the move
 	}
 }
 
@@ -563,8 +597,13 @@ func (r *Instance) requestEngineMove() {
 			MT:      1,
 		},
 		ResponseChannel: r.moveChannel,
-		OFEN:            r.game.OFEN(),
-		Depth:           r.calcDepth(r.game.ToMove),
+		Done:            r.done,
+		// tag the request with the current game ID so a late-returning search
+		// from a previous game (e.g. after a rematch) is dropped by the
+		// staleness guard in makeMove instead of being applied to a new game
+		GameID: r.game.ID,
+		OFEN:   r.game.OFEN(),
+		Depth:  r.calcDepth(r.game.ToMove),
 	})
 }
 
@@ -583,6 +622,12 @@ func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
 // flipClock flips the internal game clock after a move is made
 // and waits for acknowledgement
 func (r *Instance) flipClock() {
+	// don't flip a clock that has already stopped on a flag: its command and
+	// ack channels are closed, so sending would panic. The flagged state is
+	// handled separately via the clock StateChannel.
+	if r.game.Clock.State(true).Victor != clock.NoVictor {
+		return
+	}
 	ackChannel := r.game.Clock.GetAck()
 	// handle clock flipping
 	r.game.Clock.ControlChannel <- clock.Flip
@@ -636,6 +681,11 @@ func (r *Instance) calcDepth(color octad.Color) int {
 func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool, *fsm.EventDesc) {
 	// restart game if over
 	if r.game.Outcome() != octad.NoOutcome {
+		// terminate the clock goroutine now that the game is decided. Stop is
+		// idempotent, so this is a no-op if the game ended on a flag (the
+		// clock already stopped itself).
+		r.game.Clock.Stop(false, true)
+
 		// send final game update to prevent further moves
 		channel.Broadcast(r.CurrentGameStateMessage(true, false), meta)
 		// broadcast game over message immediately

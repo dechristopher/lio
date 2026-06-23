@@ -68,11 +68,23 @@ func (r *Instance) handleGameOngoing() {
 			}
 
 			// run game over routine and get transition event type
-			_, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, false)
+			isOver, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, false)
+
+			// a clock flag followed by a resign must always end the game; if
+			// it somehow didn't, abandon the room rather than nil-deref on
+			// event or spin on the now-buffered clock state channel
+			if !isOver || event == nil {
+				util.Error(str.CRoom, "[%s] clock flagged but game not over (victor=%d), abandoning", r.ID, flaggedState.Victor)
+				r.abandoned = true
+				if err := r.event(EventPlayerAbandons); err != nil {
+					panic(err)
+				}
+				abandonTimer.Stop()
+				return
+			}
 
 			// make state transition and exit the gameOngoing routine
-			err := r.event(*event)
-			if err != nil {
+			if err := r.event(*event); err != nil {
 				panic(err)
 			}
 

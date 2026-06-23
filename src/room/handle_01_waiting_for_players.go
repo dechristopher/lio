@@ -82,8 +82,11 @@ func (r *Instance) handleWaitingForPlayers() {
 			}
 			return
 		case control := <-r.controlChannel:
-			// if room cancelled, halt immediately
+			// if room cancelled, halt immediately. The flag is set here, in
+			// the room routine goroutine, so the routine loop exits after this
+			// handler returns without racing the caller of Cancel().
 			if control.Type == message.Cancel {
+				r.cancelled = true
 				return
 			}
 		}

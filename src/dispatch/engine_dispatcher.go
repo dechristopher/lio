@@ -15,7 +15,11 @@ type EngineRequest struct {
 	OFEN            string
 	Depth           int
 	ResponseChannel chan *message.RoomMove
-	Ctx             channel.SocketContext
+	// Done, if set, signals that the requesting room has been torn down so
+	// the worker can drop its result instead of blocking forever on the
+	// unbuffered ResponseChannel.
+	Done <-chan struct{}
+	Ctx  channel.SocketContext
 }
 
 // EngineDispatcher is a dispatcher for engine evaluation requests
@@ -59,8 +63,8 @@ func (d *EngineDispatcher) worker(r EngineRequest) {
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] found move %s", r.OFEN, move.Move.String())
 
-	// write response move to given channel
-	r.ResponseChannel <- &message.RoomMove{
+	// write response move to given channel, but bail if the room is gone
+	response := &message.RoomMove{
 		Player: "engine",
 		GameID: r.GameID,
 		Move: proto.MovePayload{
@@ -68,5 +72,11 @@ func (d *EngineDispatcher) worker(r EngineRequest) {
 			UOI:   move.Move.String(),
 		},
 		Ctx: r.Ctx,
+	}
+
+	select {
+	case r.ResponseChannel <- response:
+	case <-r.Done:
+		util.DebugFlag("dispatch", str.CEng, "[%s] room gone, dropping engine move %s", r.OFEN, move.Move.String())
 	}
 }

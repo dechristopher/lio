@@ -34,6 +34,11 @@ func (c *Clock) handleCommand(cmd Command) bool {
 
 			// check to see if someone flagged
 			if c.flagged() {
+				// acknowledge the flip first so the caller blocked in
+				// flipClock (<-ackChannel) is released before Stop closes the
+				// ack channels; otherwise the room routine and this goroutine
+				// deadlock (routine waits on the ack, we wait to publish state)
+				c.ackChannels[c.turn] <- true
 				c.Stop(true, false)
 				return true
 			}
