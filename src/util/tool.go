@@ -1,12 +1,12 @@
 package util
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/dechristopher/octad"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/rng"
 )
 
 // DoBothColors runs the given function on both colors
@@ -23,11 +23,10 @@ func BothColors(check func(color octad.Color) bool) bool {
 
 // RandomColor randomly returns either white or black
 func RandomColor() octad.Color {
-	if rand.Float32() > 0.5 {
+	if rng.Bool() {
 		return octad.White
-	} else {
-		return octad.Black
 	}
+	return octad.Black
 }
 
 // MilliTime returns the current millisecond time

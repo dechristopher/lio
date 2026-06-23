@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
-	"math/rand"
+	"io"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/rng"
 )
 
 type Charset int
@@ -60,7 +60,7 @@ func ReadSecret(name string) (string, error) {
 		return "", err
 	}
 
-	secret, err := ioutil.ReadAll(f)
+	secret, err := io.ReadAll(f)
 	if err != nil {
 		return "", err
 	}
@@ -83,9 +83,9 @@ func GenerateCode(length int, charset ...Charset) string {
 		for i := range b {
 			switch cs {
 			case Hex:
-				b[i] = charsetHex[rand.Intn(len(charsetHex))]
+				b[i] = charsetHex[rng.Intn(len(charsetHex))]
 			case Base58:
-				b[i] = charsetBase58[rand.Intn(len(charsetBase58))]
+				b[i] = charsetBase58[rng.Intn(len(charsetBase58))]
 			}
 		}
 

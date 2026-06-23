@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"flag"
-	"math/rand"
 	"strings"
 	"time"
 
@@ -50,9 +49,6 @@ func init() {
 		// print development mode warning
 		util.Debug(str.CMain, str.MDevMode)
 	}
-
-	// Seed PRNG
-	rand.Seed(time.Now().UTC().UnixNano())
 
 	// test that crypto system is operational
 	_, _ = crypt.Encrypt([]byte("lio"))

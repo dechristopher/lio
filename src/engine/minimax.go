@@ -1,8 +1,6 @@
 package engine
 
 import (
-	"math"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -10,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/rng"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
@@ -27,12 +26,19 @@ type minimaxABParams struct {
 func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
 	// sleep for a random amount of time to make the engine easier to beat,
 	// anywhere from a fraction of a second to 1.25 seconds
-	time.Sleep(clock.Centisecond * 5 * time.Duration(rand.Intn(25)))
+	time.Sleep(clock.Centisecond * 5 * time.Duration(rng.Intn(25)))
 
+	return minimaxABRoot(situation, depth)
+}
+
+// minimaxABRoot runs the parallel alpha-beta root search. It is the
+// pure, side-effect-free core of searchMinimaxAB (no handicap sleep)
+// so it can be exercised directly by tests.
+func minimaxABRoot(situation *octad.Game, depth int) MoveEval {
 	isWhite := situation.Position().Turn() == octad.White
-	bestMoveEval := math.Inf(1)
+	bestMoveEval := WinVal
 	if isWhite {
-		bestMoveEval = math.Inf(-1)
+		bestMoveEval = -WinVal
 	}
 
 	var bestMove MoveEval
