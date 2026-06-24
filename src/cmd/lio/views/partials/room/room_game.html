@@ -1,6 +1,6 @@
 <i id="gameTitle">{{ .Data.VariantName }}</i>
 <div class="gccon mt8">
-	<div id="clockOpponent" class="clockOpponent">
+	<div id="clockOpponent" class="clockOpponent" data-bot="{{ .Data.OpponentIsBot }}">
 		{{ template "partials/clock" .Data.OpponentColor }}
 	</div>
 	{{ template "partials/game" .Data.PlayerColor }}

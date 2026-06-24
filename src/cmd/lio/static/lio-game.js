@@ -96,6 +96,37 @@ const whiteToMove = (ofenParts) => {
 	return ofenParts[1] === 'w';
 };
 
+// whether the opponent in this game is the engine/bot, and the opponent's
+// "thinking" indicator element (only the opponent clock carries data-bot)
+const clockOpponentEl = document.getElementById('clockOpponent');
+const opponentIsBot = !!clockOpponentEl && clockOpponentEl.dataset.bot === 'true';
+const thinkingEl = clockOpponentEl ? clockOpponentEl.querySelector('.thinking') : null;
+
+/**
+ * Show or hide the opponent "thinking" indicator. No-op unless the opponent
+ * is the engine, so it never appears in human-vs-human games.
+ * @param on - whether the engine is currently thinking
+ */
+const setThinking = (on) => {
+	if (!thinkingEl || !opponentIsBot) {
+		return;
+	}
+	thinkingEl.classList.toggle('thinking-on', !!on);
+};
+
+/**
+ * Update the thinking indicator from a board-state message: the engine is
+ * thinking whenever the game is still ongoing and it is the opponent's turn.
+ * @param message - move message
+ * @param ofenParts - OFEN parts array
+ */
+const updateThinking = (message, ofenParts) => {
+	// a non-empty legal-move set means the game is still in progress; an empty
+	// set means checkmate/stalemate, where nobody is "thinking"
+	const gameOngoing = !!message.d.v && Object.keys(message.d.v).length > 0;
+	setThinking(gameOngoing && !isPlayerTurn(message, ofenParts));
+};
+
 /**
  * Handle incoming move messages, update board state, update UI and clocks
  * @param message - move message
@@ -127,6 +158,9 @@ const handleMove = (message) => {
 	// update UI styles and clock tickers
 	updateUI(message, ofenParts);
 
+	// show/hide the engine thinking indicator based on whose turn it is
+	updateThinking(message, ofenParts);
+
 	// perform pre-move if set
 	og.playPremove();
 };
@@ -139,6 +173,9 @@ const handleGameOver = (message) => {
 	cancelAnimationFrame(frameId);
 	document.getElementById("info").innerHTML = message.d.s;
 	window.notification.play();
+
+	// game is over; the engine is no longer thinking
+	setThinking(false);
 
 	// disallow further moves
 	og.set({

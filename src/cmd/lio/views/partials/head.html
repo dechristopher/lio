@@ -346,6 +346,49 @@
 		  font-weight: 600;
 	  }
 
+	  /* opponent "thinking" indicator: three pulsing dots shown while the
+	     engine is choosing its move. Hidden unless toggled on via JS. */
+	  .thinking {
+		  display: none;
+		  align-items: center;
+		  gap: 3px;
+
+		  margin-left: 6px;
+	  }
+
+	  .thinking.thinking-on {
+		  display: inline-flex;
+	  }
+
+	  .thinking i {
+		  width: 4px;
+		  height: 4px;
+
+		  border-radius: 50%;
+		  background-color: #FFF0DB;
+
+		  animation: thinkingPulse 1.2s infinite ease-in-out both;
+	  }
+
+	  .thinking i:nth-child(1) {
+		  animation-delay: -0.32s;
+	  }
+
+	  .thinking i:nth-child(2) {
+		  animation-delay: -0.16s;
+	  }
+
+	  @keyframes thinkingPulse {
+		  0%, 80%, 100% {
+			  opacity: 0.25;
+			  transform: scale(0.7);
+		  }
+		  40% {
+			  opacity: 1;
+			  transform: scale(1);
+		  }
+	  }
+
 	  .clockScore {
 		  color: #FFF0DB;
 		  font-size: 17px;

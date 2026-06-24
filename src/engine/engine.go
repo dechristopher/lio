@@ -1,13 +1,11 @@
 package engine
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/dechristopher/octad"
 
 	"github.com/dechristopher/lio/bus"
-	"github.com/dechristopher/lio/util"
 )
 
 // MoveEval contains the best move and the evaluation of the best sequence
@@ -75,23 +73,23 @@ func Search(ofen string, depth int, alg SearchAlg) MoveEval {
 
 // TestEngine runs a quick test of the engine for a given ofen
 // at the given depth and prints all moves and positions
-func TestEngine(ofen string, depth int) {
-	//ofen := "K3/2kq/4/4 b - - 15 7"
-	//ofen := "4/k1KP/4/4 w - - 0 2"
-	o, _ := octad.OFEN(ofen)
-	game, _ := octad.NewGame(o)
-
-	util.Debug("TestEngine", game.Position().String())
-	fmt.Print(game.Position().Board().Draw())
-
-	for game.Outcome() == octad.NoOutcome {
-		move := Search(game.Position().String(), depth, MinimaxAB)
-		_ = game.Move(&move.Move)
-
-		util.Debug("TestEngine", move.Move.String())
-		util.Debug("TestEngine", game.Position().String())
-		fmt.Print(game.Position().Board().Draw())
-	}
-
-	util.Debug("TestEngine", game.Outcome().String())
-}
+//func TestEngine(ofen string, depth int) {
+//	//ofen := "K3/2kq/4/4 b - - 15 7"
+//	//ofen := "4/k1KP/4/4 w - - 0 2"
+//	o, _ := octad.OFEN(ofen)
+//	game, _ := octad.NewGame(o)
+//
+//	util.Debug("TestEngine", game.Position().String())
+//	fmt.Print(game.Position().Board().Draw())
+//
+//	for game.Outcome() == octad.NoOutcome {
+//		move := Search(game.Position().String(), depth, MinimaxAB)
+//		_ = game.Move(&move.Move)
+//
+//		util.Debug("TestEngine", move.Move.String())
+//		util.Debug("TestEngine", game.Position().String())
+//		fmt.Print(game.Position().Board().Draw())
+//	}
+//
+//	util.Debug("TestEngine", game.Outcome().String())
+//}

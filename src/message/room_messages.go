@@ -10,6 +10,7 @@ type RoomTemplatePayload struct {
 	RoomID        string
 	PlayerColor   string
 	OpponentColor string
+	OpponentIsBot bool
 	VariantName   string
 	Variant       variant.Variant
 	IsCreator     bool

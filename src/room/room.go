@@ -902,10 +902,16 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 
 	_, playerColor := r.players.Lookup(id)
 
+	opponentIsBot := false
+	if opp := r.players[playerColor.Other()]; opp != nil {
+		opponentIsBot = opp.IsBot
+	}
+
 	return message.RoomTemplatePayload{
 		RoomID:        r.ID,
 		PlayerColor:   playerColor.String(),
 		OpponentColor: playerColor.Other().String(),
+		OpponentIsBot: opponentIsBot,
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
 		Variant:       r.game.Variant,
 	}
