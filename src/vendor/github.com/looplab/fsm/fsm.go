@@ -228,6 +228,8 @@ func (f *FSM) SetState(state string) {
 
 // Can returns true if event can occur in the current state.
 func (f *FSM) Can(event string) bool {
+	f.eventMu.Lock()
+	defer f.eventMu.Unlock()
 	f.stateMu.RLock()
 	defer f.stateMu.RUnlock()
 	_, ok := f.transitions[eKey{event, f.current}]
@@ -333,6 +335,10 @@ func (f *FSM) Event(ctx context.Context, event string, args ...interface{}) erro
 	}
 
 	if f.current == dst {
+		f.stateMu.RUnlock()
+		defer f.stateMu.RLock()
+		f.eventMu.Unlock()
+		unlocked = true
 		f.afterEventCallbacks(ctx, e)
 		return NoTransitionError{e.Err}
 	}

@@ -18,6 +18,7 @@
 package minio
 
 import (
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -32,6 +33,14 @@ type listAllMyBucketsResult struct {
 		Bucket []BucketInfo
 	}
 	Owner owner
+}
+
+// listAllMyDirectoryBucketsResult container for listDirectoryBuckets response.
+type listAllMyDirectoryBucketsResult struct {
+	Buckets struct {
+		Bucket []BucketInfo
+	}
+	ContinuationToken string
 }
 
 // owner container for bucket owner information.
@@ -97,6 +106,20 @@ type Version struct {
 		K int // Data blocks
 		M int // Parity blocks
 	} `xml:"Internal"`
+
+	// Checksum values. Only returned by AiStor servers.
+	ChecksumCRC32     string `xml:",omitempty"`
+	ChecksumCRC32C    string `xml:",omitempty"`
+	ChecksumSHA1      string `xml:",omitempty"`
+	ChecksumSHA256    string `xml:",omitempty"`
+	ChecksumCRC64NVME string `xml:",omitempty"`
+	ChecksumMD5       string `xml:",omitempty"`
+	ChecksumSHA512    string `xml:",omitempty"`
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
+	ChecksumAlgorithm string `xml:",omitempty"`
+	ChecksumType      string `xml:",omitempty"`
 
 	isDeleteMarker bool
 }
@@ -193,7 +216,6 @@ func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, _ xml.StartElement) (e
 			default:
 				return errors.New("unrecognized option:" + tagName)
 			}
-
 		}
 	}
 	return nil
@@ -276,10 +298,60 @@ type ObjectPart struct {
 	Size int64
 
 	// Checksum values of each part.
-	ChecksumCRC32  string
-	ChecksumCRC32C string
-	ChecksumSHA1   string
-	ChecksumSHA256 string
+	ChecksumCRC32     string
+	ChecksumCRC32C    string
+	ChecksumSHA1      string
+	ChecksumSHA256    string
+	ChecksumCRC64NVME string
+	ChecksumMD5       string
+	ChecksumSHA512    string
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
+}
+
+// Checksum will return the checksum for the given type.
+// Will return the empty string if not set.
+func (c ObjectPart) Checksum(t ChecksumType) string {
+	switch {
+	case t.Is(ChecksumCRC32C):
+		return c.ChecksumCRC32C
+	case t.Is(ChecksumCRC32):
+		return c.ChecksumCRC32
+	case t.Is(ChecksumSHA1):
+		return c.ChecksumSHA1
+	case t.Is(ChecksumSHA256):
+		return c.ChecksumSHA256
+	case t.Is(ChecksumCRC64NVME):
+		return c.ChecksumCRC64NVME
+	case t.Is(ChecksumMD5):
+		return c.ChecksumMD5
+	case t.Is(ChecksumSHA512):
+		return c.ChecksumSHA512
+	case t.Is(ChecksumXXHash64):
+		return c.ChecksumXXHash64
+	case t.Is(ChecksumXXHash3):
+		return c.ChecksumXXHash3
+	case t.Is(ChecksumXXHash128):
+		return c.ChecksumXXHash128
+	}
+	return ""
+}
+
+// ChecksumRaw returns the decoded checksum from the part.
+func (c ObjectPart) ChecksumRaw(t ChecksumType) ([]byte, error) {
+	b64 := c.Checksum(t)
+	if b64 == "" {
+		return nil, errors.New("no checksum set")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) != t.RawByteLen() {
+		return nil, errors.New("checksum length mismatch")
+	}
+	return decoded, nil
 }
 
 // ListObjectPartsResult container for ListObjectParts response.
@@ -295,6 +367,12 @@ type ListObjectPartsResult struct {
 	PartNumberMarker     int
 	NextPartNumberMarker int
 	MaxParts             int
+
+	// ChecksumAlgorithm will be CRC32, CRC32C, etc.
+	ChecksumAlgorithm string
+
+	// ChecksumType is FULL_OBJECT or COMPOSITE (assume COMPOSITE when unset)
+	ChecksumType string
 
 	// Indicates whether the returned list of parts is truncated.
 	IsTruncated bool
@@ -320,10 +398,17 @@ type completeMultipartUploadResult struct {
 	ETag     string
 
 	// Checksum values, hash of hashes of parts.
-	ChecksumCRC32  string
-	ChecksumCRC32C string
-	ChecksumSHA1   string
-	ChecksumSHA256 string
+	ChecksumCRC32     string
+	ChecksumCRC32C    string
+	ChecksumSHA1      string
+	ChecksumSHA256    string
+	ChecksumCRC64NVME string
+	ChecksumMD5       string
+	ChecksumSHA512    string
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128"`
+	ChecksumType      string
 }
 
 // CompletePart sub container lists individual part numbers and their
@@ -334,10 +419,44 @@ type CompletePart struct {
 	ETag       string
 
 	// Checksum values
-	ChecksumCRC32  string `xml:"ChecksumCRC32,omitempty"`
-	ChecksumCRC32C string `xml:"ChecksumCRC32C,omitempty"`
-	ChecksumSHA1   string `xml:"ChecksumSHA1,omitempty"`
-	ChecksumSHA256 string `xml:"ChecksumSHA256,omitempty"`
+	ChecksumCRC32     string `xml:"ChecksumCRC32,omitempty"`
+	ChecksumCRC32C    string `xml:"ChecksumCRC32C,omitempty"`
+	ChecksumSHA1      string `xml:"ChecksumSHA1,omitempty"`
+	ChecksumSHA256    string `xml:"ChecksumSHA256,omitempty"`
+	ChecksumCRC64NVME string `xml:",omitempty"`
+	ChecksumMD5       string `xml:",omitempty"`
+	ChecksumSHA512    string `xml:",omitempty"`
+	ChecksumXXHash64  string `xml:"ChecksumXXHASH64,omitempty"`
+	ChecksumXXHash3   string `xml:"ChecksumXXHASH3,omitempty"`
+	ChecksumXXHash128 string `xml:"ChecksumXXHASH128,omitempty"`
+}
+
+// Checksum will return the checksum for the given type.
+// Will return the empty string if not set.
+func (c CompletePart) Checksum(t ChecksumType) string {
+	switch {
+	case t.Is(ChecksumCRC32C):
+		return c.ChecksumCRC32C
+	case t.Is(ChecksumCRC32):
+		return c.ChecksumCRC32
+	case t.Is(ChecksumSHA1):
+		return c.ChecksumSHA1
+	case t.Is(ChecksumSHA256):
+		return c.ChecksumSHA256
+	case t.Is(ChecksumCRC64NVME):
+		return c.ChecksumCRC64NVME
+	case t.Is(ChecksumMD5):
+		return c.ChecksumMD5
+	case t.Is(ChecksumSHA512):
+		return c.ChecksumSHA512
+	case t.Is(ChecksumXXHash64):
+		return c.ChecksumXXHash64
+	case t.Is(ChecksumXXHash3):
+		return c.ChecksumXXHash3
+	case t.Is(ChecksumXXHash128):
+		return c.ChecksumXXHash128
+	}
+	return ""
 }
 
 // completeMultipartUpload container for completing multipart upload.
