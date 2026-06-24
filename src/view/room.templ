@@ -1,0 +1,56 @@
+package view
+
+import (
+	"strconv"
+
+	"github.com/dechristopher/lio/message"
+)
+
+// Room renders a game room. The payload's IsCreator / IsJoining flags select
+// between the playing-game view, the creator waiting view, and the joiner view,
+// and the matching client scripts, exactly as the old room template did.
+templ Room(meta Meta, payload message.RoomTemplatePayload) {
+	@base(meta) {
+		<body>
+			<div class="c">
+				@header()
+				if !payload.IsCreator && !payload.IsJoining {
+					@roomGame(payload)
+				} else if payload.IsCreator {
+					@roomCreator(meta, payload)
+				} else if payload.IsJoining {
+					@roomJoiner(payload)
+				}
+				@footer(meta)
+			</div>
+		</body>
+		@scriptsBase(meta)
+		if !payload.IsCreator && !payload.IsJoining {
+			@scriptsRoom(meta)
+		} else if payload.IsCreator {
+			@scriptsRoomCreator(meta)
+		}
+	}
+}
+
+// roomGame is the active-game view: title, both clocks around the board, and
+// the connection/crowd info bar.
+templ roomGame(payload message.RoomTemplatePayload) {
+	<i id="gameTitle">{ payload.VariantName }</i>
+	<div class="gccon mt8">
+		<div id="clockOpponent" class="clockOpponent" data-bot={ strconv.FormatBool(payload.OpponentIsBot) }>
+			@clock()
+		</div>
+		@board(payload.PlayerColor)
+		<div id="clockPlayer" class="clockPlayer">
+			@clock()
+		</div>
+	</div>
+	<div class="chin">
+		<div class="info sm">
+			<div id="info"></div>
+			<span id="crowd">0</span> CONNECTED
+			(<span id="lat">0</span><span class="unit">ms</span>)
+		</div>
+	</div>
+}

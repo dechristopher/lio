@@ -1,0 +1,94 @@
+package view
+
+// header is the site title shown at the top of every page.
+templ header() {
+	<span class="title"><a href="/" class="nolink"><i>li<span class="green">octad</span>.org</i> *alpha</a></span>
+}
+
+// footer is the shared page footer with nav links and the build version.
+templ footer(meta Meta) {
+	<div id="footer">
+		<ul class="hor">
+			<li>
+				<span class="v md"><a class="nolink" href="/about">About</a></span>
+			</li>
+			<li>
+				<span class="v md"><a class="nolink" href="/db">DB</a></span>
+			</li>
+			<li>
+				<span class="v md"><a class="nolink" href="https://github.com/dechristopher/lio">{ meta.Version }</a></span>
+			</li>
+		</ul>
+		<p class="v md m0">© 2021-2026 lioctad.org</p>
+	</div>
+}
+
+// quickGameButtons renders the quick vs-human / vs-computer buttons.
+templ quickGameButtons() {
+	<div class="buttons">
+		<a href="/new/human/quick" aria-label="Quick game versus human" title="Quick game vs human" class="nolink"><button class="libtn" role="button">👶</button></a>
+		<span class="or">or</span>
+		<a href="/new/computer" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="nolink"><button class="libtn" role="button">🤖</button></a>
+	</div>
+}
+
+// createGameButton renders the button that opens the custom-game modal.
+templ createGameButton() {
+	<div class="cgbtn-container">
+		<input type="button" id="createGameButton" class="cgbtn libtn" title="Create a custom game" value="CREATE GAME"/>
+	</div>
+}
+
+// board renders the octadground board mount and its promotion / result-overlay
+// scaffolding. color is the player's color, used as a board-orientation class.
+templ board(color string) {
+	<div id="gcon-xx" class={ "gcon " + color }>
+		<div class="gwrap green alpha">
+			<div id="game" class="og-wrap"></div>
+			<div id="promo-shade" class="promo-shade hidden"></div>
+			<div id="promo-select" class="promo hidden">
+				<piece class="promo queen"></piece>
+				<piece class="promo rook"></piece>
+				<piece class="promo bishop"></piece>
+				<piece class="promo knight"></piece>
+			</div>
+			<div id="result-overlay" class="result-overlay">
+				<div class="result-card">
+					<div id="result-headline" class="result-headline"></div>
+					<div id="result-reason" class="result-reason"></div>
+					<div id="result-score" class="result-score"></div>
+					<div class="result-actions">
+						<button id="result-rematch" type="button" class="libtn result-btn">Rematch</button>
+						<button id="result-home" type="button" class="libtn result-btn">Home</button>
+					</div>
+					<div id="result-countdown" class="result-countdown"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+// clock renders a single clock widget. Player/opponent differentiation is
+// handled entirely via CSS classes on the wrapping element in roomGame, so the
+// clock markup itself is static (the old partial ignored its color argument).
+templ clock() {
+	<div class="clockContainer">
+		<div class="clockProgress">
+			<div class="clockProgressBar"></div>
+			<div class="clockProgressBg"></div>
+		</div>
+		<div class="clockContent">
+			<div class="clockNameContainer">
+				<span class="clockScore">0</span>
+				<span class="clockName"></span>
+				<span class="thinking" aria-label="thinking"><i></i><i></i><i></i></span>
+				<span class="clockRating">
+					<span class="clockRatingNumber">0</span>
+				</span>
+			</div>
+			<div class="clockTimeContainer">
+				<span class="clockTime"></span>
+			</div>
+		</div>
+	</div>
+}

@@ -13,9 +13,8 @@ import (
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
+	"github.com/dechristopher/lio/view"
 )
-
-const roomTemplate = "room"
 
 type newRoomPayload struct {
 	c             *fiber.Ctx
@@ -62,8 +61,7 @@ func RoomHandler(c *fiber.Ctx) error {
 		roomInstance.HandlePreGame(uid, &payload)
 
 		// render template
-		return util.HandleTemplate(c, 200, roomTemplate,
-			payload.VariantName, payload)
+		return view.Render(c, 200, view.Room(view.RoomMeta(payload), payload))
 	} else if asSpectator { // user is spectator
 		// TODO signal to JS that this player is a spectator
 		// by excluding some player-specific scripts

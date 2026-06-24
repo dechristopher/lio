@@ -7,22 +7,15 @@ import (
 
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/pools"
-	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/lio/variant"
+	"github.com/dechristopher/lio/view"
 )
 
 var cachedIndex []byte
 
-type indexData struct {
-	Pools map[variant.Group][]variant.Variant
-}
-
-// IndexHandler executes the home page template
+// IndexHandler renders the home page
 func IndexHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, 200, "index",
-		"Free Online Octad", indexData{
-			Pools: pools.RatingPools,
-		})
+	return view.Render(c, 200, view.Index(
+		view.PageMeta("Free Online Octad"), pools.RatingPools))
 }
 
 // SPAHandlerInit creates the SPA handler to serve index.html for all

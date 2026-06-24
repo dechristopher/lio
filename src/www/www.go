@@ -6,14 +6,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/template/html/v2"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
@@ -26,45 +22,22 @@ import (
 	"github.com/dechristopher/lio/www/ws"
 )
 
-var (
-	viewsFs  http.FileSystem
-	staticFs http.FileSystem
+var staticFs http.FileSystem
 
-	// fiber html template engine
-	engine *html.Engine
-)
-
-// Serve all public endpoints
-func Serve(views, static embed.FS) {
+// Serve all public endpoints. Page rendering is handled by the typed templ
+// components in the view package (see view.Render), so no template engine is
+// configured on the fiber app.
+func Serve(static embed.FS) {
 	util.Info(str.CMain, str.MInit, config.Version)
 
 	// make filesystem location decision based on environment
-	viewsFs = util.PickFS(env.IsLocal(), views, "./views")
 	staticFs = util.PickFS(env.IsLocal(), static, "./static")
-	// populate template engine from views filesystem
-	engine = html.NewFileSystem(viewsFs, ".html")
-
-	// enable template engine reloading on dev
-	engine.Reload(env.IsLocal())
-
-	toUpperAny := func(s any) string {
-		return strings.ToUpper(s.(string))
-	}
-
-	// custom template rendering functions
-	engine.AddFuncMap(map[string]interface{}{
-		"ToUpper":    strings.ToUpper,
-		"ToUpperAny": toUpperAny,
-		"ToLower":    strings.ToLower,
-		"Title":      cases.Title(language.English).String,
-	})
 
 	r := fiber.New(fiber.Config{
 		ServerHeader:          "lioctad.org " + config.Version,
 		CaseSensitive:         true,
 		ErrorHandler:          nil,
 		DisableStartupMessage: true,
-		Views:                 engine,
 	})
 
 	// wire up all route handlers

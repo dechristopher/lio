@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"github.com/dechristopher/lio/util"
 	"github.com/gofiber/fiber/v2"
+
+	"github.com/dechristopher/lio/view"
 )
 
-// DBHandler executes the game database page template
+// DBHandler renders the game database page
 func DBHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, 200, "db",
-		"Game Database", nil)
+	return view.Render(c, 200, view.DB(view.PageMeta("Game Database")))
 }

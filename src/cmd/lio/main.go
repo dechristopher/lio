@@ -18,8 +18,6 @@ import (
 )
 
 var (
-	//go:embed views/*
-	views embed.FS
 	//go:embed static/*
 	static embed.FS
 )
@@ -63,5 +61,5 @@ func main() {
 	go systems.Run()
 
 	// serve primary http endpoints
-	www.Serve(views, static)
+	www.Serve(static)
 }

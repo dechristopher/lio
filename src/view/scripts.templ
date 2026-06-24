@@ -1,0 +1,23 @@
+package view
+
+// scriptsBase loads the shared client runtime (howler + lio core) on every
+// page. CacheKey busts the static-asset cache between deploys.
+templ scriptsBase(meta Meta) {
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js" integrity="sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src={ "/lio" + meta.CacheKey + ".js" }></script>
+}
+
+// scriptsRoom loads the octadground board renderer, its themes, and the
+// in-game client logic. Used on the playing-game room view.
+templ scriptsRoom(meta Meta) {
+	<link rel="stylesheet" href={ "/octadground" + meta.CacheKey + ".base.css" }/>
+	<link rel="stylesheet" href={ "/res/themes/board/green" + meta.CacheKey + ".css" }/>
+	<link rel="stylesheet" href={ "/res/themes/piece/alpha" + meta.CacheKey + ".css" }/>
+	<script src={ "/octadground" + meta.CacheKey + ".js" }></script>
+	<script src={ "/lio-game" + meta.CacheKey + ".js" }></script>
+}
+
+// scriptsRoomCreator loads the invite-link copy helper for the creator view.
+templ scriptsRoomCreator(meta Meta) {
+	<script src={ "/lio-room-create" + meta.CacheKey + ".js" }></script>
+}

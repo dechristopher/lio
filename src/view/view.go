@@ -1,0 +1,102 @@
+// Package view holds the server-rendered UI for lioctad, built with templ
+// (https://templ.guide). Page components are exported and invoked from the
+// www handlers via Render; smaller components are unexported helpers composed
+// within this package.
+package view
+
+import (
+	"context"
+	"sort"
+
+	"github.com/a-h/templ"
+	"github.com/gofiber/fiber/v2"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/variant"
+)
+
+// Meta carries the per-page metadata needed to render the document <head>.
+// It replaces the old untyped pageModel: the room-vs-default branching that
+// used to live in the head/doc_title partials is now resolved up front by the
+// PageMeta / RoomMeta constructors into explicit fields.
+type Meta struct {
+	Version     string // build version, shown in the footer
+	CacheKey    string // static-asset cache-buster (already includes leading '.')
+	SiteURL     string // absolute site URL (already includes trailing '/')
+	Title       string // full <title> contents
+	OGURL       string // og:url
+	OGTitle     string // og:title
+	Description string // description + og:description
+}
+
+const (
+	defaultOGTitle     = "The best free, adless octad server"
+	defaultDescription = "Free online octad server. Play octad in a clean interface. " +
+		"No registration, no ads. Play octad with the computer, friends or random players."
+	roomDescription = "Join the challenge or watch the game here."
+)
+
+// PageMeta builds metadata for a standard (non-room) page. name is rendered in
+// the title as "lioctad.org • {name}".
+func PageMeta(name string) Meta {
+	return Meta{
+		Version:     config.Version,
+		CacheKey:    config.CacheKey,
+		SiteURL:     config.SiteURL(),
+		Title:       "lioctad.org • " + name,
+		OGURL:       "https://lioctad.org",
+		OGTitle:     defaultOGTitle,
+		Description: defaultDescription,
+	}
+}
+
+// RoomMeta builds metadata for a room page, mirroring the OpenGraph and title
+// treatment the old room/doc_title partials produced.
+func RoomMeta(payload message.RoomTemplatePayload) Meta {
+	group := cases.Title(language.English).String(payload.Variant.Group.String())
+	challenge := group + " (" + payload.Variant.Name +
+		") casual octad • Challenge from anonymous player"
+	return Meta{
+		Version:     config.Version,
+		CacheKey:    config.CacheKey,
+		SiteURL:     config.SiteURL(),
+		Title:       challenge + " • lioctad.org",
+		OGURL:       "https://lioctad.org/" + payload.RoomID,
+		OGTitle:     challenge,
+		Description: roomDescription,
+	}
+}
+
+// Render writes a templ component to the fiber response as UTF-8 HTML.
+// It is the templ replacement for the old util.HandleTemplate helper.
+//
+// We deliberately render with context.Background() rather than c.UserContext():
+// user.ContextMiddleware overwrites the fiber user-context with a *user.Context
+// whose embedded context.Context is nil for returning users, so templ's
+// ctx.Err() check would nil-panic. The view components use no request-scoped
+// context values, so a background context is both correct and safe here.
+func Render(c *fiber.Ctx, status int, component templ.Component) error {
+	c.Status(status).Type("html", "utf-8")
+	return component.Render(context.Background(), c.Response().BodyWriter())
+}
+
+// sortedPools flattens the rating pools into a single slice in sorted map-key
+// order. The old html/template engine ranged over the pools map in sorted key
+// order, and the keys are number-prefixed ("0bullet", "1blitz", "2rapid") so
+// that order is bullet→blitz→rapid; this reproduces it for templ's for-range.
+func sortedPools(pools map[variant.Group][]variant.Variant) []variant.Variant {
+	keys := make([]string, 0, len(pools))
+	for k := range pools {
+		keys = append(keys, string(k))
+	}
+	sort.Strings(keys)
+
+	out := make([]variant.Variant, 0, len(pools))
+	for _, k := range keys {
+		out = append(out, pools[variant.Group(k)]...)
+	}
+	return out
+}

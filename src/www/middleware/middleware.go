@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/dechristopher/lio/env"
-	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/view"
 )
 
 const logFormatProd = "[${cookie:uid}] ${ip} ${header:x-forwarded-for} ${header:x-real-ip} " +
@@ -57,8 +57,7 @@ func Wire(r fiber.Router, static http.FileSystem) {
 // handlers are defined. Acts as the final fallback.
 func NotFound(r *fiber.App) {
 	r.Use(func(c *fiber.Ctx) error {
-		return util.HandleTemplate(c, 404, "404",
-			"404", nil)
+		return view.Render(c, 404, view.NotFound(view.PageMeta("404")))
 	})
 }
 

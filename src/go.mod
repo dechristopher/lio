@@ -3,10 +3,10 @@ module github.com/dechristopher/lio
 go 1.25.0
 
 require (
+	github.com/a-h/templ v0.3.1020
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 	github.com/dechristopher/octad v1.0.10
 	github.com/gofiber/fiber/v2 v2.52.13
-	github.com/gofiber/template/html/v2 v2.1.3
 	github.com/gofiber/websocket/v2 v2.2.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -23,8 +23,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fasthttp/websocket v1.5.12 // indirect
-	github.com/gofiber/template v1.8.3 // indirect
-	github.com/gofiber/utils v1.2.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect

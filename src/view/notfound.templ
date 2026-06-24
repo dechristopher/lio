@@ -1,0 +1,71 @@
+package view
+
+// NotFound is the 404 page. Like the old template it wraps the main layout but
+// omits the footer and the shared client scripts.
+templ NotFound(meta Meta) {
+	@base(meta) {
+		<body>
+			<div class="c">
+				@header()
+				<div class="oops">
+					<span class="t404">404</span>
+					<span>Whoops, this is awkward.</span>
+					<span>Please let us know!</span>
+					<span class="back" onclick="back()">← GO BACK</span>
+				</div>
+			</div>
+		</body>
+<style>
+	.oops {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+
+		color: #363636;
+		font-family: 'Noto Sans Mono', monospace;
+	}
+
+	.oops span {
+	  font-weight: 500;
+  }
+
+	.t404 {
+		font-size: 52px;
+	}
+
+	.back {
+		margin-top: 12px;
+		padding: 4px 12px;
+		width: fit-content;
+		border: 1px solid #363636;
+		border-radius: 4px;
+
+		cursor: pointer;
+		font-size: 20px;
+		font-weight: 600;
+	}
+
+	.back:hover {
+		border: 1px solid #0bab7d;
+		color: #0bab7d;
+	}
+</style>
+<script>
+	let hasHistory = false;
+
+	window.addEventListener('beforeunload', function () {
+		hasHistory = true;
+	});
+
+	const back = () => {
+		window.history.go(-1);
+		setTimeout(function () {
+			if (!hasHistory) {
+				window.location = '/';
+			}
+		}, 200);
+		return false;
+	};
+</script>
+	}
+}

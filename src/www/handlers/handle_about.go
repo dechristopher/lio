@@ -1,30 +1,27 @@
 package handlers
 
 import (
-	"github.com/dechristopher/lio/util"
 	"github.com/gofiber/fiber/v2"
+
+	"github.com/dechristopher/lio/view"
 )
 
-// AboutHandler executes the about page template
+// AboutHandler renders the about page
 func AboutHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, 200, "about",
-		"About", "main")
+	return view.Render(c, 200, view.About(view.PageMeta("About"), "main"))
 }
 
-// AboutBoardHandler executes the about the board page template
+// AboutBoardHandler renders the about-the-board page
 func AboutBoardHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, 200, "about",
-		"About", "board")
+	return view.Render(c, 200, view.About(view.PageMeta("About"), "board"))
 }
 
-// AboutRulesHandler executes the about rules page template
+// AboutRulesHandler renders the about-rules page
 func AboutRulesHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, 200, "about",
-		"About", "rules")
+	return view.Render(c, 200, view.About(view.PageMeta("About"), "rules"))
 }
 
-// AboutMiscHandler executes the about misc page template
+// AboutMiscHandler renders the about-misc page
 func AboutMiscHandler(c *fiber.Ctx) error {
-	return util.HandleTemplate(c, 200, "about",
-		"About", "misc")
+	return view.Render(c, 200, view.About(view.PageMeta("About"), "misc"))
 }
