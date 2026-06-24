@@ -164,9 +164,13 @@ func Create(params Params) (*Instance, error) {
 		stateMachine: newStateMachine(),
 		params:       params,
 
-		stateChannel:   make(chan State, 1),
-		moveChannel:    make(chan *message.RoomMove),
-		controlChannel: make(chan message.RoomControl, 1),
+		stateChannel: make(chan State, 1),
+		moveChannel:  make(chan *message.RoomMove),
+		// buffered for 2 so two near-simultaneous rematch requests (both human
+		// players, or the bot auto-rematch plus a human click) can never drop a
+		// non-blocking send; each rematch button disables after one click, so
+		// no single client floods it
+		controlChannel: make(chan message.RoomControl, 2),
 
 		done: make(chan struct{}),
 
@@ -531,6 +535,37 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 	case r.moveChannel <- move:
 	case <-r.done:
 		// room is being torn down; drop the move
+	}
+}
+
+// RequestRematch enqueues a rematch agreement on behalf of the requesting
+// player. It is called from the WS read loop, so it validates that the request
+// comes from a seated player while the game is over, and never blocks the
+// caller: if the control buffer is full it drops the request (the player can
+// click again, and bot games auto-rematch regardless). The game-over handler
+// applies the agreement (and auto-agrees a bot opponent).
+func (r *Instance) RequestRematch(meta channel.SocketContext) {
+	// only meaningful once the game is over, which is also the only window the
+	// game-over handler is reading controlChannel
+	if r.State() != StateGameOver {
+		return
+	}
+
+	// only seated players may request a rematch
+	r.stateMu.Lock()
+	_, color := r.players.Lookup(meta.UID)
+	r.stateMu.Unlock()
+	if color == octad.NoColor {
+		return
+	}
+
+	select {
+	case r.controlChannel <- message.RoomControl{
+		Type: message.Rematch,
+		Ctx:  meta,
+	}:
+	default:
+		// control buffer full or handler not reading; drop the request
 	}
 }
 
@@ -1063,16 +1098,67 @@ func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 		id, status = r.gameOverStateLocked()
 	}
 
+	// a bot game will auto-rematch after a fixed delay; tell the client so it
+	// can show a countdown. Human-vs-human games wait for a manual rematch.
+	autoRematch := 0
+	if !abandoned && r.players.HasBot() {
+		autoRematch = int(autoRematchDelay.Seconds())
+	}
+
 	gameOver := proto.GameOverPayload{
-		Winner:   getWinnerString(id),
-		StatusID: id,
-		Status:   status,
-		Clock:    r.currentClockLocked(),
-		Score:    r.players.ScoreMap(),
-		RoomOver: abandoned,
+		Winner:      getWinnerString(id),
+		StatusID:    id,
+		Status:      status,
+		Reason:      r.gameOverReasonLocked(abandoned),
+		Clock:       r.currentClockLocked(),
+		Score:       r.players.ScoreMap(),
+		RoomOver:    abandoned,
+		AutoRematch: autoRematch,
 	}
 
 	return gameOver.Marshal()
+}
+
+// gameOverReasonLocked returns a short, structured method code describing how
+// the game ended, for the client to render an outcome message. It mirrors the
+// human strings produced by the genGameOverState helpers. The caller must hold
+// stateMu (it reads the game and clock).
+func (r *Instance) gameOverReasonLocked(abandoned bool) string {
+	if abandoned {
+		return "abandoned"
+	}
+
+	switch r.game.Game.Outcome() {
+	case octad.NoOutcome:
+		return ""
+	case octad.Draw:
+		switch r.game.Game.Method() {
+		case octad.InsufficientMaterial:
+			return "insufficient"
+		case octad.Stalemate:
+			return "stalemate"
+		case octad.DrawOffer:
+			return "agreement"
+		case octad.ThreefoldRepetition:
+			return "repetition"
+		case octad.TwentyFiveMoveRule:
+			return "moverule"
+		}
+		return ""
+	default: // a decisive result
+		// a set clock victor means the loser flagged; this takes precedence
+		// over the board method, matching genWhiteWinState / genBlackWinState
+		if r.game.Clock.State(true).Victor != clock.NoVictor {
+			return "time"
+		}
+		switch r.game.Game.Method() {
+		case octad.Checkmate:
+			return "checkmate"
+		case octad.Resignation:
+			return "resignation"
+		}
+		return ""
+	}
 }
 
 func getWinnerString(statusId int) string {

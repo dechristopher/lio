@@ -127,6 +127,161 @@ const updateThinking = (message, ofenParts) => {
 	setThinking(gameOngoing && !isPlayerTurn(message, ofenParts));
 };
 
+// game-end result overlay elements and the player's color, cached from move
+// messages (the game-over message reuses the `w` key for the winner, so the
+// player's color can't be derived from it)
+const resultOverlayEl = document.getElementById('result-overlay');
+const resultHeadlineEl = document.getElementById('result-headline');
+const resultReasonEl = document.getElementById('result-reason');
+const resultScoreEl = document.getElementById('result-score');
+const resultCountdownEl = document.getElementById('result-countdown');
+const rematchBtn = document.getElementById('result-rematch');
+const homeBtn = document.getElementById('result-home');
+let playerWhite = false;
+let countdownInterval = null;
+
+// backend reason codes -> human-readable method subtitles
+const resultReasons = {
+	checkmate: 'by checkmate',
+	time: 'on time',
+	resignation: 'by resignation',
+	stalemate: 'by stalemate',
+	insufficient: 'insufficient material',
+	agreement: 'by agreement',
+	repetition: 'by repetition',
+	moverule: 'by 25-move rule',
+	abandoned: 'opponent left',
+};
+
+/**
+ * Stop and clear the auto-rematch countdown.
+ */
+const stopCountdown = () => {
+	if (countdownInterval !== null) {
+		clearInterval(countdownInterval);
+		countdownInterval = null;
+	}
+	if (resultCountdownEl) {
+		resultCountdownEl.innerHTML = '';
+	}
+};
+
+/**
+ * Start the auto-rematch countdown shown under the result actions. Bot games
+ * auto-rematch after a fixed delay; this ticks it down so the player sees how
+ * long they have to decide. The new-game broadcast clears it via hideResult.
+ * @param seconds - whole seconds until the auto-rematch fires
+ */
+const startAutoRematchCountdown = (seconds) => {
+	stopCountdown();
+	if (!resultCountdownEl || !seconds || seconds <= 0) {
+		return;
+	}
+
+	let remaining = seconds;
+	const render = () => {
+		resultCountdownEl.innerHTML = remaining > 0
+			? `New game in ${remaining}&hellip;`
+			: 'Starting new game&hellip;';
+	};
+	render();
+
+	countdownInterval = setInterval(() => {
+		remaining -= 1;
+		render();
+		if (remaining <= 0) {
+			clearInterval(countdownInterval);
+			countdownInterval = null;
+		}
+	}, 1000);
+};
+
+/**
+ * Hide the game-end result overlay and reset its rematch button and countdown.
+ */
+const hideResult = () => {
+	if (resultOverlayEl) {
+		resultOverlayEl.classList.remove('result-show');
+	}
+	if (rematchBtn) {
+		rematchBtn.disabled = false;
+		rematchBtn.innerHTML = 'Rematch';
+	}
+	stopCountdown();
+};
+
+/**
+ * Populate and show the game-end result overlay from a game-over message.
+ * @param message - game over message
+ */
+const showResult = (message) => {
+	if (!resultOverlayEl) {
+		return;
+	}
+
+	const winner = message.d.w; // "w", "b", or "d"
+
+	let outcome, headline;
+	if (message.d.r === 'abandoned') {
+		// abandonment closes the room; report it neutrally rather than as a draw
+		outcome = 'draw';
+		headline = 'Match over';
+	} else if (winner === 'd') {
+		outcome = 'draw';
+		headline = 'Draw';
+	} else if ((winner === 'w' && playerWhite) || (winner === 'b' && !playerWhite)) {
+		outcome = 'win';
+		headline = 'You win';
+	} else {
+		outcome = 'loss';
+		headline = 'You lose';
+	}
+
+	// a rematch is impossible once the whole room is over (abandon / match end)
+	if (rematchBtn) {
+		rematchBtn.style.display = message.d.o ? 'none' : '';
+	}
+
+	resultHeadlineEl.className = `result-headline ${outcome}`;
+	resultHeadlineEl.innerHTML = headline;
+
+	// method subtitle: prefer the structured reason code, falling back to the
+	// full status string the footer already shows
+	resultReasonEl.innerHTML = resultReasons[message.d.r] || message.d.s || '';
+
+	// match score, player's score first
+	if (message.d.sc) {
+		const mine = playerWhite ? message.d.sc.w : message.d.sc.b;
+		const theirs = playerWhite ? message.d.sc.b : message.d.sc.w;
+		resultScoreEl.innerHTML = `${mine} &ndash; ${theirs}`;
+	} else {
+		resultScoreEl.innerHTML = '';
+	}
+
+	// bot games auto-rematch; show the countdown so the player can leave or
+	// rematch before the next game starts
+	startAutoRematchCountdown(message.d.ar);
+
+	resultOverlayEl.classList.add('result-show');
+};
+
+// wire result overlay actions once; the new-game broadcast clears the overlay
+if (rematchBtn) {
+	rematchBtn.addEventListener('click', () => {
+		send(buildCommand("r", {rm: true}));
+		// leave the overlay up until the rematch actually starts, but signal
+		// that the request was sent and stop any auto-rematch countdown
+		rematchBtn.disabled = true;
+		rematchBtn.innerHTML = 'Waiting&hellip;';
+		stopCountdown();
+	});
+}
+if (homeBtn) {
+	homeBtn.addEventListener('click', () => {
+		window.location.href = "/";
+	});
+}
+
 /**
  * Handle incoming move messages, update board state, update UI and clocks
  * @param message - move message
@@ -135,6 +290,13 @@ const handleMove = (message) => {
 	if (!message.d.m) {
 		move = 1;
 		document.getElementById("info").innerHTML = "";
+	}
+
+	// cache the player's color for the result overlay, and clear any prior
+	// result when a new game (e.g. a rematch) starts
+	playerWhite = isPlayerWhite(message);
+	if (message.d.gs) {
+		hideResult();
 	}
 
 	const ofenParts = message.d.o.split(' ');
@@ -176,6 +338,13 @@ const handleGameOver = (message) => {
 
 	// game is over; the engine is no longer thinking
 	setThinking(false);
+
+	// surface the outcome prominently over the board, but only when the message
+	// carries an actual result; bare room-closing notices (no winner) just
+	// trigger the redirect below and leave any existing result card in place
+	if (message.d.w) {
+		showResult(message);
+	}
 
 	// disallow further moves
 	og.set({

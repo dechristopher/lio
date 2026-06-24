@@ -13,6 +13,13 @@ import (
 	"github.com/dechristopher/lio/util"
 )
 
+// autoRematchDelay is how long a finished bot game waits before automatically
+// starting a rematch. It gives the player a moment to breathe and decide
+// whether to rematch, leave, or just let the next game begin. The same value is
+// sent to clients (GameOverPayload.AutoRematch) to drive the countdown, so it
+// must remain the single source of truth for the delay.
+const autoRematchDelay = 5 * time.Second
+
 // handleGameOver handles game finalization and rematch prompts
 func (r *Instance) handleGameOver() {
 	// gameOverDone bounds the auto-rematch goroutine below to the lifetime of
@@ -22,39 +29,44 @@ func (r *Instance) handleGameOver() {
 	gameOverDone := make(chan struct{})
 	defer close(gameOverDone)
 
-	// auto-rematch: after a short delay, agree the rematch for both sides and
-	// nudge the routine. All exits are guarded by gameOverDone (handler
-	// returned) and r.done (room torn down).
-	go func() {
-		select {
-		case <-time.After(time.Second * 2):
-		case <-gameOverDone:
-			return
-		case <-r.done:
-			return
-		}
+	// auto-rematch: in games against a bot, after a short delay agree the
+	// rematch for both sides and nudge the routine so the next game starts on
+	// its own. Human-vs-human games are not auto-rematched: each player must
+	// request a rematch (via RequestRematch -> controlChannel), and the 30s
+	// timeout below ends the room if they don't. All exits are guarded by
+	// gameOverDone (handler returned) and r.done (room torn down).
+	if r.HasBot() {
+		go func() {
+			select {
+			case <-time.After(autoRematchDelay):
+			case <-gameOverDone:
+				return
+			case <-r.done:
+				return
+			}
 
-		// manually set rematch agreed for both colors
-		r.stateMu.Lock()
-		util.DoBothColors(func(color octad.Color) {
-			r.rematch.Agree(color)
-		})
-		r.stateMu.Unlock()
+			// manually set rematch agreed for both colors
+			r.stateMu.Lock()
+			util.DoBothColors(func(color octad.Color) {
+				r.rematch.Agree(color)
+			})
+			r.stateMu.Unlock()
 
-		// trigger routine; controlChannel is buffered, but still guard the
-		// send so a returned/torn-down room can't block this goroutine
-		select {
-		case r.controlChannel <- message.RoomControl{
-			Type: message.Rematch,
-			Ctx: channel.SocketContext{
-				Channel: r.ID,
-				MT:      1,
-			},
-		}:
-		case <-gameOverDone:
-		case <-r.done:
-		}
-	}()
+			// trigger routine; controlChannel is buffered, but still guard the
+			// send so a returned/torn-down room can't block this goroutine
+			select {
+			case r.controlChannel <- message.RoomControl{
+				Type: message.Rematch,
+				Ctx: channel.SocketContext{
+					Channel: r.ID,
+					MT:      1,
+				},
+			}:
+			case <-gameOverDone:
+			case <-r.done:
+			}
+		}()
+	}
 
 	// 30 second timeout until rematch is unavailable
 	rematchTimeout := time.NewTimer(30 * time.Second)

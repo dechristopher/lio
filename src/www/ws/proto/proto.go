@@ -114,9 +114,14 @@ type GameOverPayload struct {
 	Winner   string       `json:"w,omitempty"`
 	StatusID int          `json:"i,omitempty"`
 	Status   string       `json:"s"`
+	Reason   string       `json:"r,omitempty"` // short method code for the UI (checkmate, time, resignation, stalemate, agreement, repetition, moverule, abandoned)
 	Clock    ClockPayload `json:"c,omitempty"`
 	Score    ScorePayload `json:"sc,omitempty"`
 	RoomOver bool         `json:"o,omitempty"`
+	// AutoRematch, when > 0, is the number of seconds until the room
+	// automatically starts a rematch (bot games only); drives the client
+	// countdown. Zero/absent means no auto-rematch (e.g. human-vs-human).
+	AutoRematch int `json:"ar,omitempty"`
 }
 
 // RoomMessage contains room state data

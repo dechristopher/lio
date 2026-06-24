@@ -298,6 +298,91 @@
 		  align-items: center;
 	  }
 
+	  /* game-end result overlay, shown over the 320px board on game over */
+	  .result-overlay {
+		  z-index: 20;
+		  width: 320px;
+		  height: 320px;
+		  position: absolute;
+		  top: 0;
+		  left: 0;
+
+		  display: none;
+		  align-items: center;
+		  justify-content: center;
+
+		  background-color: rgba(20, 20, 20, 0.55);
+		  border-radius: 3px;
+
+		  animation: resultFade 180ms ease-out;
+	  }
+
+	  .result-overlay.result-show {
+		  display: flex;
+	  }
+
+	  @keyframes resultFade {
+		  from { opacity: 0; }
+		  to   { opacity: 1; }
+	  }
+
+	  .result-card {
+		  text-align: center;
+		  color: #FFF0DB;
+		  padding: 18px 22px;
+
+		  background-color: rgba(15, 15, 15, 0.78);
+		  border-radius: 8px;
+		  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+	  }
+
+	  .result-headline {
+		  font-size: 30px;
+		  font-weight: 700;
+		  line-height: 1.1;
+	  }
+
+	  .result-headline.win  { color: #B1EB9A; }
+	  .result-headline.loss { color: #F08A8A; }
+	  .result-headline.draw { color: #FFF0DB; }
+
+	  .result-reason {
+		  margin-top: 4px;
+		  font-size: 15px;
+		  font-weight: 500;
+		  opacity: 0.85;
+	  }
+
+	  .result-score {
+		  margin-top: 10px;
+		  font-size: 22px;
+		  font-weight: 700;
+		  font-family: 'Noto Sans Mono', monospace;
+	  }
+
+	  .result-actions {
+		  display: flex;
+		  gap: 10px;
+		  justify-content: center;
+
+		  margin-top: 18px;
+	  }
+
+	  .result-btn {
+		  font-size: 16px !important;
+		  min-height: 2.2rem !important;
+		  padding: 4px 16px !important;
+	  }
+
+	  .result-countdown {
+		  margin-top: 12px;
+		  min-height: 1em;
+
+		  font-size: 13px;
+		  font-weight: 500;
+		  opacity: 0.8;
+	  }
+
 	  .clockProgress {
 		  display: block;
 		  position: relative;

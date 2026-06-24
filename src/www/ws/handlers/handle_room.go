@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/valyala/fastjson"
+
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
@@ -15,6 +17,13 @@ import (
 func HandleRoom(m []byte, meta channel.SocketContext) []byte {
 	thisRoom, err := room.Get(meta.RoomID)
 	if err != nil {
+		return nil
+	}
+
+	// a rematch request is a control, not a state query; read it from the
+	// message payload directly (like HandleMove) and hand it to the room
+	if fastjson.GetBool(m, "d", "rm") {
+		thisRoom.RequestRematch(meta)
 		return nil
 	}
 

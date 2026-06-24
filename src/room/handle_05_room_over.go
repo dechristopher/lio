@@ -7,18 +7,35 @@ import (
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
-// handleGameOver handles room finalization and player notification
+// handleRoomOver handles room finalization and player notification. It tells
+// clients to leave the room so they aren't left on a frozen final board.
 func (r *Instance) handleRoomOver() {
-	// send game over message if match expired
-	if r.abandoned && r.game.Outcome() == octad.NoOutcome {
-		payload := proto.GameOverPayload{
-			Status:   "Match expired. Leaving room..",
-			RoomOver: true,
-		}
+	r.stateMu.Lock()
+	gameFinished := r.game.Outcome() != octad.NoOutcome
+	r.stateMu.Unlock()
 
-		channel.Broadcast(payload.Marshal(), channel.SocketContext{
-			Channel: r.ID,
-			MT:      1,
-		})
+	var status string
+	switch {
+	case r.abandoned && !gameFinished:
+		// the room expired before any game finished
+		status = "Match expired. Leaving room.."
+	case !r.abandoned:
+		// a finished game's rematch window lapsed with no rematch agreed
+		// (human-vs-human only; bot games auto-rematch)
+		status = "No rematch. Leaving room.."
+	default:
+		// abandoned after a game finished: the game-over broadcast already
+		// carried RoomOver=true, so clients are already leaving
+		return
 	}
+
+	payload := proto.GameOverPayload{
+		Status:   status,
+		RoomOver: true,
+	}
+
+	channel.Broadcast(payload.Marshal(), channel.SocketContext{
+		Channel: r.ID,
+		MT:      1,
+	})
 }
