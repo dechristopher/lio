@@ -17,9 +17,34 @@ func (r *Instance) handleGameOngoing() {
 	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
 	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
 
-	// set up abandon timer beyond any regular game duration
-	var abandonTimer = time.NewTimer(time.Hour)
+	// abandon timer; armed only while a player is disconnected. It is created
+	// then immediately stopped so it starts disarmed, and is re-armed/stopped
+	// via the helpers below. We reuse the single timer (draining a pending fire
+	// before each reset) instead of allocating new timers, which avoids the
+	// reset-without-drain hazard that could trigger a spurious abandonment.
+	abandonTimer := time.NewTimer(abandonTimeout)
+	if !abandonTimer.Stop() {
+		<-abandonTimer.C
+	}
 	defer abandonTimer.Stop()
+
+	armAbandon := func() {
+		if !abandonTimer.Stop() {
+			select {
+			case <-abandonTimer.C:
+			default:
+			}
+		}
+		abandonTimer.Reset(abandonTimeout)
+	}
+	stopAbandon := func() {
+		if !abandonTimer.Stop() {
+			select {
+			case <-abandonTimer.C:
+			default:
+			}
+		}
+	}
 
 	for {
 		select {
@@ -43,14 +68,11 @@ func (r *Instance) handleGameOngoing() {
 			isOver, event := r.tryGameOver(move.Ctx, false)
 			if isOver {
 				// make state transition and exit the gameOngoing routine
-				err := r.event(*event)
-				if err != nil {
+				if err := r.event(*event); err != nil {
 					panic(err)
 				}
 
-				// stop abandon timer
-				abandonTimer.Stop()
-
+				stopAbandon()
 				return
 			}
 
@@ -60,12 +82,15 @@ func (r *Instance) handleGameOngoing() {
 
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:
-			//automatically resign game if clock expires
+			// automatically resign the flagged player. The game mutation runs
+			// under stateMu so it can't race readers (CurrentGameStateMessage).
+			r.stateMu.Lock()
 			if flaggedState.Victor == clock.White {
 				r.game.Resign(octad.Black)
 			} else {
 				r.game.Resign(octad.White)
 			}
+			r.stateMu.Unlock()
 
 			// run game over routine and get transition event type
 			isOver, event := r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, false)
@@ -79,7 +104,7 @@ func (r *Instance) handleGameOngoing() {
 				if err := r.event(EventPlayerAbandons); err != nil {
 					panic(err)
 				}
-				abandonTimer.Stop()
+				stopAbandon()
 				return
 			}
 
@@ -88,73 +113,73 @@ func (r *Instance) handleGameOngoing() {
 				panic(err)
 			}
 
-			// stop abandon timer
-			abandonTimer.Stop()
-
+			stopAbandon()
 			return
 		// handle start/stop of abandon timer when players connect and disconnect
 		case <-connectionListener:
-			// both players connected, no issues
+			// both players connected? a bot counts as always-connected
 			playersConnected := util.BothColors(func(color octad.Color) bool {
-				if r.players[color].IsBot {
+				id, isBot := r.playerInfo(color)
+				if isBot {
 					return true
 				}
-
 				// return whether the player is connected
-				return channel.Map.GetSockMap(r.ID).Get(r.players[color].ID) != nil
+				return channel.Map.GetSockMap(r.ID).Get(id) != nil
 			})
 
 			if playersConnected {
 				util.DebugFlag("room", str.CRoom, "[%s] both players connected, cancelling abandon timer", r.ID)
-				// stop abandonTimer
-				if abandonTimer != nil {
-					abandonTimer.Stop()
-				}
+				stopAbandon()
 				continue
 			}
 
 			util.DebugFlag("room", str.CRoom, "[%s] players not connected, starting abandon timer", r.ID)
-
 			// start abandon timer if both players are not connected
-			if abandonTimer == nil {
-				abandonTimer = time.NewTimer(abandonTimeout)
-			} else {
-				abandonTimer.Reset(abandonTimeout)
-			}
+			armAbandon()
 		// figure out who abandoned and resign the game
 		case <-abandonTimer.C:
-			// determine who isn't connected
+			// determine who is (still) connected
 			connected := make(map[octad.Color]bool)
 
 			util.DoBothColors(func(color octad.Color) {
-				if r.players[color].IsBot {
+				id, isBot := r.playerInfo(color)
+				if isBot {
+					// a bot has no socket; it is always considered connected.
+					// The early return is required — without it the channel
+					// lookup below would overwrite this with false (the
+					// original dead-code bug).
 					connected[color] = true
+					return
 				}
 
 				// set whether the player by color is connected
-				connected[color] = channel.Map.GetSockMap(r.ID).Get(r.players[color].ID) != nil
+				connected[color] = channel.Map.GetSockMap(r.ID).Get(id) != nil
 			})
 
-			// if both players abandoned
-			if util.BothColors(func(color octad.Color) bool {
-				return connected[color]
-			}) {
+			// both players reconnected before the timer fired logic: don't end
+			// the game out from under two present players
+			if connected[octad.White] && connected[octad.Black] {
+				util.DebugFlag("room", str.CRoom, "[%s] both players reconnected, abandon cancelled", r.ID)
+				continue
+			}
+
+			// decide and apply the outcome under the lock (mutates the game)
+			r.stateMu.Lock()
+			if !connected[octad.White] && !connected[octad.Black] {
+				// neither player is connected: draw the abandoned game
 				util.DebugFlag("room", str.CRoom, "[%s] both players abandoned, game drawn", r.ID)
-				// draw the game immediately
-				err := r.game.Draw(octad.DrawOffer)
-				if err != nil {
+				if err := r.game.Draw(octad.DrawOffer); err != nil {
+					r.stateMu.Unlock()
 					panic(err)
 				}
+			} else if !connected[octad.White] {
+				util.DebugFlag("room", str.CRoom, "[%s] white abandoned, black wins", r.ID)
+				r.game.Resign(octad.White)
 			} else {
-				// otherwise find abandoning player and resign them
-				if !connected[octad.White] {
-					util.DebugFlag("room", str.CRoom, "[%s] white abandoned, black wins", r.ID)
-					r.game.Resign(octad.White)
-				} else {
-					util.DebugFlag("room", str.CRoom, "[%s] black abandoned, white wins", r.ID)
-					r.game.Resign(octad.Black)
-				}
+				util.DebugFlag("room", str.CRoom, "[%s] black abandoned, white wins", r.ID)
+				r.game.Resign(octad.Black)
 			}
+			r.stateMu.Unlock()
 
 			// run game over routine
 			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, true)
@@ -162,8 +187,7 @@ func (r *Instance) handleGameOngoing() {
 			r.abandoned = true
 
 			// make state transition and exit the gameOngoing routine
-			err := r.event(EventPlayerAbandons)
-			if err != nil {
+			if err := r.event(EventPlayerAbandons); err != nil {
 				panic(err)
 			}
 

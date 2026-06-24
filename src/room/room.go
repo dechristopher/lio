@@ -85,6 +85,25 @@ type Instance struct {
 	// forever once the room is being torn down.
 	done chan struct{}
 
+	// stateMu guards the mutable game-state fields that are touched by more
+	// than one goroutine: game (both the pointer, which is swapped on rematch,
+	// and the octad.Game it points at), players (populated by Join from an HTTP
+	// goroutine), and rematch (written by the auto-rematch goroutine). The room
+	// routine is the sole writer of game contents, but HTTP/WS handler
+	// goroutines read them (CurrentGameStateMessage, IsReady, GenTemplatePayload,
+	// ...) and Join writes players, so every access must be synchronized.
+	//
+	// The octad library lazily caches move generation inside the Game, so even
+	// a "read" can mutate it — hence an exclusive Mutex rather than an RWMutex.
+	//
+	// Convention: methods suffixed `Locked` assume the caller already holds
+	// stateMu; every other method that touches the guarded fields acquires it
+	// itself. Critical sections are kept small and are always released before a
+	// network broadcast or a blocking clock operation so the lock never gates
+	// I/O. cancelled and abandoned are intentionally not guarded here: they are
+	// only ever touched by the room routine goroutine.
+	stateMu sync.Mutex
+
 	players player.Players
 	rematch player.Agreement
 
@@ -170,11 +189,14 @@ func Create(params Params) (*Instance, error) {
 	// handle crowd messages for primary room channel
 	go handlers.HandleCrowd(r.ID)
 
-	r.populateGameConfig()
-
-	// create a new game instance using the provided game config
+	// populate the game config and create the initial game. No concurrency
+	// exists yet (the routine has not started and the room is not yet in the
+	// rooms map), but we hold stateMu to honor the locking convention.
+	r.stateMu.Lock()
+	r.populateGameConfigLocked()
 	var err error
 	r.game, err = game.NewOctadGame(r.params.GameConfig)
+	r.stateMu.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -270,8 +292,10 @@ func (r *Instance) event(event fsm.EventDesc, args ...interface{}) error {
 	return nil
 }
 
-// flipBoard flips the player color
-func (r *Instance) flipBoard() {
+// flipBoardLocked flips the player color and repopulates the game config from
+// parameters ahead of a rematch. The caller must hold stateMu (it mutates
+// players and params).
+func (r *Instance) flipBoardLocked() {
 	// change sides
 	r.players.FlipColor()
 
@@ -279,12 +303,13 @@ func (r *Instance) flipBoard() {
 	r.params.GameConfig.Black = ""
 
 	// repopulate game config values from parameters
-	r.populateGameConfig()
+	r.populateGameConfigLocked()
 }
 
-// populateGameConfig copies relevant parameter values to the game config parameter
-// before generating a new game during init, or when flipping the board
-func (r *Instance) populateGameConfig() {
+// populateGameConfigLocked copies relevant parameter values to the game config
+// parameter before generating a new game during init, or when flipping the
+// board. The caller must hold stateMu (it reads players and writes params).
+func (r *Instance) populateGameConfigLocked() {
 	if r.params.GameConfig.White == "" && r.players[octad.White] != nil {
 		r.params.GameConfig.White = r.players[octad.White].ID
 	}
@@ -294,10 +319,14 @@ func (r *Instance) populateGameConfig() {
 	}
 }
 
-// IsReady returns true if the room is ready for games to be played
+// IsReady returns true if the room is ready for games to be played.
 func (r *Instance) IsReady() bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	// call the unlocked players helpers directly (not r.HasBot, which would
+	// re-acquire stateMu and deadlock)
 	hasTwoPlayers, _ := r.players.HasTwoPlayers()
-	return hasTwoPlayers || r.HasBot()
+	return hasTwoPlayers || r.players.HasBot()
 }
 
 // HandlePreGame sets flags and token info in the RoomTemplatePayload if the
@@ -349,6 +378,9 @@ func (r *Instance) Cancel() bool {
 // CanJoin returns true if the given player by uid can participate in the match
 // either as a player or a spectator
 func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+
 	hasPlayers, _ := r.players.HasTwoPlayers()
 
 	// force into spectator mode if match has both players
@@ -361,8 +393,15 @@ func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
 	return true, false
 }
 
-// Join attempts to join the room as a human player
+// Join attempts to join the room as a human player. It is called from HTTP
+// handler goroutines and may race other joins as well as the room routine, so
+// the whole check-and-populate is done under stateMu: the HasTwoPlayers test
+// and the map write must be atomic or two players following the same join link
+// could both pass the test and corrupt the players map.
 func (r *Instance) Join(uid, joinToken string) bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+
 	// validate provided join token
 	if joinToken != r.joinToken {
 		return false
@@ -438,12 +477,44 @@ func (r *Instance) IsCreator(id string) bool {
 
 // HasBot returns true if the room is configured with a bot player
 func (r *Instance) HasBot() bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	return r.players.HasBot()
 }
 
-// Game returns the game container instance
+// Game returns the game container instance.
+//
+// NOTE: this hands out the raw *game.OctadGame pointer, which is not safe to
+// read concurrently with the room routine mutating it. It is intended for
+// single-threaded/internal use only; cross-goroutine callers should go through
+// CurrentGameStateMessage / GameState, which snapshot under stateMu.
 func (r *Instance) Game() *game.OctadGame {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	return r.game
+}
+
+// botColor returns the color the configured bot is playing (or NoColor). It is
+// safe to call from the room routine outside a locked section (e.g. when a Join
+// may still be populating the players map).
+func (r *Instance) botColor() octad.Color {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	return r.players.GetBotColor()
+}
+
+// playerInfo returns a stable (id, isBot) snapshot for the given color, taken
+// under stateMu so it never races a Join populating the players map. ID and
+// IsBot are immutable once a player is seated, so the returned values stay valid
+// after the lock is released (connection state is then read from the
+// independently-synchronized channel layer).
+func (r *Instance) playerInfo(color octad.Color) (id string, isBot bool) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	if p := r.players[color]; p != nil {
+		return p.ID, p.IsBot
+	}
+	return "", false
 }
 
 // SendMove writes a move to the room's moveChannel to be consumed by the
@@ -463,10 +534,20 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 	}
 }
 
-// CurrentGameStateMessage returns the octad position, marshalled as a move payload
+// CurrentGameStateMessage returns the octad position, marshalled as a move
+// payload. It is called from WS handler goroutines as well as the room routine,
+// so it snapshots the game under stateMu.
 func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	return r.currentGameStateMessageLocked(addLast, gameStart)
+}
+
+// currentGameStateMessageLocked builds the current board-state payload. The
+// caller must hold stateMu (it reads the game and players).
+func (r *Instance) currentGameStateMessageLocked(addLast bool, gameStart bool) []byte {
 	curr := proto.MovePayload{
-		Clock:     r.currentClock(),
+		Clock:     r.currentClockLocked(),
 		OFEN:      r.game.OFEN(),
 		MoveNum:   len(r.game.Moves()) / 2,
 		Check:     r.game.Position().InCheck(),
@@ -486,14 +567,16 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 
 	// add last move SAN if enabled
 	if addLast {
-		curr.SAN = r.getSAN()
+		curr.SAN = r.getSANLocked()
 	}
 
 	return curr.Marshal()
 }
 
-// currentClock returns the current clock state via a ClockPayload
-func (r *Instance) currentClock() proto.ClockPayload {
+// currentClockLocked returns the current clock state via a ClockPayload. The
+// caller must hold stateMu (it reads the game pointer); the clock itself is
+// independently synchronized.
+func (r *Instance) currentClockLocked() proto.ClockPayload {
 	state := r.game.Clock.State(true)
 	return proto.ClockPayload{
 		Control: r.game.Variant.Control.Time.Centi(),
@@ -503,8 +586,9 @@ func (r *Instance) currentClock() proto.ClockPayload {
 	}
 }
 
-// getSAN returns the last move in algebraic notation
-func (r *Instance) getSAN() string {
+// getSANLocked returns the last move in algebraic notation. The caller must
+// hold stateMu (it reads the game's move/position history).
+func (r *Instance) getSANLocked() string {
 	if len(r.game.Positions()) > 1 {
 		pos := r.game.Positions()[len(r.game.Positions())-2]
 		move := r.game.Moves()[len(r.game.Moves())-1]
@@ -514,9 +598,13 @@ func (r *Instance) getSAN() string {
 	return ""
 }
 
-// isTurn returns true to ensure moves are received and processed
-// only during the given player's turn
+// isTurn returns true to ensure moves are received and processed only during
+// the given player's turn. It is called by the room routine before makeMove and
+// snapshots players + the side to move under stateMu.
 func (r *Instance) isTurn(move *message.RoomMove) bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+
 	// handle bot turns
 	if move.Ctx.IsBot {
 		// TODO no P1 bot support at the moment
@@ -530,68 +618,88 @@ func (r *Instance) isTurn(move *message.RoomMove) bool {
 	return playerColor == r.game.ToMove
 }
 
-// makeMove attempts to make the given move, transition game state, and
-// notify all channel connections of the game state
+// makeMove attempts to make the given move, transition game state, and notify
+// all channel connections of the game state. It is called only by the room
+// routine. The actual mutation of the game runs in a small stateMu critical
+// section; the broadcasts and the engine request happen after the lock is
+// released (they re-acquire it via the self-locking helpers) so the lock never
+// gates network I/O.
 func (r *Instance) makeMove(move *message.RoomMove) bool {
-	ok := false
+	r.stateMu.Lock()
 
 	// don't allow engine dispatched moves not for this game
 	if move.GameID != "" && move.GameID != r.game.ID {
+		r.stateMu.Unlock()
 		return false
 	}
 
-	// make move and flip clock if legal
-	if mov := r.legalMove(move.Move); mov != nil {
-		// make move
-		errMove := r.game.Move(mov)
-		if errMove != nil {
-			// bad if this happens
-			util.Error(str.CRoom, "bad move given err=%s", errMove.Error())
-			return false
-		}
+	mov := r.legalMoveLocked(move.Move)
+	if mov == nil {
+		// no move or illegal move provided: capture what we need for messaging
+		// before releasing the lock, then resync the player / log the engine
+		ofen := r.game.OFEN()
+		r.stateMu.Unlock()
 
-		// flip game clock
-		r.flipClock()
-
-		r.game.ToMove = r.game.Position().Turn()
-
-		ok = true
-
-		// publish move to broadcast channel
-		go gamePub.Publish(mov.String(), r.game.OFEN())
-
-		// submit request for engine move after human move
-		// only if other player is configured as a bot and game is still ongoing
-		if !move.Ctx.IsBot && r.players.HasBot() && r.game.Outcome() == octad.NoOutcome {
-			r.requestEngineMove()
-		}
-	}
-
-	// if no move or illegal move provided, return to
-	// current position and wait for another move
-	if !ok {
 		if move.Ctx.IsHuman() {
+			// return the human to the authoritative current position
 			channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
 		} else {
 			// engine gave bad move, major issue
 			// TODO handle this somehow if we ever see it
-			util.Error(str.CRoom, "engine provided bad move ofen=%s move=%s", r.game.OFEN(), move.Move.UOI)
+			util.Error(str.CRoom, "engine provided bad move ofen=%s move=%s", ofen, move.Move.UOI)
 		}
 		return false
 	}
 
-	// broadcast move to everyone and send response back to player
-	channel.BroadcastEx(r.CurrentGameStateMessage(true, false), move.Ctx)
+	// make move
+	if errMove := r.game.Move(mov); errMove != nil {
+		r.stateMu.Unlock()
+		// bad if this happens
+		util.Error(str.CRoom, "bad move given err=%s", errMove.Error())
+		return false
+	}
+
+	// flip the game clock. This blocks briefly on the clock acknowledgement,
+	// but the clock has its own mutex and never calls back into the room, so
+	// holding stateMu here cannot deadlock.
+	r.flipClock()
+
+	r.game.ToMove = r.game.Position().Turn()
+
+	// capture everything we need after the lock is released so the broadcast
+	// and engine request below never touch the game without synchronization
+	moveStr := mov.String()
+	ofen := r.game.OFEN()
+	requestEngine := !move.Ctx.IsBot && r.players.HasBot() &&
+		r.game.Outcome() == octad.NoOutcome
+
+	r.stateMu.Unlock()
+
+	// publish move to broadcast channel
+	go gamePub.Publish(moveStr, ofen)
+
+	// submit request for engine move after human move
+	// only if other player is configured as a bot and game is still ongoing
+	if requestEngine {
+		r.requestEngineMove()
+	}
+
+	// broadcast move to everyone and send the same snapshot back to the player
+	stateMsg := r.CurrentGameStateMessage(true, false)
+	channel.BroadcastEx(stateMsg, move.Ctx)
 	if move.Ctx.IsHuman() {
-		channel.Unicast(r.CurrentGameStateMessage(true, false), move.Ctx)
+		channel.Unicast(stateMsg, move.Ctx)
 	}
 
 	return true
 }
 
-// requestEngineMove requests an engine move based on the given move message
+// requestEngineMove requests an engine move for the current position. It is
+// called outside any stateMu critical section (by makeMove after it unlocks and
+// by handleGameReady), so it locks to read the game fields it needs.
 func (r *Instance) requestEngineMove() {
-	go dispatch.SubmitEngine(dispatch.EngineRequest{
+	r.stateMu.Lock()
+	req := dispatch.EngineRequest{
 		Ctx: channel.SocketContext{
 			Channel: r.ID,
 			MT:      1,
@@ -603,13 +711,17 @@ func (r *Instance) requestEngineMove() {
 		// staleness guard in makeMove instead of being applied to a new game
 		GameID: r.game.ID,
 		OFEN:   r.game.OFEN(),
-		Depth:  r.calcDepth(r.game.ToMove),
-	})
+		Depth:  r.calcDepthLocked(r.game.ToMove),
+	}
+	r.stateMu.Unlock()
+
+	go dispatch.SubmitEngine(req)
 }
 
-// legalMove checks to see if the given move is legal and returns
-// its corresponding octad move, or nil if invalid
-func (r *Instance) legalMove(move proto.MovePayload) *octad.Move {
+// legalMoveLocked checks to see if the given move is legal and returns its
+// corresponding octad move, or nil if invalid. The caller must hold stateMu
+// (ValidMoves reads — and lazily caches into — the game).
+func (r *Instance) legalMoveLocked(move proto.MovePayload) *octad.Move {
 	for _, mov := range r.game.ValidMoves() {
 		if mov.String() == move.UOI {
 			return mov
@@ -635,10 +747,10 @@ func (r *Instance) flipClock() {
 	<-ackChannel
 }
 
-// calcDepth returns the depth the engine should search to
-// based on the remaining time on the clock to try to avoid
-// flagging as much as possible
-func (r *Instance) calcDepth(color octad.Color) int {
+// calcDepthLocked returns the depth the engine should search to based on the
+// remaining time on the clock to try to avoid flagging as much as possible. The
+// caller must hold stateMu (it reads the game's variant and clock).
+func (r *Instance) calcDepthLocked(color octad.Color) int {
 	// depth 7 is about the best we can do in a reasonable timeframe
 	// on a good CPU, but it won't work well for bullet
 	var depth int
@@ -679,38 +791,51 @@ func (r *Instance) calcDepth(color octad.Color) int {
 // tryGameOver will emit a game over broadcast, record the game, and return an event
 // to transition the state machine to the GameOver state if the game is actually over
 func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool, *fsm.EventDesc) {
-	// restart game if over
-	if r.game.Outcome() != octad.NoOutcome {
-		// terminate the clock goroutine now that the game is decided. Stop is
-		// idempotent, so this is a no-op if the game ended on a flag (the
-		// clock already stopped itself).
-		r.game.Clock.Stop(false, true)
+	r.stateMu.Lock()
 
-		// send final game update to prevent further moves
-		channel.Broadcast(r.CurrentGameStateMessage(true, false), meta)
-		// broadcast game over message immediately
-		channel.Broadcast(r.gameOverMessage(abandoned), meta)
-
-		// keep track of match score
-		r.updateScore()
-
-		// record game result
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-
-		go r.recordGame(wg)
-		// wait for game copy to be made
-		wg.Wait()
-
-		// return isOver=true with game over event
-		return true, r.gameOverEvent()
+	// nothing to do if the game is still in progress
+	if r.game.Outcome() == octad.NoOutcome {
+		r.stateMu.Unlock()
+		return false, nil
 	}
 
-	return false, nil
+	// terminate the clock goroutine now that the game is decided. Stop is
+	// idempotent, so this is a no-op if the game ended on a flag (the
+	// clock already stopped itself).
+	r.game.Clock.Stop(false, true)
+
+	// build the final broadcasts, update the score, compute the transition
+	// event, and snapshot the game for archival — all while holding the lock so
+	// readers never observe a half-finished game and the archived copy is taken
+	// at a consistent point.
+	stateMsg := r.currentGameStateMessageLocked(true, false)
+	overMsg := r.gameOverMessageLocked(abandoned)
+	r.updateScoreLocked()
+	event := r.gameOverEventLocked()
+
+	// shallow value-copy of the game taken under the lock. The room routine is
+	// the only writer and the game is now terminal, so subsequent storeGame
+	// mutations (AddTagPair) only ever grow the copy's slices via append and do
+	// not affect the live game that readers may still observe.
+	gameCopy := *r.game
+
+	r.stateMu.Unlock()
+
+	// send final game update to prevent further moves, then the game over
+	// message — both outside the lock so the broadcast I/O does not gate it
+	channel.Broadcast(stateMsg, meta)
+	channel.Broadcast(overMsg, meta)
+
+	// archive the game off the hot path
+	go storeGame(gameCopy)
+
+	// return isOver=true with the game over event
+	return true, event
 }
 
-// updateScore will increment score counters for the winner of a game
-func (r *Instance) updateScore() {
+// updateScoreLocked increments score counters for the winner of a game. The
+// caller must hold stateMu (it reads the game outcome and mutates players).
+func (r *Instance) updateScoreLocked() {
 	switch r.game.Outcome() {
 	case octad.Draw:
 		r.players.ScoreDraw()
@@ -719,14 +844,6 @@ func (r *Instance) updateScore() {
 	case octad.BlackWon:
 		r.players.ScoreWin(octad.Black)
 	}
-}
-
-// recordGame and notify the caller after game is copied
-func (r *Instance) recordGame(wg *sync.WaitGroup) {
-	// make a copy of game state, so we don't block while storing game
-	gameCopy := *r.game
-	wg.Done()
-	go storeGame(gameCopy)
 }
 
 // storeGame puts the game in object storage for archival purposes
@@ -753,7 +870,7 @@ func storeGame(g game.OctadGame) {
 
 	pgn = g.Game.String()
 
-	util.DebugFlag("pgn", "PGN", pgn)
+	util.DebugFlag("pgn", "PGN", "%s", pgn)
 
 	// year/month/day/HH:MM:SSTZ-(inserted-time-unix).pgn
 	key := fmt.Sprintf("%s/%s/%s/%s-%d.pgn",
@@ -771,11 +888,18 @@ func storeGame(g game.OctadGame) {
 
 // GameState returns the outcome of the current game, or NoOutcome if still in progress
 func (r *Instance) GameState() octad.Outcome {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	return r.game.Outcome()
 }
 
-// GenTemplatePayload generates a RoomTemplatePayload for the given player by id
+// GenTemplatePayload generates a RoomTemplatePayload for the given player by id.
+// Called from the HTTP room handler, so it reads players and the game variant
+// under stateMu.
 func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+
 	_, playerColor := r.players.Lookup(id)
 
 	return message.RoomTemplatePayload{
@@ -787,24 +911,26 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 	}
 }
 
-func (r *Instance) gameOverEvent() *fsm.EventDesc {
+// gameOverEventLocked maps the terminal game outcome to the FSM event that
+// transitions the room out of the ongoing state. The caller must hold stateMu
+// (it reads the game outcome/method/clock).
+func (r *Instance) gameOverEventLocked() *fsm.EventDesc {
 	switch r.game.Outcome() {
 	case octad.NoOutcome:
 		return nil
 	case octad.Draw:
-		return r.genDrawEvent()
+		return r.genDrawEventLocked()
 	case octad.WhiteWon:
-		return r.genWhiteWinEvent()
+		return r.genWhiteWinEventLocked()
 	case octad.BlackWon:
-		return r.genBlackWinEvent()
+		return r.genBlackWinEventLocked()
 	default:
 		// this should be impossible
 		panic(fmt.Sprintf("Invalid game outcome: %s", r.game.Outcome()))
-		return nil
 	}
 }
 
-func (r *Instance) genDrawEvent() *fsm.EventDesc {
+func (r *Instance) genDrawEventLocked() *fsm.EventDesc {
 	switch r.game.Method() {
 	case octad.InsufficientMaterial:
 		return &EventDrawInsufficient
@@ -822,7 +948,7 @@ func (r *Instance) genDrawEvent() *fsm.EventDesc {
 	}
 }
 
-func (r *Instance) genWhiteWinEvent() *fsm.EventDesc {
+func (r *Instance) genWhiteWinEventLocked() *fsm.EventDesc {
 	if r.game.Clock.State(true).Victor == clock.White {
 		return &EventWhiteWinsTimeout
 	}
@@ -838,7 +964,7 @@ func (r *Instance) genWhiteWinEvent() *fsm.EventDesc {
 	}
 }
 
-func (r *Instance) genBlackWinEvent() *fsm.EventDesc {
+func (r *Instance) genBlackWinEventLocked() *fsm.EventDesc {
 	if r.game.Clock.State(true).Victor == clock.Black {
 		return &EventBlackWinsTimeout
 	}
@@ -854,8 +980,9 @@ func (r *Instance) genBlackWinEvent() *fsm.EventDesc {
 	}
 }
 
-// gameOverState returns the game over state, or NoOutcome if still in progress
-func (r *Instance) gameOverState() (int, string) {
+// gameOverStateLocked returns the game over state id and status string. The
+// caller must hold stateMu (it reads the game).
+func (r *Instance) gameOverStateLocked() (int, string) {
 	return genGameOverState(r.game)
 }
 
@@ -917,7 +1044,9 @@ func genBlackWinState(g *game.OctadGame) (int, string) {
 	return -1, ""
 }
 
-func (r *Instance) gameOverMessage(abandoned bool) []byte {
+// gameOverMessageLocked builds the game over payload. The caller must hold
+// stateMu (it reads the game, clock, and players).
+func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 	var id int
 	var status string
 
@@ -925,14 +1054,14 @@ func (r *Instance) gameOverMessage(abandoned bool) []byte {
 		id = -1
 		status = "PLAYER ABANDONED - MATCH OVER"
 	} else {
-		id, status = r.gameOverState()
+		id, status = r.gameOverStateLocked()
 	}
 
 	gameOver := proto.GameOverPayload{
 		Winner:   getWinnerString(id),
 		StatusID: id,
 		Status:   status,
-		Clock:    r.currentClock(),
+		Clock:    r.currentClockLocked(),
 		Score:    r.players.ScoreMap(),
 		RoomOver: abandoned,
 	}

@@ -14,8 +14,34 @@ import (
 // waits for <roomExpiryTime> seconds if all players are disconnected and will
 // proceed to clean up the room if exceeded
 func (r *Instance) handleWaitingForPlayers() {
-	cleanupTimer := time.NewTimer(time.Minute * 15)
+	// single cleanup timer, armed only while nobody is connected/waiting.
+	// Created already-armed for the initial grace period before anyone shows
+	// up. We reuse it via arm/stop helpers (below) instead of allocating a new
+	// timer on every state change, which previously leaked timer goroutines and
+	// risked a stale fire from an abandoned timer.
+	cleanupTimer := time.NewTimer(roomExpiryTime)
 	defer cleanupTimer.Stop()
+
+	// armCleanup (re)starts the timer, draining any pending fire first so a
+	// previous expiry can't trigger an immediate, spurious cleanup.
+	armCleanup := func() {
+		if !cleanupTimer.Stop() {
+			select {
+			case <-cleanupTimer.C:
+			default:
+			}
+		}
+		cleanupTimer.Reset(roomExpiryTime)
+	}
+	// stopCleanup disarms the timer, draining any pending fire.
+	stopCleanup := func() {
+		if !cleanupTimer.Stop() {
+			select {
+			case <-cleanupTimer.C:
+			default:
+			}
+		}
+	}
 
 	waitingRoom := channel.Map.GetSockMap(fmt.Sprintf("%s%s", waiting, r.ID))
 	waitingListener := waitingRoom.Listen()
@@ -38,28 +64,28 @@ func (r *Instance) handleWaitingForPlayers() {
 			// for their opponent to accept the invite
 			if waitingPlayers > 0 {
 				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players waiting", r.ID)
-				cleanupTimer.Stop()
+				stopCleanup()
 			} else {
 				util.DebugFlag("room", str.CRoom, "[%s] no players waiting, cleanup timer enabled", r.ID)
-				cleanupTimer = time.NewTimer(roomExpiryTime)
+				armCleanup()
 			}
 		case numPlayers := <-connectionListener:
 			util.DebugFlag("room", str.CRoom, "[%s] room player count changed: %d", r.ID, numPlayers)
 			// start cleanup timer if no players are connected
 			if numPlayers == 0 && !hasWaitingPlayer() {
 				util.DebugFlag("room", str.CRoom, "[%s] no players connected, cleanup timer enabled", r.ID)
-				cleanupTimer = time.NewTimer(roomExpiryTime)
+				armCleanup()
 				continue
 			}
 
 			// stop timer if one or more players are connected
 			if numPlayers > 0 || hasWaitingPlayer() {
 				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players connected", r.ID)
-				cleanupTimer.Stop()
+				stopCleanup()
 			}
 
 			// automatically ready bot players
-			if r.players.HasBot() {
+			if r.HasBot() {
 				numPlayers = 2
 			}
 

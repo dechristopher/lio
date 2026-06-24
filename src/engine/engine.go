@@ -81,17 +81,17 @@ func TestEngine(ofen string, depth int) {
 	o, _ := octad.OFEN(ofen)
 	game, _ := octad.NewGame(o)
 
-	util.Debug("", game.Position().String())
+	util.Debug("TestEngine", game.Position().String())
 	fmt.Print(game.Position().Board().Draw())
 
 	for game.Outcome() == octad.NoOutcome {
 		move := Search(game.Position().String(), depth, MinimaxAB)
 		_ = game.Move(&move.Move)
 
-		util.Debug("", move.Move.String())
-		util.Debug("", game.Position().String())
+		util.Debug("TestEngine", move.Move.String())
+		util.Debug("TestEngine", game.Position().String())
 		fmt.Print(game.Position().Board().Draw())
 	}
 
-	util.Debug("", game.Outcome().String())
+	util.Debug("TestEngine", game.Outcome().String())
 }
