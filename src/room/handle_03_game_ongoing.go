@@ -118,16 +118,7 @@ func (r *Instance) handleGameOngoing() {
 		// handle start/stop of abandon timer when players connect and disconnect
 		case <-connectionListener:
 			// both players connected? a bot counts as always-connected
-			playersConnected := util.BothColors(func(color octad.Color) bool {
-				id, isBot := r.playerInfo(color)
-				if isBot {
-					return true
-				}
-				// return whether the player is connected
-				return channel.Map.GetSockMap(r.ID).Connected(id)
-			})
-
-			if playersConnected {
+			if r.bothPlayersConnected() {
 				util.DebugFlag("room", str.CRoom, "[%s] both players connected, cancelling abandon timer", r.ID)
 				stopAbandon()
 				continue

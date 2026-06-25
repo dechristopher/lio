@@ -17,6 +17,11 @@ func (r *Instance) handleGameReady() {
 	cleanupTimer := time.NewTimer(time.Minute)
 	defer cleanupTimer.Stop()
 
+	// listen for connection changes so we can defer the engine's first move
+	// until the human opponent is actually present (see maybeRequestFirstMove).
+	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
+	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
+
 	// broadcast reset board state to all
 	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{
 		Channel: r.ID,
@@ -25,14 +30,31 @@ func (r *Instance) handleGameReady() {
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for white to move", r.ID)
 
-	// request engine move immediately
-	if r.botColor() == octad.White {
+	// When the bot plays White it owns the first move, so nothing forces a human
+	// action before an engine search is dispatched. Gate that search on the human
+	// opponent being connected so we never burn a search for a game nobody is
+	// watching (e.g. the player closed the tab during the auto-rematch window).
+	// Human-as-White games request the engine move from makeMove instead, after a
+	// real human move, so they need no gating here. The flag keeps this to a
+	// single dispatch despite the primed listener and repeated connection events.
+	engineToMove := r.botColor() == octad.White
+	engineRequested := false
+	maybeRequestFirstMove := func() {
+		if !engineToMove || engineRequested || !r.bothPlayersConnected() {
+			return
+		}
 		util.DebugFlag("room", str.CRoom, "[%s] engine making first move..", r.ID)
 		r.requestEngineMove()
+		engineRequested = true
 	}
+	maybeRequestFirstMove()
 
 	for {
 		select {
+		case <-connectionListener:
+			// human (re)connected: dispatch the deferred first move if we held it
+			// TODO: guarantee this isn't a spectator
+			maybeRequestFirstMove()
 		case move := <-r.moveChannel:
 			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.UOI, move.Player, r.game.White, r.game.Black)
 

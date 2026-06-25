@@ -521,6 +521,23 @@ func (r *Instance) playerInfo(color octad.Color) (id string, isBot bool) {
 	return "", false
 }
 
+// bothPlayersConnected reports whether every human seat currently holds a live
+// connection on the room channel; a bot seat counts as always-connected. It is
+// the presence primitive shared by the abandon detection (handleGameOngoing) and
+// the engine-move gating (handleGameReady): we never dispatch an engine search,
+// or keep a game alive, for a position nobody is watching. playerInfo locks
+// stateMu and Connected locks the channel layer independently, so this never
+// nests the two locks.
+func (r *Instance) bothPlayersConnected() bool {
+	return util.BothColors(func(color octad.Color) bool {
+		id, isBot := r.playerInfo(color)
+		if isBot {
+			return true
+		}
+		return channel.Map.GetSockMap(r.ID).Connected(id)
+	})
+}
+
 // SendMove writes a move to the room's moveChannel to be consumed by the
 // room routine. moveChannel is only drained while the game is ready or
 // ongoing, so the send selects on r.done to guarantee it can never block a

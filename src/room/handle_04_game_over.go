@@ -45,6 +45,31 @@ func (r *Instance) handleGameOver() {
 				return
 			}
 
+			// Only auto-rematch while the human is present. If they closed the
+			// tab (a disconnect, with no explicit rematch click), don't bounce
+			// the room through a fresh game — and engine search — for nobody.
+			// Wait for them to reconnect instead, and let the outer rematch
+			// timeout end the room if they never do: it returns from the handler,
+			// closing gameOverDone, which unblocks this goroutine. A transient
+			// network blip therefore only delays the auto-rematch rather than
+			// cancelling a rematch the player actually wanted. The listener is
+			// registered lazily so the common (still-connected) case stays a
+			// straight-through fast path.
+			if !r.bothPlayersConnected() {
+				util.DebugFlag("room", str.CRoom, "[%s] auto-rematch deferred, awaiting reconnect", r.ID)
+				connectionListener := channel.Map.GetSockMap(r.ID).Listen()
+				defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
+				for !r.bothPlayersConnected() {
+					select {
+					case <-connectionListener:
+					case <-gameOverDone:
+						return
+					case <-r.done:
+						return
+					}
+				}
+			}
+
 			// manually set rematch agreed for both colors
 			r.stateMu.Lock()
 			util.DoBothColors(func(color octad.Color) {
