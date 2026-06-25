@@ -33,35 +33,35 @@ func gameInfo(payload message.RoomTemplatePayload) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"gameInfo\"><span id=\"gameInfoVariant\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col items-center gap-1 rounded-md border border-line bg-panel px-4 py-3\"><span class=\"font-display text-xl font-bold text-fg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(payload.VariantName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 9, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 9, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span><div><span id=\"gameInfoColor\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span><div class=\"text-sm text-fg-muted\"><span class=\"font-semibold text-accent\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if payload.PlayerColor == "w" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "WHITE")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "White")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "BLACK")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Black")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span> <span id=\"gameInfoSeparator\">•</span> <span id=\"gameInfoPool\">CASUAL</span></div></div><style>\n\t#gameInfo {\n\t\tdisplay: flex;\n\t\tflex-direction: column;\n\n\t\tborder: 2px solid rgba(0, 0, 0, 0.85);\n\t\tborder-radius: 8px;\n\t\tbackground: #dcdcdc;\n\n\t\tfont-weight: 500;\n\t\tfont-size: 1.1rem;\n\n\t\tmargin-bottom: 8px;\n\n\t\tbox-shadow: 2px 3px 0;\n\t}\n\n\t#gameInfoVariant {\n\t\t\tfont-weight: 600;\n\t\tfont-size: 1.8rem;\n\t}\n</style>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span> <span class=\"px-1\">•</span> <span>Casual</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

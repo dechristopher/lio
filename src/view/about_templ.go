@@ -45,7 +45,7 @@ func About(meta Meta, section string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body class=\"long\"><div class=\"c\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body><div class=\"page\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -53,7 +53,7 @@ func About(meta Meta, section string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div id=\"about\" class=\"chin\"><div class=\"info sm\"><h1><a class=\"nolink\" href=\"/about\" hx-get=\"/about\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">About lioctad.org</a></h1><div id=\"about-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card w-[92vw] max-w-[34rem] text-left\"><h1 class=\"font-display text-xl font-bold\"><a class=\"text-fg no-underline transition-colors duration-150 hover:text-accent\" href=\"/about\" hx-get=\"/about\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">About lioctad.org</a></h1><div id=\"about-content\" class=\"mt-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -61,7 +61,7 @@ func About(meta Meta, section string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div class=\"buttons aboutButtons\"><a href=\"/about/board\" aria-label=\"board layout page\" class=\"nolink\" hx-get=\"/about/board\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\"><button class=\"libtn\" role=\"button\">Board</button></a> <a href=\"/about/rules\" aria-label=\"rules page\" class=\"nolink\" hx-get=\"/about/rules\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\"><button class=\"libtn\" role=\"button\">Rules</button></a> <a href=\"/about/misc\" aria-label=\"board layout page\" class=\"nolink\" hx-get=\"/about/misc\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\"><button class=\"libtn\" role=\"button\">Misc.</button></a></div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><div class=\"mt-4 flex flex-wrap gap-2\"><a href=\"/about/board\" aria-label=\"board layout page\" class=\"btn btn-ghost no-underline\" hx-get=\"/about/board\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">Board</a> <a href=\"/about/rules\" aria-label=\"rules page\" class=\"btn btn-ghost no-underline\" hx-get=\"/about/rules\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">Rules</a> <a href=\"/about/misc\" aria-label=\"misc page\" class=\"btn btn-ghost no-underline\" hx-get=\"/about/misc\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">Misc.</a></div></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -108,22 +108,22 @@ func AboutContent(section string) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if section == "main" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"prose\">Lioctad (li[bre] octad) is a free octad game server focused on realtime gameplay and ease of use.</p><p class=\"prose\">Octad is a chess variant that was conceived by Andrew DeChristopher in 2018. Rules and information about the game can be found below. Octad is thought to be a solved, deterministic game, but needs formal verification to prove that.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"prose\">Lioctad (li[bre] octad) is a free octad game server focused on realtime gameplay and ease of use.</p><p class=\"prose mt-3\">Octad is a chess variant that was conceived by Andrew DeChristopher in 2018. Rules and information about the game can be found below. Octad is thought to be a solved, deterministic game, but needs formal verification to prove that.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if section == "board" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<h2>Board Layout</h2><p class=\"prose\">Each player begins with four pieces: a knight, their king, and two pawns placed in that order from left to right relative to them. An example of this can be seen in the board diagrams below:</p><table><thead><tr><th>1. c2</th><th>1. c2 b3</th><th>2. cxb3!</th></tr></thead> <tbody><tr><td><img width=\"100%\" src=\"/res/img/octad2.svg\" alt=\"octad board layout 2\"></td><td><img width=\"100%\" src=\"/res/img/octad3.svg\" alt=\"octad board layout 3\"></td><td><img width=\"100%\" src=\"/res/img/octad4.svg\" alt=\"octad board layout 4\"></td></tr></tbody></table>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<h2 class=\"font-display text-lg font-bold text-fg\">Board Layout</h2><p class=\"prose mt-2\">Each player begins with four pieces: a knight, their king, and two pawns placed in that order from left to right relative to them. An example of this can be seen in the board diagrams below:</p><table class=\"about-table\"><thead><tr><th>1. c2</th><th>1. c2 b3</th><th>2. cxb3!</th></tr></thead> <tbody><tr><td><img src=\"/res/img/octad2.svg\" alt=\"octad board layout 2\"></td><td><img src=\"/res/img/octad3.svg\" alt=\"octad board layout 3\"></td><td><img src=\"/res/img/octad4.svg\" alt=\"octad board layout 4\"></td></tr></tbody></table>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if section == "rules" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<h2>Rules</h2><p class=\"prose\">All standard chess rules apply: en passant is allowed, pawns promote to any piece, and stalemates are a draw.</p><p class=\"prose\">The only catch, however, is that castling is possible between the king and any of its pieces on the starting rank before movement. The king will simply switch spaces with the castling piece in all cases except the far pawn, in which case the king will travel one space to the right, and the pawn will lie where the king was before.</p><p class=\"prose\">An example of white castling with their far pawn can be expressed as [ 1. c2 b3 2. O-O-O ... ] with the resulting structure leaving the knight on a1, a pawn on b1, the king on c1, and the other pawn on c2. Here is what that would look like on the board:</p><table><thead><tr><th>1. c2</th><th>1. c2 b3</th><th>2. O-O-O</th></tr></thead> <tbody><tr><td><img width=\"100%\" src=\"/res/img/octad2.svg\" alt=\"octad board layout 2\"></td><td><img width=\"100%\" src=\"/res/img/octad3.svg\" alt=\"octad board layout 3\"></td><td><img width=\"100%\" src=\"/res/img/far-castle.svg\" alt=\"white performs a far pawn castle\"></td></tr></tbody></table>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<h2 class=\"font-display text-lg font-bold text-fg\">Rules</h2><p class=\"prose mt-2\">All standard chess rules apply: en passant is allowed, pawns promote to any piece, and stalemates are a draw.</p><p class=\"prose mt-3\">The only catch, however, is that castling is possible between the king and any of its pieces on the starting rank before movement. The king will simply switch spaces with the castling piece in all cases except the far pawn, in which case the king will travel one space to the right, and the pawn will lie where the king was before.</p><p class=\"prose mt-3\">An example of white castling with their far pawn can be expressed as [ 1. c2 b3 2. O-O-O ... ] with the resulting structure leaving the knight on a1, a pawn on b1, the king on c1, and the other pawn on c2. Here is what that would look like on the board:</p><table class=\"about-table\"><thead><tr><th>1. c2</th><th>1. c2 b3</th><th>2. O-O-O</th></tr></thead> <tbody><tr><td><img src=\"/res/img/octad2.svg\" alt=\"octad board layout 2\"></td><td><img src=\"/res/img/octad3.svg\" alt=\"octad board layout 3\"></td><td><img src=\"/res/img/far-castle.svg\" alt=\"white performs a far pawn castle\"></td></tr></tbody></table>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else if section == "misc" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>Octad Forsyth-Edwards Notation (OFEN)</h2><p class=\"prose\">Forsyth–Edwards Notation (FEN) is a standard notation for describing a particular board position of a chess game. The purpose of FEN is to provide all the necessary information to restart a game from a particular position.</p><p class=\"prose ul\">OFEN is a derivation of FEN to support the features of Octad.</p><p class=\"prose\">Read more about the OFEN structure <a href=\"https://github.com/dechristopher/octad/blob/master/doc/OFEN.md\">here.</a></p><p class=\"prose\">Here is the OFEN for the starting position:</p><pre class=\"code\">ppkn/4/4/NKPP w NCFncf - 0 1</pre><p class=\"prose\">Here is the OFEN after the move 1. c2:</p><pre class=\"code\">ppkn/4/2P1/NK1P b NCFncf - 0 1</pre>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2 class=\"font-display text-lg font-bold text-fg\">Octad Forsyth-Edwards Notation (OFEN)</h2><p class=\"prose mt-2\">Forsyth–Edwards Notation (FEN) is a standard notation for describing a particular board position of a chess game. The purpose of FEN is to provide all the necessary information to restart a game from a particular position.</p><p class=\"prose mt-3 underline\">OFEN is a derivation of FEN to support the features of Octad.</p><p class=\"prose mt-3\">Read more about the OFEN structure <a href=\"https://github.com/dechristopher/octad/blob/master/doc/OFEN.md\">here.</a></p><p class=\"prose mt-3\">Here is the OFEN for the starting position:</p><pre class=\"code\">ppkn/4/4/NKPP w NCFncf - 0 1</pre><p class=\"prose mt-3\">Here is the OFEN after the move 1. c2:</p><pre class=\"code\">ppkn/4/2P1/NK1P b NCFncf - 0 1</pre>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

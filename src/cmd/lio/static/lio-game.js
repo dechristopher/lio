@@ -435,6 +435,11 @@ const updateUI = (message, ofenParts) => {
 	plyTime.innerHTML = timeFormatter(playerTimeRemaining);
 	oppTime.innerHTML = timeFormatter(opponentTimeRemaining);
 
+	// low-time emphasis (<10s = 1000 centiseconds): toggled on the clock wrapper
+	// so the time + progress bar shift to the loss color and pulse (app.css .low)
+	plyClock.classList.toggle('low', playerTimeRemaining < 1000);
+	oppClock.classList.toggle('low', opponentTimeRemaining < 1000);
+
 	const plyBar = plyClock.getElementsByClassName("clockProgressBar")[0];
 	const oppBar = oppClock.getElementsByClassName("clockProgressBar")[0];
 

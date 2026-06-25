@@ -43,7 +43,7 @@ func NotFound(meta Meta) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body><div class=\"c\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body><div class=\"page\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -51,7 +51,7 @@ func NotFound(meta Meta) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"oops\"><span class=\"t404\">404</span> <span>Whoops, this is awkward.</span> <span>Please let us know!</span> <span class=\"back\" onclick=\"back()\">← GO BACK</span></div></div></body><style>\n\t.oops {\n\t\tdisplay: flex;\n\t\tflex-direction: column;\n\t\talign-items: center;\n\n\t\tcolor: #363636;\n\t\tfont-family: 'Noto Sans Mono', monospace;\n\t}\n\n\t.oops span {\n\t  font-weight: 500;\n  }\n\n\t.t404 {\n\t\tfont-size: 52px;\n\t}\n\n\t.back {\n\t\tmargin-top: 12px;\n\t\tpadding: 4px 12px;\n\t\twidth: fit-content;\n\t\tborder: 1px solid #363636;\n\t\tborder-radius: 4px;\n\n\t\tcursor: pointer;\n\t\tfont-size: 20px;\n\t\tfont-weight: 600;\n\t}\n\n\t.back:hover {\n\t\tborder: 1px solid #0bab7d;\n\t\tcolor: #0bab7d;\n\t}\n</style> <script>\n\tlet hasHistory = false;\n\n\twindow.addEventListener('beforeunload', function () {\n\t\thasHistory = true;\n\t});\n\n\tconst back = () => {\n\t\twindow.history.go(-1);\n\t\tsetTimeout(function () {\n\t\t\tif (!hasHistory) {\n\t\t\t\twindow.location = '/';\n\t\t\t}\n\t\t}, 200);\n\t\treturn false;\n\t};\n</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"mt-10 flex flex-col items-center gap-1.5 text-center text-fg-muted\"><span class=\"font-display text-6xl font-extrabold leading-none text-fg\">404</span> <span class=\"font-medium\">Whoops, this is awkward.</span> <span class=\"font-medium\">Please let us know!</span> <button type=\"button\" class=\"btn btn-ghost mt-3\" onclick=\"back()\">← Go back</button></div></div></body><script>\n\tlet hasHistory = false;\n\n\twindow.addEventListener('beforeunload', function () {\n\t\thasHistory = true;\n\t});\n\n\tconst back = () => {\n\t\twindow.history.go(-1);\n\t\tsetTimeout(function () {\n\t\t\tif (!hasHistory) {\n\t\t\t\twindow.location = '/';\n\t\t\t}\n\t\t}, 200);\n\t\treturn false;\n\t};\n</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

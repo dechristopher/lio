@@ -31,7 +31,8 @@ func mustContain(t *testing.T, s, sub string) {
 func TestRenderIndex(t *testing.T) {
 	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), pools.RatingPools))
 	mustContain(t, out, "<title>lioctad.org • Free Online Octad</title>")
-	mustContain(t, out, "QUICK GAME")
+	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
+	mustContain(t, out, `id="createGameButton"`) // modal opener
 	mustContain(t, out, `id="modalCreateGame"`)
 	mustContain(t, out, "getElementById(\"modalCreateGame\")") // inline modal script
 
@@ -65,8 +66,9 @@ func TestRenderRoomGame(t *testing.T) {
 		Variant:       variant.HalfOneBlitz,
 	}
 	out := renderSmoke(t, Room(RoomMeta(p), p))
-	mustContain(t, out, `id="gameTitle"`)
-	mustContain(t, out, "Half One blitz")
+	mustContain(t, out, `class="game-room`) // outer game container
+	mustContain(t, out, `class="game-grid"`)
+	mustContain(t, out, "Half One blitz") // variant/time-control shown in the rail
 	mustContain(t, out, `data-bot="true"`)
 	mustContain(t, out, "octadground")                     // scriptsRoom loaded
 	mustContain(t, out, `id="game"`)                       // board mount

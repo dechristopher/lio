@@ -3,209 +3,54 @@ package view
 import "github.com/dechristopher/lio/variant"
 
 // createGameModal is the custom-game dialog opened from the home page. It lists
-// the available time controls (in pool order) and submits a color choice.
+// the available time controls (in pool order) and submits a color choice. The
+// open/close script is wired to #createGameButton (the opener) and the modal's
+// own .modal-close button; styling lives in app.css (.modal-* / .tc-* / .submit-*).
 templ createGameModal(pools map[variant.Group][]variant.Variant) {
 	<div id="modalCreateGame" class="modal-shade">
-		<div class="modal">
-			<span class="close">×</span>
-			<div class="modal-content">
-				<h2>Create a game</h2>
-				<form class="cg" action="/new/human" method="POST" hx-post="/new/human">
-					<div class="tc-select">
-						for _, tc := range sortedPools(pools) {
-							<input id={ tc.HTMLName } type="radio" class="tc-input" name="time-control" value={ tc.HTMLName } required/>
-							<label for={ tc.HTMLName }>
-								<button type="button" class="tc-box libtn">
-									<span class="tc-name">{ tc.Name }</span>
-									<span class="tc-pool">{ tc.Group.String() }</span>
-								</button>
-							</label>
-						}
-					</div>
-					<div class="submit">
-						<button type="submit" class="submit-btn libtn" name="color" value="w" title="Play the white pieces first">
-							<span class="piece-button alpha wk"></span>
-						</button>
-						<button type="submit" class="submit-btn large libtn" name="color" value="r" title="Play either set of pieces first">
-							<span class="piece-button alpha random"></span>
-						</button>
-						<button type="submit" class="submit-btn libtn" name="color" value="b" title="Play the black pieces first">
-							<span class="piece-button alpha bk"></span>
-						</button>
-					</div>
-				</form>
-			</div>
+		<div class="modal card">
+			<button type="button" class="modal-close" aria-label="Close">×</button>
+			<h2>Create a game</h2>
+			<form class="cg" action="/new/human" method="POST" hx-post="/new/human">
+				<div class="tc-select">
+					for _, tc := range sortedPools(pools) {
+						<input id={ tc.HTMLName } type="radio" class="tc-input" name="time-control" value={ tc.HTMLName } required/>
+						<label class="tc-label" for={ tc.HTMLName }>
+							<span class="tc-box">
+								<span class="tc-name">{ tc.Name }</span>
+								<span class="tc-pool">{ tc.Group.String() }</span>
+							</span>
+						</label>
+					}
+				</div>
+				<div class="submit-row">
+					<button type="submit" class="submit-btn" name="color" value="w" title="Play the white pieces first">
+						<span class="piece-button wk"></span>
+					</button>
+					<button type="submit" class="submit-btn large" name="color" value="r" title="Play either set of pieces first">
+						<span class="piece-button random"></span>
+					</button>
+					<button type="submit" class="submit-btn" name="color" value="b" title="Play the black pieces first">
+						<span class="piece-button bk"></span>
+					</button>
+				</div>
+			</form>
 		</div>
 	</div>
-<style>
-	.modal-shade {
-		display: none;
-		position: fixed;
-		z-index: 100;
-		padding-top: 42px;
-		left: 0;
-		top: 0;
-		width: 100%;
-		height: 100%;
-		overflow: auto;
-		background-color: rgb(0, 0, 0);
-		background-color: rgba(0, 0, 0, 0.5);
-	}
-
-	.modal {
-		background-color: #cca57b;
-		margin: auto;
-		padding-bottom: 12px;
-		border-radius: 3px;
-		width: 16em;
-	}
-
-	.modal-content h2 {
-		margin-block-end: 0.1em;
-	}
-
-	.close {
-		color: #fff;
-		float: right;
-		font-size: 24px;
-		font-weight: bold;
-		position: absolute;
-		transform: translate(116px, -12px);
-		width: 24px;
-		height: 24px;
-		background: #444;
-		border-radius: 50%;
-		line-height: 25px;
-	}
-
-	.close:hover,
-	.close:focus {
-		background: #d30020;
-		text-decoration: none;
-		cursor: pointer;
-	}
-
-	.tc-select {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: center;
-
-		padding: 6px;
-
-		background: #f1d8b8;
-		border-top: 1px solid #8c6d54;
-		border-bottom: 1px solid #8c6d54;
-	}
-
-	.tc-select input {
-		position: absolute;
-		left: -99999px;
-	}
-
-	.tc-box {
-		width: 64px;
-		height: 4.5em !important;
-		margin: 4px !important;
-		padding: 2px !important;
-
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-
-		background: #FFFFDF;
-
-		font-family: 'Noto Sans', sans-serif;
-		font-size: 14px !important;
-		font-weight: 600;
-
-		cursor: pointer !important;
-		pointer-events: none;
-	}
-
-	.tc-select input:checked + label > button,
-	.tc-select input + label:hover > button {
-		background: #0bab7d;
-		color: #fff;
-	}
-
-	.tc-name {
-		width: 100%;
-		font-size: 18px;
-		cursor: pointer !important;
-	}
-
-	.tc-pool {
-		width: 100%;
-		font-style: italic;
-		font-size: 13px;
-		cursor: pointer !important;
-	}
-
-	.submit {
-		margin-top: 16px;
-		display: flex;
-		flex-direction: row;
-		justify-content: center;
-		align-items: center;
-	}
-
-  form:invalid.cg button[type="submit"] {
-	  pointer-events: none;
-	  background-color: #aeaeae !important;
-		opacity: 50%;
-  }
-
-	.submit-btn {
-		padding: 2px 6px !important;
-		margin: 0 4px !important;
-		width: 64px;
-		height: 48px;
-	}
-
-	.submit-btn.large {
-		width: 80px;
-		height: 64px;
-	}
-
-	.piece-button {
-		background-size: 48px;
-		background-repeat: no-repeat;
-		width: 48px;
-		height: 48px;
-	}
-
-	.wk {
-		background-image: url('/res/img/cburnett/wK.svg');
-	}
-
-	.bk {
-		background-image: url('/res/img/cburnett/bK.svg');
-	}
-
-	.random {
-		background-image: url('/res/img/cburnett/wbK.svg');
-	}
-
-</style>
-<script>
-	const modal = document.getElementById("modalCreateGame");
-	const btn = document.getElementById("createGameButton");
-	const close = document.getElementsByClassName("close")[0];
-	btn.onclick = function () {
-		modal.style.display = "block";
-	};
-	close.onclick = function () {
-		modal.style.display = "none";
-	};
-	window.onclick = function (event) {
-		if (event.target === modal) {
-			modal.style.display = "none";
-		}
-	};
-</script>
-<link rel="prefetch" href="/res/img/cburnett/wK.svg">
-<link rel="prefetch" href="/res/img/cburnett/bK.svg">
-<link rel="prefetch" href="/res/img/cburnett/wbK.svg">
+	<script>
+		(function () {
+			const modal = document.getElementById("modalCreateGame");
+			const openBtn = document.getElementById("createGameButton");
+			const closeBtn = modal.querySelector(".modal-close");
+			const open = () => modal.classList.add("open");
+			const close = () => modal.classList.remove("open");
+			if (openBtn) openBtn.addEventListener("click", open);
+			if (closeBtn) closeBtn.addEventListener("click", close);
+			modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+			document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+		})();
+	</script>
+	<link rel="prefetch" href="/res/img/cburnett/wK.svg"/>
+	<link rel="prefetch" href="/res/img/cburnett/bK.svg"/>
+	<link rel="prefetch" href="/res/img/cburnett/wbK.svg"/>
 }

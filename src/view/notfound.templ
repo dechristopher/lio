@@ -5,51 +5,16 @@ package view
 templ NotFound(meta Meta) {
 	@base(meta) {
 		<body>
-			<div class="c">
+			<div class="page">
 				@header()
-				<div class="oops">
-					<span class="t404">404</span>
-					<span>Whoops, this is awkward.</span>
-					<span>Please let us know!</span>
-					<span class="back" onclick="back()">← GO BACK</span>
+				<div class="mt-10 flex flex-col items-center gap-1.5 text-center text-fg-muted">
+					<span class="font-display text-6xl font-extrabold leading-none text-fg">404</span>
+					<span class="font-medium">Whoops, this is awkward.</span>
+					<span class="font-medium">Please let us know!</span>
+					<button type="button" class="btn btn-ghost mt-3" onclick="back()">← Go back</button>
 				</div>
 			</div>
 		</body>
-<style>
-	.oops {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-
-		color: #363636;
-		font-family: 'Noto Sans Mono', monospace;
-	}
-
-	.oops span {
-	  font-weight: 500;
-  }
-
-	.t404 {
-		font-size: 52px;
-	}
-
-	.back {
-		margin-top: 12px;
-		padding: 4px 12px;
-		width: fit-content;
-		border: 1px solid #363636;
-		border-radius: 4px;
-
-		cursor: pointer;
-		font-size: 20px;
-		font-weight: 600;
-	}
-
-	.back:hover {
-		border: 1px solid #0bab7d;
-		color: #0bab7d;
-	}
-</style>
 <script>
 	let hasHistory = false;
 

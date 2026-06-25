@@ -5,40 +5,18 @@ import "github.com/dechristopher/lio/message"
 // gameInfo renders the variant / color / pool summary card shown on the
 // creator and joiner pre-game views.
 templ gameInfo(payload message.RoomTemplatePayload) {
-	<div id="gameInfo">
-		<span id="gameInfoVariant">{ payload.VariantName }</span>
-		<div>
-			<span id="gameInfoColor">
+	<div class="flex flex-col items-center gap-1 rounded-md border border-line bg-panel px-4 py-3">
+		<span class="font-display text-xl font-bold text-fg">{ payload.VariantName }</span>
+		<div class="text-sm text-fg-muted">
+			<span class="font-semibold text-accent">
 				if payload.PlayerColor == "w" {
-					WHITE
+					White
 				} else {
-					BLACK
+					Black
 				}
 			</span>
-			<span id="gameInfoSeparator">•</span>
-			<span id="gameInfoPool">CASUAL</span>
+			<span class="px-1">•</span>
+			<span>Casual</span>
 		</div>
 	</div>
-<style>
-	#gameInfo {
-		display: flex;
-		flex-direction: column;
-
-		border: 2px solid rgba(0, 0, 0, 0.85);
-		border-radius: 8px;
-		background: #dcdcdc;
-
-		font-weight: 500;
-		font-size: 1.1rem;
-
-		margin-bottom: 8px;
-
-		box-shadow: 2px 3px 0;
-	}
-
-	#gameInfoVariant {
-			font-weight: 600;
-		font-size: 1.8rem;
-	}
-</style>
 }

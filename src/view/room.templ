@@ -12,7 +12,7 @@ import (
 templ Room(meta Meta, payload message.RoomTemplatePayload) {
 	@base(meta) {
 		<body>
-			<div class="c">
+			<div class="page">
 				@header()
 				if !payload.IsCreator && !payload.IsJoining {
 					@roomGame(payload)
@@ -33,24 +33,42 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 	}
 }
 
-// roomGame is the active-game view: title, both clocks around the board, and
-// the connection/crowd info bar.
+// roomGame is the active-game view: a board-centric grid (wrapped in .game-room
+// as an extension point for future surrounding UI) with the board as the hero
+// and a side rail (clocks, game info, reserved controls) that stacks on mobile.
+// The clocks sandwich the board on mobile and sit top/bottom of the rail on
+// desktop (via grid-template-areas). Time control + mode live in the rail.
 templ roomGame(payload message.RoomTemplatePayload) {
-	<i id="gameTitle">{ payload.VariantName }</i>
-	<div class="gccon mt8">
-		<div id="clockOpponent" class="clockOpponent" data-bot={ strconv.FormatBool(payload.OpponentIsBot) }>
-			@clock()
-		</div>
-		@board(payload.PlayerColor)
-		<div id="clockPlayer" class="clockPlayer">
-			@clock()
-		</div>
-	</div>
-	<div class="chin">
-		<div class="info sm">
-			<div id="info"></div>
-			<span id="crowd">0</span> CONNECTED
-			(<span id="lat">0</span><span class="unit">ms</span>)
+	<div class="game-room mt-2">
+		<div class="game-grid">
+			<div id="clockOpponent" class="clockOpponent ga-opp" data-bot={ strconv.FormatBool(payload.OpponentIsBot) }>
+				@clock("Opponent")
+			</div>
+			<div class="ga-board">
+				@board(payload.PlayerColor)
+			</div>
+			<div id="clockPlayer" class="clockPlayer ga-you">
+				@clock("You")
+			</div>
+			<aside class="ga-rail">
+				<div class="rail-stack">
+					<div class="rail-card flex flex-1 flex-col">
+						<span class="rail-title">{ payload.VariantName } · Casual</span>
+						<div class="moves-placeholder">Move history coming soon</div>
+					</div>
+					<div class="controls">
+						<button type="button" class="ctrl-btn" disabled title="Resign — coming soon">⚑ Resign</button>
+						<button type="button" class="ctrl-btn" disabled title="Offer draw — coming soon">½ Draw</button>
+					</div>
+				</div>
+			</aside>
+			<div class="ga-info">
+				<div class="info-bar">
+					<span id="info"></span>
+					<span><span id="crowd">0</span> connected</span>
+					<span>(<span id="lat">0</span><span class="unit">ms</span>)</span>
+				</div>
+			</div>
 		</div>
 	</div>
 }

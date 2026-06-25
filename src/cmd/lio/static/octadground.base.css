@@ -1,6 +1,15 @@
+/* The board is sized off a single --bs (board size) custom property set by the
+   page layout (see .board-shell in app.css); it falls back to the original
+   320px so the board still renders if --bs is ever absent. Everything inside is
+   percentage-based and scales with it. */
 .gcon {
-  height: 320px;
-  width: 320px;
+  /* Square sized off width + aspect-ratio rather than an explicit height: --bs
+     contains a 100% term, and a percentage *height* would resolve against the
+     indefinite height of .board-shell and collapse, leaving octadground's
+     bottom-anchored board to overflow off the top. */
+  position: relative;
+  width: var(--bs, 320px);
+  aspect-ratio: 1 / 1;
   -webkit-touch-callout: none; /* iOS Safari */
   -webkit-user-select: none; /* Safari */
   -khtml-user-select: none; /* Konqueror HTML */
@@ -23,14 +32,18 @@
 }
 
 .gwrap {
-  position: relative;
+  /* fill the (now definite) square gcon via inset:0 so we never rely on
+     percentage-height resolution */
+  position: absolute;
+  inset: 0;
 }
 
 .promo-shade {
   z-index: 10;
-  width: 320px;
-  height: 320px;
+  width: 100%;
+  height: 100%;
   position: absolute;
+  inset: 0;
   background-color: rgba(50, 50, 50, 0.6);
 }
 
@@ -48,15 +61,15 @@
 }
 
 .promo.fb {
-  padding-left: 80px;
+  padding-left: 25%;
 }
 
 .promo.fc {
-  padding-left: 160px;
+  padding-left: 50%;
 }
 
 .promo.fd {
-  padding-left: 240px;
+  padding-left: 75%;
 }
 
 .promo.hidden {
@@ -66,32 +79,39 @@
 .promo piece {
   display: block;
   position: relative;
-  width: 74px;
-  height: 74px;
-  background-color: #b7b7a3;
-  background-size: 74px;
+  width: calc(var(--bs, 320px) / 4 - 7px);
+  height: calc(var(--bs, 320px) / 4 - 7px);
+  background-color: var(--surface-3, #b7b7a3);
+  background-size: contain;
+  background-repeat: no-repeat;
   background-position: center;
-  -webkit-transition: all 200ms ease-in-out;
-  -ms-transition: all 200ms ease-in-out;
-  transition: all 200ms ease-in-out;
+  -webkit-transition: all 160ms ease-in-out;
+  -ms-transition: all 160ms ease-in-out;
+  transition: all 160ms ease-in-out;
   box-sizing: border-box;
-  border: 2px solid black;
+  border: 2px solid var(--border-strong, black);
+  border-radius: 6px;
   margin: 3px 4px 6px 3px;
 }
 
 .promo piece:hover {
-  background-color: #a5b0b8;
-  background-size: 80px;
-  -webkit-transition: all 200ms ease-in-out;
-  -ms-transition: all 200ms ease-in-out;
-  transition: all 200ms ease-in-out;
+  background-color: var(--accent, #a5b0b8);
+  border-color: var(--accent, #a5b0b8);
+  transform: scale(1.06);
+  -webkit-transition: all 160ms ease-in-out;
+  -ms-transition: all 160ms ease-in-out;
+  transition: all 160ms ease-in-out;
 }
 
 .og-wrap {
-  width: 320px;
-  height: 320px;
+  width: 100%;
+  height: 100%;
   position: absolute;
+  inset: 0;
   display: block;
+  /* the board theme image (set on .og-wrap by the board theme css) must scale
+     with the now-fluid board, not sit at its intrinsic size */
+  background-size: cover;
 }
 
 og-helper {

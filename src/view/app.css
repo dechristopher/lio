@@ -1,0 +1,671 @@
+/*!
+ * lioctad app styles — TailwindCSS v4 (built with the standalone CLI, no Node).
+ * Source of truth: this file. Build the embedded/served stylesheet with:
+ *   ../bin/tailwindcss -i view/app.css -o cmd/lio/static/app.css --minify
+ * Design spec: arch/FRONTEND_DESIGN_OVERHAUL.md
+ */
+@import "tailwindcss" source(none);
+
+/* Scan templ markup + the JS that toggles classes at runtime. source(none)
+   above keeps Tailwind from walking vendor/ and the 80MB bin/ binary. */
+@source "./**/*.templ";
+@source "../cmd/lio/static/*.js";
+
+/* Dark mode is driven by data-theme on <html>, set before paint by the no-flash
+   script in head.templ (system preference + persisted manual toggle). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ----------------------------------------------------------------------------
+   Self-hosted fonts (woff2 only). Inter + JetBrains Mono are variable fonts
+   (one file covers every weight); Poppins ships static 600/700 for the logo.
+---------------------------------------------------------------------------- */
+@font-face {
+	font-family: "Inter";
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url("/res/fonts/inter-var.woff2") format("woff2");
+}
+@font-face {
+	font-family: "JetBrains Mono";
+	font-style: normal;
+	font-weight: 100 800;
+	font-display: swap;
+	src: url("/res/fonts/jetbrains-mono-var.woff2") format("woff2");
+}
+@font-face {
+	font-family: "Poppins";
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url("/res/fonts/poppins-600.woff2") format("woff2");
+}
+@font-face {
+	font-family: "Poppins";
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url("/res/fonts/poppins-700.woff2") format("woff2");
+}
+
+/* ----------------------------------------------------------------------------
+   Design tokens. Ergonomic utility names (bg-surface, text-fg-muted, ...) are
+   mapped here to themeable CSS variables. `@theme inline` makes the generated
+   utilities emit var(--surface) directly, so they react to the data-theme swap
+   at runtime instead of baking in a build-time value.
+---------------------------------------------------------------------------- */
+@theme inline {
+	--font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--font-display: "Poppins", "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+	--color-surface: var(--surface);
+	--color-panel: var(--surface-2);
+	--color-elevated: var(--surface-3);
+	--color-line: var(--border);
+	--color-line-strong: var(--border-strong);
+	--color-fg: var(--text);
+	--color-fg-muted: var(--text-muted);
+	--color-fg-subtle: var(--text-subtle);
+
+	--color-accent: var(--accent);
+	--color-accent-hover: var(--accent-hover);
+	--color-accent-press: var(--accent-press);
+	--color-accent-fg: var(--accent-contrast);
+
+	--color-win: var(--win);
+	--color-loss: var(--loss);
+	--color-draw: var(--draw);
+	--color-warn: var(--warn);
+
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 14px;
+
+	--shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.06);
+	--shadow-md: 0 4px 12px rgba(28, 25, 23, 0.10);
+	--shadow-lg: 0 10px 28px rgba(28, 25, 23, 0.16);
+
+	--ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ----------------------------------------------------------------------------
+   Theme token values. Light is the default; [data-theme="dark"] swaps them.
+   Accent brightens one step in dark for vibrancy against the dark surface.
+---------------------------------------------------------------------------- */
+@layer base {
+	:root {
+		color-scheme: light;
+		--surface: #faf8f5;
+		--surface-2: #f0ebe4;
+		--surface-3: #fdfbf8;
+		--border: #e7e1d8;
+		--border-strong: #d6cdbf;
+		--text: #1c1917;
+		--text-muted: #78716c;
+		--text-subtle: #a8a29e;
+
+		--accent: #10b981;
+		--accent-hover: #059669;
+		--accent-press: #047857;
+		--accent-contrast: #ffffff;
+
+		--win: #10b981;
+		--loss: #ef4444;
+		--draw: #a8a29e;
+		--warn: #f59e0b;
+
+		--focus-ring: rgba(16, 185, 129, 0.45);
+	}
+
+	[data-theme="dark"] {
+		color-scheme: dark;
+		--surface: #1c1917;
+		--surface-2: #292524;
+		--surface-3: #322d29;
+		--border: #3a3531;
+		--border-strong: #4a443e;
+		--text: #f5f5f4;
+		--text-muted: #a8a29e;
+		--text-subtle: #78716c;
+
+		--accent: #34d399;
+		--accent-hover: #10b981;
+		--accent-press: #059669;
+		--accent-contrast: #06251c;
+
+		--win: #34d399;
+		--loss: #f87171;
+		--draw: #a8a29e;
+		--warn: #fbbf24;
+
+		--focus-ring: rgba(52, 211, 153, 0.45);
+	}
+
+	body {
+		background-color: var(--surface);
+		color: var(--text);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		margin: 0;
+		/* Preserve today's centered-column page layout during the migration;
+		   per-page layouts (board + side rail) land in later phases. */
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	/* One consistent, calm focus ring for every interactive element. */
+	:focus-visible {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 2px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.001ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.001ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}
+
+/* ============================================================================
+   Game room (Phase 2). The state classes .active / .low / .thinking-on /
+   .result-show / .playerWhite / .playerBlack are toggled by lio-game.js on the
+   existing hook elements (#clockPlayer, #clockOpponent, #result-overlay, the
+   .clock* / .result* / .thinking nodes) — keep these names in sync with the JS.
+============================================================================ */
+@layer components {
+	/* ---- layout: board hero + side rail, stacking on mobile ---- */
+	.game-grid {
+		display: grid;
+		width: min(96vw, 60rem);
+		gap: 0.6rem;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			"opp"
+			"board"
+			"you"
+			"rail"
+			"info";
+	}
+	.ga-opp { grid-area: opp; }
+	.ga-board {
+		grid-area: board;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.ga-you { grid-area: you; }
+	.ga-rail { grid-area: rail; }
+	.ga-info { grid-area: info; }
+
+	@media (min-width: 1024px) {
+		.game-grid {
+			/* tighter width so the (now smaller) board sits snug beside the rail
+			   instead of floating in a wide 1fr column */
+			width: min(96vw, 48rem);
+			grid-template-columns: minmax(0, 1fr) clamp(17rem, 26vw, 20rem);
+			grid-template-rows: auto 1fr auto auto;
+			grid-template-areas:
+				"board opp"
+				"board rail"
+				"board you"
+				"board info";
+			gap: 0.7rem 1.25rem;
+			align-items: start;
+		}
+		/* shrink the board to ~75% of its previous desktop max (34rem -> 25.5rem) */
+		.board-shell { --bs: min(100%, 58vh, 25.5rem); }
+		.ga-board {
+			align-self: start;
+			position: sticky;
+			top: 1rem;
+		}
+	}
+
+	/* board: a square sized off --bs, capped to the column / viewport */
+	.board-shell {
+		--bs: min(100%, 78vh, 34rem);
+		width: 100%;
+		display: flex;
+		justify-content: center;
+	}
+
+	/* outer container around the board + controls cluster; an extension point
+	   for future surrounding UI (toolbars, analysis, etc.) */
+	.game-room {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+	}
+
+	/* ---- clocks ---- */
+	.clock {
+		position: relative;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		transition: border-color 150ms var(--ease-snappy), background-color 150ms var(--ease-snappy);
+	}
+	.clockOpponent .clock { flex-direction: column-reverse; }
+	.active .clock {
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	}
+	.clock-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.5rem 0.8rem;
+	}
+	.clock-meta { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+	.clockName {
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		white-space: nowrap;
+	}
+	.clockScore {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--text);
+		background: var(--surface-3);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		padding: 0.05rem 0.5rem;
+		min-width: 1.4rem;
+		text-align: center;
+	}
+	.clockRating { font-size: 0.7rem; color: var(--text-subtle); }
+	.clockRatingNumber { font-weight: 600; }
+	.clockTime {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 1.75rem;
+		font-weight: 500;
+		line-height: 1;
+		color: var(--text);
+		transition: color 150ms var(--ease-snappy);
+	}
+	.active .clockTime { color: var(--accent); }
+	/* low-time emphasis (<10s), toggled on the clock wrapper by lio-game.js */
+	.low .clockTime { color: var(--loss); animation: clockLowPulse 1s ease-in-out infinite; }
+
+	.clockProgress { position: relative; height: 3px; flex: none; }
+	.clockProgressBg { position: absolute; inset: 0; background: var(--border); }
+	.clockProgressBar {
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 3px;
+		width: 100%;
+		background: var(--text-subtle);
+		transition: background-color 150ms var(--ease-snappy);
+	}
+	.active .clockProgressBar { background: var(--accent); }
+	.low .clockProgressBar { background: var(--loss); }
+
+	/* engine "thinking" dots */
+	.thinking { display: none; align-items: center; gap: 3px; }
+	.thinking.thinking-on { display: inline-flex; }
+	.thinking i {
+		width: 4px;
+		height: 4px;
+		border-radius: 50%;
+		background: var(--accent);
+		animation: thinkingPulse 1.2s infinite ease-in-out both;
+	}
+	.thinking i:nth-child(1) { animation-delay: -0.32s; }
+	.thinking i:nth-child(2) { animation-delay: -0.16s; }
+
+	/* ---- side rail ---- */
+	.rail-stack { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; }
+	.rail-card {
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		padding: 0.7rem 0.8rem;
+	}
+	.rail-title {
+		font-size: 0.9rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--accent);
+	}
+	.moves-placeholder {
+		flex: 1;
+		min-height: 4.5rem;
+		margin-top: 0.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-subtle);
+		font-size: 0.78rem;
+		text-align: center;
+	}
+	.controls { display: flex; gap: 0.5rem; }
+	.ctrl-btn {
+		flex: 1;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.3rem;
+		font-size: 0.82rem;
+		font-weight: 600;
+		padding: 0.45rem 0.6rem;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--border);
+		background: var(--surface-3);
+		color: var(--text-muted);
+		cursor: not-allowed;
+		opacity: 0.55;
+	}
+
+	/* connection / crowd / latency bar */
+	.info-bar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+		flex-wrap: wrap;
+		color: var(--text-muted);
+		font-size: 0.72rem;
+		padding: 0.4rem 0.6rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+	}
+	.info-bar #info:empty { display: none; }
+	.info-bar #info { font-weight: 600; color: var(--text); }
+	.info-bar .unit { font-size: 0.62rem; }
+
+	/* ---- game-end result overlay (sized to the board) ---- */
+	.result-overlay {
+		z-index: 20;
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		display: none;
+		align-items: center;
+		justify-content: center;
+		background-color: color-mix(in srgb, var(--surface) 30%, rgba(0, 0, 0, 0.55));
+		-webkit-backdrop-filter: blur(2px);
+		backdrop-filter: blur(2px);
+		border-radius: var(--radius-md);
+		animation: resultFade 180ms var(--ease-snappy);
+	}
+	.result-overlay.result-show { display: flex; }
+	.result-card {
+		text-align: center;
+		color: var(--text);
+		padding: 1.1rem 1.3rem;
+		background: var(--surface-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-lg);
+		animation: resultPop 200ms var(--ease-snappy);
+	}
+	.result-headline { font-family: var(--font-display); font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
+	.result-headline.win { color: var(--win); }
+	.result-headline.loss { color: var(--loss); }
+	.result-headline.draw { color: var(--text-muted); }
+	.result-reason { margin-top: 0.2rem; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+	.result-score {
+		margin-top: 0.5rem;
+		font-size: 1.4rem;
+		font-weight: 700;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+	}
+	.result-actions { display: flex; gap: 0.6rem; justify-content: center; margin-top: 1rem; }
+	.result-btn {
+		font-size: 0.9rem;
+		font-weight: 600;
+		padding: 0.45rem 1.1rem;
+		border-radius: var(--radius-sm);
+		border: 1px solid transparent;
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.result-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+	.result-btn:active { transform: translateY(0); }
+	.result-rematch { background: var(--accent); color: var(--accent-contrast); }
+	.result-rematch:hover { background: var(--accent-hover); }
+	.result-home { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+	.result-countdown { margin-top: 0.6rem; min-height: 1em; font-size: 0.75rem; font-weight: 500; color: var(--text-subtle); }
+
+	/* ---- shared surfaces + buttons (home, modal, pre-game) ---- */
+	.card {
+		background: var(--surface-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
+		padding: 1.25rem;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		font-weight: 600;
+		font-size: 0.95rem;
+		line-height: 1;
+		padding: 0.6rem 1.1rem;
+		border-radius: var(--radius-md);
+		border: 1px solid transparent;
+		cursor: pointer;
+		text-decoration: none;
+		user-select: none;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+	.btn:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+	.btn-primary { background: var(--accent); color: var(--accent-contrast); }
+	.btn-primary:hover { background: var(--accent-hover); }
+	.btn-ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+	.btn-ghost:hover { border-color: var(--accent); }
+	.btn-block { width: 100%; }
+
+	/* ---- create-game modal ---- */
+	.modal-shade {
+		display: none;
+		position: fixed;
+		inset: 0;
+		z-index: 100;
+		padding: 5vh 1rem;
+		overflow: auto;
+		background-color: color-mix(in srgb, var(--surface) 12%, rgba(0, 0, 0, 0.5));
+		-webkit-backdrop-filter: blur(2px);
+		backdrop-filter: blur(2px);
+	}
+	.modal-shade.open { display: flex; align-items: center; justify-content: center; }
+	.modal {
+		position: relative;
+		width: min(92vw, 20rem);
+		margin: auto;
+		animation: resultPop 160ms var(--ease-snappy);
+	}
+	.modal h2 {
+		margin: 0 0 0.85rem;
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 700;
+		text-align: center;
+		color: var(--text);
+	}
+	.modal-close {
+		position: absolute;
+		top: 0.6rem;
+		right: 0.6rem;
+		width: 1.75rem;
+		height: 1.75rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 999px;
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+		color: var(--text-muted);
+		font-size: 1.15rem;
+		line-height: 1;
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.modal-close:hover { background: var(--loss); color: #fff; border-color: transparent; }
+
+	.tc-select {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		align-items: center;
+		justify-content: center;
+		padding: 0.25rem 0 0.5rem;
+	}
+	.tc-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+	.tc-label { display: block; cursor: pointer; }
+	.tc-box {
+		width: 4.4rem;
+		height: 4.4rem;
+		padding: 0.3rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.1rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		color: var(--text);
+		transition: all 150ms var(--ease-snappy);
+	}
+	.tc-label:hover .tc-box { transform: translateY(-1px); border-color: var(--accent); }
+	.tc-input:checked + .tc-label .tc-box { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+	.tc-input:focus-visible + .tc-label .tc-box { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+	.tc-name { font-size: 1.05rem; font-weight: 700; }
+	.tc-pool { font-size: 0.65rem; font-style: italic; opacity: 0.85; }
+
+	.submit-row { display: flex; justify-content: center; align-items: center; gap: 0.6rem; margin-top: 1rem; }
+	.submit-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.4rem;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.submit-btn:hover { transform: translateY(-1px); border-color: var(--accent); box-shadow: var(--shadow-md); }
+	.submit-btn.large { padding: 0.55rem; }
+	/* disable submit until a time control is chosen */
+	.cg:not(:has(.tc-input:checked)) .submit-btn { pointer-events: none; opacity: 0.45; }
+	.piece-button {
+		display: block;
+		width: 2.75rem;
+		height: 2.75rem;
+		background-size: contain;
+		background-repeat: no-repeat;
+		background-position: center;
+	}
+	.submit-btn.large .piece-button { width: 3.4rem; height: 3.4rem; }
+	.piece-button.wk { background-image: url('/res/img/cburnett/wK.svg'); }
+	.piece-button.bk { background-image: url('/res/img/cburnett/bK.svg'); }
+	.piece-button.random { background-image: url('/res/img/cburnett/wbK.svg'); }
+
+	/* ---- page wrapper + content pages (about, db, pre-game, 404) ---- */
+	.page {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding-top: 1.5rem;
+	}
+	/* content text is selectable despite the game-oriented body user-select:none */
+	.prose, .about-table, .card h1, .card h2 { user-select: text; -webkit-user-select: text; }
+	.prose { font-size: 0.9rem; line-height: 1.65; color: var(--text-muted); }
+	.prose a { color: var(--accent); text-decoration: underline; }
+	.code {
+		display: block;
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		line-height: 1.6;
+		color: var(--text);
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-left: 3px solid var(--accent);
+		border-radius: var(--radius-sm);
+		padding: 0.7rem 1rem;
+		margin: 0.5rem 0;
+		overflow: auto;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		user-select: text;
+		-webkit-user-select: text;
+		cursor: text;
+	}
+	.about-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+	.about-table th,
+	.about-table td {
+		border: 1px solid var(--border);
+		padding: 0.5rem;
+		font-size: 0.8rem;
+		text-align: center;
+		vertical-align: middle;
+		color: var(--text-muted);
+	}
+	.about-table th { font-weight: 600; color: var(--text); }
+	.about-table img { width: 100%; display: block; border-radius: var(--radius-sm); }
+
+	.btn-danger { background: var(--loss); color: #fff; }
+	.btn-danger:hover { background: color-mix(in srgb, var(--loss) 86%, #000); }
+
+	/* invite link + copy button (creator pre-game); .copied is toggled by
+	   lio-room-create.js to confirm the copy */
+	.invite-row { display: flex; gap: 0.5rem; align-items: stretch; }
+	.invite-field {
+		flex: 1;
+		min-width: 0;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		color: var(--text);
+		font-size: 0.78rem;
+		font-weight: 600;
+		text-align: center;
+	}
+	.copy-btn .icon-check { display: none; }
+	.copy-btn.copied { background: var(--win); color: #fff; border-color: transparent; }
+	.copy-btn.copied .icon-copy { display: none; }
+	.copy-btn.copied .icon-check { display: inline-flex; }
+}
+
+@keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes resultPop { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes clockLowPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes thinkingPulse {
+	0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
+	40% { opacity: 1; transform: scale(1); }
+}
