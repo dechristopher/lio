@@ -839,13 +839,14 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// clock already stopped itself).
 	r.game.Clock.Stop(false, true)
 
-	// build the final broadcasts, update the score, compute the transition
+	// update the score, build the final broadcasts, compute the transition
 	// event, and snapshot the game for archival — all while holding the lock so
 	// readers never observe a half-finished game and the archived copy is taken
-	// at a consistent point.
+	// at a consistent point. The score is updated first so the broadcast
+	// messages reflect the result of the game that just finished.
+	r.updateScoreLocked()
 	stateMsg := r.currentGameStateMessageLocked(true, false)
 	overMsg := r.gameOverMessageLocked(abandoned)
-	r.updateScoreLocked()
 	event := r.gameOverEventLocked()
 
 	// shallow value-copy of the game taken under the lock. The room routine is
