@@ -18,7 +18,7 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 					</div>
 					<p class="prose">Anyone that comes to this URL can choose to play with you.</p>
 				</div>
-				<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" }>
+				<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
 					<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
 					<input type="submit" id="cancelGameButton" class="cgbtn libtn" title="Cancel the game" value="× CANCEL GAME"/>
 				</form>
@@ -90,7 +90,7 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 		<div class="sm center">
 			<div id="joiner">
 				@gameInfo(payload)
-				<form class="contents" method="post" action={ "/" + payload.RoomID + "/join" }>
+				<form class="contents" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>
 					<input type="hidden" name="join_token" value={ payload.JoinToken }/>
 					<input type="submit" id="joinGameButton" class="cgbtn libtn" title="Join the game" value="JOIN GAME"/>
 				</form>

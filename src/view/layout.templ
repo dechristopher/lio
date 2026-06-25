@@ -29,6 +29,7 @@ templ head(meta Meta) {
 		<meta property="og:title" content={ meta.OGTitle }/>
 		<meta name="description" content={ meta.Description }/>
 		<meta property="og:description" content={ meta.Description }/>
+		<script src={ "/htmx" + meta.CacheKey + ".min.js" }></script>
 	<style>
 	  body {
 		  margin: 0;

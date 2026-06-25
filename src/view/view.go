@@ -83,6 +83,16 @@ func Render(c *fiber.Ctx, status int, component templ.Component) error {
 	return component.Render(context.Background(), c.Response().BodyWriter())
 }
 
+// IsHTMXFragment reports whether a request should be answered with a bare HTMX
+// fragment instead of a full page. True for htmx-initiated requests (HX-Request)
+// except history-restore requests, which need the full document to rebuild the
+// page from a cache miss. Handlers use this to serve the same URL as either a
+// swap-in fragment or a directly-navigable full page.
+func IsHTMXFragment(c *fiber.Ctx) bool {
+	return c.Get("HX-Request") == "true" &&
+		c.Get("HX-History-Restore-Request") != "true"
+}
+
 // sortedPools flattens the rating pools into a single slice in sorted map-key
 // order. The old html/template engine ranged over the pools map in sorted key
 // order, and the keys are number-prefixed ("0bullet", "1blitz", "2rapid") so

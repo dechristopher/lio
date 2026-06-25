@@ -33,7 +33,7 @@ func createGameModal(pools map[variant.Group][]variant.Variant) templ.Component 
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalCreateGame\" class=\"modal-shade\"><div class=\"modal\"><span class=\"close\">×</span><div class=\"modal-content\"><h2>Create a game</h2><form class=\"cg\" action=\"/new/human\" method=\"POST\"><div class=\"tc-select\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalCreateGame\" class=\"modal-shade\"><div class=\"modal\"><span class=\"close\">×</span><div class=\"modal-content\"><h2>Create a game</h2><form class=\"cg\" action=\"/new/human\" method=\"POST\" hx-post=\"/new/human\"><div class=\"tc-select\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

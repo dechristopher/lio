@@ -10,7 +10,7 @@ templ createGameModal(pools map[variant.Group][]variant.Variant) {
 			<span class="close">×</span>
 			<div class="modal-content">
 				<h2>Create a game</h2>
-				<form class="cg" action="/new/human" method="POST">
+				<form class="cg" action="/new/human" method="POST" hx-post="/new/human">
 					<div class="tc-select">
 						for _, tc := range sortedPools(pools) {
 							<input id={ tc.HTMLName } type="radio" class="tc-input" name="time-control" value={ tc.HTMLName } required/>

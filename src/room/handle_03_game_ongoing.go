@@ -18,10 +18,10 @@ func (r *Instance) handleGameOngoing() {
 	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
 
 	// abandon timer; armed only while a player is disconnected. It is created
-	// then immediately stopped so it starts disarmed, and is re-armed/stopped
+	// then immediately stopped, so it starts disarmed and is re-armed/stopped
 	// via the helpers below. We reuse the single timer (draining a pending fire
 	// before each reset) instead of allocating new timers, which avoids the
-	// reset-without-drain hazard that could trigger a spurious abandonment.
+	// reset-without-drain hazard that could trigger spurious abandonment.
 	abandonTimer := time.NewTimer(abandonTimeout)
 	if !abandonTimer.Stop() {
 		<-abandonTimer.C

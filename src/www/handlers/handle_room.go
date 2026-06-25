@@ -23,13 +23,25 @@ type newRoomPayload struct {
 	vsBot         bool
 }
 
+// redirect issues a client redirect that works for both normal and htmx
+// requests. htmx form posts get an HX-Redirect header — a real browser
+// navigation, so the destination (e.g. a room page) gets a true page load that
+// boots the websocket and board — while normal requests fall back to a 302.
+func redirect(c *fiber.Ctx, to string) error {
+	if c.Get("HX-Request") == "true" {
+		c.Set("HX-Redirect", to)
+		return c.SendStatus(fiber.StatusOK)
+	}
+	return c.Redirect(to)
+}
+
 // getUserAndRoom returns the uid and room instance based on URL parameters
 // and will redirect the user home or 404 if there is no UID or room
 func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 	uid := user.GetID(c)
 	// turn away players/scripts/bots with no uid set
 	if uid == "" {
-		return "", nil, c.Redirect("/"), true
+		return "", nil, redirect(c, "/"), true
 	}
 
 	// grab room instance
@@ -92,7 +104,7 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 
 	err = c.BodyParser(&joinPayload)
 	if err != nil {
-		return c.Redirect("/#errJoin")
+		return redirect(c, "/#errJoin")
 	}
 
 	// attempt to join room
@@ -100,11 +112,11 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 		// broadcast message to waiting player(s)
 		go roomInstance.NotifyWaiting()
 		// redirect player to game room
-		return c.Redirect(fmt.Sprintf("/%s", roomInstance.ID))
+		return redirect(c, fmt.Sprintf("/%s", roomInstance.ID))
 	}
 
 	// error out if join failed
-	return c.Redirect("/#errJoinExpired")
+	return redirect(c, "/#errJoinExpired")
 }
 
 // RoomCancelHandler cancels the room immediately
@@ -120,7 +132,7 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 
 	err = c.BodyParser(&cancelPayload)
 	if err != nil {
-		return c.Redirect("/#errCancel")
+		return redirect(c, "/#errCancel")
 	}
 
 	if !roomInstance.IsCreator(uid) || cancelPayload.Token != roomInstance.CancelToken() {
@@ -133,7 +145,7 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 	}
 
 	// redirect home after room cancellation
-	return c.Redirect("/")
+	return redirect(c, "/")
 }
 
 // NewQuickRoomVsHuman creates a game against a human player with the default
@@ -159,13 +171,13 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&payload); err != nil {
 		util.Error(str.CRoom, "failed to create room via human handler: bad payload provided")
-		return c.Redirect("/#error")
+		return redirect(c, "/#error")
 	}
 
 	selectedVariant, ok := pools.Map[payload.TimeControl]
 	if !ok {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid time control")
-		return c.Redirect("/")
+		return redirect(c, "/")
 	}
 
 	if payload.Color == "w" {
@@ -176,7 +188,7 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 		selectedColor = util.RandomColor()
 	} else {
 		util.Error(str.CRoom, "failed to create room via human handler: invalid color selected")
-		return c.Redirect("/")
+		return redirect(c, "/")
 	}
 
 	return newRoom(newRoomPayload{
@@ -203,7 +215,7 @@ func newRoom(payload newRoomPayload) error {
 
 	if uid == "" {
 		// TODO prevent anonymous users from creating games when we have accounts
-		return payload.c.Redirect("/")
+		return redirect(payload.c, "/")
 	}
 
 	// establish room parameters
@@ -227,11 +239,11 @@ func newRoom(payload newRoomPayload) error {
 	instance, err := room.Create(params)
 	if err != nil {
 		util.Error(str.CRoom, "failed to create room: %s", err.Error())
-		return payload.c.Redirect("/")
+		return redirect(payload.c, "/")
 	}
 
 	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", uid, instance.ID, payload.vsBot)
 
 	// redirect to waiting room vs human, or game vs computer
-	return payload.c.Redirect("/" + instance.ID)
+	return redirect(payload.c, "/"+instance.ID)
 }
