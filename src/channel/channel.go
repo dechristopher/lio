@@ -11,16 +11,6 @@ var (
 	Map = Directory{Map: &sync.Map{}}
 )
 
-// GetSocket returns the socket from the given channel's SockMap
-func (d *Directory) GetSocket(channel, uid string) *Socket {
-	sockMap := d.GetSockMap(channel)
-	if sockMap == nil {
-		return nil
-	}
-
-	return sockMap.Get(uid)
-}
-
 // GetSockMap returns the SockMap for a given channel, or a
 // new one if it does not exist for the channel already
 func (d *Directory) GetSockMap(channel string) *SockMap {

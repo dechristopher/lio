@@ -18,7 +18,7 @@ const (
 	Base58
 
 	// Version of lio
-	Version = "v0.8.0"
+	Version = "v0.8.1"
 
 	charsetHex    = "abcdef01234567890"
 	charsetBase58 = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"
@@ -44,7 +44,7 @@ var (
 )
 
 // ReadSecretFallback attempts to read a secret from the secret
-// path, returns environment variable of same name if error
+// path, returns environment variable of the same name if error
 func ReadSecretFallback(name string) string {
 	secret, err := ReadSecret(name)
 	if err != nil {

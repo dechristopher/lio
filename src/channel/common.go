@@ -1,61 +1,48 @@
 package channel
 
-import (
-	"errors"
+import "time"
 
-	"github.com/dechristopher/lio/str"
-	"github.com/dechristopher/lio/util"
+const (
+	// WriteWait bounds how long a single websocket write may block before the
+	// connection is treated as failed.
+	WriteWait = 10 * time.Second
+	// PongWait is how long the read side waits for any inbound traffic (an app
+	// message, or a pong answering a server ping) before considering the client
+	// gone and tearing the connection down.
+	PongWait = 60 * time.Second
+	// PingPeriod is how often the writer sends a protocol-level ping. It must be
+	// shorter than PongWait so a live-but-quiet client is kept fresh.
+	PingPeriod = (PongWait * 9) / 10
+	// SendBuffer is the per-connection outbound queue depth. A connection that
+	// backs up past this is dropped rather than allowed to stall a broadcast.
+	SendBuffer = 64
 )
 
-// Unicast sends an ad-hoc message to the channel and socket that
-// the message originated from
+// Unicast queues a message for every connection the target uid holds on the
+// channel (e.g. all of that user's open tabs). The actual write happens on each
+// connection's own writer goroutine, so this never blocks on a slow client.
 func Unicast(d []byte, meta SocketContext) {
-	socket := Map.GetSocket(meta.Channel, meta.UID)
-
-	if socket == nil || socket.Mutex == nil {
-		util.Error(str.CWSC, str.EWSWrite, meta, errors.New("socket nil"))
-		return
-	}
-
-	socket.Mutex.Lock()
-	defer socket.Mutex.Unlock()
-
-	if socket.Connection != nil {
-		err := socket.Connection.WriteMessage(meta.MT, d)
-		if err != nil {
-			util.Error(str.CWSC, str.EWSWrite, meta, err)
-		}
-	} else {
-		// clean up vestigial socket from tracking
-		// TODO is this a larger issue with the sync.Map rewrite?
-		Map.GetSockMap(meta.Channel).UnTrack(meta.UID)
+	for _, sock := range Map.GetSockMap(meta.Channel).SocketsFor(meta.UID) {
+		sock.Enqueue(d)
 	}
 }
 
-// Broadcast sends a message to all connected sockets within the
-// channel that this message originated from
+// Broadcast queues a message for every connection on the channel.
+//
+// It ranges over a snapshot (Sockets) rather than the live map, so it neither
+// races concurrent Track/UnTrack nor holds the SockMap lock across enqueues.
 func Broadcast(d []byte, meta SocketContext) {
-	sockMap := Map.GetSockMap(meta.Channel)
-	if sockMap != nil {
-		sockMap.mut.Lock()
-		defer sockMap.mut.Unlock()
-		for uid := range sockMap.sockets {
-			meta.UID = uid
-			Unicast(d, meta)
-		}
+	for _, sock := range Map.GetSockMap(meta.Channel).Sockets() {
+		sock.Enqueue(d)
 	}
 }
 
-// BroadcastEx sends a message to all connected sockets within the
-// channel that this message originated from except the originator
+// BroadcastEx queues a message for every connection on the channel except those
+// belonging to the originating uid.
 func BroadcastEx(d []byte, meta SocketContext) {
-	for uid := range Map.GetSockMap(meta.Channel).sockets {
-		if uid != meta.UID {
-			Unicast(d, SocketContext{
-				Channel: meta.Channel,
-				UID:     uid,
-				MT:      meta.MT,
-			})
+	for _, sock := range Map.GetSockMap(meta.Channel).Sockets() {
+		if sock.UID != meta.UID {
+			sock.Enqueue(d)
 		}
 	}
 }

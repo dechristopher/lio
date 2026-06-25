@@ -1,7 +1,19 @@
 // LIO core client code
-let ka, backoff = 0;
 let disconnected = false;
-let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingDelay = 5000;
+let reconnectAttempts = 0;
+let pingRunner, lastPingTime, latency = 0, pongCount = 0, pingsSincePong = 0;
+
+// App-level ping cadence: drives the latency display, keeps the server read
+// deadline fresh, and powers the stale-connection watchdog below. If this many
+// pings go unanswered we treat the socket as half-open (no `onclose` will ever
+// fire on its own) and force a reconnect.
+const pingDelay = 5000;
+const maxMissedPongs = 3;
+
+// Reconnect backoff: capped exponential with full jitter, so a server restart
+// doesn't trigger a synchronized thundering-herd reconnect from every client.
+const reconnectBaseMs = 1000;
+const reconnectCapMs = 30000;
 
 // ws handlers map
 window.handlers = new Map();
@@ -55,8 +67,8 @@ const connect = (prefix) => {
 
 	window.ws.onclose = () => {
 		window.ws = null;
-		clearInterval(ka);
-		clearInterval(pingRunner);
+		clearTimeout(pingRunner);
+		pingsSincePong = 0;
 
 		if (!disconnected) {
 			console.warn("Lost connection to lioctad.org");
@@ -78,14 +90,12 @@ const connect = (prefix) => {
  * We've connected! Enable stuff!
  */
 const connected = () => {
-	backoff = 0;
+	reconnectAttempts = 0;
+	pingsSincePong = 0;
 	if (typeof og !== 'undefined') {
 		sendBoardUpdateRequest();
 	}
 	schedulePing(500);
-	ka = setInterval(() => {
-		sendKeepAlive();
-	}, 5000);
 };
 
 /**
@@ -98,25 +108,18 @@ const disconnect = (reason) => {
 }
 
 /**
- * Reconnect to the backend adhering to exponential backoff
+ * Reconnect to the backend using capped exponential backoff with full jitter.
+ * The delay is a random value in [0, min(cap, base * 2^attempts)], which spreads
+ * reconnect attempts out so a server restart doesn't get hammered in lockstep.
  */
 const reconnect = (prefix) => {
-	incrBackoff();
+	reconnectAttempts++;
+	const ceil = Math.min(reconnectCapMs, reconnectBaseMs * Math.pow(2, reconnectAttempts));
+	const delay = Math.random() * ceil;
+	console.log(`Reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttempts})...`);
 	setTimeout(() => {
 		connect(prefix);
-	}, backoff * 1000);
-};
-
-/**
- * Increment the backoff time so that we don't flood the backend
- */
-const incrBackoff = () => {
-	if (backoff === 0) {
-		backoff = 1;
-	} else if (backoff <= 4) {
-		backoff *= 2;
-	}
-	console.log("Waiting " + backoff + " seconds to retry...");
+	}, delay);
 };
 
 /**
@@ -127,13 +130,6 @@ const send = (command) => {
 	if (window.ws && window.ws.readyState === WebSocket.OPEN) {
 		window.ws.send(command);
 	}
-};
-
-/**
- * Sends a keep-alive message, requesting the socket stay open
- */
-const sendKeepAlive = () => {
-	send(null);
 };
 
 /**
@@ -153,22 +149,39 @@ const schedulePing = (delay) => {
 };
 
 /**
- * Send a ping immediately
+ * Send a ping immediately, then re-arm the next one. The ping loop schedules
+ * itself (rather than being re-armed by each pong) so the stale-connection
+ * watchdog still fires when the socket has gone silent and no pong is coming.
  */
 const ping = () => {
+	// if recent pings went unanswered the socket is almost certainly half-open
+	// (a dropped network/sleep that produced no close frame). Force it closed so
+	// onclose runs the reconnect path instead of sending into the void forever.
+	if (pingsSincePong >= maxMissedPongs) {
+		console.warn(`No pong after ${pingsSincePong} pings; reconnecting stale socket`);
+		if (window.ws) {
+			window.ws.close(4000, "stale connection");
+		}
+		return;
+	}
+
 	try {
 		send(JSON.stringify({"pi": 1}));
 		lastPingTime = Date.now();
+		pingsSincePong++;
 	} catch (e) {
 		console.debug(e, true);
 	}
+
+	schedulePing(pingDelay);
 };
 
 /**
  * Handle pong response, calculating latency
  */
 const pong = () => {
-	schedulePing(pingDelay);
+	// a pong proves the link is alive; reset the stale-connection watchdog
+	pingsSincePong = 0;
 	const currentLag = Math.min(Date.now() - lastPingTime, 10000);
 	pongCount++;
 

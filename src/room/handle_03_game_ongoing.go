@@ -124,7 +124,7 @@ func (r *Instance) handleGameOngoing() {
 					return true
 				}
 				// return whether the player is connected
-				return channel.Map.GetSockMap(r.ID).Get(id) != nil
+				return channel.Map.GetSockMap(r.ID).Connected(id)
 			})
 
 			if playersConnected {
@@ -153,7 +153,7 @@ func (r *Instance) handleGameOngoing() {
 				}
 
 				// set whether the player by color is connected
-				connected[color] = channel.Map.GetSockMap(r.ID).Get(id) != nil
+				connected[color] = channel.Map.GetSockMap(r.ID).Connected(id)
 			})
 
 			// both players reconnected before the timer fired logic: don't end

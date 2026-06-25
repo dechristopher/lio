@@ -3,7 +3,7 @@ package ws
 import (
 	"fmt"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -81,52 +81,51 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 			}
 		}()
 
-		// websocket.Conn bindings
-		// https://pkg.go.dev/github.com/fasthttp/websocket?tab=doc#pkg-index
-		var (
-			mt  int
-			b   []byte
-			err error
-		)
+		// Unique per-connection id so multiple connections for the same uid
+		// (extra tabs, or independent multimodal streams) are tracked
+		// independently, and a stale connection's teardown can never evict a
+		// newer live socket for the same uid.
+		connID := config.GenerateCode(16)
+		socket := channel.NewSocket(c, uid, connID, c.Params("type"))
 
 		// track this socket in the corresponding SockMap
-		lock := &sync.Mutex{}
-		channel.Map.GetSockMap(thisChannel).Track(uid, &channel.Socket{
-			Connection: c,
-			Mutex:      lock,
-			Type:       c.Params("type"),
-		})
+		channel.Map.GetSockMap(thisChannel).Track(socket)
 
-		// UnTrack this socket when it disconnects
-		defer killSocket(c, thisChannel, uid)
+		// the writer goroutine owns all writes to this connection and emits
+		// periodic protocol-level pings for liveness
+		go socket.WritePump()
+
+		// UnTrack this socket and stop its writer when the read loop exits
+		defer killSocket(socket, thisChannel)
+
+		// Server-driven liveness: a vanished client (no TCP FIN) stops
+		// answering pings, so the read deadline fires and unwinds this loop.
+		// Any inbound traffic — including the client's app-level pings and the
+		// browser's automatic pong to our ping frames — refreshes the deadline.
+		_ = c.SetReadDeadline(time.Now().Add(channel.PongWait))
+		c.SetPongHandler(func(string) error {
+			return c.SetReadDeadline(time.Now().Add(channel.PongWait))
+		})
 
 		for {
 			// read raw incoming messages from socket
-			if mt, b, err = c.ReadMessage(); err != nil {
+			mt, b, err := c.ReadMessage()
+			if err != nil {
 				// don't log clean websocket close messages
-				if !websocket.IsCloseError(err, websocket.CloseGoingAway) {
+				if !websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 					util.Info(str.CWS, str.EWSRead, err.Error())
 				}
 				break
 			}
 
+			// any successful read means the client is alive; extend liveness
+			_ = c.SetReadDeadline(time.Now().Add(channel.PongWait))
+
 			if fastjson.GetInt(b, "pi") == 1 {
-				// write pong message asap and continue
-				lock.Lock()
-				_ = c.WriteMessage(mt, proto.Pong())
-				lock.Unlock()
+				// queue pong reply and continue
+				socket.Enqueue(proto.Pong())
 				continue
 			}
-
-			// TODO improve safety of heartbeats to prevent DoS
-			//if len(b) == 4 {
-			//fmt.Println(mt, b)
-			// write heartbeat ack asap and continue
-			//lock.Lock()
-			//_ = c.WriteMessage(mt, []byte("0"))
-			//lock.Unlock()
-			//	continue
-			//}
 
 			util.DebugFlag("ws", str.CWS, str.DWSRecv, string(b))
 
@@ -150,27 +149,19 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 				continue
 			}
 
-			// return immediate response if any given
-			// print response to debug out
+			// queue immediate response if any given
 			util.DebugFlag("ws", str.CWS, str.DWSSend, string(resp))
-
-			lock.Lock()
-			// acquire socket lock, write bytes, and release lock
-			if err = c.WriteMessage(mt, resp); err != nil {
-				util.Error(str.CWS, str.EWSWrite, resp, err.Error())
-				break
-			}
-			lock.Unlock()
+			socket.Enqueue(resp)
 		}
 	}
 }
 
-// killSocket closes the websocket connection and removes the socket
-// reference from the ChanMap map
-func killSocket(conn *websocket.Conn, thisChannel string, uid string) {
-	util.Info(str.CWS, str.MWSDisc, uid, thisChannel, conn.RemoteAddr())
-	channel.Map.GetSockMap(thisChannel).UnTrack(uid)
-	_ = conn.Close()
+// killSocket untracks the connection and signals its writer goroutine to close
+// the underlying websocket.
+func killSocket(socket *channel.Socket, thisChannel string) {
+	util.Info(str.CWS, str.MWSDisc, socket.UID, thisChannel, socket.Connection.RemoteAddr())
+	channel.Map.GetSockMap(thisChannel).UnTrack(socket.UID, socket.ID)
+	socket.Close()
 }
 
 // validTag returns true if the message tag has a valid handler route
