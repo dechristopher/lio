@@ -5,7 +5,7 @@ templ DB(meta Meta) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header()
+				@header("max-w-[34rem]")
 				<main class="card w-[92vw] max-w-[26rem] text-left">
 					<h1 class="font-display text-xl font-bold text-fg">Game Database</h1>
 					<p class="prose mt-2">
@@ -16,7 +16,7 @@ templ DB(meta Meta) {
 						Until that day we will continue to build the site.
 					</p>
 				</main>
-				@footer(meta)
+				@footer(meta, "max-w-[34rem]")
 			</div>
 		</body>
 	}

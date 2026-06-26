@@ -2,7 +2,7 @@
 
 While lioctad's security footprint isn't very large, we do take it seriously. 
 If you find there are any vulnerable library versions or holes in our configuration
-checks that could impact a user's system or servers, please let us know.
+checks that could impact a user system or live servers, please let us know.
 
 ## Reporting a Vulnerability
 

@@ -21,6 +21,7 @@ type newRoomPayload struct {
 	variant       variant.Variant
 	selectedColor octad.Color
 	vsBot         bool
+	public        bool
 }
 
 // redirect issues a client redirect that works for both normal and htmx
@@ -149,12 +150,14 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 }
 
 // NewQuickRoomVsHuman creates a game against a human player with the default
-// time control and randomized color
+// time control and randomized color. Quick games are a public seek by nature —
+// there is no link to share with a specific opponent — so they are always listed.
 func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       variant.HalfOneBlitz,
 		selectedColor: util.RandomColor(),
+		public:        true,
 	})
 }
 
@@ -167,6 +170,9 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 	payload := struct {
 		TimeControl string `form:"time-control"`
 		Color       string `form:"color"`
+		// Public is the create-game "list publicly" toggle. The checkbox submits
+		// "true" only when checked, so it defaults to false (private) when absent.
+		Public bool `form:"public"`
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {
@@ -195,6 +201,7 @@ func NewCustomRoomVsHuman(c *fiber.Ctx) error {
 		c:             c,
 		variant:       selectedVariant,
 		selectedColor: selectedColor,
+		public:        payload.Public,
 	})
 }
 
@@ -220,6 +227,7 @@ func newRoom(payload newRoomPayload) error {
 
 	// establish room parameters
 	params := room.NewParams(uid, payload.variant)
+	params.Public = payload.public
 
 	// set creating player ID in players map
 	params.Players[payload.selectedColor] = &player.Player{

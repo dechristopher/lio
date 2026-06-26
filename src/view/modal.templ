@@ -23,6 +23,13 @@ templ createGameModal(pools map[variant.Group][]variant.Variant) {
 						</label>
 					}
 				</div>
+				<label class="cg-public">
+					<input type="checkbox" class="cg-public-box" name="public" value="true"/>
+					<span class="cg-public-text">
+						<span class="cg-public-title">List publicly as an Open Challenge</span>
+						<span class="cg-public-hint">Off (default): private — only people you share the link with can join. On: anyone can join from the home page.</span>
+					</span>
+				</label>
 				<div class="submit-row">
 					<button type="submit" class="submit-btn" name="color" value="w" title="Play the white pieces first">
 						<span class="piece-button wk"></span>
@@ -40,11 +47,15 @@ templ createGameModal(pools map[variant.Group][]variant.Variant) {
 	<script>
 		(function () {
 			const modal = document.getElementById("modalCreateGame");
-			const openBtn = document.getElementById("createGameButton");
 			const closeBtn = modal.querySelector(".modal-close");
 			const open = () => modal.classList.add("open");
 			const close = () => modal.classList.remove("open");
-			if (openBtn) openBtn.addEventListener("click", open);
+			// Delegated open: any [data-open-create-game] element opens the modal,
+			// including buttons that htmx swaps into the live home-activity region
+			// after the initial page load.
+			document.addEventListener("click", (e) => {
+				if (e.target.closest("[data-open-create-game]")) open();
+			});
 			if (closeBtn) closeBtn.addEventListener("click", close);
 			modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
 			document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });

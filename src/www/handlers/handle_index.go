@@ -6,7 +6,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/presence"
+	"github.com/dechristopher/lio/room"
+	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/view"
 )
 
@@ -14,8 +18,28 @@ var cachedIndex []byte
 
 // IndexHandler renders the home page
 func IndexHandler(c *fiber.Ctx) error {
+	presence.Touch(user.GetID(c))
+	live, challenges, stats := homeActivity()
 	return view.Render(c, 200, view.Index(
-		view.PageMeta("Free Online Octad"), pools.RatingPools))
+		view.PageMeta("Free Online Octad"), pools.RatingPools, live, challenges, stats))
+}
+
+// HomeActivityHandler renders the live home-activity fragment (site stats, open
+// challenges, in-progress games) polled by htmx from the home page.
+func HomeActivityHandler(c *fiber.Ctx) error {
+	presence.Touch(user.GetID(c))
+	live, challenges, stats := homeActivity()
+	return view.Render(c, 200, view.HomeActivity(live, challenges, stats))
+}
+
+// homeActivity gathers the shared home-page activity data and resolves the
+// site-wide "online now" count by unioning the in-room humans with the recent
+// home-page viewers (the calling handler having just Touch'd itself into the
+// latter).
+func homeActivity() ([]message.LiveGame, []message.OpenChallenge, message.SiteStats) {
+	live, challenges, stats, present := room.HomeListing()
+	stats.Playing = presence.Online(present)
+	return live, challenges, stats
 }
 
 // SPAHandlerInit creates the SPA handler to serve index.html for all

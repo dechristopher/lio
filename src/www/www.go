@@ -109,6 +109,9 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// TODO not needed once we default SPAHandler
 	r.Get("/", handlers.IndexHandler)
 
+	// live home-activity fragment polled by htmx (stats / challenges / live games)
+	r.Get("/home/activity", handlers.HomeActivityHandler)
+
 	// other pages
 	r.Get("/about", handlers.AboutHandler)
 	r.Get("/about/board", handlers.AboutBoardHandler)

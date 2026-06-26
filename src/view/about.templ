@@ -8,7 +8,7 @@ templ About(meta Meta, section string) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header()
+				@header("max-w-[34rem]")
 				<main class="card w-[92vw] max-w-[34rem] text-left">
 					<h1 class="font-display text-xl font-bold">
 						<a class="text-fg no-underline transition-colors duration-150 hover:text-accent" href="/about" hx-get="/about" hx-target="#about-content" hx-swap="innerHTML" hx-push-url="true">About lioctad.org</a>
@@ -22,7 +22,7 @@ templ About(meta Meta, section string) {
 						<a href="/about/misc" aria-label="misc page" class="btn btn-ghost no-underline" hx-get="/about/misc" hx-target="#about-content" hx-swap="innerHTML" hx-push-url="true">Misc.</a>
 					</div>
 				</main>
-				@footer(meta)
+				@footer(meta, "max-w-[34rem]")
 			</div>
 		</body>
 	}

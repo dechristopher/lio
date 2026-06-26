@@ -8,10 +8,16 @@ package view
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/dechristopher/lio/variant"
+import (
+	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/variant"
+)
 
-// Index is the home page: quick-game buttons plus the custom-game modal.
-func Index(meta Meta, pools map[variant.Group][]variant.Variant) templ.Component {
+// Index is the home page. It stacks to a single column on mobile and splits
+// into a primary (play + live activity) / secondary (explainer + news) grid on
+// tablet and desktop. The header, content and footer share one responsive
+// width so the chrome always lines up with the content.
+func Index(meta Meta, pools map[variant.Group][]variant.Variant, live []message.LiveGame, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -48,11 +54,11 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant) templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = header().Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = header("max-w-[34rem] md:max-w-3xl lg:max-w-5xl").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card mt-2 w-[92vw] max-w-[22rem] text-left\"><p class=\"text-xs font-semibold uppercase tracking-wider text-fg-muted\">Quick game</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"flex flex-col gap-4 md:col-span-7\"><div class=\"card\"><p class=\"text-2xl font-bold uppercase tracking-widest text-accent\">Quick game</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -64,7 +70,31 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant) templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = HomeActivity(live, challenges, stats).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = homeFooter(meta).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div><div class=\"flex flex-col gap-4 md:col-span-5\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = octadAbout().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = homeNews().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -72,11 +102,11 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant) templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = footer(meta).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = footer(meta, "max-w-[34rem] md:hidden").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></body>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

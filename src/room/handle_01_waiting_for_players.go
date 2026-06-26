@@ -51,49 +51,82 @@ func (r *Instance) handleWaitingForPlayers() {
 	connectionListener := gameRoom.Listen()
 	defer gameRoom.UnListen(connectionListener)
 
-	hasWaitingPlayer := func() bool {
-		return waitingRoom.Length() > 0
+	// occupants is the number of live connections across both the challenge
+	// (waiting) and game channels — how many people are in the room right now,
+	// regardless of which page they are on.
+	occupants := func() int {
+		return waitingRoom.Length() + gameRoom.Length()
+	}
+
+	// connected records whether anyone has ever connected to this room. Until
+	// the creator actually shows up we keep the full grace period (they need
+	// time to load the challenge page and open the socket); only once someone
+	// has connected does the room going empty trigger the instant teardown.
+	var connected bool
+
+	// reconcileCleanup adjusts the cleanup timer for the current occupancy and
+	// reports whether the room was torn down (so the caller exits the handler).
+	//
+	// When the last occupant leaves an open challenge that no opponent has
+	// joined, the room is junk — its creator abandoned it before anyone joined
+	// or any game began — so we tear it down immediately instead of letting it
+	// linger out the grace period. Every other vacancy keeps the grace timer:
+	// the creator may not have arrived yet, or an opponent has already joined and
+	// we are mid-handoff from the challenge page to the board (a brief window
+	// where both channels can read empty even though the game is committed —
+	// hasOpenSeat is already false by then because Join fills the seat before the
+	// redirect, so it is correctly excluded here).
+	reconcileCleanup := func() (teardown bool) {
+		if occupants() > 0 {
+			connected = true
+			util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players connected", r.ID)
+			stopCleanup()
+			return false
+		}
+
+		if connected && r.hasOpenSeat() {
+			util.DebugFlag("room", str.CRoom, "[%s] open challenge vacated before any game, cleaning up", r.ID)
+			r.abandoned = true
+			if err := r.event(EventPlayerAbandons); err != nil {
+				panic(err)
+			}
+			return true
+		}
+
+		util.DebugFlag("room", str.CRoom, "[%s] no players connected, cleanup timer enabled", r.ID)
+		armCleanup()
+		return false
 	}
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for players", r.ID)
 
 	for {
 		select {
-		case waitingPlayers := <-waitingListener:
-			// don't clean up the room if the challenger is actively waiting
-			// for their opponent to accept the invite
-			if waitingPlayers > 0 {
-				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players waiting", r.ID)
-				stopCleanup()
-			} else {
-				util.DebugFlag("room", str.CRoom, "[%s] no players waiting, cleanup timer enabled", r.ID)
-				armCleanup()
+		case <-waitingListener:
+			if reconcileCleanup() {
+				return
 			}
-		case numPlayers := <-connectionListener:
-			util.DebugFlag("room", str.CRoom, "[%s] room player count changed: %d", r.ID, numPlayers)
-			// start cleanup timer if no players are connected
-			if numPlayers == 0 && !hasWaitingPlayer() {
-				util.DebugFlag("room", str.CRoom, "[%s] no players connected, cleanup timer enabled", r.ID)
-				armCleanup()
+		case <-connectionListener:
+			if reconcileCleanup() {
+				return
+			}
+
+			// nothing more to do while the room is empty (timer already armed)
+			if occupants() == 0 {
 				continue
 			}
 
-			// stop timer if one or more players are connected
-			if numPlayers > 0 || hasWaitingPlayer() {
-				util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players connected", r.ID)
-				stopCleanup()
-			}
-
-			// automatically ready bot players
+			// automatically ready bot players; otherwise both human seats must
+			// be connected on the game channel before the game can start
+			gamePlayers := gameRoom.Length()
 			if r.HasBot() {
-				numPlayers = 2
+				gamePlayers = 2
 			}
 
 			// both players connected, transition to StateGameReady
-			if numPlayers == 2 {
+			if gamePlayers == 2 {
 				util.DebugFlag("room", str.CRoom, "[%s] players connected, game ready", r.ID)
-				err := r.event(EventPlayersConnected)
-				if err != nil {
+				if err := r.event(EventPlayersConnected); err != nil {
 					panic(err)
 				}
 				return

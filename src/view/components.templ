@@ -1,23 +1,114 @@
 package view
 
-// header is the site wordmark + theme toggle shown at the top of every page.
-templ header() {
-	<header class="flex w-[92vw] max-w-[34rem] items-center justify-between gap-4 pt-1 pb-3">
-		<a href="/" class="inline-flex items-baseline gap-1.5 no-underline">
+// header is the site wordmark + account/preferences/theme controls shown at the
+// top of every page. Accounts are not built yet, so "Log in" opens a
+// coming-soon dialog; the preferences popover exposes the working theme control
+// and stubs the rest.
+templ header(width string) {
+	<header class={ "flex w-[92vw] items-center justify-between gap-4 pt-1 pb-3 " + width }>
+		<a href="/" class="inline-flex flex-col items-start leading-none no-underline">
 			<span class="font-display text-2xl font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
-			<span class="text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">alpha</span>
+			<span style="top: 56px" class="absolute text-[10px] font-semibold uppercase tracking-widest text-warn">alpha</span>
 		</a>
-		<button
-			type="button"
-			onclick="__toggleTheme()"
-			aria-label="Toggle dark mode"
-			title="Toggle dark mode"
-			class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0"
-		>
-			@iconMoon()
-			@iconSun()
-		</button>
+		<div class="relative flex items-center gap-2">
+			<button type="button" id="loginButton" class="btn btn-ghost px-3 py-1.5 text-sm">Log in</button>
+			<button
+				type="button"
+				id="prefsButton"
+				aria-label="Preferences"
+				title="Preferences"
+				class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0"
+			>
+				@iconGear()
+			</button>
+			<button
+				type="button"
+				onclick="__toggleTheme()"
+				aria-label="Toggle dark mode"
+				title="Toggle dark mode"
+				class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0"
+			>
+				@iconMoon()
+				@iconSun()
+			</button>
+			@prefsPopover()
+		</div>
 	</header>
+	@accountModal()
+	@navScript()
+}
+
+// prefsPopover is the preferences dropdown anchored under the gear button. The
+// theme control is wired to the no-flash theme helpers; the rest are stubbed
+// placeholders for settings that land alongside accounts.
+templ prefsPopover() {
+	<div id="prefsPopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-60 rounded-lg border border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Preferences</p>
+		<div class="mt-2">
+			<p class="mb-1 text-xs font-medium text-fg-muted">Theme</p>
+			<div class="grid grid-cols-3 gap-1">
+				<button type="button" onclick="__setTheme('light')" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">Light</button>
+				<button type="button" onclick="__setTheme('dark')" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">Dark</button>
+				<button type="button" onclick="__useSystemTheme()" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">System</button>
+			</div>
+		</div>
+		<div class="mt-3 flex flex-col gap-2 border-t border-line pt-3 opacity-60">
+			@prefStub("Board theme")
+			@prefStub("Piece set")
+			@prefStub("Sounds")
+		</div>
+		<p class="mt-3 text-[11px] text-fg-subtle">More settings arrive with accounts.</p>
+	</div>
+}
+
+templ prefStub(label string) {
+	<div class="flex items-center justify-between">
+		<span class="text-xs font-medium text-fg">{ label }</span>
+		<span class="rounded-full border border-line px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">soon</span>
+	</div>
+}
+
+// accountModal is the "coming soon" dialog shown when Log in is clicked, reusing
+// the shared .modal-shade/.modal styling.
+templ accountModal() {
+	<div id="modalAccount" class="modal-shade">
+		<div class="modal card">
+			<button type="button" class="modal-close" aria-label="Close">×</button>
+			<h2>Accounts are coming</h2>
+			<p class="prose text-center text-sm">
+				lioctad is playable right now with no sign-up — just pick a game above.
+				Accounts, ratings and saved preferences are on the way.
+			</p>
+		</div>
+	</div>
+}
+
+// navScript wires the header's Log in dialog and preferences popover. It is
+// self-contained (only touches its own elements) so it is safe on every page.
+templ navScript() {
+	<script>
+		(function () {
+			const modal = document.getElementById("modalAccount");
+			const loginBtn = document.getElementById("loginButton");
+			const closeBtn = modal.querySelector(".modal-close");
+			const openModal = () => modal.classList.add("open");
+			const closeModal = () => modal.classList.remove("open");
+			if (loginBtn) loginBtn.addEventListener("click", openModal);
+			if (closeBtn) closeBtn.addEventListener("click", closeModal);
+			modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+			const prefsBtn = document.getElementById("prefsButton");
+			const popover = document.getElementById("prefsPopover");
+			const togglePopover = (e) => { e.stopPropagation(); popover.classList.toggle("hidden"); };
+			if (prefsBtn) prefsBtn.addEventListener("click", togglePopover);
+			document.addEventListener("click", (e) => {
+				if (!popover.contains(e.target) && e.target !== prefsBtn) popover.classList.add("hidden");
+			});
+			document.addEventListener("keydown", (e) => {
+				if (e.key === "Escape") { closeModal(); popover.classList.add("hidden"); }
+			});
+		})();
+	</script>
 }
 
 // iconMoon is shown in light mode (click to switch to dark).
@@ -32,6 +123,35 @@ templ iconSun() {
 	<svg class="hidden h-5 w-5 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<circle cx="12" cy="12" r="4"></circle>
 		<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+	</svg>
+}
+
+// iconGear backs the header preferences button.
+templ iconGear() {
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<circle cx="12" cy="12" r="3"></circle>
+		<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+	</svg>
+}
+
+// iconUsers / iconCpu are the site-consistent outline icons for human vs
+// computer play, replacing the old emoji glyphs. They back the home-page Quick
+// Game buttons (large) and the live-games badges (small); the caller passes the
+// sizing class.
+templ iconUsers(class string) {
+	<svg class={ class } viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+		<circle cx="9" cy="7" r="4"></circle>
+		<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+		<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+	</svg>
+}
+
+templ iconCpu(class string) {
+	<svg class={ class } viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+		<rect x="9" y="9" width="6" height="6"></rect>
+		<path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"></path>
 	</svg>
 }
 
@@ -50,29 +170,51 @@ templ iconCheck() {
 	</svg>
 }
 
-// footer is the shared page footer with nav links and the build version.
-templ footer(meta Meta) {
-	<footer class="mt-10 flex w-[92vw] max-w-[34rem] flex-col items-center gap-1.5 pb-6 text-xs text-fg-subtle">
-		<nav class="flex items-center gap-2.5 font-medium">
-			<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/about">About</a>
-			<span aria-hidden="true">·</span>
-			<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/db">DB</a>
-			<span aria-hidden="true">·</span>
-			<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://github.com/dechristopher/lio">{ meta.Version }</a>
-		</nav>
-		<p class="m-0">© 2021-2026 lioctad.org</p>
+// footerContent is the footer's inner nav + copyright, shared between the
+// standalone page footer and the home page's column-nested footer.
+templ footerContent(meta Meta) {
+	<nav class="flex items-center gap-2.5 font-medium">
+		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/about">About</a>
+		<span aria-hidden="true">·</span>
+		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/db">DB</a>
+		<span aria-hidden="true">·</span>
+		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://github.com/dechristopher/lio">{ meta.Version }</a>
+	</nav>
+	<p class="m-0">© 2021-2026 lioctad.org</p>
+}
+
+// footer is the shared, full-width page footer with nav links and the build
+// version. width carries the page's responsive max-width (and may add display
+// utilities, e.g. md:hidden for the home page's mobile-only footer).
+templ footer(meta Meta, width string) {
+	<footer class={ "mt-10 flex w-[92vw] flex-col items-center gap-1.5 pb-6 text-xs text-fg-subtle " + width }>
+		@footerContent(meta)
 	</footer>
 }
 
-// quickGameButtons renders the quick vs-human / vs-computer buttons.
+// homeFooter is the home page's desktop footer: it nests at the bottom of the
+// left column in the two-column grid (hidden on mobile, where the standalone
+// footer handles the single-column bottom).
+templ homeFooter(meta Meta) {
+	<footer class="hidden flex-col items-center gap-1.5 pb-2 text-sm text-fg-subtle md:flex">
+		@footerContent(meta)
+	</footer>
+}
+
+// quickGameButtons renders the quick vs-human / vs-computer buttons. The icons
+// are flat/outline SVGs (matching the header controls) tinted with the accent.
 templ quickGameButtons() {
 	<div class="mt-3 grid grid-cols-2 gap-2.5">
-		<a href="/new/human/quick" aria-label="Quick game versus human" title="Quick game vs human" class="btn btn-ghost flex-col gap-1 py-3">
-			<span class="text-2xl leading-none">👶</span>
+		<a href="/new/human/quick" aria-label="Quick game versus human" title="Quick game vs human" class="btn btn-ghost flex-col gap-1.5 py-3">
+			<span class="text-accent">
+				@iconUsers("h-7 w-7")
+			</span>
 			<span class="text-sm font-semibold text-fg">vs Human</span>
 		</a>
-		<a href="/new/computer" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="btn btn-ghost flex-col gap-1 py-3">
-			<span class="text-2xl leading-none">🤖</span>
+		<a href="/new/computer" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="btn btn-ghost flex-col gap-1.5 py-3">
+			<span class="text-accent">
+				@iconCpu("h-7 w-7")
+			</span>
 			<span class="text-sm font-semibold text-fg">vs Computer</span>
 		</a>
 	</div>
@@ -81,7 +223,7 @@ templ quickGameButtons() {
 // createGameButton renders the button that opens the custom-game modal. The id
 // is wired to the modal open/close script in createGameModal.
 templ createGameButton() {
-	<button type="button" id="createGameButton" title="Create a custom game" class="btn btn-primary btn-block mt-3">Create a custom game</button>
+	<button type="button" id="createGameButton" data-open-create-game title="Create a custom game" class="btn btn-primary btn-block mt-3">Create a custom game</button>
 }
 
 // board renders the octadground board mount and its promotion / result-overlay

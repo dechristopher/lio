@@ -49,7 +49,7 @@ func About(meta Meta, section string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = header().Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = header("max-w-[34rem]").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -65,7 +65,7 @@ func About(meta Meta, section string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = footer(meta).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = footer(meta, "max-w-[34rem]").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -38,6 +38,10 @@ templ head(meta Meta) {
 				window.__toggleTheme = function () {
 					window.__setTheme(d.dataset.theme === "dark" ? "light" : "dark");
 				};
+				window.__useSystemTheme = function () {
+					try { localStorage.removeItem("theme"); } catch (e) {}
+					d.dataset.theme = resolve();
+				};
 			})();
 		</script>
 		<title>{ meta.Title }</title>

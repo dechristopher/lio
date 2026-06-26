@@ -70,14 +70,14 @@ func head(meta Meta) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=5\"><script>\n\t\t\t// Resolve and apply the color theme before first paint to avoid a\n\t\t\t// flash of the wrong theme: persisted choice wins, else the OS\n\t\t\t// preference. Also exposes __toggleTheme()/__setTheme() for the\n\t\t\t// header toggle button.\n\t\t\t(function () {\n\t\t\t\tvar d = document.documentElement;\n\t\t\t\tfunction resolve() {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\t\t\tif (t === \"light\" || t === \"dark\") return t;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\td.dataset.theme = resolve();\n\t\t\t\twindow.__setTheme = function (t) {\n\t\t\t\t\td.dataset.theme = t;\n\t\t\t\t\ttry { localStorage.setItem(\"theme\", t); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__toggleTheme = function () {\n\t\t\t\t\twindow.__setTheme(d.dataset.theme === \"dark\" ? \"light\" : \"dark\");\n\t\t\t\t};\n\t\t\t})();\n\t\t</script><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=5\"><script>\n\t\t\t// Resolve and apply the color theme before first paint to avoid a\n\t\t\t// flash of the wrong theme: persisted choice wins, else the OS\n\t\t\t// preference. Also exposes __toggleTheme()/__setTheme() for the\n\t\t\t// header toggle button.\n\t\t\t(function () {\n\t\t\t\tvar d = document.documentElement;\n\t\t\t\tfunction resolve() {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\t\t\tif (t === \"light\" || t === \"dark\") return t;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\td.dataset.theme = resolve();\n\t\t\t\twindow.__setTheme = function (t) {\n\t\t\t\t\td.dataset.theme = t;\n\t\t\t\t\ttry { localStorage.setItem(\"theme\", t); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__toggleTheme = function () {\n\t\t\t\t\twindow.__setTheme(d.dataset.theme === \"dark\" ? \"light\" : \"dark\");\n\t\t\t\t};\n\t\t\t\twindow.__useSystemTheme = function () {\n\t\t\t\t\ttry { localStorage.removeItem(\"theme\"); } catch (e) {}\n\t\t\t\t\td.dataset.theme = resolve();\n\t\t\t\t};\n\t\t\t})();\n\t\t</script><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 43, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 47, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -90,7 +90,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 55, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 59, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -103,7 +103,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 56, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 60, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -116,7 +116,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 57, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 61, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -129,7 +129,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 58, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 62, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -142,7 +142,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var8 templ.SafeURL
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs("/app" + meta.CacheKey + ".css")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 60, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 64, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -155,7 +155,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("/htmx" + meta.CacheKey + ".min.js")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 61, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 65, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {

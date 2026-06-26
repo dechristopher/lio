@@ -207,7 +207,11 @@
 	.ga-rail { grid-area: rail; }
 	.ga-info { grid-area: info; }
 
-	@media (min-width: 1024px) {
+	/* Switch to the board + rail two-column at 900px. The grid container is capped
+	   at min(96vw, 48rem) = 768px, which fits comfortably (board 408px + 20px gap +
+	   272px rail ≈ 700px) well below 900px, so the single column below this width
+	   was leaving the side whitespace unused rather than being space-constrained. */
+	@media (min-width: 900px) {
 		.game-grid {
 			/* tighter width so the (now smaller) board sits snug beside the rail
 			   instead of floating in a wide 1fr column */
@@ -256,7 +260,7 @@
 		display: flex;
 		flex-direction: column;
 		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-sm);
 		background: var(--surface-2);
 		transition: border-color 150ms var(--ease-snappy), background-color 150ms var(--ease-snappy);
 	}
@@ -340,7 +344,7 @@
 	.rail-stack { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; }
 	.rail-card {
 		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-sm);
 		background: var(--surface-2);
 		padding: 0.7rem 0.8rem;
 	}
@@ -411,7 +415,6 @@
 		background-color: color-mix(in srgb, var(--surface) 30%, rgba(0, 0, 0, 0.55));
 		-webkit-backdrop-filter: blur(2px);
 		backdrop-filter: blur(2px);
-		border-radius: var(--radius-md);
 		animation: resultFade 180ms var(--ease-snappy);
 	}
 	.result-overlay.result-show { display: flex; }
@@ -458,7 +461,7 @@
 	.card {
 		background: var(--surface-3);
 		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-md);
 		padding: 1.25rem;
 	}
@@ -564,6 +567,28 @@
 	.tc-input:focus-visible + .tc-label .tc-box { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 	.tc-name { font-size: 1.05rem; font-weight: 700; }
 	.tc-pool { font-size: 0.65rem; font-style: italic; opacity: 0.85; }
+
+	/* "list publicly" toggle: private by default, opt-in to a public Open Challenge */
+	.cg-public {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.6rem;
+		margin-top: 1rem;
+		padding: 0.65rem 0.75rem;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+		cursor: pointer;
+		text-align: left;
+		transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy);
+	}
+	.cg-public:hover { border-color: var(--accent); }
+	.cg-public:has(.cg-public-box:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+	.cg-public-box { margin-top: 0.15rem; width: 1.1rem; height: 1.1rem; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+	.cg-public-box:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+	.cg-public-text { display: flex; flex-direction: column; gap: 0.1rem; }
+	.cg-public-title { font-size: 0.9rem; font-weight: 700; }
+	.cg-public-hint { font-size: 0.7rem; opacity: 0.8; line-height: 1.3; }
 
 	.submit-row { display: flex; justify-content: center; align-items: center; gap: 0.6rem; margin-top: 1rem; }
 	.submit-btn {

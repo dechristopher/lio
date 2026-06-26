@@ -112,6 +112,12 @@ type Instance struct {
 
 	abandoned bool
 	cancelled bool
+
+	// public reports whether an open human challenge should be listed in the
+	// home-page Open Challenges feed. Challenges default to private (link-only)
+	// and the creator opts in to public listing at creation time. Set once in
+	// Create and never mutated, so it needs no lock.
+	public bool
 }
 
 // Params for room Instance creation
@@ -119,6 +125,9 @@ type Params struct {
 	Creator    string
 	Players    player.Players
 	GameConfig game.OctadGameConfig
+	// Public lists an open human challenge in the home-page Open Challenges
+	// feed. Defaults to false (private, link-only); the creator opts in.
+	Public bool
 }
 
 // NewParams returns a new parameters object configured
@@ -176,6 +185,8 @@ func Create(params Params) (*Instance, error) {
 
 		players: params.Players,
 		rematch: player.Agreement{},
+
+		public: params.Public,
 
 		cancelToken: config.GenerateCode(12),
 	}
@@ -377,6 +388,20 @@ func (r *Instance) Cancel() bool {
 	case <-r.done:
 		return false
 	}
+}
+
+// hasOpenSeat reports whether the room is still an open challenge: one human
+// seat filled and the other empty and joinable (no opponent has joined, and no
+// bot occupies it). It is the signal that distinguishes a junk challenge — one
+// whose creator left before anyone joined or any game began — from a committed
+// game mid-handoff from the challenge page to the board. HasTwoPlayers reports a
+// bot seat and an already-joined seat alike as not-missing, so this is false for
+// bot rooms and the instant a second player joins. Locks stateMu (reads players).
+func (r *Instance) hasOpenSeat() bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	hasTwo, missing := r.players.HasTwoPlayers()
+	return !hasTwo && missing != octad.NoColor
 }
 
 // CanJoin returns true if the given player by uid can participate in the match

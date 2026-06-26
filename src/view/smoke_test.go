@@ -29,12 +29,24 @@ func mustContain(t *testing.T, s, sub string) {
 }
 
 func TestRenderIndex(t *testing.T) {
-	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), pools.RatingPools))
+	live := []message.LiveGame{{RoomID: "live123", Variant: variant.HalfOneBlitz, Moves: 4}}
+	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneZeroRapid, Color: "w"}}
+	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
+	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), pools.RatingPools, live, challenges, stats))
 	mustContain(t, out, "<title>lioctad.org • Free Online Octad</title>")
 	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
 	mustContain(t, out, `id="createGameButton"`) // modal opener
 	mustContain(t, out, `id="modalCreateGame"`)
 	mustContain(t, out, "getElementById(\"modalCreateGame\")") // inline modal script
+
+	// new home sections
+	mustContain(t, out, `id="home-activity"`)      // polled activity region
+	mustContain(t, out, `hx-get="/home/activity"`) // self-poll
+	mustContain(t, out, "Open challenges")         // challenges section
+	mustContain(t, out, "/seek456")                // joinable challenge link
+	mustContain(t, out, "What is Octad?")          // explainer
+	mustContain(t, out, "Accounts are coming")     // login stub modal
+	mustContain(t, out, ">Log in<")                // nav stub
 
 	// pool order must be bullet -> blitz -> rapid (sorted, number-prefixed keys)
 	order := []string{
@@ -54,6 +66,13 @@ func TestRenderIndex(t *testing.T) {
 		}
 		last = i
 	}
+}
+
+func TestRenderHomeActivityEmpty(t *testing.T) {
+	out := renderSmoke(t, HomeActivity(nil, nil, message.SiteStats{}))
+	mustContain(t, out, `id="home-activity"`)
+	mustContain(t, out, "No open challenges right now")
+	mustContain(t, out, "No games in progress")
 }
 
 func TestRenderRoomGame(t *testing.T) {

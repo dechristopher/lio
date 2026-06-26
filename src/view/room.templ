@@ -13,7 +13,7 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header()
+				@header("max-w-[34rem]")
 				if !payload.IsCreator && !payload.IsJoining {
 					@roomGame(payload)
 				} else if payload.IsCreator {
@@ -21,7 +21,7 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 				} else if payload.IsJoining {
 					@roomJoiner(payload)
 				}
-				@footer(meta)
+				@footer(meta, "max-w-[34rem]")
 			</div>
 		</body>
 		@scriptsBase(meta)

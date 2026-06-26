@@ -26,3 +26,16 @@ func (d *Directory) GetSockMap(channel string) *SockMap {
 
 	return sockMap
 }
+
+// Peek returns the SockMap for a channel if one already exists, or nil. Unlike
+// GetSockMap it never creates (and never starts a broadcaster goroutine for) a
+// channel that has no connections yet, so read-only callers — like the home-page
+// online count walking every room — don't spawn empty SockMaps as a side effect.
+func (d *Directory) Peek(channel string) *SockMap {
+	raw, ok := d.Load(channel)
+	if !ok {
+		return nil
+	}
+	sockMap, _ := raw.(*SockMap)
+	return sockMap
+}
