@@ -15,10 +15,13 @@ import (
 )
 
 // HomeActivity is the live, self-refreshing region of the home page: the site
-// stat counters, the in-progress games grid, and the joinable open challenges.
-// It polls itself every 5s via htmx (outerHTML self-replacement), so the same
-// component backs both the initial render and the /home/activity fragment.
-func HomeActivity(live []message.LiveGame, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
+// stat counters and the joinable open challenges. It polls itself every 5s via
+// htmx (outerHTML self-replacement), so the same component backs both the
+// initial render and the /home/activity fragment. The live-games grid is NOT
+// here — it streams over the /socket/tv WebSocket (see tvWidget / lio-tv.js) and
+// must stay outside this htmx-swapped region so its boards are not destroyed
+// every 5s.
+func HomeActivity(challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -48,10 +51,6 @@ func HomeActivity(live []message.LiveGame, challenges []message.OpenChallenge, s
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = openChallenges(challenges).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = liveGames(live).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -137,7 +136,7 @@ func statTile(n int, label string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(n))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 39, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 41, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -150,7 +149,7 @@ func statTile(n int, label string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 40, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 42, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -209,7 +208,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 				var templ_7745c5c3_Var7 templ.SafeURL
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + c.RoomID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 58, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 60, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -230,7 +229,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(c.Variant.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 62, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 64, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -243,7 +242,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(c.Variant.Group.String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 63, Col: 100}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 65, Col: 100}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -260,116 +259,6 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 			}
 		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-// liveGames renders the grid of in-progress games. Spectating is not wired up
-// yet, so the cards are informational (no watch link) and labelled as such.
-func liveGames(games []message.LiveGame) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var10 == nil {
-			templ_7745c5c3_Var10 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"card\"><div class=\"flex items-center justify-between\"><p class=\"text-xs font-semibold uppercase tracking-wider text-fg-muted\">Live games</p><span class=\"text-[11px] text-fg-subtle\">watching coming soon</span></div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if len(games) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<p class=\"mt-3 text-sm text-fg-subtle\">No games in progress. Be the first to play!</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"mt-3 grid grid-cols-2 gap-2.5\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			for _, g := range games {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"flex flex-col gap-1 rounded-md border border-line bg-panel px-3 py-2.5\"><span class=\"flex items-center justify-between gap-2\"><span class=\"text-sm font-semibold text-fg\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(g.Variant.Name)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 90, Col: 67}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</span> <span class=\"text-fg-muted\" aria-hidden=\"true\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				if g.VsBot {
-					templ_7745c5c3_Err = iconCpu("h-4 w-4").Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				} else {
-					templ_7745c5c3_Err = iconUsers("h-4 w-4").Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</span></span> <span class=\"text-[11px] uppercase tracking-wide text-fg-subtle\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(g.Variant.Group.String())
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 100, Col: 33}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, " · ")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var13 string
-				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(g.Moves))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 100, Col: 62}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, " moves</span></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -394,24 +283,24 @@ func colorDot(color string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var14 == nil {
-			templ_7745c5c3_Var14 = templ.NopComponent
+		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var10 == nil {
+			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		switch color {
 		case "w":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-white\" title=\"White\" aria-label=\"plays White\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-white\" title=\"White\" aria-label=\"plays White\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "b":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-stone-900\" title=\"Black\" aria-label=\"plays Black\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-stone-900\" title=\"Black\" aria-label=\"plays Black\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-gradient-to-br from-white to-stone-900\" title=\"Random\" aria-label=\"random color\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-gradient-to-br from-white to-stone-900\" title=\"Random\" aria-label=\"random color\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -438,12 +327,12 @@ func octadAbout() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var15 == nil {
-			templ_7745c5c3_Var15 = templ.NopComponent
+		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var11 == nil {
+			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"card\"><h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king  can castle with <em>any</em> of its starting pieces.</p><div class=\"mt-3 grid grid-cols-3 gap-2\"><img src=\"/res/img/octad2.svg\" alt=\"octad starting board\" class=\"w-full rounded-md border border-line\"> <img src=\"/res/img/octad3.svg\" alt=\"octad after 1. c2 b3\" class=\"w-full rounded-md border border-line\"> <img src=\"/res/img/far-castle.svg\" alt=\"white far-pawn castle\" class=\"w-full rounded-md border border-line\"></div><div class=\"mt-3 flex flex-wrap gap-2\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-sm\">Learn more</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"card\"><h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king  can castle with <em>any</em> of its starting pieces.</p><div class=\"mt-3 grid grid-cols-3 gap-2\"><img src=\"/res/img/octad2.svg\" alt=\"octad starting board\" class=\"w-full rounded-md border border-line\"> <img src=\"/res/img/octad3.svg\" alt=\"octad after 1. c2 b3\" class=\"w-full rounded-md border border-line\"> <img src=\"/res/img/far-castle.svg\" alt=\"white far-pawn castle\" class=\"w-full rounded-md border border-line\"></div><div class=\"mt-3 flex flex-wrap gap-2\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-sm\">Learn more</a></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -469,12 +358,12 @@ func homeNews() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var16 == nil {
-			templ_7745c5c3_Var16 = templ.NopComponent
+		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var12 == nil {
+			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">News</h2><span class=\"text-[11px] font-semibold uppercase tracking-wider text-fg-subtle\">alpha</span></div><ul class=\"mt-3 flex flex-col divide-y divide-line\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">News</h2><span class=\"text-[11px] font-semibold uppercase tracking-wider text-fg-subtle\">alpha</span></div><ul class=\"mt-3 flex flex-col divide-y divide-line\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -490,7 +379,7 @@ func homeNews() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</ul><p class=\"prose mt-3 text-sm\">lioctad is free and <a href=\"https://github.com/dechristopher/lio\">open source</a>.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</ul><p class=\"prose mt-3 text-sm\">lioctad is free and <a href=\"https://github.com/dechristopher/lio\">open source</a>.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -514,51 +403,51 @@ func newsItem(title, date, body string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var17 == nil {
-			templ_7745c5c3_Var17 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<li class=\"py-2.5 first:pt-0 last:pb-0\"><div class=\"flex items-baseline justify-between gap-2\"><span class=\"text-sm font-semibold text-fg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<li class=\"py-2.5 first:pt-0 last:pb-0\"><div class=\"flex items-baseline justify-between gap-2\"><span class=\"text-sm font-semibold text-fg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var18 string
-		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(title)
+		var templ_7745c5c3_Var14 string
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 166, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 134, Col: 54}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</span> <span class=\"shrink-0 text-[11px] uppercase tracking-wide text-fg-subtle\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var19 string
-		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(date)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 167, Col: 83}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span> <span class=\"shrink-0 text-[11px] uppercase tracking-wide text-fg-subtle\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</span></div><p class=\"mt-0.5 text-sm text-fg-muted\">")
+		var templ_7745c5c3_Var15 string
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(date)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 135, Col: 83}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var20 string
-		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(body)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 169, Col: 48}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</span></div><p class=\"mt-0.5 text-sm text-fg-muted\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</p></li>")
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(body)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 137, Col: 48}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p></li>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

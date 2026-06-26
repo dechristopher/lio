@@ -26,6 +26,8 @@ const (
 	RoomTag PayloadTag = "r"
 	// RedirectTag is the message type tag for the RedirectMessage
 	RedirectTag PayloadTag = "e"
+	// TVTag is the message type tag for the TVPayload (home-page live games)
+	TVTag PayloadTag = "tv"
 )
 
 // Message represents our websocket protocol messages container

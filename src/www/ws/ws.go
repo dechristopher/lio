@@ -14,6 +14,7 @@ import (
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/www/ws/proto"
@@ -61,11 +62,14 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 		thisChannel = fmt.Sprintf("%s/%s", channelType, thisChannel)
 	}
 
-	// ensure room exists for connection
-	if thisRoom, err := room.Get(roomId); thisRoom == nil {
-		util.Error(str.CWS, str.EWSConn, err.Error())
-		return func(conn *websocket.Conn) {
-			_ = conn.Close()
+	// ensure room exists for connection. The global TV channel (/socket/tv) is
+	// not a room — it is a site-wide read-only stream — so it bypasses this check.
+	if !tv.IsTV(roomId) {
+		if thisRoom, err := room.Get(roomId); thisRoom == nil {
+			util.Error(str.CWS, str.EWSConn, err.Error())
+			return func(conn *websocket.Conn) {
+				_ = conn.Close()
+			}
 		}
 	}
 
@@ -94,6 +98,13 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 		// the writer goroutine owns all writes to this connection and emits
 		// periodic protocol-level pings for liveness
 		go socket.WritePump()
+
+		// the global TV channel pushes a one-shot grid snapshot on connect so a
+		// new viewer immediately sees the current featured games, then receives
+		// add/move/remove deltas via the normal broadcast path
+		if tv.IsTV(roomId) {
+			tv.Connect(socket)
+		}
 
 		// UnTrack this socket and stop its writer when the read loop exits
 		defer killSocket(socket, thisChannel)

@@ -45,6 +45,19 @@ func (r *Instance) handleGameOver() {
 				return
 			}
 
+			// Don't auto-rematch a game the human never actually played. A socket
+			// that is still connected but whose player never moved (an idle/
+			// backgrounded tab, or someone who wandered off to watch the home-page
+			// TV) would otherwise spin up another engine game for nobody. Let the
+			// room end via the rematch timeout instead. A genuinely engaged player
+			// has at least one move recorded, so this never blocks a wanted
+			// rematch — and a human who explicitly clicks rematch still gets one
+			// via the control loop below regardless.
+			if !r.humanMovedThisGame() {
+				util.DebugFlag("room", str.CRoom, "[%s] human made no move; skipping auto-rematch", r.ID)
+				return
+			}
+
 			// Only auto-rematch while the human is present. If they closed the
 			// tab (a disconnect, with no explicit rematch click), don't bounce
 			// the room through a fresh game — and engine search — for nobody.
@@ -156,6 +169,9 @@ func (r *Instance) handleGameOver() {
 				r.game = newGame
 				// reset rematch flags for the next game over
 				r.rematch = player.NewAgreement()
+				// the new game has no human move yet; reset engagement so the
+				// next game-over re-evaluates auto-rematch / idle-abandon fresh
+				r.humanMoved = false
 			}
 			r.stateMu.Unlock()
 			if err != nil {

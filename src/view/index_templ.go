@@ -17,7 +17,7 @@ import (
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
-func Index(meta Meta, pools map[variant.Group][]variant.Variant, live []message.LiveGame, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
+func Index(meta Meta, pools map[variant.Group][]variant.Variant, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -58,7 +58,7 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant, live []message.
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"flex flex-col gap-4 md:col-span-7\"><div class=\"card\"><p class=\"text-2xl font-bold uppercase tracking-widest text-accent\">Quick game</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"flex flex-col gap-4 md:col-span-7\"><div class=\"card\"><p class=\"text-2xl font-extrabold uppercase tracking-widest text-accent\">Quick game</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -74,7 +74,11 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant, live []message.
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = HomeActivity(live, challenges, stats).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = tvWidget().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = HomeActivity(challenges, stats).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -107,6 +111,10 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant, live []message.
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></body>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = scriptsTV(meta).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

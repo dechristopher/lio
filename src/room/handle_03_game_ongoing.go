@@ -46,6 +46,36 @@ func (r *Instance) handleGameOngoing() {
 		}
 	}
 
+	// idle-abandon timer (bot games only). The disconnect abandon timer above
+	// keys off socket presence, so it can't catch a human who is still connected
+	// but never moves (an idle/backgrounded tab, or someone off watching the
+	// home-page TV): the bot would play the game out to a flag and the room would
+	// then auto-rematch into another empty game. This timer fires when
+	// humanIdleEligible holds — a bot game, the human has not moved, and it is
+	// their turn — and is disarmed the instant they move. Created disarmed;
+	// refreshIdle (re)evaluates the condition on entry and after every move.
+	idleTimer := time.NewTimer(idleTimeout)
+	if !idleTimer.Stop() {
+		<-idleTimer.C
+	}
+	defer idleTimer.Stop()
+
+	refreshIdle := func() {
+		// drain any pending fire before re-deciding (the reset-without-drain hazard)
+		if !idleTimer.Stop() {
+			select {
+			case <-idleTimer.C:
+			default:
+			}
+		}
+		if r.humanIdleEligible() {
+			idleTimer.Reset(idleTimeout)
+		}
+	}
+	// arm on entry: a rematch in which the human plays Black reaches here with
+	// the bot's opening move already played and the no-show human on the clock
+	refreshIdle()
+
 	for {
 		select {
 		// handle move events
@@ -79,6 +109,10 @@ func (r *Instance) handleGameOngoing() {
 			// track move lag for later compensation
 			go lag.Move.Track(moveStart)
 			util.DebugFlag("lag", str.CRoom, "move lag avg: %s", lag.Move.Get())
+
+			// re-evaluate idle state: a human move disarms the idle timer for
+			// good, while the bot's move (re)arms it as we wait on the human
+			refreshIdle()
 
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:
@@ -178,6 +212,32 @@ func (r *Instance) handleGameOngoing() {
 			r.abandoned = true
 
 			// make state transition and exit the gameOngoing routine
+			if err := r.event(EventPlayerAbandons); err != nil {
+				panic(err)
+			}
+
+			return
+		// a socket-connected human who never moved this bot game has timed out
+		case <-idleTimer.C:
+			// a move may have landed just as this fired; re-check so we never
+			// abandon a game the human did engage with after all
+			if !r.humanIdleEligible() {
+				continue
+			}
+
+			util.DebugFlag("room", str.CRoom, "[%s] human idle (no move this game), abandoning bot game", r.ID)
+
+			// resign the idle human so the game has a terminal outcome, then run
+			// the same abandon path the disconnect timer uses
+			r.stateMu.Lock()
+			human := r.players.GetBotColor().Other()
+			r.game.Resign(human)
+			r.stateMu.Unlock()
+
+			r.tryGameOver(channel.SocketContext{Channel: r.ID, MT: 1}, true)
+
+			r.abandoned = true
+
 			if err := r.event(EventPlayerAbandons); err != nil {
 				panic(err)
 			}

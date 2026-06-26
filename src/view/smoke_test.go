@@ -29,10 +29,9 @@ func mustContain(t *testing.T, s, sub string) {
 }
 
 func TestRenderIndex(t *testing.T) {
-	live := []message.LiveGame{{RoomID: "live123", Variant: variant.HalfOneBlitz, Moves: 4}}
 	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneZeroRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
-	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), pools.RatingPools, live, challenges, stats))
+	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), pools.RatingPools, challenges, stats))
 	mustContain(t, out, "<title>lioctad.org • Free Online Octad</title>")
 	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
 	mustContain(t, out, `id="createGameButton"`) // modal opener
@@ -47,6 +46,13 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "What is Octad?")          // explainer
 	mustContain(t, out, "Accounts are coming")     // login stub modal
 	mustContain(t, out, ">Log in<")                // nav stub
+
+	// live-games TV widget: static shell + streaming client (boards stream in)
+	mustContain(t, out, `id="tv-widget"`)       // TV card
+	mustContain(t, out, `id="tv-grid"`)         // JS-populated grid mount
+	mustContain(t, out, "No games in progress") // empty state
+	mustContain(t, out, "lio-tv")               // scriptsTV client
+	mustContain(t, out, "octadground")          // scriptsTV board renderer
 
 	// pool order must be bullet -> blitz -> rapid (sorted, number-prefixed keys)
 	order := []string{
@@ -69,10 +75,9 @@ func TestRenderIndex(t *testing.T) {
 }
 
 func TestRenderHomeActivityEmpty(t *testing.T) {
-	out := renderSmoke(t, HomeActivity(nil, nil, message.SiteStats{}))
+	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}))
 	mustContain(t, out, `id="home-activity"`)
 	mustContain(t, out, "No open challenges right now")
-	mustContain(t, out, "No games in progress")
 }
 
 func TestRenderRoomGame(t *testing.T) {

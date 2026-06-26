@@ -1,6 +1,8 @@
 // Package presence tracks site-wide "who's online right now" for visitors that
-// hold no persistent connection. Browsers sitting on the home page have no
-// websocket — they poll /home/activity over HTTP every few seconds — so their
+// hold no room connection. Browsers sitting on the home page open only the
+// live-games TV stream (/socket/tv) — a read-only global channel that presence
+// intentionally ignores (it is not a room and is not walked by HomeListing) —
+// and otherwise poll /home/activity over HTTP every few seconds, so their
 // presence is inferred from a recent request timestamp per user id.
 //
 // In-room presence (seated players and spectators) is already authoritative via

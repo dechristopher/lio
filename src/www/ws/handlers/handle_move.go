@@ -32,6 +32,12 @@ func HandleMove(m []byte, meta channel.SocketContext) []byte {
 		return thisRoom.CurrentGameStateMessage(false, false)
 	}
 
+	// trace inbound moves so a move that reached the server can be told apart
+	// from one lost in transit (the client never logs an unconfirmed move).
+	// Pair this with the SendMove drop log to follow a move's full lifecycle
+	// under `--debug room`.
+	util.DebugFlag("room", str.CHMov, "[%s] move %s received from %s", meta.RoomID, msg.Data.UOI, meta.UID)
+
 	// send move to room
 	thisRoom.SendMove(&message.RoomMove{
 		Player: meta.UID, Move: msg.Data, Ctx: meta,

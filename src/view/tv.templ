@@ -1,0 +1,18 @@
+package view
+
+// tvWidget is the home-page "live games" TV: a grid of mini boards streamed
+// live over the /socket/tv WebSocket and managed entirely by lio-tv.js. The
+// markup here is just the static shell — the heading, a connection/status line,
+// an empty state, and the grid mount (#tv-grid) the client populates. It lives
+// OUTSIDE the htmx-polled #home-activity region so the 5s outerHTML swap never
+// destroys the JS-managed boards.
+templ tvWidget() {
+	<div id="tv-widget" class="card">
+		<div class="flex items-center justify-between">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Live games</p>
+			<span id="tv-status" class="text-[11px] text-fg-subtle">connecting&hellip;</span>
+		</div>
+		<p id="tv-empty" class="mt-3 text-sm text-fg-subtle">No games in progress. Be the first to play!</p>
+		<div id="tv-grid" class="tv-grid mt-3 hidden"></div>
+	</div>
+}

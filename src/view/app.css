@@ -685,6 +685,104 @@
 	.copy-btn.copied { background: var(--win); color: #fff; border-color: transparent; }
 	.copy-btn.copied .icon-copy { display: none; }
 	.copy-btn.copied .icon-check { display: inline-flex; }
+
+	/* ---- home-page TV (live games) grid ----
+	   The cards are created at runtime by lio-tv.js, so every class here is a
+	   plain component class (Tailwind tree-shakes JS-concatenated class names).
+	   Each board reuses the octadground .gcon/.gwrap/.og-wrap structure with a
+	   small --bs so all the board/piece theme CSS applies unchanged. */
+	/* four-up grid: each board ~half the width of the old 2-up layout, i.e. about
+	   a quarter of the area. Drops to three columns on narrow phones so the
+	   boards stay legible. */
+	.tv-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.4rem;
+	}
+	@media (max-width: 480px) {
+		.tv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	}
+	.tv-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.3rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		text-decoration: none;
+		color: inherit;
+		transition: border-color 150ms var(--ease-snappy), transform 150ms var(--ease-snappy), box-shadow 150ms var(--ease-snappy);
+	}
+	.tv-card:hover {
+		border-color: var(--accent);
+		transform: translateY(-1px);
+		box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.12));
+	}
+	/* the octadground square: small --bs, otherwise identical to the room board */
+	.tv-board.gcon { --bs: 100%; width: 100%; }
+	.tv-card.over .tv-board { opacity: 0.6; }
+
+	/* thin clock bars sandwiching the board (top = black, bottom = white) */
+	.tv-clock {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.tv-bar {
+		position: relative;
+		flex: 1;
+		height: 2px;
+		border-radius: 999px;
+		background: var(--border);
+		overflow: hidden;
+	}
+	.tv-bar > i {
+		position: absolute;
+		inset: 0 auto 0 0;
+		display: block;
+		height: 100%;
+		width: 100%;
+		background: var(--text-subtle);
+	}
+	.tv-clock.run > .tv-bar > i { background: var(--accent); }
+	.tv-clock.low > .tv-bar > i { background: var(--loss); }
+	.tv-time {
+		flex: none;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.58rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		min-width: 2rem;
+		text-align: right;
+	}
+	.tv-clock.low > .tv-time { color: var(--loss); }
+
+	.tv-info {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.25rem;
+	}
+	.tv-variant {
+		font-size: 0.58rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.tv-score {
+		flex: none;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.6rem;
+		font-weight: 700;
+		color: var(--text);
+	}
 }
 
 @keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }

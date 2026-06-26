@@ -93,6 +93,11 @@ const connected = () => {
 	reconnectAttempts = 0;
 	pingsSincePong = 0;
 	if (typeof og !== 'undefined') {
+		// give the game layer a chance to flag an unconfirmed move for
+		// reconciliation before we re-request authoritative board state
+		if (typeof window.onSocketReconnect === 'function') {
+			window.onSocketReconnect();
+		}
 		sendBoardUpdateRequest();
 	}
 	schedulePing(500);
@@ -128,8 +133,16 @@ const reconnect = (prefix) => {
  */
 const send = (command) => {
 	if (window.ws && window.ws.readyState === WebSocket.OPEN) {
-		window.ws.send(command);
+		try {
+			window.ws.send(command);
+			return true;
+		} catch (e) {
+			// a half-open socket can throw (or silently black-hole) the write;
+			// report failure so callers can recover instead of assuming success
+			console.warn("ws send failed", e);
+		}
 	}
+	return false;
 };
 
 /**

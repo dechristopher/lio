@@ -22,6 +22,7 @@ import (
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
 	"github.com/dechristopher/lio/www/ws/proto"
@@ -88,8 +89,9 @@ type Instance struct {
 	// stateMu guards the mutable game-state fields that are touched by more
 	// than one goroutine: game (both the pointer, which is swapped on rematch,
 	// and the octad.Game it points at), players (populated by Join from an HTTP
-	// goroutine), and rematch (written by the auto-rematch goroutine). The room
-	// routine is the sole writer of game contents, but HTTP/WS handler
+	// goroutine), rematch (written by the auto-rematch goroutine), and humanMoved
+	// (set by the room routine in makeMove, read by the auto-rematch goroutine).
+	// The room routine is the sole writer of game contents, but HTTP/WS handler
 	// goroutines read them (CurrentGameStateMessage, IsReady, GenTemplatePayload,
 	// ...) and Join writes players, so every access must be synchronized.
 	//
@@ -106,6 +108,17 @@ type Instance struct {
 
 	players player.Players
 	rematch player.Agreement
+
+	// humanMoved reports whether the human player has made at least one move in
+	// the current game. It is reset to false when a new game begins (Create's
+	// fresh game starts false; a rematch resets it alongside the game swap) and
+	// set true on the first human move. It is the engagement signal that
+	// distinguishes a player who is actually playing from one whose socket is
+	// merely still connected (an idle/backgrounded tab, or someone who wandered
+	// off to watch the home-page TV): a bot game the human never moved in is not
+	// auto-rematched, and is abandoned rather than left to flag. Guarded by
+	// stateMu (set by the room routine, read by the auto-rematch goroutine).
+	humanMoved bool
 
 	joinToken   string // token to control joining challenges
 	cancelToken string // token to control cancelling challenges
@@ -287,6 +300,10 @@ func (r *Instance) cleanup() {
 	// release any goroutines blocked sending into the room's channels
 	// (SendMove / Cancel / engine dispatcher) before tearing anything down
 	close(r.done)
+	// drop this room from the home-page TV grid, freeing its slot for backfill.
+	// A room that ended without a rematch reaches cleanup, so this is what
+	// "swaps out" finished, non-rematching games on the home page.
+	tv.Publish(tv.Event{Kind: tv.RoomClosed, RoomID: r.ID})
 	// clean up all existing room channels by type
 	for _, channelType := range roomChannelTypes {
 		c := fmt.Sprintf("%s%s", channelType, r.ID)
@@ -563,6 +580,35 @@ func (r *Instance) bothPlayersConnected() bool {
 	})
 }
 
+// humanMovedThisGame reports whether the human has made at least one move in the
+// current game. It is the engagement check that complements bothPlayersConnected:
+// a socket can stay connected (an idle/backgrounded tab) without the player
+// actually playing, so presence alone is not enough to justify auto-rematching a
+// bot game.
+func (r *Instance) humanMovedThisGame() bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	return r.humanMoved
+}
+
+// humanIdleEligible reports whether the room is a bot game in which the human
+// has not yet moved and it is currently their turn to move — the condition under
+// which a connected-but-idle human (who would otherwise let the bot play the
+// game out to a flag, then auto-rematch into another idle game) should be
+// abandoned. It deliberately returns false while it is the bot's turn, so we
+// never abandon a game that is merely waiting on the engine, and false once the
+// human has moved, so a genuinely engaged player is never subject to it.
+func (r *Instance) humanIdleEligible() bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+
+	botColor := r.players.GetBotColor()
+	if botColor == octad.NoColor || r.humanMoved {
+		return false
+	}
+	return r.game.ToMove != botColor
+}
+
 // SendMove writes a move to the room's moveChannel to be consumed by the
 // room routine. moveChannel is only drained while the game is ready or
 // ongoing, so the send selects on r.done to guarantee it can never block a
@@ -570,6 +616,7 @@ func (r *Instance) bothPlayersConnected() bool {
 func (r *Instance) SendMove(move *message.RoomMove) {
 	// prevent first moves before moves are allowed to be played
 	if r.State() == StateWaitingForPlayers {
+		util.DebugFlag("room", str.CRoom, "[%s] dropped move %s: room still waiting for players", r.ID, move.Move.UOI)
 		return
 	}
 
@@ -736,6 +783,13 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		return false
 	}
 
+	// record that the human engaged this game (gates bot-game auto-rematch and
+	// idle-abandon). Engine moves don't count — only a real human move signals
+	// the player is actually present and playing.
+	if move.Ctx.IsHuman() {
+		r.humanMoved = true
+	}
+
 	// flip the game clock. This blocks briefly on the clock acknowledgement,
 	// but the clock has its own mutex and never calls back into the room, so
 	// holding stateMu here cannot deadlock.
@@ -750,10 +804,16 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	requestEngine := !move.Ctx.IsBot && r.players.HasBot() &&
 		r.game.Outcome() == octad.NoOutcome
 
+	// snapshot the post-move state for the home-page TV stream while still locked
+	tvMove := r.tvEventLocked(tv.Move)
+
 	r.stateMu.Unlock()
 
 	// publish move to broadcast channel
 	go gamePub.Publish(moveStr, ofen)
+
+	// stream the move to home-page TV viewers
+	tv.Publish(tvMove)
 
 	// submit request for engine move after human move
 	// only if other player is configured as a bot and game is still ongoing
@@ -891,6 +951,11 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	overMsg := r.gameOverMessageLocked(abandoned)
 	event := r.gameOverEventLocked()
 
+	// snapshot the terminal position for the TV stream; the room keeps its grid
+	// slot until it actually closes (it may rematch), so this just freezes the
+	// shown board on the final position
+	tvEnd := r.tvEventLocked(tv.End)
+
 	// shallow value-copy of the game taken under the lock. The room routine is
 	// the only writer and the game is now terminal, so subsequent storeGame
 	// mutations (AddTagPair) only ever grow the copy's slices via append and do
@@ -906,6 +971,9 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 
 	// archive the game off the hot path
 	go storeGame(gameCopy)
+
+	// stream the final position to home-page TV viewers
+	tv.Publish(tvEnd)
 
 	// return isOver=true with the game over event
 	return true, event

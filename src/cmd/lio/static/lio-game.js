@@ -1,6 +1,19 @@
 // LIO game handling code
 let frameId, frameTime, wt, bt, move = 1;
 
+// Outbound move reliability. Octadground moves are optimistic and the wire
+// protocol has no move ACK, so a move lost on a half-open or reconnecting
+// socket would vanish silently (the piece stays put, the server never sees it).
+// We hold the last unconfirmed move and reconcile it against authoritative
+// server state — on an ACK timeout and on every reconnect — resending it if the
+// server never received it.
+let pendingMove = null;   // { uoi, ply, attempts }; ply = server ply before it
+let pendingTimer = null;  // ACK timeout -> reconcilePending
+let reconciling = false;  // an authoritative re-query is in flight
+let lastPly = 0;          // ply of the latest authoritative state we applied
+const ackTimeoutMs = 2500;
+const maxReconcileAttempts = 3;
+
 const moveTag = "m";
 const gameOverTag = "g";
 
@@ -56,15 +69,95 @@ let og = Octadground(document.getElementById('game'), {
 });
 
 /**
- * Sends a game move in Universal Octad Interface format
- * @param move - UOI move string
+ * Number of half-moves reflected in a board-state message — the authoritative
+ * ply, used to detect stale snapshots and to confirm/reconcile our own moves.
+ * @param message - board-state (move) message
+ */
+const messagePly = (message) => (message.d.m ? message.d.m.length : 0);
+
+/**
+ * Clear the tracked unconfirmed move and stop its reconcile timer.
+ */
+const clearPending = () => {
+	pendingMove = null;
+	reconciling = false;
+	if (pendingTimer !== null) {
+		clearTimeout(pendingTimer);
+		pendingTimer = null;
+	}
+};
+
+/**
+ * (Re)arm the ACK timeout that kicks off reconciliation if the server never
+ * confirms the pending move.
+ */
+const armPendingTimer = () => {
+	if (pendingTimer !== null) {
+		clearTimeout(pendingTimer);
+	}
+	pendingTimer = setTimeout(reconcilePending, ackTimeoutMs);
+};
+
+/**
+ * Reconcile an unconfirmed move by re-requesting the authoritative position.
+ * handleMove resolves it: confirming the move if it landed, or resending it if
+ * the server never received it. Re-arms so a lost query is retried.
+ */
+const reconcilePending = () => {
+	if (!pendingMove) {
+		return;
+	}
+	reconciling = true;
+	sendBoardUpdateRequest();
+	armPendingTimer();
+};
+
+/**
+ * Put a move on the wire. Returns whether it was actually sent (false if the
+ * socket was down — the move stays pending and is flushed on reconnect).
+ * @param uoi - UOI move string
  * @param num - move number
  */
-const sendGameMove = (move, num) => {
-	send(buildCommand("m", {
-		u: move,
-		a: num
-	}));
+const sendMoveOnWire = (uoi, num) => send(buildCommand("m", {u: uoi, a: num}));
+
+/**
+ * Resend the pending move after reconciliation shows the server never got it.
+ * Caps attempts so a persistently-rejected move can't spin.
+ */
+const resendPending = () => {
+	if (!pendingMove) {
+		return;
+	}
+	if (pendingMove.attempts >= maxReconcileAttempts) {
+		// give up resending and trust whatever authoritative state we have
+		clearPending();
+		return;
+	}
+	pendingMove.attempts++;
+	sendMoveOnWire(pendingMove.uoi, move);
+	armPendingTimer();
+};
+
+/**
+ * Sends a game move in Universal Octad Interface format. The move is retained
+ * as "pending" until the server confirms it (see handleMove), so it survives a
+ * failed send on a half-open or reconnecting socket.
+ * @param uoi - UOI move string
+ * @param num - move number
+ */
+const sendGameMove = (uoi, num) => {
+	pendingMove = {uoi: uoi, ply: lastPly, attempts: 0};
+	armPendingTimer();
+	sendMoveOnWire(uoi, num);
+};
+
+// Invoked by the core client on every (re)connect, just before it re-requests
+// board state. If a move is still unconfirmed, flag the imminent board-state
+// response as reconciliation so a move lost to the dropped socket is resent.
+window.onSocketReconnect = () => {
+	if (pendingMove) {
+		reconciling = true;
+	}
 };
 
 /**
@@ -287,6 +380,35 @@ if (homeBtn) {
  * @param message - move message
  */
 const handleMove = (message) => {
+	const ofenParts = message.d.o.split(' ');
+	const serverPly = messagePly(message);
+
+	// ignore a stale board snapshot that would regress the board to an older
+	// position (e.g. a late board-state response landing after newer state). A
+	// game-start/reset (gs) legitimately resets the ply, so always honor it.
+	if (!message.d.gs && serverPly < lastPly) {
+		return;
+	}
+
+	// reconcile any move we sent but haven't seen confirmed yet
+	if (pendingMove) {
+		if (serverPly > pendingMove.ply) {
+			// the server advanced past our move: it landed — confirmed
+			clearPending();
+		} else if (reconciling) {
+			// we explicitly re-queried and the server is still at our pre-move
+			// position, so the move never arrived. Resend if it's still our turn.
+			reconciling = false;
+			if (isPlayerTurn(message, ofenParts)) {
+				resendPending();
+			} else {
+				clearPending();
+			}
+		}
+	}
+
+	lastPly = serverPly;
+
 	if (!message.d.m) {
 		move = 1;
 		document.getElementById("info").innerHTML = "";
@@ -297,9 +419,9 @@ const handleMove = (message) => {
 	playerWhite = isPlayerWhite(message);
 	if (message.d.gs) {
 		hideResult();
+		// a new game invalidates any move left unconfirmed from the prior one
+		clearPending();
 	}
-
-	const ofenParts = message.d.o.split(' ');
 
 	// play sounds
 	playSounds(message, ofenParts);

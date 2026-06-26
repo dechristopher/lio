@@ -21,3 +21,14 @@ templ scriptsRoom(meta Meta) {
 templ scriptsRoomCreator(meta Meta) {
 	<script src={ "/lio-room-create" + meta.CacheKey + ".js" }></script>
 }
+
+// scriptsTV loads the board renderer + themes and the self-contained TV client
+// for the home-page live-games widget. lio-tv.js owns its own (read-only)
+// WebSocket, so neither lio.js nor howler is needed here.
+templ scriptsTV(meta Meta) {
+	<link rel="stylesheet" href={ "/octadground" + meta.CacheKey + ".base.css" }/>
+	<link rel="stylesheet" href={ "/res/themes/board/green" + meta.CacheKey + ".css" }/>
+	<link rel="stylesheet" href={ "/res/themes/piece/alpha" + meta.CacheKey + ".css" }/>
+	<script src={ "/octadground" + meta.CacheKey + ".js" }></script>
+	<script src={ "/lio-tv" + meta.CacheKey + ".js" }></script>
+}
