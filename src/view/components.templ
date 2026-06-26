@@ -11,6 +11,7 @@ templ header(width string) {
 			<span style="top: 56px" class="absolute text-[10px] font-semibold uppercase tracking-widest text-warn">alpha</span>
 		</a>
 		<div class="relative flex items-center gap-2">
+			@connIndicator()
 			<button type="button" id="loginButton" class="btn btn-ghost px-3 py-1.5 text-sm">Log in</button>
 			<button
 				type="button"
@@ -36,6 +37,55 @@ templ header(width string) {
 	</header>
 	@accountModal()
 	@navScript()
+	@connScript()
+}
+
+// connIndicator is the unified ("omnibus") connection-health badge in the header.
+// It starts hidden and is revealed by connScript once any live component (the
+// room socket via lio.js, or the home TV widget via lio-tv.js) first reports its
+// state. The dot color + label are driven by the JS-toggled conn-online /
+// conn-reconnecting / conn-offline state classes.
+templ connIndicator() {
+	<span id="connIndicator" class="conn-indicator hidden" role="status" aria-live="polite" title="Connection">
+		<span class="conn-dot"></span>
+		<span class="conn-label"></span>
+	</span>
+}
+
+// connScript defines window.lioConn — the shared connection-status sink both
+// WebSocket clients call. It is inlined in the header (like navScript) so it is
+// present on every page regardless of which JS bundle a page loads. It is
+// defensive: a no-op when the indicator element is absent.
+templ connScript() {
+	<script>
+		(function () {
+			const el = document.getElementById("connIndicator");
+			const dot = el ? el.querySelector(".conn-dot") : null;
+			const label = el ? el.querySelector(".conn-label") : null;
+			const states = ["conn-online", "conn-reconnecting", "conn-offline"];
+			window.lioConn = {
+				// set(state, latencyMs?) — state ∈ {"online","reconnecting","offline"}
+				set: function (state, latencyMs) {
+					if (!el) { return; }
+					el.classList.remove("hidden");
+					states.forEach((c) => el.classList.remove(c));
+					let text;
+					if (state === "online") {
+						el.classList.add("conn-online");
+						text = (typeof latencyMs === "number") ? Math.round(latencyMs) + "ms" : "connected";
+					} else if (state === "offline") {
+						el.classList.add("conn-offline");
+						text = "offline";
+					} else {
+						el.classList.add("conn-reconnecting");
+						text = "reconnecting…";
+					}
+					if (label) { label.textContent = text; }
+					el.title = "Connection: " + (state === "online" ? "connected" : state);
+				}
+			};
+		})();
+	</script>
 }
 
 // prefsPopover is the preferences dropdown anchored under the gear button. The
@@ -269,6 +319,9 @@ templ clock(name string) {
 		</div>
 		<div class="clock-row">
 			<div class="clock-meta">
+				<span class="clockBot" aria-label="Computer player" title="Computer player">
+					@iconCpu("h-3.5 w-3.5")
+				</span>
 				<span class="clockName">{ name }</span>
 				<span class="clockScore">0</span>
 				<span class="thinking" aria-label="thinking"><i></i><i></i><i></i></span>

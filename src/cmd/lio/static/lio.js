@@ -72,12 +72,18 @@ const connect = (prefix) => {
 
 		if (!disconnected) {
 			console.warn("Lost connection to lioctad.org");
+			if (window.lioConn) {
+				window.lioConn.set("reconnecting");
+			}
 			if (typeof disableBoard !== 'undefined') {
 				disableBoard();
 			}
 			reconnect(prefix);
 		} else {
 			console.log("Disconnected from lioctad.org");
+			if (window.lioConn) {
+				window.lioConn.set("offline");
+			}
 		}
 	};
 
@@ -92,6 +98,10 @@ const connect = (prefix) => {
 const connected = () => {
 	reconnectAttempts = 0;
 	pingsSincePong = 0;
+	if (window.lioConn) {
+		// latency unknown until the first pong; show a bare "connected" for now
+		window.lioConn.set("online");
+	}
 	if (typeof og !== 'undefined') {
 		// give the game layer a chance to flag an unconfirmed move for
 		// reconciliation before we re-request authoritative board state
@@ -204,6 +214,9 @@ const pong = () => {
 	const latencyDisplay = document.getElementById("lat");
 	if (latencyDisplay) {
 		latencyDisplay.innerHTML = `${Math.round(latency)}`;
+	}
+	if (window.lioConn) {
+		window.lioConn.set("online", latency);
 	}
 };
 

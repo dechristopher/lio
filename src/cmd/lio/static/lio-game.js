@@ -506,6 +506,25 @@ const playSounds = (message, ofenParts) => {
 	}
 };
 
+// previous match score (raw white/black), so updateScore can flash only the side
+// whose score actually changed at game end. null until the first score message.
+let prevScoreW = null, prevScoreB = null;
+
+/**
+ * Flash a score element's end-of-game delta: green for a win (+1), grey for a
+ * draw (+½). No-op unless the score went up.
+ * @param el - the .clockScore span
+ * @param delta - change since the last score
+ */
+const flashScore = (el, delta) => {
+	if (!el || delta <= 0) {
+		return;
+	}
+	el.classList.remove('score-win', 'score-draw');
+	void el.offsetWidth; // reflow so re-adding the class restarts the animation
+	el.classList.add(delta >= 0.75 ? 'score-win' : 'score-draw');
+};
+
 /**
  * Update the match score using the given message
  * @param message - move/game-over message
@@ -521,13 +540,23 @@ const updateScore = (message) => {
 	const plyScore = plyClock.getElementsByClassName("clockScore")[0];
 	const oppScore = oppClock.getElementsByClassName("clockScore")[0];
 
-	if (isPlayerWhite(message)) {
-		plyScore.innerHTML = message.d.sc.w;
-		oppScore.innerHTML = message.d.sc.b;
-	} else {
-		plyScore.innerHTML = message.d.sc.b;
-		oppScore.innerHTML = message.d.sc.w;
+	const w = message.d.sc.w || 0;
+	const b = message.d.sc.b || 0;
+
+	// resolve which clock element is white vs black so the flash lands correctly
+	const whiteScore = isPlayerWhite(message) ? plyScore : oppScore;
+	const blackScore = isPlayerWhite(message) ? oppScore : plyScore;
+
+	whiteScore.innerHTML = w;
+	blackScore.innerHTML = b;
+
+	// match score only changes at game end, so a positive delta is the trigger
+	if (prevScoreW !== null) {
+		flashScore(whiteScore, w - prevScoreW);
+		flashScore(blackScore, b - prevScoreB);
 	}
+	prevScoreW = w;
+	prevScoreB = b;
 }
 
 /**

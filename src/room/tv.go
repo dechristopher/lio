@@ -1,6 +1,10 @@
 package room
 
-import "github.com/dechristopher/lio/tv"
+import (
+	"github.com/dechristopher/octad"
+
+	"github.com/dechristopher/lio/tv"
+)
 
 // tvEvent builds a tv.Event of the given kind, locking stateMu itself. Used at
 // call sites that do not already hold the lock (e.g. the game-start broadcast).
@@ -22,12 +26,23 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		lastMove = moves[len(moves)-1].String()
 	}
 
+	// botColor is the side the engine plays ("w"/"b"), or "" for human-vs-human,
+	// so the TV grid can mark exactly which clock is the bot's
+	botColor := ""
+	if bc := r.players.GetBotColor(); bc != octad.NoColor {
+		botColor = bc.String()
+	}
+
 	return tv.Event{
 		Kind:     kind,
 		RoomID:   r.ID,
 		GameID:   r.game.ID,
 		Variant:  r.game.Variant.Name,
 		VsBot:    r.players.HasBot(),
+		BotColor: botColor,
+		// anchor the board's bottom to a stable player so each side keeps its
+		// seat (and score) as colors flip between games; the board flips instead
+		Orient:   r.players.AnchorColor().String(),
 		OFEN:     r.game.OFEN(),
 		LastMove: lastMove,
 		Control:  r.game.Variant.Control.Time.Centi(),

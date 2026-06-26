@@ -61,6 +61,8 @@ type Event struct {
 	GameID   string
 	Variant  string
 	VsBot    bool
+	BotColor string
+	Orient   string
 	OFEN     string
 	LastMove string
 	Control  int64
@@ -242,6 +244,8 @@ func tvGameFrom(ev Event, over bool) proto.TVGame {
 		GameID:   ev.GameID,
 		Variant:  ev.Variant,
 		VsBot:    ev.VsBot,
+		BotColor: ev.BotColor,
+		Orient:   ev.Orient,
 		OFEN:     ev.OFEN,
 		LastMove: ev.LastMove,
 		Control:  ev.Control,

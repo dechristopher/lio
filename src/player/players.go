@@ -71,6 +71,26 @@ func (p Players) ScoreMap() proto.ScorePayload {
 	}
 }
 
+// AnchorColor returns a stable color to orient a spectator/TV board to, so that
+// a given player keeps the same side of the board across the color flips that
+// happen between games of a match. Because the score and identity travel with
+// the *Player through FlipColor (which only swaps the map pointers), anchoring
+// on a color-independent identity pins that player — and their score — to one
+// side while the board itself flips to reveal who now has white.
+//
+// The human anchors (at the bottom) in bot games; otherwise the player whose ID
+// sorts first anchors, which is deterministic and survives flips.
+func (p Players) AnchorColor() octad.Color {
+	if bot := p.GetBotColor(); bot != octad.NoColor {
+		return bot.Other()
+	}
+	if p[octad.White] != nil && p[octad.Black] != nil &&
+		p[octad.Black].ID != "" && p[octad.Black].ID < p[octad.White].ID {
+		return octad.Black
+	}
+	return octad.White
+}
+
 // GetBotColor returns the current color the bot is playing
 func (p Players) GetBotColor() octad.Color {
 	if p[octad.White] != nil && p[octad.White].IsBot {

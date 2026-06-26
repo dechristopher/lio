@@ -9,6 +9,8 @@ type TVGame struct {
 	GameID   string       `json:"i"`            // changes on rematch → client resets that board
 	Variant  string       `json:"vn"`           // variant display name
 	VsBot    bool         `json:"vb,omitempty"` // human-vs-computer game
+	BotColor string       `json:"bc,omitempty"` // side the bot plays: "w"/"b" ("" = no bot)
+	Orient   string       `json:"or,omitempty"` // color anchored to the board's bottom: "w"/"b"
 	OFEN     string       `json:"o"`            // position + side to move
 	LastMove string       `json:"l,omitempty"`  // UOI, for last-move highlight
 	Control  int64        `json:"tc"`           // total time control centis (bar denominator)

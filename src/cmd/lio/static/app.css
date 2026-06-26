@@ -975,6 +975,14 @@
   .clockRatingNumber {
     font-weight: 600;
   }
+  .clockBot {
+    display: none;
+    align-items: center;
+    color: var(--text-subtle);
+  }
+  [data-bot="true"] .clockBot {
+    display: inline-flex;
+  }
   .clockTime {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
@@ -1646,10 +1654,32 @@
   .tv-clock.low > .tv-time {
     color: var(--loss);
   }
+  .tv-bot {
+    display: none;
+    flex: none;
+    align-items: center;
+    color: var(--text-subtle);
+  }
+  .tv-bot > svg {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+  .tv-clock.is-bot > .tv-bot {
+    display: inline-flex;
+  }
+  .tv-side-score {
+    flex: none;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 0.9rem;
+    text-align: right;
+  }
   .tv-info {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 0.25rem;
   }
   .tv-variant {
@@ -1662,13 +1692,53 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .tv-score {
+  .clockScore.score-win, .tv-side-score.score-win {
+    animation: scoreFlashWin 1.1s var(--ease-snappy);
+  }
+  .clockScore.score-draw, .tv-side-score.score-draw {
+    animation: scoreFlashDraw 1.1s var(--ease-snappy);
+  }
+  .conn-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .conn-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--text-subtle);
     flex: none;
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.6rem;
-    font-weight: 700;
-    color: var(--text);
+  }
+  .conn-online .conn-dot {
+    background: var(--win);
+  }
+  .conn-reconnecting .conn-dot {
+    background: var(--warn);
+    animation: connPulse 1s ease-in-out infinite;
+  }
+  .conn-offline .conn-dot {
+    background: var(--loss);
+  }
+  .conn-reconnecting .conn-label {
+    color: var(--warn);
+  }
+  .conn-offline .conn-label {
+    color: var(--loss);
+  }
+  @media (max-width: 480px) {
+    .conn-label {
+      display: none;
+    }
   }
 }
 @keyframes resultFade {
@@ -1695,6 +1765,37 @@
   }
   50% {
     opacity: 0.5;
+  }
+}
+@keyframes connPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes scoreFlashWin {
+  0% {
+    color: var(--win);
+    transform: scale(1.3);
+  }
+  45% {
+    color: var(--win);
+  }
+  100% {
+    color: inherit;
+    transform: scale(1);
+  }
+}
+@keyframes scoreFlashDraw {
+  0% {
+    color: var(--text-muted);
+    transform: scale(1.18);
+  }
+  100% {
+    color: inherit;
+    transform: scale(1);
   }
 }
 @keyframes thinkingPulse {
