@@ -204,6 +204,17 @@
   .visible {
     visibility: visible;
   }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
   .absolute {
     position: absolute;
   }
@@ -249,6 +260,9 @@
   .mt-0\.5 {
     margin-top: calc(var(--spacing) * 0.5);
   }
+  .mt-1 {
+    margin-top: var(--spacing);
+  }
   .mt-2 {
     margin-top: calc(var(--spacing) * 2);
   }
@@ -263,9 +277,6 @@
   }
   .mb-1 {
     margin-bottom: var(--spacing);
-  }
-  .block {
-    display: block;
   }
   .contents {
     display: contents;
@@ -324,8 +335,8 @@
   .w-full {
     width: 100%;
   }
-  .max-w-\[22rem\] {
-    max-width: 22rem;
+  .max-w-\[24rem\] {
+    max-width: 24rem;
   }
   .max-w-\[26rem\] {
     max-width: 26rem;
@@ -508,6 +519,9 @@
   .font-display {
     font-family: "Poppins", "Inter", ui-sans-serif, system-ui, sans-serif;
   }
+  .font-mono {
+    font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
   .text-2xl {
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
@@ -595,6 +609,10 @@
   }
   .uppercase {
     text-transform: uppercase;
+  }
+  .tabular-nums {
+    --tw-numeric-spacing: tabular-nums;
+    font-variant-numeric: var(--tw-ordinal,) var(--tw-slashed-zero,) var(--tw-numeric-figure,) var(--tw-numeric-spacing,) var(--tw-numeric-fraction,);
   }
   .no-underline {
     text-decoration-line: none;
@@ -1191,18 +1209,24 @@
     cursor: pointer;
     transition: all 150ms var(--ease-snappy);
   }
-  .result-btn:hover {
+  .result-btn:not(:disabled):hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
   }
   .result-btn:active {
     transform: translateY(0);
   }
+  .result-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
   .result-rematch {
     background: var(--accent);
     color: var(--accent-contrast);
   }
-  .result-rematch:hover {
+  .result-rematch:not(:disabled):hover {
     background: var(--accent-hover);
   }
   .result-home {
@@ -1216,6 +1240,10 @@
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--text-subtle);
+  }
+  .result-countdown.opponent-left {
+    color: var(--warn);
+    font-weight: 600;
   }
   .card {
     background: var(--surface-3);
@@ -1580,6 +1608,34 @@
   .copy-btn.copied .icon-check {
     display: inline-flex;
   }
+  .waiting-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .waiting-dot {
+    flex: none;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--accent);
+    animation: waitingPulse 1.6s var(--ease-snappy) infinite;
+  }
+  .qr-tile {
+    display: inline-flex;
+    padding: 0.75rem;
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+  .invite-qr {
+    display: block;
+    width: 11rem;
+    height: 11rem;
+    shape-rendering: crispEdges;
+  }
   .tv-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1808,6 +1864,20 @@
     transform: scale(1);
   }
 }
+@keyframes waitingPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--focus-ring);
+    opacity: 1;
+  }
+  70% {
+    box-shadow: 0 0 0 0.5rem rgba(16, 185, 129, 0);
+    opacity: 0.85;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    opacity: 1;
+  }
+}
 @property --tw-rotate-x {
   syntax: "*";
   inherits: false;
@@ -1889,6 +1959,26 @@
   inherits: false;
 }
 @property --tw-tracking {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-ordinal {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-slashed-zero {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-figure {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-spacing {
+  syntax: "*";
+  inherits: false;
+}
+@property --tw-numeric-fraction {
   syntax: "*";
   inherits: false;
 }
@@ -2007,6 +2097,11 @@
       --tw-leading: initial;
       --tw-font-weight: initial;
       --tw-tracking: initial;
+      --tw-ordinal: initial;
+      --tw-slashed-zero: initial;
+      --tw-numeric-figure: initial;
+      --tw-numeric-spacing: initial;
+      --tw-numeric-fraction: initial;
       --tw-shadow: 0 0 #0000;
       --tw-shadow-color: initial;
       --tw-shadow-alpha: 100%;

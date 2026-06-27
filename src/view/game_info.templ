@@ -2,20 +2,28 @@ package view
 
 import "github.com/dechristopher/lio/message"
 
-// gameInfo renders the variant / color / pool summary card shown on the
-// creator and joiner pre-game views.
-templ gameInfo(payload message.RoomTemplatePayload) {
-	<div class="flex flex-col items-center gap-1 rounded-md border border-line bg-panel px-4 py-3">
-		<span class="font-display text-xl font-bold text-fg">{ payload.VariantName }</span>
-		<div class="text-sm text-fg-muted">
-			<span class="font-semibold text-accent">
+// gameSummary renders the at-a-glance match details shown on both pre-game
+// views: the time control + speed group, the color this viewer plays, and the
+// (currently always casual) rating mode. PlayerColor is the viewer's color for
+// the creator and the open-seat color for the joiner (set in HandlePreGame), so
+// "You play …" reads correctly for both. colorDot is reused from the home page.
+templ gameSummary(payload message.RoomTemplatePayload) {
+	<div class="flex w-full flex-col items-center gap-2 rounded-md border border-line bg-panel px-4 py-3">
+		<div class="flex items-baseline gap-2">
+			<span class="font-mono text-2xl font-semibold tabular-nums text-fg">{ payload.Variant.Name }</span>
+			<span class="text-xs font-semibold uppercase tracking-wider text-fg-subtle">{ groupTitle(payload.Variant.Group) }</span>
+		</div>
+		<div class="flex items-center gap-1.5 text-sm text-fg-muted">
+			@colorDot(payload.PlayerColor)
+			<span>
+				You play
 				if payload.PlayerColor == "w" {
-					White
+					<span class="font-semibold text-fg">White</span>
 				} else {
-					Black
+					<span class="font-semibold text-fg">Black</span>
 				}
 			</span>
-			<span class="px-1">•</span>
+			<span class="px-1 text-fg-subtle">•</span>
 			<span>Casual</span>
 		</div>
 	</div>

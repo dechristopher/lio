@@ -2,25 +2,36 @@ package view
 
 import "github.com/dechristopher/lio/message"
 
-// roomCreator is the creator's pre-game waiting view: game info, the shareable
-// invite link, and a cancel form. It waits over the websocket for an opponent.
+// roomCreator is the creator's pre-game waiting view: a live "waiting for an
+// opponent" status, the match summary, a scannable QR code + shareable invite
+// link, and a cancel form. It waits over the websocket for an opponent.
 // lio-room-create.js wires #copyInviteButton (toggling .copied) and reads
 // #gameInviteLink, so those hooks are preserved.
 templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
-	<main class="card mt-2 w-[92vw] max-w-[22rem] text-center">
-		<h1 class="font-display text-lg font-bold text-fg">Challenge to a game</h1>
-		<div class="mt-3 flex flex-col items-center gap-3">
-			@gameInfo(payload)
+	<main class="card mt-2 w-[92vw] max-w-[24rem] text-center">
+		<div class="waiting-status">
+			<span class="waiting-dot" aria-hidden="true"></span>
+			<h1 class="font-display text-lg font-bold text-fg">Waiting for an opponent…</h1>
+		</div>
+		<p class="prose mt-1 text-sm">Your challenge is live — share it to start the game.</p>
+		<div class="mt-4 flex flex-col items-center gap-4">
+			@gameSummary(payload)
+			<div class="flex flex-col items-center gap-1.5">
+				<div class="qr-tile">
+					@inviteQR(meta.SiteURL + payload.RoomID)
+				</div>
+				<p class="text-xs text-fg-subtle">Scan to join from a phone on the same network</p>
+			</div>
 			<div class="w-full">
-				<label class="prose block text-center" for="gameInviteLink">To invite someone to play, share this URL:</label>
-				<div class="invite-row mt-2">
+				<label class="sr-only" for="gameInviteLink">Invite link</label>
+				<div class="invite-row">
 					<input type="text" id="gameInviteLink" class="invite-field" onClick="this.select();" value={ meta.SiteURL + payload.RoomID } readonly/>
 					<button type="button" id="copyInviteButton" class="btn btn-ghost copy-btn" title="Copy invite URL" aria-label="Copy invite URL">
 						@iconCopy()
 						@iconCheck()
 					</button>
 				</div>
-				<p class="prose mt-2 text-center">Anyone that comes to this URL can choose to play with you.</p>
+				<p class="prose mt-2 text-xs">Anyone who opens this link can take the open seat.</p>
 			</div>
 			<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
 				<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
@@ -30,14 +41,17 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 	</main>
 }
 
-// roomJoiner is the joining player's view: game info and a join form.
+// roomJoiner is the joining player's view: a "you've been challenged" hero, the
+// match summary (showing the open seat they would take), and a join form.
 templ roomJoiner(payload message.RoomTemplatePayload) {
-	<main class="card mt-2 w-[92vw] max-w-[22rem] text-center">
-		if payload.IsJoining {
-			<h1 class="font-display text-lg font-bold text-fg">Anonymous opponent</h1>
-		}
-		<div class="mt-3 flex flex-col items-center gap-3">
-			@gameInfo(payload)
+	<main class="card mt-2 w-[92vw] max-w-[24rem] text-center">
+		<div class="waiting-status">
+			<span class="waiting-dot" aria-hidden="true"></span>
+			<h1 class="font-display text-lg font-bold text-fg">You've been challenged</h1>
+		</div>
+		<p class="prose mt-1 text-sm">An anonymous player is waiting for an opponent.</p>
+		<div class="mt-4 flex flex-col items-center gap-4">
+			@gameSummary(payload)
 			<form class="contents" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>
 				<input type="hidden" name="join_token" value={ payload.JoinToken }/>
 				<button type="submit" class="btn btn-primary btn-block" title="Join the game">Join game</button>

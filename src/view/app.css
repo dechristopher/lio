@@ -454,12 +454,14 @@
 		cursor: pointer;
 		transition: all 150ms var(--ease-snappy);
 	}
-	.result-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+	.result-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 	.result-btn:active { transform: translateY(0); }
+	.result-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 	.result-rematch { background: var(--accent); color: var(--accent-contrast); }
-	.result-rematch:hover { background: var(--accent-hover); }
+	.result-rematch:not(:disabled):hover { background: var(--accent-hover); }
 	.result-home { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 	.result-countdown { margin-top: 0.6rem; min-height: 1em; font-size: 0.75rem; font-weight: 500; color: var(--text-subtle); }
+	.result-countdown.opponent-left { color: var(--warn); font-weight: 600; }
 
 	/* ---- shared surfaces + buttons (home, modal, pre-game) ---- */
 	.card {
@@ -690,6 +692,37 @@
 	.copy-btn.copied .icon-copy { display: none; }
 	.copy-btn.copied .icon-check { display: inline-flex; }
 
+	/* ---- pre-game waiting room (creator + joiner) ---- */
+	/* "live, listening" status: a radar-ping dot beside the heading. The pulse is
+	   the motion cue; under prefers-reduced-motion the dot simply stops pulsing
+	   (still visible) via the global animation reset. */
+	.waiting-status { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+	.waiting-dot {
+		flex: none;
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: var(--radius-full, 9999px);
+		background: var(--accent);
+		animation: waitingPulse 1.6s var(--ease-snappy) infinite;
+	}
+
+	/* QR code: a fixed light tile so the dark-on-white code stays scannable and
+	   intentional-looking in both themes (the SVG itself is not token-tinted). */
+	.qr-tile {
+		display: inline-flex;
+		padding: 0.75rem;
+		background: #ffffff;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-sm);
+	}
+	.invite-qr {
+		display: block;
+		width: 11rem;
+		height: 11rem;
+		shape-rendering: crispEdges;
+	}
+
 	/* ---- home-page TV (live games) grid ----
 	   The cards are created at runtime by lio-tv.js, so every class here is a
 	   plain component class (Tailwind tree-shakes JS-concatenated class names).
@@ -844,4 +877,9 @@
 @keyframes thinkingPulse {
 	0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
 	40% { opacity: 1; transform: scale(1); }
+}
+@keyframes waitingPulse {
+	0% { box-shadow: 0 0 0 0 var(--focus-ring); opacity: 1; }
+	70% { box-shadow: 0 0 0 0.5rem rgba(16, 185, 129, 0); opacity: 0.85; }
+	100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); opacity: 1; }
 }

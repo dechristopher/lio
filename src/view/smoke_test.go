@@ -112,6 +112,26 @@ func TestRenderRoomCreator(t *testing.T) {
 	mustContain(t, out, "/abc/cancel")
 	mustContain(t, out, "lio-room-create") // creator script
 	mustContain(t, out, `id="gameInviteLink"`)
+	mustContain(t, out, "Waiting for an opponent") // live waiting status
+	mustContain(t, out, `class="invite-qr"`)       // server-rendered QR svg
+	mustContain(t, out, "<path d=")                // QR has dark modules
+	mustContain(t, out, "You play")                // game summary
+}
+
+func TestRenderRoomJoiner(t *testing.T) {
+	p := message.RoomTemplatePayload{
+		RoomID:      "abc",
+		PlayerColor: "b", // open seat color, set by HandlePreGame
+		VariantName: "Half One blitz",
+		Variant:     variant.HalfOneBlitz,
+		IsJoining:   true,
+		JoinToken:   "tok",
+	}
+	out := renderSmoke(t, Room(RoomMeta(p), p))
+	mustContain(t, out, "/abc/join")
+	mustContain(t, out, `name="join_token"`)
+	mustContain(t, out, "You've been challenged")
+	mustContain(t, out, "Black") // open-seat color shown in the summary
 }
 
 func TestRenderAboutAndNotFound(t *testing.T) {

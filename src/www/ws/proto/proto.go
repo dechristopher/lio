@@ -22,6 +22,8 @@ const (
 	CrowdTag PayloadTag = "c"
 	// GameOverTag is the message type tag for the GameOverPayload
 	GameOverTag PayloadTag = "g"
+	// RematchUpdateTag is the message type tag for the RematchUpdatePayload
+	RematchUpdateTag PayloadTag = "ru"
 	// RoomTag is the message type tag for the RoomMessage
 	RoomTag PayloadTag = "r"
 	// RedirectTag is the message type tag for the RedirectMessage
@@ -124,6 +126,23 @@ type GameOverPayload struct {
 	// automatically starts a rematch (bot games only); drives the client
 	// countdown. Zero/absent means no auto-rematch (e.g. human-vs-human).
 	AutoRematch int `json:"ar,omitempty"`
+	// RematchWindow, when > 0, is the number of seconds the human-vs-human
+	// rematch window stays open before the room closes; drives the client
+	// countdown. Unlike AutoRematch, no new game is guaranteed — the room simply
+	// closes if both players don't agree a rematch in time. The two are mutually
+	// exclusive (a game is either bot auto-rematch or human manual-rematch).
+	RematchWindow int `json:"rw,omitempty"`
+}
+
+// RematchUpdatePayload retimes the human rematch-window countdown mid-window
+// without re-rendering the whole result overlay — e.g. when the opponent
+// disconnects and the window is shortened, or reconnects and it is restored.
+type RematchUpdatePayload struct {
+	// Seconds remaining in the (possibly shortened) rematch window.
+	Seconds int `json:"s"`
+	// OpponentLeft reports that the opponent disconnected, so a rematch is no
+	// longer possible; the client reflects this and disables its rematch action.
+	OpponentLeft bool `json:"ol,omitempty"`
 }
 
 // RoomMessage contains room state data

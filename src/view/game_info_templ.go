@@ -10,9 +10,12 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/dechristopher/lio/message"
 
-// gameInfo renders the variant / color / pool summary card shown on the
-// creator and joiner pre-game views.
-func gameInfo(payload message.RoomTemplatePayload) templ.Component {
+// gameSummary renders the at-a-glance match details shown on both pre-game
+// views: the time control + speed group, the color this viewer plays, and the
+// (currently always casual) rating mode. PlayerColor is the viewer's color for
+// the creator and the open-seat color for the joiner (set in HandlePreGame), so
+// "You play …" reads correctly for both. colorDot is reused from the home page.
+func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -33,35 +36,56 @@ func gameInfo(payload message.RoomTemplatePayload) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col items-center gap-1 rounded-md border border-line bg-panel px-4 py-3\"><span class=\"font-display text-xl font-bold text-fg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex w-full flex-col items-center gap-2 rounded-md border border-line bg-panel px-4 py-3\"><div class=\"flex items-baseline gap-2\"><span class=\"font-mono text-2xl font-semibold tabular-nums text-fg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(payload.VariantName)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(payload.Variant.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 9, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 13, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span><div class=\"text-sm text-fg-muted\"><span class=\"font-semibold text-accent\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span> <span class=\"text-xs font-semibold uppercase tracking-wider text-fg-subtle\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(groupTitle(payload.Variant.Group))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 14, Col: 114}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></div><div class=\"flex items-center gap-1.5 text-sm text-fg-muted\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = colorDot(payload.PlayerColor).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>You play ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if payload.PlayerColor == "w" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "White")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"font-semibold text-fg\">White</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Black")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span class=\"font-semibold text-fg\">Black</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span> <span class=\"px-1\">•</span> <span>Casual</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span> <span class=\"px-1 text-fg-subtle\">•</span> <span>Casual</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
+	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 // autoRematchDelay is how long a finished bot game waits before automatically
@@ -19,6 +20,20 @@ import (
 // sent to clients (GameOverPayload.AutoRematch) to drive the countdown, so it
 // must remain the single source of truth for the delay.
 const autoRematchDelay = 5 * time.Second
+
+// rematchWindow is how long a finished human-vs-human game waits for both
+// players to agree a rematch before the room closes. It is sent to clients
+// (GameOverPayload.RematchWindow) to drive the visible countdown, so it must
+// remain the single source of truth for the window.
+const rematchWindow = 30 * time.Second
+
+// rematchDisconnectGrace is the shortened rematch window applied once an
+// opponent disconnects during a human-vs-human rematch window. A rematch needs
+// both players present, so once one leaves we only briefly wait for a reconnect
+// before closing the room instead of holding the remaining player for the full
+// rematchWindow. The client is told via RematchUpdatePayload so its countdown
+// retimes and reflects that the opponent left.
+const rematchDisconnectGrace = 8 * time.Second
 
 // handleGameOver handles game finalization and rematch prompts
 func (r *Instance) handleGameOver() {
@@ -106,9 +121,58 @@ func (r *Instance) handleGameOver() {
 		}()
 	}
 
-	// 30 second timeout until rematch is unavailable
-	rematchTimeout := time.NewTimer(30 * time.Second)
+	// Rematch window: wait rematchWindow for a rematch before the room closes.
+	// fullDeadline is the original window end; deadline is the live (possibly
+	// shortened) one. Bounding shortening by fullDeadline means a flapping
+	// opponent can never extend the window past its original length.
+	fullDeadline := time.Now().Add(rematchWindow)
+	deadline := fullDeadline
+	rematchTimeout := time.NewTimer(rematchWindow)
 	defer rematchTimeout.Stop()
+
+	// resetTimeout re-arms rematchTimeout to fire at the given deadline, draining
+	// any pending fire first (the reset-without-drain hazard).
+	resetTimeout := func(at time.Time) {
+		if !rematchTimeout.Stop() {
+			select {
+			case <-rematchTimeout.C:
+			default:
+			}
+		}
+		d := time.Until(at)
+		if d < 0 {
+			d = 0
+		}
+		rematchTimeout.Reset(d)
+	}
+
+	// In human-vs-human games we watch player presence so the window can be
+	// shortened the moment an opponent leaves (a rematch needs both players, so
+	// there is no point holding the remaining player for the full window). Bot
+	// games keep the fixed window: the auto-rematch goroutine above already
+	// handles a disconnected human by deferring until they return. A nil channel
+	// never fires in select, so the bot path simply skips this arm.
+	var connectionListener channel.Listener
+	if !r.HasBot() {
+		connectionListener = channel.Map.GetSockMap(r.ID).Listen()
+		defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
+	}
+	// shortened guards against re-broadcasting / re-shortening on every presence
+	// signal; we only act on the connected<->disconnected transition.
+	shortened := false
+
+	// broadcastRematchUpdate tells the remaining clients the window retimed (and
+	// whether the opponent left), so their countdown follows the server.
+	broadcastRematchUpdate := func(opponentLeft bool) {
+		secs := int(time.Until(deadline).Round(time.Second).Seconds())
+		if secs < 0 {
+			secs = 0
+		}
+		proto.RematchUpdatePayload{
+			Seconds:      secs,
+			OpponentLeft: opponentLeft,
+		}.Broadcast(channel.SocketContext{Channel: r.ID, MT: 1})
+	}
 
 	for {
 		select {
@@ -120,6 +184,28 @@ func (r *Instance) handleGameOver() {
 				panic(err)
 			}
 			return
+		// a player's presence changed: shorten the window when an opponent
+		// leaves, restore it (bounded by the original deadline) if they return
+		case <-connectionListener:
+			bothConnected := r.bothPlayersConnected()
+			switch {
+			case !bothConnected && !shortened:
+				shortened = true
+				deadline = time.Now().Add(rematchDisconnectGrace)
+				if deadline.After(fullDeadline) {
+					deadline = fullDeadline
+				}
+				util.DebugFlag("room", str.CRoom, "[%s] opponent left, shortening rematch window", r.ID)
+				resetTimeout(deadline)
+				broadcastRematchUpdate(true)
+			case bothConnected && shortened:
+				shortened = false
+				deadline = fullDeadline
+				util.DebugFlag("room", str.CRoom, "[%s] opponent returned, restoring rematch window", r.ID)
+				resetTimeout(deadline)
+				broadcastRematchUpdate(false)
+			}
+			continue
 		case control := <-r.controlChannel:
 			if control.Type != message.Rematch {
 				continue

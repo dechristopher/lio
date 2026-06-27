@@ -372,11 +372,24 @@ func (r *Instance) HandlePreGame(uid string, payload *message.RoomTemplatePayloa
 		if payload.IsCreator {
 			payload.CancelToken = r.CancelToken()
 		}
-		// set new join token in payload
+		// set new join token in payload, and report the open seat as the
+		// joiner's color (the joiner is not yet in the players map, so
+		// GenTemplatePayload's Lookup leaves PlayerColor as NoColor).
 		if payload.IsJoining {
 			payload.JoinToken = r.NewJoinToken()
+			payload.PlayerColor = r.OpenSeatColor().String()
 		}
 	}
+}
+
+// OpenSeatColor returns the color of the still-open seat in a waiting room — the
+// color a joiner would take. It is NoColor once both seats are filled (or for a
+// bot room). Locks stateMu (reads players); mirrors hasOpenSeat.
+func (r *Instance) OpenSeatColor() octad.Color {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	_, missing := r.players.HasTwoPlayers()
+	return missing
 }
 
 // Cancel will cancel the room if not past waiting for players state.
@@ -1210,21 +1223,29 @@ func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 	}
 
 	// a bot game will auto-rematch after a fixed delay; tell the client so it
-	// can show a countdown. Human-vs-human games wait for a manual rematch.
+	// can show a countdown. A human-vs-human game instead holds a rematch window
+	// (manual rematch); send its length so the client can count down to the room
+	// closing. The two are mutually exclusive and only apply to a live finish.
 	autoRematch := 0
-	if !abandoned && r.players.HasBot() {
-		autoRematch = int(autoRematchDelay.Seconds())
+	rematchWin := 0
+	if !abandoned {
+		if r.players.HasBot() {
+			autoRematch = int(autoRematchDelay.Seconds())
+		} else {
+			rematchWin = int(rematchWindow.Seconds())
+		}
 	}
 
 	gameOver := proto.GameOverPayload{
-		Winner:      getWinnerString(id),
-		StatusID:    id,
-		Status:      status,
-		Reason:      r.gameOverReasonLocked(abandoned),
-		Clock:       r.currentClockLocked(),
-		Score:       r.players.ScoreMap(),
-		RoomOver:    abandoned,
-		AutoRematch: autoRematch,
+		Winner:        getWinnerString(id),
+		StatusID:      id,
+		Status:        status,
+		Reason:        r.gameOverReasonLocked(abandoned),
+		Clock:         r.currentClockLocked(),
+		Score:         r.players.ScoreMap(),
+		RoomOver:      abandoned,
+		AutoRematch:   autoRematch,
+		RematchWindow: rematchWin,
 	}
 
 	return gameOver.Marshal()

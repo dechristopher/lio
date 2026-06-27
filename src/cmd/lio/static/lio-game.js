@@ -16,6 +16,7 @@ const maxReconcileAttempts = 3;
 
 const moveTag = "m";
 const gameOverTag = "g";
+const rematchUpdateTag = "ru";
 
 window.addEventListener('load', () => {
 	if (window.ws) {
@@ -232,6 +233,13 @@ const rematchBtn = document.getElementById('result-rematch');
 const homeBtn = document.getElementById('result-home');
 let playerWhite = false;
 let countdownInterval = null;
+// live countdown state, shared so the rematch click and the 'ru' update can
+// relabel/retime the running countdown without losing the remaining seconds
+let countdownRemaining = 0;
+let countdownRender = null;
+// human rematch-window state, reset on each new game over (see showResult)
+let rematchRequested = false; // this client has clicked Rematch
+let opponentLeft = false;     // the opponent disconnected during the window
 
 // backend reason codes -> human-readable method subtitles
 const resultReasons = {
@@ -247,46 +255,84 @@ const resultReasons = {
 };
 
 /**
- * Stop and clear the auto-rematch countdown.
+ * Stop and clear the result-overlay countdown.
  */
 const stopCountdown = () => {
 	if (countdownInterval !== null) {
 		clearInterval(countdownInterval);
 		countdownInterval = null;
 	}
+	countdownRemaining = 0;
+	countdownRender = null;
 	if (resultCountdownEl) {
 		resultCountdownEl.innerHTML = '';
+		resultCountdownEl.classList.remove('opponent-left');
 	}
 };
 
 /**
- * Start the auto-rematch countdown shown under the result actions. Bot games
- * auto-rematch after a fixed delay; this ticks it down so the player sees how
- * long they have to decide. The new-game broadcast clears it via hideResult.
- * @param seconds - whole seconds until the auto-rematch fires
+ * Start a one-per-second countdown under the result actions. renderFn(remaining)
+ * returns the HTML for the current state; it is re-read every tick (and via
+ * refreshCountdownLabel) so a state change mid-window relabels in place. The
+ * new-game / room-over broadcast clears it via hideResult / stopCountdown.
+ * @param seconds - whole seconds to count down from
+ * @param renderFn - (remaining) => html string
  */
-const startAutoRematchCountdown = (seconds) => {
+const startCountdown = (seconds, renderFn) => {
 	stopCountdown();
 	if (!resultCountdownEl || !seconds || seconds <= 0) {
 		return;
 	}
 
-	let remaining = seconds;
-	const render = () => {
-		resultCountdownEl.innerHTML = remaining > 0
-			? `New game in ${remaining}&hellip;`
-			: 'Starting new game&hellip;';
+	countdownRemaining = seconds;
+	countdownRender = renderFn;
+	const tick = () => {
+		resultCountdownEl.innerHTML = countdownRender(countdownRemaining);
 	};
-	render();
+	tick();
 
 	countdownInterval = setInterval(() => {
-		remaining -= 1;
-		render();
-		if (remaining <= 0) {
+		countdownRemaining -= 1;
+		tick();
+		if (countdownRemaining <= 0) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
 		}
 	}, 1000);
+};
+
+/**
+ * Re-render the running countdown immediately with its current remaining time,
+ * e.g. after rematchRequested / opponentLeft changed mid-window.
+ */
+const refreshCountdownLabel = () => {
+	if (countdownInterval !== null && countdownRender && resultCountdownEl) {
+		resultCountdownEl.innerHTML = countdownRender(countdownRemaining);
+	}
+};
+
+/**
+ * Countdown label for bot games: the room auto-starts the next game.
+ */
+const botRematchLabel = (remaining) => remaining > 0
+	? `New game in ${remaining}&hellip;`
+	: 'Starting new game&hellip;';
+
+/**
+ * Countdown label for human games: the room closes when the window lapses
+ * unless both players agree a rematch. Copy follows the rematch state.
+ */
+const rematchWindowLabel = (remaining) => {
+	if (remaining <= 0) {
+		return 'Closing&hellip;';
+	}
+	if (opponentLeft) {
+		return `Opponent left &middot; ${remaining}s`;
+	}
+	if (rematchRequested) {
+		return `Waiting for opponent &middot; ${remaining}s`;
+	}
+	return `Rematch &middot; ${remaining}s`;
 };
 
 /**
@@ -300,6 +346,8 @@ const hideResult = () => {
 		rematchBtn.disabled = false;
 		rematchBtn.innerHTML = 'Rematch';
 	}
+	rematchRequested = false;
+	opponentLeft = false;
 	stopCountdown();
 };
 
@@ -310,6 +358,15 @@ const hideResult = () => {
 const showResult = (message) => {
 	if (!resultOverlayEl) {
 		return;
+	}
+
+	// a fresh game-over: clear any human rematch-window state carried over from
+	// a previous game in this room, and re-enable the rematch action
+	rematchRequested = false;
+	opponentLeft = false;
+	if (rematchBtn) {
+		rematchBtn.disabled = false;
+		rematchBtn.innerHTML = 'Rematch';
 	}
 
 	const winner = message.d.w; // "w", "b", or "d"
@@ -351,9 +408,16 @@ const showResult = (message) => {
 		resultScoreEl.innerHTML = '';
 	}
 
-	// bot games auto-rematch; show the countdown so the player can leave or
-	// rematch before the next game starts
-	startAutoRematchCountdown(message.d.ar);
+	// show the appropriate countdown: bot games auto-start the next game (ar),
+	// human games tick the manual-rematch window (rw) down to the room closing.
+	// The two are mutually exclusive; a room-over notice carries neither.
+	if (message.d.ar) {
+		startCountdown(message.d.ar, botRematchLabel);
+	} else if (message.d.rw) {
+		startCountdown(message.d.rw, rematchWindowLabel);
+	} else {
+		stopCountdown();
+	}
 
 	resultOverlayEl.classList.add('result-show');
 };
@@ -362,11 +426,13 @@ const showResult = (message) => {
 if (rematchBtn) {
 	rematchBtn.addEventListener('click', () => {
 		send(buildCommand("r", {rm: true}));
-		// leave the overlay up until the rematch actually starts, but signal
-		// that the request was sent and stop any auto-rematch countdown
+		// leave the overlay up until the rematch actually starts; mark the
+		// request sent and reflect it in the still-running countdown (human
+		// games relabel to "Waiting for opponent"; bot games keep their own).
 		rematchBtn.disabled = true;
 		rematchBtn.innerHTML = 'Waiting&hellip;';
-		stopCountdown();
+		rematchRequested = true;
+		refreshCountdownLabel();
 	});
 }
 if (homeBtn) {
@@ -847,6 +913,42 @@ const getCookie = (cname) => {
 	return "";
 };
 
+/**
+ * Handle a rematch-window update: the server retimed the human rematch window
+ * mid-window — e.g. the opponent disconnected and it was shortened, or they
+ * returned and it was restored. Retime the countdown in place; once the
+ * opponent has left a rematch is impossible, so disable the action.
+ * @param message - rematch update message
+ */
+const handleRematchUpdate = (message) => {
+	// only meaningful while the result overlay is showing a live window
+	if (!resultOverlayEl || !resultOverlayEl.classList.contains('result-show')) {
+		return;
+	}
+
+	opponentLeft = !!message.d.ol;
+	if (rematchBtn) {
+		if (opponentLeft) {
+			// a rematch needs both players; once the opponent leaves it can't happen
+			rematchBtn.disabled = true;
+			rematchBtn.innerHTML = 'Rematch';
+		} else {
+			// opponent returned within the grace: offer the rematch afresh
+			rematchBtn.disabled = false;
+			rematchBtn.innerHTML = 'Rematch';
+			rematchRequested = false;
+		}
+	}
+
+	// startCountdown resets the countdown element; (re)apply the amber
+	// opponent-left highlight afterwards so it reflects the current state
+	startCountdown(message.d.s, rematchWindowLabel);
+	if (resultCountdownEl) {
+		resultCountdownEl.classList.toggle('opponent-left', opponentLeft);
+	}
+};
+
 // Set handlers for game messages
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
+window.handlers.set(rematchUpdateTag, handleRematchUpdate);

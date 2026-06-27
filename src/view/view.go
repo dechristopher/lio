@@ -93,6 +93,12 @@ func IsHTMXFragment(c *fiber.Ctx) bool {
 		c.Get("HX-History-Restore-Request") != "true"
 }
 
+// groupTitle title-cases a variant speed group ("blitz" → "Blitz") for display
+// in the pre-game summary.
+func groupTitle(g variant.Group) string {
+	return cases.Title(language.English).String(g.String())
+}
+
 // sortedPools flattens the rating pools into a single slice in sorted map-key
 // order. The old html/template engine ranged over the pools map in sorted key
 // order, and the keys are number-prefixed ("0bullet", "1blitz", "2rapid") so
