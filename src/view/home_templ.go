@@ -375,7 +375,7 @@ func homeNews() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = newsItem("Play the engine", "2026", "Test your ideas against the built-in Octad engine any time — pick \"vs Computer\" above.").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = newsItem("Play the engine", "2026", "Test your ideas against the built-in Octad engine any time: pick \"vs Computer\" above.").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
