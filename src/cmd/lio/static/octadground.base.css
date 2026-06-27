@@ -54,33 +54,30 @@
 .promo {
   z-index: 11;
   position: absolute;
-}
-
-.promo.fa {
-  padding-left: 0;
-}
-
-.promo.fb {
-  padding-left: 25%;
-}
-
-.promo.fc {
-  padding-left: 50%;
-}
-
-.promo.fd {
-  padding-left: 75%;
+  /* Fill the board square so the pieces below size against a *definite* box.
+     A shrink-to-fit .promo (the previous `position: absolute` with no size)
+     makes the `100%` term inside --bs's min() resolve to ~0, so each piece
+     collapsed to calc(0/4 - 7px) ≈ a few px — the "promotion dots" bug. With
+     inset:0 the 25% piece cells resolve against the real board width. */
+  inset: 0;
 }
 
 .promo.hidden {
   display: none;
 }
 
+/* file column for the four choices (lio-game.js adds f<dest-file>) */
+.promo.fa piece { left: 0; }
+.promo.fb piece { left: 25%; }
+.promo.fc piece { left: 50%; }
+.promo.fd piece { left: 75%; }
+
 .promo piece {
-  display: block;
-  position: relative;
-  width: calc(var(--bs, 320px) / 4 - 7px);
-  height: calc(var(--bs, 320px) / 4 - 7px);
+  position: absolute;
+  /* one board square per choice (25% of the board), inset a touch for a gap */
+  width: calc(25% - 6px);
+  height: calc(25% - 6px);
+  margin: 3px;
   background-color: var(--surface-3, #b7b7a3);
   background-size: contain;
   background-repeat: no-repeat;
@@ -91,8 +88,14 @@
   box-sizing: border-box;
   border: 2px solid var(--border-strong, black);
   border-radius: 6px;
-  margin: 3px 4px 6px 3px;
+  cursor: pointer;
 }
+
+/* stack the four choices down the chosen file */
+.promo piece:nth-of-type(1) { top: 0; }
+.promo piece:nth-of-type(2) { top: 25%; }
+.promo piece:nth-of-type(3) { top: 50%; }
+.promo piece:nth-of-type(4) { top: 75%; }
 
 .promo piece:hover {
   background-color: var(--accent, #a5b0b8);
