@@ -287,7 +287,7 @@ func accountModal() templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"modalAccount\" class=\"modal-shade\"><div class=\"modal card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">×</button><h2>Accounts are coming</h2><p class=\"prose text-center text-sm\">Octad is playable right now with no sign-up — just pick a game above. Accounts, ratings and saved preferences are on the way.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"modalAccount\" class=\"modal-shade\"><div class=\"modal card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">×</button><h2>Accounts are coming</h2><p class=\"prose text-center text-sm\">Octad is playable right now with no sign-up. Accounts, ratings and saved preferences are on the way.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
