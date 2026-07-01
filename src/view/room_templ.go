@@ -162,7 +162,7 @@ func roomGame(payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = board(payload.PlayerColor).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = board(payload.PlayerColor, botRematchURL(payload)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -174,7 +174,7 @@ func roomGame(payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><aside class=\"ga-rail\"><div class=\"rail-stack\"><div class=\"rail-card flex flex-1 flex-col\"><span class=\"rail-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><aside class=\"ga-rail\"><div class=\"rail-stack\"><div class=\"rail-card moves-panel flex flex-1 flex-col\"><span class=\"rail-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -187,7 +187,7 @@ func roomGame(payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " · Casual</span><div class=\"moves-placeholder\">Move history coming soon</div></div><div class=\"controls\"><button type=\"button\" class=\"ctrl-btn\" disabled title=\"Resign — coming soon\">⚑ Resign</button> <button type=\"button\" class=\"ctrl-btn\" disabled title=\"Offer draw — coming soon\">½ Draw</button></div></div></aside><div class=\"ga-info\"><div class=\"info-bar\"><span id=\"info\"></span> <span><span id=\"crowd\">0</span> connected</span> <span>(<span id=\"lat\">0</span><span class=\"unit\">ms</span>)</span></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " · Casual</span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div></div><div class=\"controls\"><button type=\"button\" class=\"ctrl-btn\" disabled title=\"Resign — coming soon\">⚑ Resign</button> <button type=\"button\" class=\"ctrl-btn\" disabled title=\"Offer draw — coming soon\">½ Draw</button></div></div></aside><div class=\"ga-info\"><div class=\"info-bar\"><span id=\"info\"></span> <span><span id=\"crowd\">0</span> connected</span> <span>(<span id=\"lat\">0</span><span class=\"unit\">ms</span>)</span></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

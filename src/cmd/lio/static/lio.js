@@ -123,6 +123,22 @@ const disconnect = (reason) => {
 }
 
 /**
+ * Stop auto-reconnecting for this page. Used when the room this page is bound to
+ * is intentionally gone — e.g. a finished bot room torn down after its analysis
+ * window while the player stays to review the game locally. Marks the connection
+ * closed so onclose won't reconnect, and reflects "offline" in the indicator.
+ */
+window.lioStopReconnect = () => {
+	disconnected = true;
+	if (window.ws) {
+		try { window.ws.close(1000, "room closed"); } catch (e) { /* already closing */ }
+	}
+	if (window.lioConn) {
+		window.lioConn.set("offline");
+	}
+};
+
+/**
  * Reconnect to the backend using capped exponential backoff with full jitter.
  * The delay is a random value in [0, min(cap, base * 2^attempts)], which spreads
  * reconnect attempts out so a server restart doesn't get hammered in lockstep.

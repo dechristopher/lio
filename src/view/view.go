@@ -97,3 +97,19 @@ func IsHTMXFragment(c *fiber.Ctx) bool {
 func groupTitle(g variant.Group) string {
 	return cases.Title(language.English).String(g.String())
 }
+
+// botRematchURL builds the "same settings" rematch link for a bot game: a fresh
+// vs-computer room with the same variant/time-control and the player's side. Bot
+// rematch does not reuse the finished room (which is torn down after the analysis
+// window), so the client navigates here instead — see NewRoomVsComputer. Returns
+// "" for a human game, where rematch stays the in-room agreement flow.
+func botRematchURL(payload message.RoomTemplatePayload) string {
+	if !payload.OpponentIsBot {
+		return ""
+	}
+	color := "w"
+	if payload.PlayerColor == "black" {
+		color = "b"
+	}
+	return "/new/computer?tc=" + payload.Variant.HTMLName + "&color=" + color
+}

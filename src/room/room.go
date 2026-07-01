@@ -97,9 +97,9 @@ type Instance struct {
 	// stateMu guards the mutable game-state fields that are touched by more
 	// than one goroutine: game (both the pointer, which is swapped on rematch,
 	// and the octad.Game it points at), players (populated by Join from an HTTP
-	// goroutine), rematch (written by the auto-rematch goroutine), and humanMoved
-	// (set by the room routine in makeMove, read by the auto-rematch goroutine).
-	// The room routine is the sole writer of game contents, but HTTP/WS handler
+	// goroutine), rematch (recorded in the game-over handler), and humanMoved
+	// (set by the room routine in makeMove). The room routine is the sole writer
+	// of game contents, but HTTP/WS handler
 	// goroutines read them (CurrentGameStateMessage, IsReady, GenTemplatePayload,
 	// ...) and Join writes players, so every access must be synchronized.
 	//
@@ -123,9 +123,9 @@ type Instance struct {
 	// set true on the first human move. It is the engagement signal that
 	// distinguishes a player who is actually playing from one whose socket is
 	// merely still connected (an idle/backgrounded tab, or someone who wandered
-	// off to watch the home-page TV): a bot game the human never moved in is not
-	// auto-rematched, and is abandoned rather than left to flag. Guarded by
-	// stateMu (set by the room routine, read by the auto-rematch goroutine).
+	// off to watch the home-page TV): a bot game the human never moved in is
+	// abandoned rather than left to flag. Guarded by stateMu (set by the room
+	// routine, read by the abandon detection and the game-over handler).
 	humanMoved bool
 
 	// deployDeadline is when the current blind deploy window closes. It is set
@@ -134,12 +134,12 @@ type Instance struct {
 	// the deploy phase. Guarded by stateMu.
 	deployDeadline time.Time
 
-	// rematchDeadline is when the current game-over rematch window closes: the
-	// bot auto-rematch delay, or the human-vs-human rematch window (retimed when
-	// the window is shortened/restored on an opponent leaving/returning). It is
+	// rematchDeadline is when the current human-vs-human rematch window closes
+	// (retimed when shortened/restored on an opponent leaving/returning). It is
 	// set when handleGameOver begins and read by GameOverStateMessage so a
 	// (re)connecting client re-enters the result overlay with an accurate
-	// remaining countdown instead of resuming a finished game. Guarded by stateMu.
+	// remaining countdown instead of resuming a finished game. Zero for bot games,
+	// which are not time-boxed (the finished room stays open). Guarded by stateMu.
 	rematchDeadline time.Time
 
 	// deployed holds each side's committed blind arrangement during the deploy
@@ -224,9 +224,8 @@ func Create(params Params) (*Instance, error) {
 		stateChannel: make(chan State, 1),
 		moveChannel:  make(chan *message.RoomMove),
 		// buffered for 2 so two near-simultaneous rematch requests (both human
-		// players, or the bot auto-rematch plus a human click) can never drop a
-		// non-blocking send; each rematch button disables after one click, so
-		// no single client floods it
+		// players) can never drop a non-blocking send; each rematch button
+		// disables after one click, so no single client floods it
 		controlChannel: make(chan message.RoomControl, 2),
 
 		// buffered for 2 so each of the two human players' single blind-deploy
@@ -646,8 +645,8 @@ func (r *Instance) bothPlayersConnected() bool {
 // humanMovedThisGame reports whether the human has made at least one move in the
 // current game. It is the engagement check that complements bothPlayersConnected:
 // a socket can stay connected (an idle/backgrounded tab) without the player
-// actually playing, so presence alone is not enough to justify auto-rematching a
-// bot game.
+// actually playing, so presence alone is not enough to tell an engaged player
+// from an idle one.
 func (r *Instance) humanMovedThisGame() bool {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
@@ -731,8 +730,8 @@ func (r *Instance) SubmitDeploy(deploy *message.RoomDeploy) {
 // player. It is called from the WS read loop, so it validates that the request
 // comes from a seated player while the game is over, and never blocks the
 // caller: if the control buffer is full it drops the request (the player can
-// click again, and bot games auto-rematch regardless). The game-over handler
-// applies the agreement (and auto-agrees a bot opponent).
+// click again). The game-over handler applies the agreement (and auto-agrees a
+// bot opponent, so a human's single click restarts a bot game).
 func (r *Instance) RequestRematch(meta channel.SocketContext) {
 	// A rematch is meaningful once the finishing game is decided. That is
 	// normally the StateGameOver window — the only window handleGameOver is
@@ -832,26 +831,20 @@ func (r *Instance) GameOverStateMessage() []byte {
 		return nil
 	}
 
-	// remaining time in the rematch window, clamped at zero; a lapsed or unset
-	// deadline reads as no countdown (the room is about to close or start the
-	// next game). handleGameOver keeps rematchDeadline current, shortening it
-	// when an opponent leaves.
-	remaining := 0
-	if !r.rematchDeadline.IsZero() {
-		remaining = int(time.Until(r.rematchDeadline).Round(time.Second).Seconds())
-		if remaining < 0 {
-			remaining = 0
+	// remaining time in the human rematch window, clamped at zero; a lapsed or
+	// unset deadline reads as no countdown (the room is about to close or start
+	// the next game). handleGameOver keeps rematchDeadline current, shortening it
+	// when an opponent leaves. Bot games have no rematch deadline (the room stays
+	// open until the player leaves), so they carry no countdown.
+	rematchWin := 0
+	if !r.players.HasBot() && !r.rematchDeadline.IsZero() {
+		rematchWin = int(time.Until(r.rematchDeadline).Round(time.Second).Seconds())
+		if rematchWin < 0 {
+			rematchWin = 0
 		}
 	}
 
-	autoRematch, rematchWin := 0, 0
-	if r.players.HasBot() {
-		autoRematch = remaining
-	} else {
-		rematchWin = remaining
-	}
-
-	return r.buildGameOverMessageLocked(false, autoRematch, rematchWin)
+	return r.buildGameOverMessageLocked(false, rematchWin)
 }
 
 // currentGameStateMessageLocked builds the current board-state payload. The
@@ -863,6 +856,8 @@ func (r *Instance) currentGameStateMessageLocked(addLast bool, gameStart bool) [
 		MoveNum:   len(r.game.Moves()) / 2,
 		Check:     r.game.Position().InCheck(),
 		Moves:     r.game.MoveHistory(),
+		SANs:      r.game.SANHistory(),
+		OFENs:     r.game.OFENHistory(),
 		Latency:   clock.ToCTime(0),
 		White:     r.players[octad.White].ID,
 		Black:     r.players[octad.Black].ID,
@@ -970,9 +965,9 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		return false
 	}
 
-	// record that the human engaged this game (gates bot-game auto-rematch and
-	// idle-abandon). Engine moves don't count — only a real human move signals
-	// the player is actually present and playing.
+	// record that the human engaged this game (gates idle-abandon). Engine moves
+	// don't count — only a real human move signals the player is actually present
+	// and playing.
 	if move.Ctx.IsHuman() {
 		r.humanMoved = true
 	}
@@ -1192,12 +1187,14 @@ func (r *Instance) updateScoreLocked() {
 	}
 }
 
-// storeGame puts the game in object storage for archival purposes
-// and also tracks it in the game database
-func storeGame(g game.OctadGame) {
-	// get parts for Result field
-	pgn := g.Game.String()
-	parts := strings.Split(pgn, " ")
+// buildArchivePGN assembles the archival PGN for a finished game: the standard
+// tag-pair roster plus, for games that don't begin from the standard octad start
+// (deploy-mode games start from a rearranged home rank), a SetUp/FEN tag pair
+// carrying the starting OFEN so the game can be replayed from the correct
+// initial position for analysis and database import.
+func buildArchivePGN(g game.OctadGame) string {
+	// the Result token is the last space-delimited field of the movetext
+	parts := strings.Split(g.Game.String(), " ")
 
 	// get game state message for Reason field
 	_, state := genGameOverState(&g)
@@ -1214,7 +1211,26 @@ func storeGame(g game.OctadGame) {
 	g.Game.AddTagPair("Reason", state)
 	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
 
-	pgn = g.Game.String()
+	// record a non-standard starting position (e.g. a deploy-mode game) as a
+	// SetUp/FEN tag pair so the movetext replays from the correct initial OFEN.
+	// The value is octad's OFEN, but the tag key must be the PGN-standard "FEN":
+	// that's the only key octad's own PGN decoder (and database Scanner) reads to
+	// seed a custom start — an "OFEN" key is silently ignored and the game would
+	// re-import from the standard position. See TestBuildArchivePGNDeployStart.
+	if start, serr := octad.StartingPosition(); serr == nil {
+		if startOFEN := g.Game.Positions()[0].String(); startOFEN != start.String() {
+			g.Game.AddTagPair("SetUp", "1")
+			g.Game.AddTagPair("FEN", startOFEN)
+		}
+	}
+
+	return g.Game.String()
+}
+
+// storeGame puts the game in object storage for archival purposes
+// and also tracks it in the game database
+func storeGame(g game.OctadGame) {
+	pgn := buildArchivePGN(g)
 
 	util.DebugFlag("pgn", "PGN", "%s", pgn)
 
@@ -1396,35 +1412,28 @@ func genBlackWinState(g *game.OctadGame) (int, string) {
 	return -1, ""
 }
 
-// gameOverMessageLocked builds the live-finish game over payload: the rematch
-// countdown carries the full window (the auto-rematch delay or the human rematch
-// window), since the game has just ended. GameOverStateMessage builds the
+// gameOverMessageLocked builds the live-finish game over payload. A
+// human-vs-human game holds a manual rematch window; send its full length so the
+// client can count down to the room closing. Bot games are neither
+// auto-rematched nor time-boxed (the finished room stays open for review and
+// manual rematch), so they carry no countdown. GameOverStateMessage builds the
 // equivalent payload with the remaining window for a (re)connecting client. The
 // caller must hold stateMu (it reads the game, clock, and players).
 func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
-	// a bot game will auto-rematch after a fixed delay; tell the client so it
-	// can show a countdown. A human-vs-human game instead holds a rematch window
-	// (manual rematch); send its length so the client can count down to the room
-	// closing. The two are mutually exclusive and only apply to a live finish.
-	autoRematch := 0
 	rematchWin := 0
-	if !abandoned {
-		if r.players.HasBot() {
-			autoRematch = int(autoRematchDelay.Seconds())
-		} else {
-			rematchWin = int(rematchWindow.Seconds())
-		}
+	if !abandoned && !r.players.HasBot() {
+		rematchWin = int(rematchWindow.Seconds())
 	}
 
-	return r.buildGameOverMessageLocked(abandoned, autoRematch, rematchWin)
+	return r.buildGameOverMessageLocked(abandoned, rematchWin)
 }
 
-// buildGameOverMessageLocked assembles the game over payload with explicit
-// rematch countdown values (autoRematch for bot games, rematchWin for human
-// games; the two are mutually exclusive). Callers set the full window on a live
-// finish and the remaining window for a (re)connecting client. The caller must
-// hold stateMu (it reads the game, clock, and players).
-func (r *Instance) buildGameOverMessageLocked(abandoned bool, autoRematch, rematchWin int) []byte {
+// buildGameOverMessageLocked assembles the game over payload with the human
+// rematch-window countdown (rematchWin; zero for bot games, which are neither
+// auto-rematched nor time-boxed). Callers set the full window on a live finish
+// and the remaining window for a (re)connecting client. The caller must hold
+// stateMu (it reads the game, clock, and players).
+func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int) []byte {
 	var id int
 	var status string
 
@@ -1443,7 +1452,6 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, autoRematch, remat
 		Clock:         r.currentClockLocked(),
 		Score:         r.players.ScoreMap(),
 		RoomOver:      abandoned,
-		AutoRematch:   autoRematch,
 		RematchWindow: rematchWin,
 	}
 

@@ -50,7 +50,7 @@ func (r *Instance) handleGameReady() {
 	// When the bot plays White it owns the first move, so nothing forces a human
 	// action before an engine search is dispatched. Gate that search on the human
 	// opponent being connected so we never burn a search for a game nobody is
-	// watching (e.g. the player closed the tab during the auto-rematch window).
+	// watching (e.g. the player left before the new game began).
 	// Human-as-White games request the engine move from makeMove instead, after a
 	// real human move, so they need no gating here. The flag keeps this to a
 	// single dispatch despite the primed listener and repeated connection events.

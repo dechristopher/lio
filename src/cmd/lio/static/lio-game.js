@@ -14,6 +14,24 @@ let lastPly = 0;          // ply of the latest authoritative state we applied
 const ackTimeoutMs = 2500;
 const maxReconcileAttempts = 3;
 
+// Move-list / review-navigation state. The server sends the full per-ply history
+// (UOI + SAN + OFEN) on every board message, so the client can render the board
+// at any past ply without an octad rules engine of its own. viewPly is the ply
+// currently shown on the board; currentPly is the authoritative live tip. While
+// followingLive is true the board tracks new moves as they arrive; while
+// reviewing an earlier ply it stays put and only the move list grows.
+// lastLiveMessage caches the most recent live board-state so returning to the
+// tip can restore full interactivity (dests, turn, orientation).
+let history = { uois: [], sans: [], ofens: [] };
+let currentPly = 0;
+let viewPly = 0;
+let followingLive = true;
+let lastLiveMessage = null;
+// gameOver tracks whether the current game has ended, so returning to the live
+// tip after review never re-enables dragging on a finished game (a resignation
+// or timeout can leave a position that still has legal moves).
+let gameOver = false;
+
 const moveTag = "m";
 const gameOverTag = "g";
 const rematchUpdateTag = "ru";
@@ -330,13 +348,6 @@ const refreshCountdownLabel = () => {
 };
 
 /**
- * Countdown label for bot games: the room auto-starts the next game.
- */
-const botRematchLabel = (remaining) => remaining > 0
-	? `New game in ${remaining}&hellip;`
-	: 'Starting new game&hellip;';
-
-/**
  * Countdown label for human games: the room closes when the window lapses
  * unless both players agree a rematch. Copy follows the rematch state.
  */
@@ -390,6 +401,12 @@ const stopRematchResync = () => {
 const hideResult = () => {
 	if (resultOverlayEl) {
 		resultOverlayEl.classList.remove('result-show');
+		// clear any "dismissed for analysis" state so the next game's overlay is clean
+		resultOverlayEl.classList.remove('result-dismissed');
+	}
+	const restoreBtn = document.getElementById('result-restore');
+	if (restoreBtn) {
+		restoreBtn.classList.add('hidden');
 	}
 	if (rematchBtn) {
 		rematchBtn.disabled = false;
@@ -489,12 +506,10 @@ const showResult = (message) => {
 		resultScoreEl.innerHTML = '';
 	}
 
-	// show the appropriate countdown: bot games auto-start the next game (ar),
-	// human games tick the manual-rematch window (rw) down to the room closing.
-	// The two are mutually exclusive; a room-over notice carries neither.
-	if (message.d.ar) {
-		startCountdown(message.d.ar, botRematchLabel);
-	} else if (message.d.rw) {
+	// human games tick the manual-rematch window (rw) down to the room closing;
+	// bot games are not time-boxed and carry no countdown (the finished room stays
+	// open for review + manual rematch), so a missing rw just clears the countdown.
+	if (message.d.rw) {
 		startCountdown(message.d.rw, rematchWindowLabel);
 	} else {
 		stopCountdown();
@@ -506,10 +521,22 @@ const showResult = (message) => {
 // wire result overlay actions once; the new-game broadcast clears the overlay
 if (rematchBtn) {
 	rematchBtn.addEventListener('click', () => {
+		// Bot rematch spins up a fresh room with the same settings and redirects
+		// there, rather than reusing this finished room (which is torn down after
+		// its analysis window). This is robust: it works whether or not the old
+		// room still exists, so it never "breaks" under an analyzer's feet.
+		if (opponentIsBot) {
+			const url = rematchBtn.dataset.rematchUrl;
+			if (url) {
+				window.location.href = url;
+			}
+			return;
+		}
+		// human rematch: in-room agreement flow
 		send(buildCommand("r", {rm: true}));
 		// leave the overlay up until the rematch actually starts; mark the
 		// request sent and reflect it in the still-running countdown (human
-		// games relabel to "Waiting for opponent"; bot games keep their own).
+		// games relabel to "Waiting for opponent").
 		rematchBtn.disabled = true;
 		rematchBtn.innerHTML = 'Waiting&hellip;';
 		rematchRequested = true;
@@ -524,6 +551,31 @@ if (rematchBtn) {
 if (homeBtn) {
 	homeBtn.addEventListener('click', () => {
 		window.location.href = "/";
+	});
+}
+
+// "Analyze board" dismisses the result card (without tearing down its state, so
+// the rematch window / countdown keep running and Rematch stays reachable) and
+// exposes a small floating button to bring the card back. This lets a player
+// step through the finished game with the board unobstructed.
+const analyzeBtn = document.getElementById('result-analyze');
+const restoreResultBtn = document.getElementById('result-restore');
+if (analyzeBtn) {
+	analyzeBtn.addEventListener('click', () => {
+		if (resultOverlayEl) {
+			resultOverlayEl.classList.add('result-dismissed');
+		}
+		if (restoreResultBtn) {
+			restoreResultBtn.classList.remove('hidden');
+		}
+	});
+}
+if (restoreResultBtn) {
+	restoreResultBtn.addEventListener('click', () => {
+		if (resultOverlayEl) {
+			resultOverlayEl.classList.remove('result-dismissed');
+		}
+		restoreResultBtn.classList.add('hidden');
 	});
 }
 
@@ -578,6 +630,14 @@ const handleMove = (message) => {
 	}
 
 	lastPly = serverPly;
+	currentPly = serverPly;
+
+	// capture the authoritative per-ply history for the move list + navigation
+	history = {
+		uois: message.d.m || [],
+		sans: message.d.sm || [],
+		ofens: message.d.om || [],
+	};
 
 	if (!message.d.m) {
 		move = 1;
@@ -588,6 +648,9 @@ const handleMove = (message) => {
 	// result when a new game (e.g. a rematch) starts
 	playerWhite = isPlayerWhite(message);
 	if (message.d.gs) {
+		gameOver = false;
+		// a new game always returns us to the live board
+		followingLive = true;
 		hideResult();
 		// the first game-state after the deploy phase is the reveal: drop the
 		// blind overlay and restore normal play before rendering the position
@@ -596,11 +659,50 @@ const handleMove = (message) => {
 		}
 		// a new game invalidates any move left unconfirmed from the prior one
 		clearPending();
+	} else if (!followingLive && message.d.m
+		&& isPlayerParticipant(message) && isPlayerTurn(message, ofenParts)) {
+		// snap a reviewing player back to the live board the moment it becomes
+		// their turn to move, so they're never left unable to play
+		followingLive = true;
 	}
 
-	// play sounds
-	playSounds(message, ofenParts);
+	// always keep the latest authoritative live state so a return-to-live can
+	// restore full interactivity even while we're currently reviewing an earlier ply
+	lastLiveMessage = message;
 
+	// only render the board (and play move sounds / premove) while following the
+	// live tip; while reviewing an earlier ply the board stays put and just the
+	// move list and live clocks update
+	if (followingLive) {
+		viewPly = currentPly;
+		playSounds(message, ofenParts);
+		renderLivePosition(message, ofenParts);
+	}
+
+	// update UI styles and clock tickers (live state, regardless of view)
+	updateUI(message, ofenParts);
+
+	// show/hide the engine thinking indicator based on whose turn it is
+	updateThinking(message, ofenParts);
+
+	// perform pre-move if set
+	if (followingLive) {
+		og.playPremove();
+	}
+
+	// refresh the move list so it always reflects the live tip
+	renderMoveList();
+};
+
+/**
+ * renderLivePosition applies the authoritative live board-state to octadground:
+ * position, orientation, last-move highlight, turn, check, and legal-move
+ * destinations. Interactivity is suppressed once the game is over so returning
+ * to the live tip after review never re-enables dragging on a finished board.
+ * @param message - move message
+ * @param ofenParts - OFEN parts array
+ */
+const renderLivePosition = (message, ofenParts) => {
 	og.set({
 		orientation: message.d.w === getCookie('uid') ? 'white' : 'black',
 		ofen: ofenParts[0],
@@ -609,19 +711,32 @@ const handleMove = (message) => {
 		check: message.d.k,
 		movable: {
 			free: false,
-			dests: allMoves(message.d.v),
+			dests: gameOver ? new Map() : allMoves(message.d.v),
 			color: message.d.w === getCookie('uid') ? 'white' : 'black',
 		}
 	});
+};
 
-	// update UI styles and clock tickers
-	updateUI(message, ofenParts);
+/**
+ * isPlayerParticipant returns true if the viewer is one of the two seated
+ * players (not a spectator), by matching their uid against the message's player
+ * ids. Used to decide whether a "your turn" auto-snap applies.
+ * @param message - move message carrying white/black player ids
+ */
+const isPlayerParticipant = (message) => {
+	const uid = getCookie('uid');
+	return message.d.w === uid || message.d.b === uid;
+};
 
-	// show/hide the engine thinking indicator based on whose turn it is
-	updateThinking(message, ofenParts);
-
-	// perform pre-move if set
-	og.playPremove();
+/**
+ * isAnalyzing reports whether the player is actively reviewing the finished game
+ * — either they dismissed the result card ("Analyze board") or they've stepped
+ * the board back to an earlier ply. Used to keep an analyzing player on the page
+ * when a finished bot room is torn down, instead of bouncing them home.
+ */
+const isAnalyzing = () => {
+	const dismissed = !!resultOverlayEl && resultOverlayEl.classList.contains('result-dismissed');
+	return dismissed || !followingLive;
 };
 
 /**
@@ -632,6 +747,10 @@ const handleGameOver = (message) => {
 	cancelAnimationFrame(frameId);
 	document.getElementById("info").innerHTML = message.d.s;
 	window.notification.play();
+
+	// the game has ended: keep the board non-interactive even if the player
+	// reviews and returns to the live tip (see renderLivePosition)
+	gameOver = true;
 
 	// game is over; the engine is no longer thinking
 	setThinking(false);
@@ -653,11 +772,23 @@ const handleGameOver = (message) => {
 	// update match score
 	updateScore(message);
 
-	// if room over, redirect home after a second
+	// if room over, redirect home after a moment
 	if (message.d.o === true) {
 		// no next game is coming; stop any post-rematch resync poll so it can't
 		// outlive the room while we wait to redirect
 		stopRematchResync();
+
+		// A finished bot room is torn down after its analysis window. If the player
+		// is reviewing the game, keep them on the page — analysis is client-side and
+		// rematch spins up a fresh room — instead of bouncing them home. Stop
+		// auto-reconnect so the client doesn't fight the now-gone room.
+		if (opponentIsBot && isAnalyzing()) {
+			if (typeof window.lioStopReconnect === 'function') {
+				window.lioStopReconnect();
+			}
+			return;
+		}
+
 		setTimeout(() => {
 			window.location.href = "/";
 		}, 3000);
@@ -999,6 +1130,24 @@ const playMoveSound = (message) => {
 	}
 
 	if (message.d.s.includes("x")) {
+		window.capSound.play();
+	} else {
+		window.moveSound.play();
+	}
+};
+
+/**
+ * playNavSound plays the check/capture/move sound for a SAN string while
+ * stepping through the game (nav buttons, move-list clicks, arrow keys). The
+ * server-sent SAN carries '+'/'#' for check/mate and 'x' for captures. A falsy
+ * san (the start position, which has no preceding move) plays the plain move
+ * sound so the ⏮ / go-to-start control isn't silent.
+ * @param san - SAN of the move leading into the viewed ply, or falsy for start
+ */
+const playNavSound = (san) => {
+	if (san && (san.includes("#") || san.includes("+"))) {
+		window.checkSound.play();
+	} else if (san && san.includes("x")) {
 		window.capSound.play();
 	} else {
 		window.moveSound.play();
@@ -1501,6 +1650,213 @@ const exitDeployMode = () => {
 	document.getElementById('deploy-waiting').classList.add('hidden');
 	clearDeployLockIndicator();
 };
+
+// ---- move list + review navigation ----
+
+const moveListEl = document.getElementById('moveList');
+const navFirstBtn = document.getElementById('nav-first');
+const navPrevBtn = document.getElementById('nav-prev');
+const navNextBtn = document.getElementById('nav-next');
+const navLastBtn = document.getElementById('nav-last');
+
+/**
+ * playerColor returns the viewer's board orientation color, defaulting to white
+ * for spectators (who match neither player id).
+ */
+const playerColor = () => (playerWhite ? 'white' : 'black');
+
+/**
+ * escapeHtml defensively escapes text destined for innerHTML. SAN strings are
+ * server-generated and safe, but this keeps the move-list render injection-proof.
+ */
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+	'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
+/**
+ * lastMoveHighlight returns the [from, to] square pair for the move leading into
+ * the given ply (ply >= 1), for octadground's last-move highlight, or [] at the
+ * start position.
+ */
+const lastMoveHighlight = (ply) => {
+	const uoi = ply > 0 ? history.uois[ply - 1] : null;
+	return uoi ? [uoi.substring(0, 2), uoi.substring(2, 4)] : [];
+};
+
+/**
+ * checkAtPly reports whether the position at the given ply leaves the side to
+ * move in check. Per-ply check state isn't sent, but it's implied by the SAN of
+ * the move leading into the ply (server SANs carry '+' for check and '#' for
+ * checkmate). The start position (ply 0) has no preceding move and is never a
+ * check.
+ * @param ply - ply index into history.ofens (0 = start)
+ */
+const checkAtPly = (ply) => {
+	const san = ply > 0 ? history.sans[ply - 1] : null;
+	return !!san && (san.includes('+') || san.includes('#'));
+};
+
+/**
+ * renderReviewPosition shows a past position on the board (non-interactive) from
+ * the server-provided OFEN history, with the last-move highlight and, when the
+ * move into this ply gave check, the checked-king indicator.
+ * @param ply - ply index into history.ofens (0 = start)
+ */
+const renderReviewPosition = (ply) => {
+	const ofen = history.ofens[ply];
+	if (!ofen) {
+		return;
+	}
+	const parts = ofen.split(' ');
+	og.set({
+		orientation: playerColor(),
+		ofen: parts[0],
+		lastMove: lastMoveHighlight(ply),
+		turnColor: parts[1] === 'w' ? 'white' : 'black',
+		// check: true flags the side-to-move's king, which is the side in check
+		check: checkAtPly(ply),
+		movable: { free: false, dests: new Map(), color: undefined },
+	});
+};
+
+/**
+ * goToPly moves the on-screen board to the given ply, clamped to
+ * [0, currentPly]. Landing on the live tip restores the authoritative live board
+ * (dests, turn, interactivity) from the cached last live message; any earlier
+ * ply renders a read-only historical position.
+ * @param ply - target ply
+ */
+const goToPly = (ply) => {
+	// navigation is meaningless during the blind deploy phase
+	if (deployMode || deploySpectating) {
+		return;
+	}
+	if (ply < 0) {
+		ply = 0;
+	}
+	if (ply > currentPly) {
+		ply = currentPly;
+	}
+	const moved = ply !== viewPly;
+	viewPly = ply;
+	followingLive = (ply === currentPly);
+	if (followingLive) {
+		if (lastLiveMessage) {
+			renderLivePosition(lastLiveMessage, lastLiveMessage.d.o.split(' '));
+		}
+	} else {
+		renderReviewPosition(ply);
+	}
+	renderMoveList();
+	// sound the move we traversed onto — the move leading into the ply we landed
+	// on, which is also the last-move the board now highlights. Only when the ply
+	// actually changed, so a clamped no-op (e.g. ▶ at the live tip) stays silent.
+	if (moved) {
+		playNavSound(ply > 0 ? history.sans[ply - 1] : null);
+	}
+};
+
+/**
+ * updateNavButtons enables/disables the ⏮◀▶⏭ controls based on the viewed ply.
+ */
+const updateNavButtons = () => {
+	const atStart = viewPly <= 0;
+	const atLive = viewPly >= currentPly;
+	if (navFirstBtn) { navFirstBtn.disabled = atStart; }
+	if (navPrevBtn) { navPrevBtn.disabled = atStart; }
+	if (navNextBtn) { navNextBtn.disabled = atLive; }
+	if (navLastBtn) { navLastBtn.disabled = atLive; }
+};
+
+/**
+ * renderMoveList rebuilds the move-list panel from the SAN history, one row per
+ * full move (number, white, black). The cell at the viewed ply is highlighted
+ * and scrolled into view; ply 0 (start) highlights the panel via .at-start.
+ */
+const renderMoveList = () => {
+	if (!moveListEl) {
+		return;
+	}
+	const sans = history.sans || [];
+	let html = '';
+	for (let i = 0; i < sans.length; i += 2) {
+		const num = (i / 2) + 1;
+		const wPly = i + 1;
+		const bPly = i + 2;
+		html += '<div class="move-row">';
+		html += '<span class="move-num">' + num + '.</span>';
+		html += '<span class="move' + (viewPly === wPly ? ' active' : '')
+			+ '" data-ply="' + wPly + '" role="listitem">' + escapeHtml(sans[i]) + '</span>';
+		if (sans[i + 1] !== undefined) {
+			html += '<span class="move' + (viewPly === bPly ? ' active' : '')
+				+ '" data-ply="' + bPly + '" role="listitem">' + escapeHtml(sans[i + 1]) + '</span>';
+		} else {
+			html += '<span class="move move-empty"></span>';
+		}
+		html += '</div>';
+	}
+	moveListEl.innerHTML = html;
+	moveListEl.classList.toggle('at-start', viewPly === 0);
+
+	const active = moveListEl.querySelector('.move.active');
+	if (active) {
+		active.scrollIntoView({ block: 'nearest' });
+	}
+	updateNavButtons();
+};
+
+// nav buttons + clickable move rows
+if (navFirstBtn) { navFirstBtn.addEventListener('click', () => goToPly(0)); }
+if (navPrevBtn) { navPrevBtn.addEventListener('click', () => goToPly(viewPly - 1)); }
+if (navNextBtn) { navNextBtn.addEventListener('click', () => goToPly(viewPly + 1)); }
+if (navLastBtn) { navLastBtn.addEventListener('click', () => goToPly(currentPly)); }
+if (moveListEl) {
+	moveListEl.addEventListener('click', (e) => {
+		const cell = e.target.closest('.move[data-ply]');
+		if (!cell) {
+			return;
+		}
+		const ply = parseInt(cell.getAttribute('data-ply'), 10);
+		if (!isNaN(ply)) {
+			goToPly(ply);
+		}
+	});
+}
+
+// keyboard navigation: ←/→ step one move, ↑/Home to start, ↓/End to live. Left
+// alone while arranging a blind deploy, when typing in a field, or when a
+// modifier key is held (so browser/OS shortcuts keep working).
+document.addEventListener('keydown', (e) => {
+	if (deployMode || deploySpectating) {
+		return;
+	}
+	if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+		return;
+	}
+	const el = document.activeElement;
+	if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+		return;
+	}
+	switch (e.key) {
+		case 'ArrowLeft':
+			goToPly(viewPly - 1);
+			break;
+		case 'ArrowRight':
+			goToPly(viewPly + 1);
+			break;
+		case 'ArrowUp':
+		case 'Home':
+			goToPly(0);
+			break;
+		case 'ArrowDown':
+		case 'End':
+			goToPly(currentPly);
+			break;
+		default:
+			return;
+	}
+	e.preventDefault();
+});
 
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);

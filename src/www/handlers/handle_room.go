@@ -214,13 +214,32 @@ func NewCustomRoom(c *fiber.Ctx) error {
 	})
 }
 
-// NewRoomVsComputer creates a new game against a computer opponent with the
-// default time control and randomized color
+// NewRoomVsComputer creates a new game against a computer opponent. With no
+// query parameters it uses the default time control and a randomized color (the
+// home-page quick game). The optional tc (time-control HTMLName) and color
+// (w/b/r) query params let a finished game's client spin up a "same settings"
+// rematch into a fresh room — a bot game's rematch does not reuse its (possibly
+// already torn-down) room, so it navigates here instead.
 func NewRoomVsComputer(c *fiber.Ctx) error {
+	selectedVariant := variant.HalfOneBlitz
+	if tc := c.Query("tc"); tc != "" {
+		if v, ok := pools.Map[tc]; ok {
+			selectedVariant = v
+		}
+	}
+
+	selectedColor := util.RandomColor()
+	switch c.Query("color") {
+	case "w":
+		selectedColor = octad.White
+	case "b":
+		selectedColor = octad.Black
+	}
+
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitz,
-		selectedColor: util.RandomColor(),
+		variant:       selectedVariant,
+		selectedColor: selectedColor,
 		vsBot:         true,
 	})
 }

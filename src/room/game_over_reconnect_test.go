@@ -38,9 +38,8 @@ func TestGameOverStateMessageOngoing(t *testing.T) {
 }
 
 // TestGameOverStateMessageHuman asserts a finished human-vs-human game reports
-// the decided outcome and the remaining manual rematch window (rw), never the
-// bot auto-rematch field (ar), so a reconnecting player re-enters the result
-// overlay with an accurate countdown.
+// the decided outcome and the remaining manual rematch window (rw), so a
+// reconnecting player re-enters the result overlay with an accurate countdown.
 func TestGameOverStateMessageHuman(t *testing.T) {
 	r := newTestInstance(t, "w", "b")
 
@@ -60,9 +59,6 @@ func TestGameOverStateMessageHuman(t *testing.T) {
 	if msg.Data.Reason != "resignation" {
 		t.Fatalf("expected reason resignation, got %q", msg.Data.Reason)
 	}
-	if msg.Data.AutoRematch != 0 {
-		t.Fatalf("human game must not carry auto-rematch, got %d", msg.Data.AutoRematch)
-	}
 	if msg.Data.RematchWindow < 20 || msg.Data.RematchWindow > 25 {
 		t.Fatalf("expected remaining window ~25s, got %d", msg.Data.RematchWindow)
 	}
@@ -71,8 +67,10 @@ func TestGameOverStateMessageHuman(t *testing.T) {
 	}
 }
 
-// TestGameOverStateMessageBot asserts a finished bot game reports the remaining
-// auto-rematch countdown (ar) rather than the human rematch window (rw).
+// TestGameOverStateMessageBot asserts a finished bot game carries no rematch
+// countdown: bot games are neither auto-rematched nor time-boxed, so the room
+// stays open for review + manual rematch (the client shows no countdown). Even a
+// stray rematch deadline is ignored for a bot game.
 func TestGameOverStateMessageBot(t *testing.T) {
 	// bot plays White, human plays Black
 	r := newBotTestInstance(t, "human", octad.White)
@@ -81,15 +79,16 @@ func TestGameOverStateMessageBot(t *testing.T) {
 	r.game.Resign(octad.Black) // bot (white) wins
 	r.stateMu.Unlock()
 
+	// a stray deadline must not produce a countdown for a bot game
 	r.setRematchDeadline(time.Now().Add(5 * time.Second))
 
 	msg := parseGameOver(t, r.GameOverStateMessage())
 
 	if msg.Data.RematchWindow != 0 {
-		t.Fatalf("bot game must not carry a manual rematch window, got %d", msg.Data.RematchWindow)
+		t.Fatalf("bot game must not carry a rematch countdown, got %d", msg.Data.RematchWindow)
 	}
-	if msg.Data.AutoRematch < 3 || msg.Data.AutoRematch > 5 {
-		t.Fatalf("expected remaining auto-rematch ~5s, got %d", msg.Data.AutoRematch)
+	if msg.Data.RoomOver {
+		t.Fatal("a finished bot game must not report room over")
 	}
 }
 
@@ -107,8 +106,7 @@ func TestGameOverStateMessageLapsedWindow(t *testing.T) {
 	r.setRematchDeadline(time.Now().Add(-time.Second))
 
 	msg := parseGameOver(t, r.GameOverStateMessage())
-	if msg.Data.RematchWindow != 0 || msg.Data.AutoRematch != 0 {
-		t.Fatalf("expected zero countdown for a lapsed window, got rw=%d ar=%d",
-			msg.Data.RematchWindow, msg.Data.AutoRematch)
+	if msg.Data.RematchWindow != 0 {
+		t.Fatalf("expected zero countdown for a lapsed window, got rw=%d", msg.Data.RematchWindow)
 	}
 }

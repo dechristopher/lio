@@ -68,7 +68,7 @@ type OFENPayload struct {
 type ScorePayload map[string]float64
 
 // MovePayloadVersion represents the current proto version of the MovePayload
-const MovePayloadVersion = 2
+const MovePayloadVersion = 3
 
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
@@ -79,7 +79,9 @@ type MovePayload struct {
 	UOI        string              `json:"u,omitempty"`
 	MoveNum    int                 `json:"n,omitempty"`
 	Check      bool                `json:"k,omitempty"`
-	Moves      []string            `json:"m,omitempty"`
+	Moves      []string            `json:"m,omitempty"`  // UOI move per ply, len == plies
+	SANs       []string            `json:"sm,omitempty"` // SAN per ply, len == plies (parallel to Moves)
+	OFENs      []string            `json:"om,omitempty"` // OFEN per position; OFENs[0] = start, OFENs[i] = after ply i, len == plies+1
 	ValidMoves map[string][]string `json:"v,omitempty"`
 	Latency    clock.CTime         `json:"l,omitempty"`  // player latency indicator
 	Ack        int                 `json:"a,omitempty"`  // move ack from player
@@ -159,15 +161,12 @@ type GameOverPayload struct {
 	Clock    ClockPayload `json:"c,omitempty"`
 	Score    ScorePayload `json:"sc,omitempty"`
 	RoomOver bool         `json:"o,omitempty"`
-	// AutoRematch, when > 0, is the number of seconds until the room
-	// automatically starts a rematch (bot games only); drives the client
-	// countdown. Zero/absent means no auto-rematch (e.g. human-vs-human).
-	AutoRematch int `json:"ar,omitempty"`
 	// RematchWindow, when > 0, is the number of seconds the human-vs-human
 	// rematch window stays open before the room closes; drives the client
-	// countdown. Unlike AutoRematch, no new game is guaranteed — the room simply
-	// closes if both players don't agree a rematch in time. The two are mutually
-	// exclusive (a game is either bot auto-rematch or human manual-rematch).
+	// countdown. No new game is guaranteed — the room simply closes if both
+	// players don't agree a rematch in time. Bot games are neither auto-rematched
+	// nor time-boxed (the finished room stays open for review + manual rematch),
+	// so they never carry this.
 	RematchWindow int `json:"rw,omitempty"`
 }
 

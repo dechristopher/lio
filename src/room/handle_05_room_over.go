@@ -20,8 +20,8 @@ func (r *Instance) handleRoomOver() {
 		// the room expired before any game finished
 		status = "Match expired. Leaving room.."
 	case !r.abandoned:
-		// a finished game's rematch window lapsed with no rematch agreed
-		// (human-vs-human only; bot games auto-rematch)
+		// a finished game closed without a rematch: a human-vs-human window that
+		// lapsed, or a finished bot game the player left (after the reconnect grace)
 		status = "No rematch. Leaving room.."
 	default:
 		// abandoned after a game finished: the game-over broadcast already

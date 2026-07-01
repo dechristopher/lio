@@ -83,6 +83,32 @@ func (g *OctadGame) MoveHistory() []string {
 	return allMoves
 }
 
+// SANHistory returns the algebraic notation (SAN) for every move played so far,
+// in order and parallel to MoveHistory. Each SAN is encoded against the position
+// as it stood before that move, mirroring the room's single-move getSANLocked.
+func (g *OctadGame) SANHistory() []string {
+	positions := g.Game.Positions()
+	moves := g.Game.Moves()
+	sans := make([]string, 0, len(moves))
+	for i, move := range moves {
+		sans = append(sans, octad.AlgebraicNotation{}.Encode(positions[i], move))
+	}
+	return sans
+}
+
+// OFENHistory returns the OFEN of every position the game has passed through:
+// index 0 is the starting position and index i is the position after ply i, so
+// its length is one greater than the move count. This lets clients render the
+// board at any ply without an octad rules engine of their own.
+func (g *OctadGame) OFENHistory() []string {
+	positions := g.Game.Positions()
+	ofens := make([]string, 0, len(positions))
+	for _, pos := range positions {
+		ofens = append(ofens, pos.String())
+	}
+	return ofens
+}
+
 // genGame creates a new game, optionally from an ofen
 func genGame(ofen ...string) (*octad.Game, error) {
 	if ofen[0] != "" {

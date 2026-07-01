@@ -49,8 +49,8 @@ func (r *Instance) handleGameOngoing() {
 	// idle-abandon timer (bot games only). The disconnect abandon timer above
 	// keys off socket presence, so it can't catch a human who is still connected
 	// but never moves (an idle/backgrounded tab, or someone off watching the
-	// home-page TV): the bot would play the game out to a flag and the room would
-	// then auto-rematch into another empty game. This timer fires when
+	// home-page TV): the bot would otherwise play the game out to a flag for
+	// nobody. This timer fires when
 	// humanIdleEligible holds — a bot game, the human has not moved, and it is
 	// their turn — and is disarmed the instant they move. Created disarmed;
 	// refreshIdle (re)evaluates the condition on entry and after every move.

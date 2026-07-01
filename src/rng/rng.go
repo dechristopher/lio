@@ -1,7 +1,7 @@
 // Package rng provides small, cryptographically secure random helpers backed
 // by crypto/rand. They exist as drop-in replacements for the non-secure
 // math/rand functions used across the server. It is a leaf package (standard
-// library only) so any other package may import it without import cycles.
+// library only), so any other package may import it without import cycles.
 package rng
 
 import (
