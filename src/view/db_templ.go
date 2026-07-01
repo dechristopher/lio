@@ -50,7 +50,7 @@ func DB(meta Meta) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card w-[92vw] max-w-[26rem] text-left\"><h1 class=\"font-display text-xl font-bold text-fg\">Game Database</h1><p class=\"prose mt-2\">Eventually, all games played will be made available here for download. They will be combined into large monthly dump files of all raw PGNs in chronological order.</p><p class=\"prose mt-3\">Until that day we will continue to build the site.</p></main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card mb-4 w-[92vw] max-w-[26rem] text-left\"><h1 class=\"font-display text-xl font-bold text-fg\">Game Database</h1><p class=\"prose mt-2\">Eventually, all games played will be made available here for download. They will be combined into large monthly dump files of all raw PGNs in chronological order.</p><p class=\"prose mt-3\">Until that day we will continue to build the site.</p></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

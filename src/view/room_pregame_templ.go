@@ -36,7 +36,7 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main class=\"card mt-2 w-[92vw] max-w-[24rem] text-center\"><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"font-display text-lg font-bold text-fg\">Waiting for an opponent…</h1></div><p class=\"prose mt-1 text-sm\">Your challenge is live — share it to start the game.</p><div class=\"mt-4 flex flex-col items-center gap-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main class=\"card mt-2 mb-4 w-[92vw] max-w-[24rem] text-center\"><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"font-display text-lg font-bold text-fg\">Waiting for an opponent…</h1></div><p class=\"prose mt-1 text-sm\">Your challenge is live — share it to start the game.</p><div class=\"mt-4 flex flex-col items-center gap-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -147,7 +147,7 @@ func roomJoiner(payload message.RoomTemplatePayload) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<main class=\"card mt-2 w-[92vw] max-w-[24rem] text-center\"><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"font-display text-lg font-bold text-fg\">You've been challenged</h1></div><p class=\"prose mt-1 text-sm\">An anonymous player is waiting for an opponent.</p><div class=\"mt-4 flex flex-col items-center gap-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<main class=\"card mt-2 mb-4 w-[92vw] max-w-[24rem] text-center\"><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"font-display text-lg font-bold text-fg\">You've been challenged</h1></div><p class=\"prose mt-1 text-sm\">An anonymous player is waiting for an opponent.</p><div class=\"mt-4 flex flex-col items-center gap-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

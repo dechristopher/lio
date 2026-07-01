@@ -53,7 +53,7 @@ func About(meta Meta, section string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card w-[92vw] max-w-[34rem] text-left\"><h1 class=\"font-display text-xl font-bold\"><a class=\"text-fg no-underline transition-colors duration-150 hover:text-accent\" href=\"/about\" hx-get=\"/about\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">About lioctad.org</a></h1><div id=\"about-content\" class=\"mt-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card mb-4 w-[92vw] max-w-[34rem] text-left\"><h1 class=\"font-display text-xl font-bold\"><a class=\"text-fg no-underline transition-colors duration-150 hover:text-accent\" href=\"/about\" hx-get=\"/about\" hx-target=\"#about-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\">About lioctad.org</a></h1><div id=\"about-content\" class=\"mt-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

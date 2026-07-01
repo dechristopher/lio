@@ -8,7 +8,7 @@ import "github.com/dechristopher/lio/message"
 // lio-room-create.js wires #copyInviteButton (toggling .copied) and reads
 // #gameInviteLink, so those hooks are preserved.
 templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
-	<main class="card mt-2 w-[92vw] max-w-[24rem] text-center">
+	<main class="card mt-2 mb-4 w-[92vw] max-w-[24rem] text-center">
 		<div class="waiting-status">
 			<span class="waiting-dot" aria-hidden="true"></span>
 			<h1 class="font-display text-lg font-bold text-fg">Waiting for an opponent…</h1>
@@ -44,7 +44,7 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 // roomJoiner is the joining player's view: a "you've been challenged" hero, the
 // match summary (showing the open seat they would take), and a join form.
 templ roomJoiner(payload message.RoomTemplatePayload) {
-	<main class="card mt-2 w-[92vw] max-w-[24rem] text-center">
+	<main class="card mt-2 mb-4 w-[92vw] max-w-[24rem] text-center">
 		<div class="waiting-status">
 			<span class="waiting-dot" aria-hidden="true"></span>
 			<h1 class="font-display text-lg font-bold text-fg">You've been challenged</h1>
