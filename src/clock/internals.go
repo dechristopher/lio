@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 var flagged = CTime{t: 0}

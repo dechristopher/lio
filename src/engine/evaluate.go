@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 /*
@@ -67,7 +67,7 @@ const (
 )
 
 // castleSides enumerates octad's three castling options.
-var castleSides = []octad.Side{octad.KnightSide, octad.CloseSide, octad.FarSide}
+var castleSides = []octad.Side{octad.NearSide, octad.CenterSide, octad.FarSide}
 
 // castleRightsCount returns how many of the three octad castling options the
 // given color still retains in the position.

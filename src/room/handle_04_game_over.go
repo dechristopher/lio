@@ -3,7 +3,7 @@ package room
 import (
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/game"
@@ -130,6 +130,19 @@ func (r *Instance) handleGameOver() {
 	rematchTimeout := time.NewTimer(rematchWindow)
 	defer rematchTimeout.Stop()
 
+	// publish the window's deadline so a (re)connecting client gets an accurate
+	// remaining countdown via GameOverStateMessage. A bot game counts down to its
+	// auto-rematch; a human game counts down the manual rematch window. The
+	// presence arm below keeps this current when the human window is shortened or
+	// restored.
+	r.stateMu.Lock()
+	if r.players.HasBot() {
+		r.rematchDeadline = time.Now().Add(autoRematchDelay)
+	} else {
+		r.rematchDeadline = fullDeadline
+	}
+	r.stateMu.Unlock()
+
 	// resetTimeout re-arms rematchTimeout to fire at the given deadline, draining
 	// any pending fire first (the reset-without-drain hazard).
 	resetTimeout := func(at time.Time) {
@@ -197,12 +210,14 @@ func (r *Instance) handleGameOver() {
 				}
 				util.DebugFlag("room", str.CRoom, "[%s] opponent left, shortening rematch window", r.ID)
 				resetTimeout(deadline)
+				r.setRematchDeadline(deadline)
 				broadcastRematchUpdate(true)
 			case bothConnected && shortened:
 				shortened = false
 				deadline = fullDeadline
 				util.DebugFlag("room", str.CRoom, "[%s] opponent returned, restoring rematch window", r.ID)
 				resetTimeout(deadline)
+				r.setRematchDeadline(deadline)
 				broadcastRematchUpdate(false)
 			}
 			continue
@@ -229,6 +244,16 @@ func (r *Instance) handleGameOver() {
 			r.stateMu.Unlock()
 
 			if !agreed {
+				// one side asked for a rematch but the other hasn't yet: tell the
+				// remaining clients so the opponent sees a "wants a rematch"
+				// indicator. Only a real player click (a non-empty UID) is worth
+				// surfacing; the bot auto-rematch path agrees both sides at once and
+				// never lands here.
+				if control.Ctx.UID != "" {
+					proto.RematchUpdatePayload{
+						Requested: control.Ctx.UID,
+					}.Broadcast(channel.SocketContext{Channel: r.ID, MT: 1})
+				}
 				continue
 			}
 
@@ -263,6 +288,11 @@ func (r *Instance) handleGameOver() {
 			if err != nil {
 				panic(err)
 			}
+
+			// discard any control message left buffered from this game-over (a
+			// duplicate/early rematch click) so it can't be misread as agreement
+			// in the next game's rematch window. See arch/DEPLOY_REMATCH_RACES.md.
+			r.drainControlChannel()
 
 			return
 		}

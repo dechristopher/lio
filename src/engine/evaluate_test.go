@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 // TestCheckTermSign guards the side-to-move-relative convention of Evaluate:

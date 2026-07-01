@@ -283,6 +283,31 @@ templ board(color string) {
 		<div id="gcon-xx" class={ "gcon " + color }>
 			<div class="gwrap green alpha">
 				<div id="game" class="og-wrap"></div>
+				<!-- blind deploy: opponent home-rank "?" cells, overlaid on the top rank -->
+				<div id="deploy-questions" class="deploy-questions" aria-hidden="true">
+					<span class="dq-cell">?</span>
+					<span class="dq-cell">?</span>
+					<span class="dq-cell">?</span>
+					<span class="dq-cell">?</span>
+				</div>
+				<!-- blind deploy (spectator): bottom home-rank "?" cells, hiding both sides -->
+				<div id="deploy-questions-btm" class="deploy-questions deploy-questions-btm" aria-hidden="true">
+					<span class="dq-cell">?</span>
+					<span class="dq-cell">?</span>
+					<span class="dq-cell">?</span>
+					<span class="dq-cell">?</span>
+				</div>
+				<!-- blind deploy: on-board controls (non-blocking so the board stays interactive) -->
+				<div id="deploy-overlay" class="deploy-overlay">
+					<div class="deploy-card">
+						<div class="deploy-headline">Arrange your pieces</div>
+						<div class="deploy-hint">Drag a piece onto another — or tap two squares — to swap, then confirm.</div>
+						<div id="deploy-countdown" class="deploy-countdown"></div>
+						<button id="deploy-confirm" type="button" class="deploy-btn">Confirm deployment</button>
+						<div id="deploy-waiting" class="deploy-waiting hidden">Locked in — waiting for opponent…</div>
+						<div id="deploy-opponent-status" class="deploy-opp-status hidden"></div>
+					</div>
+				</div>
 				<div id="promo-shade" class="promo-shade hidden"></div>
 				<div id="promo-select" class="promo hidden">
 					<piece class="promo queen"></piece>
@@ -295,6 +320,7 @@ templ board(color string) {
 						<div id="result-headline" class="result-headline"></div>
 						<div id="result-reason" class="result-reason"></div>
 						<div id="result-score" class="result-score"></div>
+						<div id="result-note" class="result-note hidden"></div>
 						<div class="result-actions">
 							<button id="result-rematch" type="button" class="result-btn result-rematch">Rematch</button>
 							<button id="result-home" type="button" class="result-btn result-home">Home</button>

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 	"github.com/google/uuid"
 
 	"github.com/dechristopher/lio/bus"

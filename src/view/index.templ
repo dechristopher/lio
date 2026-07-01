@@ -1,15 +1,12 @@
 package view
 
-import (
-	"github.com/dechristopher/lio/message"
-	"github.com/dechristopher/lio/variant"
-)
+import "github.com/dechristopher/lio/message"
 
 // Index is the home page. It stacks to a single column on mobile and splits
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
-templ Index(meta Meta, pools map[variant.Group][]variant.Variant, challenges []message.OpenChallenge, stats message.SiteStats) {
+templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats) {
 	@base(meta) {
 		<body>
 			<div class="page">
@@ -30,7 +27,7 @@ templ Index(meta Meta, pools map[variant.Group][]variant.Variant, challenges []m
 						@homeNews()
 					</div>
 				</main>
-				@createGameModal(pools)
+				@createGameModal()
 				@footer(meta, "max-w-[34rem] md:hidden")
 			</div>
 		</body>

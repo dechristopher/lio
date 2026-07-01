@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 func TestAgreement_Agree(t *testing.T) {

@@ -3,7 +3,7 @@ package engine
 import (
 	"math"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 	"github.com/pkg/errors"
 
 	"github.com/dechristopher/lio/str"

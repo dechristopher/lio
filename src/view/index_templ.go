@@ -8,16 +8,13 @@ package view
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import (
-	"github.com/dechristopher/lio/message"
-	"github.com/dechristopher/lio/variant"
-)
+import "github.com/dechristopher/lio/message"
 
 // Index is the home page. It stacks to a single column on mobile and splits
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
-func Index(meta Meta, pools map[variant.Group][]variant.Variant, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
+func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -102,7 +99,7 @@ func Index(meta Meta, pools map[variant.Group][]variant.Variant, challenges []me
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = createGameModal(pools).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = createGameModal().Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

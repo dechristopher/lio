@@ -10,6 +10,7 @@ const (
 	StateInit              State = "init"
 	StateWaitingForPlayers State = "waiting_for_players"
 	StateGameReady         State = "game_ready"
+	StateDeploy            State = "deploy"
 	StateGameOngoing       State = "game_ongoing"
 	StateGameOver          State = "game_over"
 	StateRoomOver          State = "room_over"
@@ -36,6 +37,23 @@ var EventPlayersConnected = fsm.EventDesc{
 var EventStartGame = fsm.EventDesc{
 	Name: "start_game",
 	Src:  []string{string(StateGameReady)},
+	Dst:  string(StateGameOngoing),
+}
+
+// EventStartDeploy begins the blind deploy phase. Used instead of EventStartGame
+// when the room has the deploy pre-game enabled: players arrange their home rank
+// before normal play begins.
+var EventStartDeploy = fsm.EventDesc{
+	Name: "start_deploy",
+	Src:  []string{string(StateGameReady)},
+	Dst:  string(StateDeploy),
+}
+
+// EventDeployComplete ends the deploy phase once both arrangements are in (or
+// the deploy timer expires), starting the game from the assembled position.
+var EventDeployComplete = fsm.EventDesc{
+	Name: "deploy_complete",
+	Src:  []string{string(StateDeploy)},
 	Dst:  string(StateGameOngoing),
 }
 
@@ -122,6 +140,7 @@ var EventPlayerAbandons = fsm.EventDesc{
 	Src: []string{
 		string(StateWaitingForPlayers),
 		string(StateGameReady),
+		string(StateDeploy),
 		string(StateGameOngoing),
 		string(StateGameOver),
 	},
@@ -138,6 +157,8 @@ func newStateMachine() *fsm.FSM {
 			EventPlayerConnected,
 			EventPlayersConnected,
 			EventStartGame,
+			EventStartDeploy,
+			EventDeployComplete,
 			EventWhiteWinsCheckmate,
 			EventBlackWinsCheckmate,
 			EventWhiteWinsTimeout,

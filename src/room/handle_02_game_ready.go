@@ -3,7 +3,7 @@ package room
 import (
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/str"
@@ -14,6 +14,17 @@ import (
 // handle waiting for white to make first move and start game
 // waits for one minute before timing out and terminating game and room
 func (r *Instance) handleGameReady() {
+	// when the deploy pre-game is enabled, hand off to the blind deploy phase
+	// instead of waiting for white's first move. The deploy handler broadcasts
+	// its own start state, assembles the game, and transitions to GameOngoing.
+	if r.params.Deploy {
+		util.DebugFlag("room", str.CRoom, "[%s] starting deploy phase", r.ID)
+		if err := r.event(EventStartDeploy); err != nil {
+			panic(err)
+		}
+		return
+	}
+
 	// one-minute abandon timer after game start
 	cleanupTimer := time.NewTimer(time.Minute)
 	defer cleanupTimer.Stop()

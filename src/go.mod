@@ -5,13 +5,13 @@ go 1.25.0
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/dechristopher/octad v1.0.10
+	github.com/dechristopher/octad/v2 v2.0.0
 	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/gofiber/websocket/v2 v2.2.1
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/looplab/fsm v1.0.3
-	github.com/minio/minio-go/v7 v7.2.0
+	github.com/minio/minio-go/v7 v7.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/valyala/fastjson v1.6.10

@@ -4,10 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
-// A Outcome is the result of a game.
+// An Outcome is the result of a game.
 type Outcome string
 
 const (
@@ -17,7 +16,7 @@ const (
 	WhiteWon Outcome = "1-0"
 	// BlackWon indicates that black won the game.
 	BlackWon Outcome = "0-1"
-	// Draw indicates that game was a draw.
+	// Draw indicates that the game was a draw.
 	Draw Outcome = "1/2-1/2"
 )
 
@@ -38,13 +37,13 @@ const (
 	Resignation
 	// DrawOffer indicates that the game was drawn by a draw offer.
 	DrawOffer
-	// Stalemate indicates that the game was drawn by stalemate.
+	// Stalemate indicates that the game drew by stalemate.
 	Stalemate
 	// ThreefoldRepetition indicates that the game was automatically drawn
 	// by the game state being repeated three times.
 	ThreefoldRepetition
 	// TwentyFiveMoveRule indicates that the game was automatically drawn
-	// when the half move clock was fifty or greater.
+	// when the half-move clock was fifty or greater.
 	TwentyFiveMoveRule
 	// InsufficientMaterial indicates that the game was automatically drawn
 	// because there was insufficient material for checkmate.
@@ -75,7 +74,7 @@ type Game struct {
 // function is designed to be used in the NewGame constructor.
 // An error is returned if there is a problem parsing the PGN data.
 func PGN(r io.Reader) (func(*Game), error) {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +117,8 @@ func TagPairs(tagPairs []*TagPair) func(*Game) {
 // UseNotation returns a function that sets the game's notation
 // to the given value. The notation is used to parse the
 // string supplied to the MoveStr() method as well as the
-// any PGN output. The returned function is designed
-// to be used in the NewGame constructor.
+// PGN output. The returned function is designed to be used in
+// the NewGame constructor.
 func UseNotation(n Notation) func(*Game) {
 	return func(g *Game) {
 		g.notation = n
@@ -164,7 +163,7 @@ func (g *Game) Move(m *Move) error {
 	return nil
 }
 
-// MoveStr decodes the given string in game's notation
+// MoveStr decodes the given string in the game's notation
 // and calls the Move function. An error is returned if
 // the move can't be decoded or the move is invalid.
 func (g *Game) MoveStr(s string) error {
@@ -194,12 +193,12 @@ func (g *Game) ValidMoves() []*Move {
 	return g.pos.ValidMoves()
 }
 
-// Positions returns the position history of the game.
+// Positions can be called to return the position history of the game.
 func (g *Game) Positions() []*Position {
 	return append([]*Position(nil), g.positions...)
 }
 
-// Moves returns the move history of the game.
+// Moves can be called to return the move history of the game.
 func (g *Game) Moves() []*Move {
 	return append([]*Move(nil), g.moves...)
 }
@@ -254,7 +253,7 @@ func (g *Game) UnmarshalText(text []byte) error {
 
 // Draw attempts to draw the game by the given method. If the
 // method is valid, then the game is updated to a draw by that
-// method. If the method isn't valid then an error is returned.
+// method. If the method isn't valid, then an error is returned.
 func (g *Game) Draw(method Method) error {
 	switch method {
 	case ThreefoldRepetition:
@@ -271,7 +270,7 @@ func (g *Game) Draw(method Method) error {
 }
 
 // Resign resigns the game for the given color. If the game has
-// already been completed then the game is not updated.
+// already been completed, then the game is not updated.
 func (g *Game) Resign(color Color) {
 	if g.outcome != NoOutcome || color == NoColor {
 		return
@@ -353,7 +352,7 @@ func (g *Game) updatePosition() {
 		return
 	}
 
-	// five fold rep creates automatic draw
+	// five-fold rep creates automatic draw
 	if !g.ignoreAutomaticDraws && g.numRepetitions() >= 3 {
 		g.outcome = Draw
 		g.method = ThreefoldRepetition

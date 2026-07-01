@@ -8,7 +8,6 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/dechristopher/lio/message"
-	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/variant"
 )
 
@@ -29,9 +28,9 @@ func mustContain(t *testing.T, s, sub string) {
 }
 
 func TestRenderIndex(t *testing.T) {
-	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneZeroRapid, Color: "w"}}
+	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneTwoRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
-	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), pools.RatingPools, challenges, stats))
+	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), challenges, stats))
 	mustContain(t, out, "<title>lioctad.org • Free Online Octad</title>")
 	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
 	mustContain(t, out, `id="createGameButton"`) // modal opener
@@ -54,23 +53,27 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "lio-tv")               // scriptsTV client
 	mustContain(t, out, "octadground")          // scriptsTV board renderer
 
-	// pool order must be bullet -> blitz -> rapid (sorted, number-prefixed keys)
+	// create-game modal: opponent + Classic/Deploy toggles, unified POST target,
+	// and the hidden field the resolved variant is written into
+	mustContain(t, out, `action="/new/game"`)
+	mustContain(t, out, `name="opponent" value="human"`)
+	mustContain(t, out, `name="opponent" value="computer"`)
+	mustContain(t, out, `name="mode" value="classic"`)
+	mustContain(t, out, `name="mode" value="deploy"`)
+	mustContain(t, out, `id="cg-variant"`)
+
+	// each time-control card carries both its classic and deploy variant name so
+	// the mode toggle can resolve one from the other; order is bullet->blitz->rapid
 	order := []string{
-		"quarter-zero-blitz", "quarter-one-blitz",
-		"half-zero-blitz", "half-one-blitz",
-		"one-zero-rapid", "one-two-rapid",
+		"quarter-zero-blitz", "half-one-blitz", "one-two-rapid", // classic
+		"quarter-zero-bullet-deploy", "half-one-blitz-deploy", "one-two-rapid-deploy", // deploy
 	}
-	last := -1
 	for _, name := range order {
-		i := strings.Index(out, `value="`+name+`"`)
-		if i < 0 {
-			t.Errorf("missing variant %q", name)
-			continue
-		}
-		if i < last {
-			t.Errorf("variant %q out of order", name)
-		}
-		last = i
+		mustContain(t, out, name)
+	}
+	// bullet card precedes rapid card (data-classic attribute order)
+	if strings.Index(out, `data-classic="quarter-zero-blitz"`) > strings.Index(out, `data-classic="one-two-rapid"`) {
+		t.Error("time-control cards out of order (bullet should precede rapid)")
 	}
 }
 

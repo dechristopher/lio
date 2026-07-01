@@ -30,6 +30,8 @@ const (
 	RedirectTag PayloadTag = "e"
 	// TVTag is the message type tag for the TVPayload (home-page live games)
 	TVTag PayloadTag = "tv"
+	// DeployTag is the message type tag for the DeployPayload (blind deploy phase)
+	DeployTag PayloadTag = "d"
 )
 
 // Message represents our websocket protocol messages container
@@ -95,6 +97,41 @@ type MessageMove struct {
 	ProtoVersion int         `json:"pv,omitempty"` // protocol version for data type
 }
 
+// DeployPayloadVersion represents the current proto version of the DeployPayload
+const DeployPayloadVersion = 1
+
+// DeployPayload carries blind deploy-phase data. Inbound (client to server) it
+// holds the player's four-character home-rank ordering (k/n/p letters from the
+// player's own left-to-right perspective). Outbound (server to client) it
+// announces the deploy phase; the revealed board is sent separately as a
+// MovePayload.
+type DeployPayload struct {
+	Order   string `json:"o,omitempty"` // inbound: 4-char order, player's perspective; outbound (reconnect): the recipient's own confirmed order
+	Active  bool   `json:"a,omitempty"` // outbound: deploy phase is active
+	Seconds int    `json:"s,omitempty"` // outbound: seconds allotted to deploy
+	White   string `json:"w,omitempty"` // outbound: white player id (so clients know their side after a rematch swap)
+	Black   string `json:"b,omitempty"` // outbound: black player id
+	// Confirmed reports (on a reconnect) that the recipient already committed their
+	// arrangement, so their client re-enters the locked "waiting for opponent" state.
+	Confirmed bool `json:"cf,omitempty"`
+	// Locked names a color that just committed its arrangement ("white"/"black");
+	// it drives the opponent/spectator "locked in" indicator. Present only on the
+	// per-submission lock broadcast, never on the phase-start message.
+	Locked string `json:"lk,omitempty"`
+	// LockedWhite / LockedBlack convey both sides' committed status on a reconnect
+	// so a late-joining client's indicator reflects who is already locked in.
+	LockedWhite bool `json:"lw,omitempty"`
+	LockedBlack bool `json:"lb,omitempty"`
+}
+
+// MessageDeploy contains a DeployPayload message
+type MessageDeploy struct {
+	Tag          string        `json:"t"`
+	Data         DeployPayload `json:"d"`
+	Version      int           `json:"v,omitempty"`
+	ProtoVersion int           `json:"pv,omitempty"`
+}
+
 // MoveAckPayload is the move number acknowledgement
 type MoveAckPayload int
 
@@ -143,6 +180,11 @@ type RematchUpdatePayload struct {
 	// OpponentLeft reports that the opponent disconnected, so a rematch is no
 	// longer possible; the client reflects this and disables its rematch action.
 	OpponentLeft bool `json:"ol,omitempty"`
+	// Requested carries the id of a player who just asked for a rematch (before
+	// both sides have agreed), so the opponent's client can surface an "opponent
+	// wants a rematch" indicator. When set, this message is purely that signal and
+	// does not retime the countdown (Seconds is omitted).
+	Requested string `json:"rq,omitempty"`
 }
 
 // RoomMessage contains room state data

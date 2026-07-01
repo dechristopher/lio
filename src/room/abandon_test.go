@@ -3,7 +3,7 @@ package room
 import (
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 // TestHumanMovedThisGame covers the engagement flag that gates bot-game

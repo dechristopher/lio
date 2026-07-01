@@ -1,6 +1,6 @@
 package engine
 
-import "github.com/dechristopher/octad"
+import "github.com/dechristopher/octad/v2"
 
 // This file implements the board-aware evaluation features — pawn structure,
 // connectivity (defended pieces), and king safety — that the octad library

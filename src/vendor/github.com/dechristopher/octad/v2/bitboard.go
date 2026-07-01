@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// bitboard is an Octad board representation encoded in an unsigned 16-bit
+// A bitboard is an Octad board representation encoded in an unsigned 16-bit
 // integer. The 16 board positions begin with A1 as the most significant bit and
 // D4 as the least significant.
 type bitboard uint16
@@ -37,14 +37,14 @@ func (b bitboard) Mapping() map[Square]bool {
 	return m
 }
 
-// String returns a 64 character string of 1s and 0s starting with the most
+// String returns a 64-character string of 1s and 0s starting with the most
 // significant bit.
 func (b bitboard) String() string {
 	s := strconv.FormatUint(uint64(b), 2)
 	return strings.Repeat("0", squaresOnBoard-len(s)) + s
 }
 
-// Draw returns visual representation of the bitboard useful for debugging.
+// Draw returns a visual representation of the bitboard useful for debugging.
 func (b bitboard) Draw() string {
 	s := "\n A B C D\n"
 	for r := 3; r >= 0; r-- {

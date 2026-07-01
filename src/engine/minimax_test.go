@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 // absEval mirrors the engine's leaf convention: an absolute,

@@ -3,7 +3,7 @@ package handlers
 import (
 	"fmt"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/dechristopher/lio/player"
@@ -161,47 +161,56 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 	})
 }
 
-// NewCustomRoomVsHuman creates a game against a human player with time control
-// and color selected by the creator
-func NewCustomRoomVsHuman(c *fiber.Ctx) error {
-
-	selectedColor := octad.White
-
+// NewCustomRoom creates a custom game from the create-game modal: a time control
+// and color chosen by the creator, against either a human or the computer. The
+// resolved variant (classic or its blind-deploy twin) arrives in the
+// time-control field; the modal's Classic/Deploy toggle picks which. A human
+// game may be listed as a public open challenge; a bot game never is.
+func NewCustomRoom(c *fiber.Ctx) error {
 	payload := struct {
 		TimeControl string `form:"time-control"`
 		Color       string `form:"color"`
+		// Opponent selects the opponent kind: "computer" for a bot game, anything
+		// else (default "human") for a human game.
+		Opponent string `form:"opponent"`
 		// Public is the create-game "list publicly" toggle. The checkbox submits
 		// "true" only when checked, so it defaults to false (private) when absent.
 		Public bool `form:"public"`
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {
-		util.Error(str.CRoom, "failed to create room via human handler: bad payload provided")
+		util.Error(str.CRoom, "failed to create custom room: bad payload provided")
 		return redirect(c, "/#error")
 	}
 
 	selectedVariant, ok := pools.Map[payload.TimeControl]
 	if !ok {
-		util.Error(str.CRoom, "failed to create room via human handler: invalid time control")
+		util.Error(str.CRoom, "failed to create custom room: invalid time control %q", payload.TimeControl)
 		return redirect(c, "/")
 	}
 
-	if payload.Color == "w" {
+	var selectedColor octad.Color
+	switch payload.Color {
+	case "w":
 		selectedColor = octad.White
-	} else if payload.Color == "b" {
+	case "b":
 		selectedColor = octad.Black
-	} else if payload.Color == "r" {
+	case "r":
 		selectedColor = util.RandomColor()
-	} else {
-		util.Error(str.CRoom, "failed to create room via human handler: invalid color selected")
+	default:
+		util.Error(str.CRoom, "failed to create custom room: invalid color selected")
 		return redirect(c, "/")
 	}
+
+	vsBot := payload.Opponent == "computer"
 
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       selectedVariant,
 		selectedColor: selectedColor,
-		public:        payload.Public,
+		vsBot:         vsBot,
+		// bot games are never public open challenges
+		public: payload.Public && !vsBot,
 	})
 }
 

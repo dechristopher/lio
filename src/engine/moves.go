@@ -1,6 +1,6 @@
 package engine
 
-import "github.com/dechristopher/octad"
+import "github.com/dechristopher/octad/v2"
 
 // orderMoves attempts to reorder the generated moves
 // list to give priority to higher impact moves that
@@ -57,9 +57,9 @@ func orderMoves(situation *octad.Game) []octad.Move {
 		}
 
 		// add castles
-		if m.HasTag(octad.KnightCastle) ||
-			m.HasTag(octad.ClosePawnCastle) ||
-			m.HasTag(octad.FarPawnCastle) {
+		if m.HasTag(octad.NearCastle) ||
+			m.HasTag(octad.CenterCastle) ||
+			m.HasTag(octad.FarCastle) {
 			castles = append(castles, m)
 			continue
 		}

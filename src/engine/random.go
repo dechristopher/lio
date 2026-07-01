@@ -7,7 +7,7 @@ import (
 	"github.com/dechristopher/lio/rng"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 // randomMove is the root for the random move generator

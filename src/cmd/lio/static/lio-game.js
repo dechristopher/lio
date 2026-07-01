@@ -17,6 +17,20 @@ const maxReconcileAttempts = 3;
 const moveTag = "m";
 const gameOverTag = "g";
 const rematchUpdateTag = "ru";
+const deployTag = "d";
+
+// Blind deploy phase state. While deployMode is true the board is in
+// "arrange your home rank" mode (drag/tap to swap your four pieces) rather than
+// normal play; deployConfirmed locks the arrangement once submitted.
+let deployMode = false;
+let deploySpectating = false;  // watching a blind deploy phase (both ranks hidden)
+let deployConfirmed = false;
+let deployTimer = null;     // countdown setTimeout handle
+let deployDeadline = 0;     // epoch ms when the server deploy window closes
+let deployArrangement = null; // Map<square, piece> tracking our home-rank layout
+let deployIsWhite = false;    // our side this game, from the deploy message ids
+let deployLockWhite = false;  // white has committed its arrangement
+let deployLockBlack = false;  // black has committed its arrangement
 
 window.addEventListener('load', () => {
 	if (window.ws) {
@@ -64,7 +78,11 @@ let og = Octadground(document.getElementById('game'), {
 	},
 	events: {
 		move: (orig, dest, capturedPiece) => {
-			doMove(orig, dest);
+			if (deployMode) {
+				onDeploySwap(orig, dest, capturedPiece);
+			} else {
+				doMove(orig, dest);
+			}
 		}
 	}
 });
@@ -335,6 +353,37 @@ const rematchWindowLabel = (remaining) => {
 	return `Rematch &middot; ${remaining}s`;
 };
 
+// Post-rematch resync safety net. The start of the next game is announced by a
+// single server broadcast — the blind-deploy 'd' message in deploy variants, or
+// the gs=true board reset otherwise. If this client misses that one message
+// (a momentary socket hiccup, a full send buffer, a throttled background tab at
+// exactly the wrong instant) nothing else pulls it into the new game, so it
+// sits on the "Waiting…" overlay until the 30s server-side deploy autofill — the
+// "rematch gets stuck" symptom. While we are waiting for a rematch we clicked to
+// start, we poll for authoritative state: the server answers an a:0 board query
+// with the deploy-start message during the deploy phase (see handle_move.go) or
+// the current game state otherwise, either of which resyncs us. The poll is
+// cleared the moment the next game actually begins — enterDeployMode and the
+// gs=true branch of handleMove both run hideResult — so the happy path (deploy
+// arrives within ~1s) sends zero extra traffic. See
+// arch/DEPLOY_REMATCH_RACES.md (race #1).
+let rematchResyncTimer = null;
+const rematchResyncIntervalMs = 2000;
+
+const startRematchResync = () => {
+	stopRematchResync();
+	rematchResyncTimer = setInterval(() => {
+		sendBoardUpdateRequest();
+	}, rematchResyncIntervalMs);
+};
+
+const stopRematchResync = () => {
+	if (rematchResyncTimer !== null) {
+		clearInterval(rematchResyncTimer);
+		rematchResyncTimer = null;
+	}
+};
+
 /**
  * Hide the game-end result overlay and reset its rematch button and countdown.
  */
@@ -348,7 +397,38 @@ const hideResult = () => {
 	}
 	rematchRequested = false;
 	opponentLeft = false;
+	hideOpponentRematchRequest();
+	// the next game has started (or the overlay is being torn down): stop polling
+	stopRematchResync();
 	stopCountdown();
+};
+
+/**
+ * showOpponentRematchRequest surfaces that the opponent asked for a rematch, so
+ * the player knows a single click will start the next game. Highlights the
+ * rematch button and shows a note.
+ */
+const showOpponentRematchRequest = () => {
+	const note = document.getElementById('result-note');
+	if (note) {
+		note.textContent = 'Opponent wants a rematch';
+		note.classList.remove('hidden');
+	}
+	// draw the eye to the action unless we've already committed to it
+	if (rematchBtn && !rematchRequested) {
+		rematchBtn.classList.add('wants-rematch');
+	}
+};
+
+const hideOpponentRematchRequest = () => {
+	const note = document.getElementById('result-note');
+	if (note) {
+		note.classList.add('hidden');
+		note.textContent = '';
+	}
+	if (rematchBtn) {
+		rematchBtn.classList.remove('wants-rematch');
+	}
 };
 
 /**
@@ -364,6 +444,7 @@ const showResult = (message) => {
 	// a previous game in this room, and re-enable the rematch action
 	rematchRequested = false;
 	opponentLeft = false;
+	hideOpponentRematchRequest();
 	if (rematchBtn) {
 		rematchBtn.disabled = false;
 		rematchBtn.innerHTML = 'Rematch';
@@ -432,6 +513,11 @@ if (rematchBtn) {
 		rematchBtn.disabled = true;
 		rematchBtn.innerHTML = 'Waiting&hellip;';
 		rematchRequested = true;
+		hideOpponentRematchRequest();
+		// guard against missing the single next-game / deploy-start broadcast:
+		// poll for authoritative state until the new game begins (see
+		// startRematchResync).
+		startRematchResync();
 		refreshCountdownLabel();
 	});
 }
@@ -446,6 +532,24 @@ if (homeBtn) {
  * @param message - move message
  */
 const handleMove = (message) => {
+	// while arranging or spectating the blind deploy phase, ignore stale pre-deploy
+	// board states (r.game is still the previous position server-side); only the
+	// reveal (gs = game start) board state ends the phase and renders pieces
+	if ((deployMode || deploySpectating) && !message.d.gs) {
+		return;
+	}
+
+	// while waiting for a clicked rematch to start, ignore any non-start board
+	// state. The resync poll (startRematchResync) re-requests state on an interval,
+	// and the finished game's position can still carry legal moves (a resignation
+	// or timeout ends the game with a playable board), which would otherwise
+	// re-enable dragging behind the result overlay — and a stray move sent during
+	// StateGameOver would wedge the server's moveChannel. Only the next game's
+	// reveal (gs) or a 'd' deploy message (handled elsewhere) may pull us forward.
+	if (rematchRequested && !message.d.gs) {
+		return;
+	}
+
 	const ofenParts = message.d.o.split(' ');
 	const serverPly = messagePly(message);
 
@@ -485,6 +589,11 @@ const handleMove = (message) => {
 	playerWhite = isPlayerWhite(message);
 	if (message.d.gs) {
 		hideResult();
+		// the first game-state after the deploy phase is the reveal: drop the
+		// blind overlay and restore normal play before rendering the position
+		if (deployMode || deploySpectating) {
+			exitDeployMode();
+		}
 		// a new game invalidates any move left unconfirmed from the prior one
 		clearPending();
 	}
@@ -546,6 +655,9 @@ const handleGameOver = (message) => {
 
 	// if room over, redirect home after a second
 	if (message.d.o === true) {
+		// no next game is coming; stop any post-rematch resync poll so it can't
+		// outlive the room while we wait to redirect
+		stopRematchResync();
 		setTimeout(() => {
 			window.location.href = "/";
 		}, 3000);
@@ -926,6 +1038,15 @@ const handleRematchUpdate = (message) => {
 		return;
 	}
 
+	// a rematch-request signal ({rq: requester id}): surface it to the opponent
+	// only (our own click already shows "Waiting…"), and don't retime the window
+	if (message.d.rq) {
+		if (message.d.rq !== getCookie('uid')) {
+			showOpponentRematchRequest();
+		}
+		return;
+	}
+
 	opponentLeft = !!message.d.ol;
 	if (rematchBtn) {
 		if (opponentLeft) {
@@ -948,7 +1069,440 @@ const handleRematchUpdate = (message) => {
 	}
 };
 
-// Set handlers for game messages
+/**
+ * homeRankSquares returns the player's four home-rank squares in display
+ * left-to-right order (the order the server expects the deploy string in). For
+ * white that is a1..d1; for black the board is flipped so it is d4..a4.
+ */
+const homeRankSquares = (white) => white ? ['a1', 'b1', 'c1', 'd1'] : ['d4', 'c4', 'b4', 'a4'];
+
+/**
+ * deployMovable builds the octadground movable config that restricts moves to
+ * swaps within the player's own home rank during the deploy phase.
+ */
+const deployMovable = (white) => {
+	const sqs = white ? ['a1', 'b1', 'c1', 'd1'] : ['a4', 'b4', 'c4', 'd4'];
+	const dests = new Map();
+	for (const s of sqs) {
+		dests.set(s, sqs.filter(x => x !== s));
+	}
+	return { free: false, color: white ? 'white' : 'black', dests: dests };
+};
+
+/**
+ * handleDeploy processes blind deploy-phase messages: the phase-start / reconnect
+ * message ({a, s, w, b, ...}) enters (or restores) deploy mode, and a lock update
+ * ({lk: color}) marks a side as committed without re-entering the phase.
+ */
+const handleDeploy = (message) => {
+	const d = message.d || {};
+
+	// a lock update ({lk}) reports a side committed; update the indicator only
+	if (d.lk) {
+		updateDeployLock(d.lk);
+		return;
+	}
+
+	const uid = getCookie('uid');
+	const seconds = d.s ? d.s : 30;
+	// derive our side from the message's player ids rather than the DOM
+	// orientation class, which is stale after a rematch swaps colors. A spectator
+	// matches neither id and watches the blind phase (both ranks hidden).
+	if (uid !== d.w && uid !== d.b) {
+		enterDeploySpectatorMode(d);
+		return;
+	}
+	deployIsWhite = (uid === d.w);
+	enterDeployMode(seconds, d);
+};
+
+const enterDeployMode = (seconds, payload) => {
+	const d = payload || {};
+	if (deployMode) {
+		// already arranging (e.g. a duplicate start): just refresh lock indicators
+		if (d.lw) { updateDeployLock('white'); }
+		if (d.lb) { updateDeployLock('black'); }
+		return;
+	}
+	deployMode = true;
+	deployConfirmed = false;
+	deployLockWhite = false;
+	deployLockBlack = false;
+
+	// a deploy phase begins a new game, so clear any lingering game-over /
+	// rematch overlay from the previous game
+	hideResult();
+
+	const white = deployIsWhite;
+	const myColor = white ? 'white' : 'black';
+	// show only the player's own pieces in standard order; the opponent's rank is
+	// covered by the "?" overlay and the middle ranks are empty
+	const ofen = white ? '4/4/4/NKPP' : 'ppkn/4/4/4';
+	og.set({
+		ofen: ofen,
+		orientation: myColor,
+		turnColor: myColor,
+		lastMove: undefined,
+		check: false,
+		// disable octadground's auto-castle: dragging the king two squares onto a
+		// same-color pawn/knight would otherwise trigger a castling relocation
+		// (king one step over, partner to the king's square) and duplicate a piece.
+		// Deploy swaps are reconstructed by onDeploySwap, so plain moves are wanted.
+		autoCastle: false,
+		draggable: { enabled: true },
+		selectable: { enabled: true },
+		movable: deployMovable(white),
+	});
+
+	// snapshot our starting home-rank layout so swaps can be reconstructed
+	// (octadground overwrites the destination piece on a same-color move)
+	deployArrangement = new Map();
+	for (const sq of homeRankSquares(white)) {
+		deployArrangement.set(sq, og.state.pieces.get(sq));
+	}
+
+	document.getElementById('deploy-questions').classList.add('deploy-show');
+	document.getElementById('deploy-overlay').classList.add('deploy-show');
+	const btn = document.getElementById('deploy-confirm');
+	btn.classList.remove('hidden');
+	btn.disabled = false;
+	btn.onclick = confirmDeploy;
+	document.getElementById('deploy-waiting').classList.add('hidden');
+
+	startDeployCountdown(seconds);
+
+	// restore a prior arrangement across a refresh: the server replays our own
+	// confirmed order (d.o); otherwise fall back to an unconfirmed local draft.
+	const draft = loadDeployDraft();
+	const restoreOrder = d.o || (draft && draft.o);
+	if (restoreOrder) {
+		applyDeployOrder(restoreOrder);
+	}
+	// re-lock if we had already confirmed (server-known, or a confirmed draft)
+	if (d.cf || (draft && draft.cf)) {
+		confirmDeploy();
+	}
+	// reflect any side already locked in (reconnect)
+	if (d.lw) { updateDeployLock('white'); }
+	if (d.lb) { updateDeployLock('black'); }
+};
+
+/**
+ * enterDeploySpectatorMode shows the blind deploy phase to a spectator: an empty
+ * board with both home ranks hidden behind "?" cells and a passive, control-free
+ * card. It also reflects each side's locked-in status as it arrives.
+ */
+const enterDeploySpectatorMode = (payload) => {
+	const d = payload || {};
+	if (deploySpectating) {
+		if (d.lw) { updateDeployLock('white'); }
+		if (d.lb) { updateDeployLock('black'); }
+		return;
+	}
+	deploySpectating = true;
+	deployLockWhite = false;
+	deployLockBlack = false;
+	hideResult();
+
+	// blank the board; both home ranks sit behind the "?" overlay
+	og.set({
+		ofen: '4/4/4/4',
+		lastMove: undefined,
+		check: false,
+		draggable: { enabled: false },
+		selectable: { enabled: false },
+		movable: { free: false, color: undefined, dests: new Map() },
+	});
+
+	document.getElementById('deploy-questions').classList.add('deploy-show');
+	document.getElementById('deploy-questions-btm').classList.add('deploy-show');
+
+	// passive spectator card: no controls, just a status line
+	document.getElementById('deploy-overlay').classList.add('deploy-show');
+	document.querySelector('.deploy-headline').textContent = 'Blind deploy';
+	document.querySelector('.deploy-hint').textContent = 'Both players are secretly arranging their pieces.';
+	document.getElementById('deploy-countdown').classList.add('hidden');
+	document.getElementById('deploy-confirm').classList.add('hidden');
+	document.getElementById('deploy-waiting').classList.add('hidden');
+
+	if (d.lw) { updateDeployLock('white'); }
+	if (d.lb) { updateDeployLock('black'); }
+	renderDeployLock();
+};
+
+/**
+ * applyDeployOrder rearranges the player's home rank to a saved 4-char order
+ * (k/n/p in display left-to-right order) and rebuilds the tracked arrangement.
+ */
+const applyDeployOrder = (order) => {
+	if (!order || order.length !== 4) {
+		return;
+	}
+	const color = deployIsWhite ? 'white' : 'black';
+	const letterToRole = { k: 'king', n: 'knight', p: 'pawn' };
+	const sqs = homeRankSquares(deployIsWhite);
+	const pieces = new Map();
+	const next = new Map();
+	for (let i = 0; i < 4; i++) {
+		const role = letterToRole[order[i]];
+		if (!role) {
+			return; // malformed; keep the standard order already on the board
+		}
+		const piece = { role: role, color: color };
+		pieces.set(sqs[i], piece);
+		next.set(sqs[i], piece);
+	}
+	deployArrangement = next;
+	og.setPieces(pieces);
+};
+
+/**
+ * onDeploySwap completes a swap when a piece is dragged/tapped onto another of
+ * the player's home-rank pieces. octadground has already moved orig->dest and
+ * overwritten the destination piece, so we reconstruct the swap from our tracked
+ * arrangement: the displaced piece slides back to the origin.
+ */
+const onDeploySwap = (orig, dest) => {
+	if (!deployArrangement) {
+		return;
+	}
+	const moved = deployArrangement.get(orig);
+	const displaced = deployArrangement.get(dest);
+	if (!moved) {
+		return;
+	}
+
+	// update our model first
+	deployArrangement.set(dest, moved);
+	deployArrangement.set(orig, displaced);
+	const white = deployIsWhite;
+
+	// a piece just changed squares — same feedback as a real move
+	playSwapSound();
+	// remember the in-progress arrangement so a refresh restores it (see #3)
+	saveDeployDraft();
+
+	// defer the re-render so octadground finishes its own drag/move handling
+	// before we re-assert both squares and re-apply the deploy move restriction
+	setTimeout(() => {
+		// seed octadground's pre-anim snapshot with the displaced piece still on
+		// dest (the dragged piece already sits there), so the follow-up setPieces
+		// animates the displaced piece sliding dest -> orig instead of popping in.
+		if (displaced) {
+			og.state.pieces.set(dest, displaced);
+		} else {
+			og.state.pieces.delete(dest);
+		}
+		og.state.pieces.delete(orig);
+		og.setPieces(new Map([[dest, moved], [orig, displaced || null]]));
+		// octadground flips turnColor after a user move; restore ours so the next
+		// swap is allowed, and re-assert the home-rank move restriction
+		og.set({ turnColor: white ? 'white' : 'black', movable: deployMovable(white) });
+	}, 0);
+};
+
+/**
+ * playSwapSound plays the standard move sound for a deploy rearrangement,
+ * mirroring the feedback of a real move.
+ */
+const playSwapSound = () => {
+	if (window.moveSound) {
+		window.moveSound.play();
+	}
+};
+
+/**
+ * readDeployOrder reads the player's home-rank arrangement into the 4-char
+ * order string (k/n/p) the server expects, in the player's display order.
+ */
+const readDeployOrder = () => {
+	const roleToLetter = { king: 'k', knight: 'n', pawn: 'p' };
+	let order = '';
+	for (const sq of homeRankSquares(deployIsWhite)) {
+		const piece = og.state.pieces.get(sq);
+		order += piece ? (roleToLetter[piece.role] || '') : '';
+	}
+	return order;
+};
+
+const confirmDeploy = () => {
+	if (deployConfirmed || !deployMode) {
+		return;
+	}
+	deployConfirmed = true;
+	// persist the confirmed state so a refresh re-enters locked, not unconfirmed
+	saveDeployDraft(true);
+	send(buildCommand(deployTag, { o: readDeployOrder() }));
+	// lock the board and switch the controls to the waiting state
+	og.set({ draggable: { enabled: false }, selectable: { enabled: false }, movable: { free: false, color: undefined, dests: new Map() } });
+	document.getElementById('deploy-confirm').classList.add('hidden');
+	document.getElementById('deploy-waiting').classList.remove('hidden');
+	renderDeployLock();
+};
+
+/**
+ * readDeployOrderFromModel reads the 4-char order (k/n/p) from our tracked
+ * arrangement rather than the live board — safe to call mid-swap, before the
+ * deferred board re-render has run.
+ */
+const readDeployOrderFromModel = () => {
+	const roleToLetter = { king: 'k', knight: 'n', pawn: 'p' };
+	let order = '';
+	for (const sq of homeRankSquares(deployIsWhite)) {
+		const piece = deployArrangement ? deployArrangement.get(sq) : null;
+		order += piece ? (roleToLetter[piece.role] || '') : '';
+	}
+	return order;
+};
+
+// deployDraftKey namespaces the saved arrangement to this room (the URL path).
+const deployDraftKey = () => 'deploy:' + window.location.pathname;
+
+/**
+ * saveDeployDraft mirrors the in-progress (or confirmed) arrangement to
+ * sessionStorage so a refresh mid-deploy restores it — the server never sees an
+ * unconfirmed arrangement, so the client is the only place it can survive.
+ */
+const saveDeployDraft = (confirmed) => {
+	try {
+		sessionStorage.setItem(deployDraftKey(), JSON.stringify({
+			o: readDeployOrderFromModel(),
+			w: deployIsWhite,
+			cf: !!confirmed,
+		}));
+	} catch (e) { /* storage unavailable; drafts just won't persist */ }
+};
+
+const loadDeployDraft = () => {
+	try {
+		const raw = sessionStorage.getItem(deployDraftKey());
+		if (!raw) { return null; }
+		const draft = JSON.parse(raw);
+		// only honor a draft that matches our current side (a rematch can swap it)
+		if (draft && draft.w === deployIsWhite && typeof draft.o === 'string' && draft.o.length === 4) {
+			return draft;
+		}
+	} catch (e) { /* ignore malformed drafts */ }
+	return null;
+};
+
+const clearDeployDraft = () => {
+	try { sessionStorage.removeItem(deployDraftKey()); } catch (e) { /* noop */ }
+};
+
+/**
+ * updateDeployLock records that a color committed its arrangement and refreshes
+ * the "locked in" indicator (opponent-only for a player, both sides for a
+ * spectator).
+ */
+const updateDeployLock = (color) => {
+	if (color === 'white') { deployLockWhite = true; }
+	else if (color === 'black') { deployLockBlack = true; }
+	renderDeployLock();
+};
+
+const renderDeployLock = () => {
+	const el = document.getElementById('deploy-opponent-status');
+	if (!el) { return; }
+	if (deploySpectating) {
+		el.textContent = 'White: ' + (deployLockWhite ? 'ready ✓' : 'arranging…')
+			+ '  ·  Black: ' + (deployLockBlack ? 'ready ✓' : 'arranging…');
+		el.classList.remove('hidden');
+		return;
+	}
+	// player view: surface only the opponent's status
+	const opponentLocked = deployIsWhite ? deployLockBlack : deployLockWhite;
+	if (opponentLocked) {
+		el.textContent = 'Opponent locked in ✓';
+		el.classList.remove('hidden');
+	} else {
+		el.classList.add('hidden');
+	}
+};
+
+const clearDeployLockIndicator = () => {
+	deployLockWhite = false;
+	deployLockBlack = false;
+	const el = document.getElementById('deploy-opponent-status');
+	if (el) {
+		el.classList.add('hidden');
+		el.textContent = '';
+	}
+};
+
+const startDeployCountdown = (seconds) => {
+	clearDeployCountdown();
+	deployDeadline = Date.now() + seconds * 1000;
+	const tick = () => {
+		const remainMs = deployDeadline - Date.now();
+		const el = document.getElementById('deploy-countdown');
+		if (el) {
+			el.textContent = Math.max(0, Math.ceil(remainMs / 1000)) + 's';
+		}
+		// auto-submit the current arrangement shortly before the server deadline
+		// so an unconfirmed-but-present player keeps what they arranged
+		if (!deployConfirmed && remainMs <= 2000) {
+			confirmDeploy();
+		}
+		if (remainMs > 0) {
+			deployTimer = setTimeout(tick, 250);
+		}
+	};
+	tick();
+};
+
+const clearDeployCountdown = () => {
+	if (deployTimer) {
+		clearTimeout(deployTimer);
+		deployTimer = null;
+	}
+};
+
+/**
+ * exitDeployMode is called when the post-deploy board state arrives (the reveal):
+ * it fades out the "?" overlay(s), restores normal board interaction, and resets
+ * the deploy controls for the next game. Handles both a player who arranged and a
+ * spectator who watched the blind phase.
+ */
+const exitDeployMode = () => {
+	if (!deployMode && !deploySpectating) {
+		return;
+	}
+	const wasSpectating = deploySpectating;
+	deployMode = false;
+	deploySpectating = false;
+	deployConfirmed = false;
+	clearDeployCountdown();
+	clearDeployDraft();
+
+	const dq = document.getElementById('deploy-questions');
+	const dqb = document.getElementById('deploy-questions-btm');
+	const overlay = document.getElementById('deploy-overlay');
+	overlay.classList.remove('deploy-show');
+	// brief fade of the "?" cells while the revealed pieces render underneath
+	dq.classList.add('deploy-reveal');
+	dqb.classList.add('deploy-reveal');
+	setTimeout(() => {
+		dq.classList.remove('deploy-show', 'deploy-reveal');
+		dqb.classList.remove('deploy-show', 'deploy-reveal');
+	}, 500);
+
+	// a spectator never had interaction to restore; a player regains normal play
+	// (and octadground's auto-castle)
+	if (!wasSpectating) {
+		og.set({ autoCastle: true, draggable: { enabled: true }, selectable: { enabled: window.isMobile } });
+	}
+
+	// reset the card (a spectator overwrote its text) and controls for next time
+	document.querySelector('.deploy-headline').textContent = 'Arrange your pieces';
+	document.querySelector('.deploy-hint').textContent = 'Drag a piece onto another — or tap two squares — to swap, then confirm.';
+	document.getElementById('deploy-countdown').classList.remove('hidden');
+	document.getElementById('deploy-confirm').classList.remove('hidden');
+	document.getElementById('deploy-waiting').classList.add('hidden');
+	clearDeployLockIndicator();
+};
+
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
 window.handlers.set(rematchUpdateTag, handleRematchUpdate);
+window.handlers.set(deployTag, handleDeploy);

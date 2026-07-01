@@ -20,8 +20,27 @@ func HandleMove(m []byte, meta channel.SocketContext) []byte {
 		return nil
 	}
 
-	// quickly return board state on new connection
+	// quickly return current state on new connection / board-update request
 	if fastjson.GetInt(m, "d", "a") == 0 {
+		// during the blind deploy phase a (re)connecting client must enter
+		// deploy mode, not render the stale pre-deploy board
+		if thisRoom.State() == room.StateDeploy {
+			return thisRoom.DeployStateMessage(meta.UID)
+		}
+		// a client returning to a finished game (a refresh, or reopening the tab
+		// during the rematch window) must re-enter the game-over overlay rather
+		// than resume live play with the clocks running. Send the authoritative
+		// final board first so the position renders, then the game-over payload so
+		// the overlay shows and the clocks stop — the same two-message sequence a
+		// live finish produces (see tryGameOver). GameOverStateMessage returns nil
+		// if the game isn't actually over, so this falls through to the plain board
+		// state for any other state.
+		if thisRoom.State() == room.StateGameOver {
+			if overMsg := thisRoom.GameOverStateMessage(); overMsg != nil {
+				channel.Unicast(thisRoom.CurrentGameStateMessage(true, false), meta)
+				return overMsg
+			}
+		}
 		return thisRoom.CurrentGameStateMessage(true, false)
 	}
 

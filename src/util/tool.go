@@ -3,7 +3,7 @@ package util
 import (
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/rng"

@@ -21,7 +21,7 @@ a basic engine, PGN encoding, image generation, and others.
 **octad** can be installed using "go get".
 
 ```bash
-go get -u github.com/dechristopher/octad
+go get -u github.com/dechristopher/octad/v2
 ``` 
 
 ## Octad Game
@@ -31,7 +31,7 @@ but needs formal verification to prove that. This repository exists as an effort
 towards that goal.
 
 ### Board Layout
-Each player begins with four pieces: a knight, their king, and two pawns placed
+In the default position, each player begins with four pieces: a knight, their king, and two pawns placed
 in that order from left to right relative to them. An example of this can be
 seen in the board diagrams below:
 
@@ -47,20 +47,24 @@ All standard chess rules apply:
 * Stalemates are a draw
 
 The only catch, however, is that castling is possible between the king and any
-of its pieces on the starting rank before movement. The king will simply switch
-spaces with the castling piece in all cases except the far pawn, in which case
-the king will travel one space to the right, and the pawn will lie where the
-king was before. An example of white castling with their far pawn can be
-expressed as `[ 1. c2 b3 2. O-O-O ... ]` with the resulting structure leaving
-the knight on a1, a pawn on b1, the king on c1, and the other pawn on c2. Here
-is what that would look like on the board:
+of its pieces on the starting rank before movement. Castling is
+position-relative — the king may castle from whatever home-rank square it
+occupies. The king simply switches spaces with the castling piece in all cases
+except the far piece, in which case the king travels one space toward it and
+that piece lands where the king was before. The three castle types are named
+for the king's relationship to its partner: **near** (an adjacent knight),
+**center** (an adjacent pawn), and **far** (a pawn two files away, leapt over an
+empty gap). An example of white performing a far castle can be expressed as
+`[ 1. c2 b3 2. O-O-O ... ]` with the resulting structure leaving the knight on
+a1, a pawn on b1, the king on c1, and the other pawn on c2. Here is what that
+would look like on the board:
 
-![Octad board](doc/far-castle.svg "White after far pawn castling")
+![Octad board](doc/far-castle.svg "White after a far castle")
 
 #### Castling Notation
-* Knight castle: **O**
-* Close pawn castle: **O-O**
-* Far pawn castle: **O-O-O**
+* Near castle: **O**
+* Center castle: **O-O**
+* Far castle: **O-O-O**
 
 ### OFEN Notation
 OFEN is a derivation of FEN to support the features of Octad. Read more

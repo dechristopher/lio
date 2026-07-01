@@ -3,7 +3,7 @@ package player
 import (
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 func TestAnchorColor(t *testing.T) {

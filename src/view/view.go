@@ -6,7 +6,6 @@ package view
 
 import (
 	"context"
-	"sort"
 
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
@@ -97,22 +96,4 @@ func IsHTMXFragment(c *fiber.Ctx) bool {
 // in the pre-game summary.
 func groupTitle(g variant.Group) string {
 	return cases.Title(language.English).String(g.String())
-}
-
-// sortedPools flattens the rating pools into a single slice in sorted map-key
-// order. The old html/template engine ranged over the pools map in sorted key
-// order, and the keys are number-prefixed ("0bullet", "1blitz", "2rapid") so
-// that order is bullet→blitz→rapid; this reproduces it for templ's for-range.
-func sortedPools(pools map[variant.Group][]variant.Variant) []variant.Variant {
-	keys := make([]string, 0, len(pools))
-	for k := range pools {
-		keys = append(keys, string(k))
-	}
-	sort.Strings(keys)
-
-	out := make([]variant.Variant, 0, len(pools))
-	for _, k := range keys {
-		out = append(out, pools[variant.Group(k)]...)
-	}
-	return out
 }

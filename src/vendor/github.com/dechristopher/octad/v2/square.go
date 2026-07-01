@@ -110,7 +110,7 @@ const (
 	FileD
 )
 
-// String returns the string representation of the the current file
+// String returns the string representation of the current file
 func (f File) String() string {
 	return fileChars[f : f+1]
 }

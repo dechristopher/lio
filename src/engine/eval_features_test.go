@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 )
 
 func squaresFromOFEN(t *testing.T, ofen string) map[octad.Square]octad.Piece {

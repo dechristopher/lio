@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// A Board represents a octad board and its relationship between squares and pieces.
+// A Board represents an octad board and its relationship between squares and pieces.
 type Board struct {
 	bbWhiteKing   bitboard
 	bbWhiteQueen  bitboard
@@ -106,7 +106,7 @@ func (b *Board) Transpose() *Board {
 	return NewBoard(m)
 }
 
-// Draw returns visual representation of the board useful for debugging.
+// Draw returns a visual representation of the board useful for debugging.
 func (b *Board) Draw() string {
 	s := "\n A B C D\n"
 	for r := 3; r >= 0; r-- {
@@ -180,7 +180,7 @@ func (b *Board) UnmarshalText(text []byte) error {
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaller interface and returns
-// the bitboard representations as a array of bytes. Bitboards are encoded
+// the bitboard representations as an array of bytes. Bitboards are encoded
 // in the following order: WhiteKing, WhiteQueen, WhiteRook, WhiteBishop, WhiteKnight
 // WhitePawn, BlackKing, BlackQueen, BlackRook, BlackBishop, BlackKnight, BlackPawn
 func (b *Board) MarshalBinary() (data []byte, err error) {
@@ -192,7 +192,7 @@ func (b *Board) MarshalBinary() (data []byte, err error) {
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface and parses
-// the bitboard representations as a array of bytes. Bitboards are decoded
+// the bitboard representations as an array of bytes. Bitboards are decoded
 // in the following order: WhiteKing, WhiteQueen, WhiteRook, WhiteBishop, WhiteKnight
 // WhitePawn, BlackKing, BlackQueen, BlackRook, BlackBishop, BlackKnight, BlackPawn
 func (b *Board) UnmarshalBinary(data []byte) error {
@@ -254,23 +254,33 @@ func (b *Board) update(m *Move) {
 	b.calcConvenienceBBs(m)
 }
 
+// moveCastledPieces relocates the partner piece (and, for a far castle, the
+// king) after the base board update has moved the king onto m.s2. It is
+// position-relative: m.s1 is the king's origin and m.s2 the partner's square.
 func moveCastledPieces(b *Board, p1 Piece, m *Move) {
-	if p1.Color() == White && m.HasTag(KnightCastle) {
-		b.bbWhiteKnight = (b.bbWhiteKnight & ^bbForSquare(A1)) | bbForSquare(B1)
-	} else if p1.Color() == White && m.HasTag(ClosePawnCastle) {
-		b.bbWhitePawn = (b.bbWhitePawn & ^bbForSquare(C1)) | bbForSquare(B1)
-	} else if p1.Color() == White && m.HasTag(FarPawnCastle) {
-		b.bbWhitePawn = (b.bbWhitePawn & ^bbForSquare(D1)) | bbForSquare(B1)
-		// finagle the king back to C1 since move is technically to D1
-		b.bbWhiteKing = (b.bbWhiteKing & ^bbForSquare(D1)) | bbForSquare(C1)
-	} else if p1.Color() == Black && m.HasTag(KnightCastle) {
-		b.bbBlackKnight = (b.bbBlackKnight & ^bbForSquare(D4)) | bbForSquare(C4)
-	} else if p1.Color() == Black && m.HasTag(ClosePawnCastle) {
-		b.bbBlackPawn = (b.bbBlackPawn & ^bbForSquare(B4)) | bbForSquare(C4)
-	} else if p1.Color() == Black && m.HasTag(FarPawnCastle) {
-		b.bbBlackPawn = (b.bbBlackPawn & ^bbForSquare(A4)) | bbForSquare(C4)
-		// finagle the king back to B4 since move is technically to A4
-		b.bbBlackKing = (b.bbBlackKing ^ bbForSquare(A4)) | bbForSquare(B4)
+	c := p1.Color()
+	s1BB := bbForSquare(m.s1)
+	s2BB := bbForSquare(m.s2)
+
+	switch {
+	case m.HasTag(NearCastle):
+		// adjacent swap: the knight (removed from s2 by the base update) takes
+		// the king's origin square
+		knight := getPiece(Knight, c)
+		b.setBBForPiece(knight, (b.bbForPiece(knight) & ^s2BB)|s1BB)
+	case m.HasTag(CenterCastle):
+		// adjacent swap with a pawn
+		pawn := getPiece(Pawn, c)
+		b.setBBForPiece(pawn, (b.bbForPiece(pawn) & ^s2BB)|s1BB)
+	case m.HasTag(FarCastle):
+		// one-gap leap: the pawn lands on the king's origin, and the king
+		// settles on the empty gap square it passed into (s2 is the far
+		// partner, so finagle the king back from s2 to the gap)
+		pawn := getPiece(Pawn, c)
+		king := getPiece(King, c)
+		gapBB := bbForSquare(Square((int(m.s1) + int(m.s2)) / 2))
+		b.setBBForPiece(pawn, (b.bbForPiece(pawn) & ^s2BB)|s1BB)
+		b.setBBForPiece(king, (b.bbForPiece(king) & ^s2BB)|gapBB)
 	}
 }
 
@@ -295,13 +305,14 @@ func (b *Board) calcConvenienceBBs(m *Move) {
 		}
 	} else if m.s1 == b.whiteKingSq {
 		b.whiteKingSq = m.s2
-		if m.HasTag(FarPawnCastle) {
-			b.whiteKingSq = C1
+		if m.HasTag(FarCastle) {
+			// the king settles on the gap, not the far partner's square (s2)
+			b.whiteKingSq = Square((int(m.s1) + int(m.s2)) / 2)
 		}
 	} else if m.s1 == b.blackKingSq {
 		b.blackKingSq = m.s2
-		if m.HasTag(FarPawnCastle) {
-			b.blackKingSq = B4
+		if m.HasTag(FarCastle) {
+			b.blackKingSq = Square((int(m.s1) + int(m.s2)) / 2)
 		}
 	}
 }
@@ -338,7 +349,7 @@ func (b *Board) hasSufficientMaterial() bool {
 		b.bbBlackQueen | b.bbBlackRook | b.bbBlackPawn) > 0 {
 		return true
 	}
-	// if king is missing then it is a test
+	// if king is missing, then it is a test
 	if b.bbWhiteKing == 0 || b.bbBlackKing == 0 {
 		return true
 	}
@@ -359,7 +370,7 @@ func (b *Board) hasSufficientMaterial() bool {
 	if count[Bishop] == 0 && count[Knight] == 1 {
 		return false
 	}
-	// king and bishop(s) versus king and bishop(s) with the bishops on the same colour.
+	// king and bishop(s) versus king and bishop(s) with the bishops on the same color.
 	if count[Knight] == 0 {
 		whiteCount := 0
 		blackCount := 0
@@ -370,6 +381,8 @@ func (b *Board) hasSufficientMaterial() bool {
 					whiteCount++
 				case Black:
 					blackCount++
+				default:
+					panic("invalid square color: " + sq.String())
 				}
 			}
 		}
@@ -406,8 +419,9 @@ func (b *Board) bbForPiece(p Piece) bitboard {
 		return b.bbBlackKnight
 	case BlackPawn:
 		return b.bbBlackPawn
+	default:
+		return bitboard(0)
 	}
-	return bitboard(0)
 }
 
 func (b *Board) setBBForPiece(p Piece, bb bitboard) {

@@ -122,7 +122,7 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	r.Get("/db", handlers.DBHandler)
 
 	// new room creation routes
-	r.Post("/new/human", handlers.NewCustomRoomVsHuman)
+	r.Post("/new/game", handlers.NewCustomRoom)
 	r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
 	r.Get("/new/computer", handlers.NewRoomVsComputer)
 

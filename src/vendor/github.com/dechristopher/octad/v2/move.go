@@ -4,12 +4,15 @@ package octad
 type MoveTag uint16
 
 const (
-	// KnightCastle indicates that the move is a knight castle.
-	KnightCastle MoveTag = 1 << iota
-	// ClosePawnCastle indicates that the move is a close pawn castle.
-	ClosePawnCastle
-	// FarPawnCastle indicates that the move is a far pawn castle.
-	FarPawnCastle
+	// NearCastle indicates that the move is a near castle (the king swapping
+	// with an adjacent knight).
+	NearCastle MoveTag = 1 << iota
+	// CenterCastle indicates that the move is a center castle (the king
+	// swapping with an adjacent pawn).
+	CenterCastle
+	// FarCastle indicates that the move is a far castle (the king leaping one
+	// square over an empty gap to swap with a pawn two files away).
+	FarCastle
 	// Capture indicates that the move captures a piece.
 	Capture
 	// EnPassant indicates that the move captures via en passant.

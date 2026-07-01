@@ -1,6 +1,6 @@
 package engine
 
-import "github.com/dechristopher/octad"
+import "github.com/dechristopher/octad/v2"
 
 // PieceSquareTable is a map of squares to positional value
 // estimates for a given piece type

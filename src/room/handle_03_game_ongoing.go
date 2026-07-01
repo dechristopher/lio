@@ -3,7 +3,7 @@ package room
 import (
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/clock"

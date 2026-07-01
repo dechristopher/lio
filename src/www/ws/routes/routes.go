@@ -13,9 +13,10 @@ type wsRoutes = map[proto.PayloadTag]channel.Handler
 // Map protocol commands to command handlers
 var (
 	Map = wsRoutes{
-		proto.MoveTag: handlers.HandleMove,
-		proto.RoomTag: handlers.HandleRoom,
-		proto.OFENTag: Unimplemented,
+		proto.MoveTag:   handlers.HandleMove,
+		proto.RoomTag:   handlers.HandleRoom,
+		proto.DeployTag: handlers.HandleDeploy,
+		proto.OFENTag:   Unimplemented,
 	}
 )
 

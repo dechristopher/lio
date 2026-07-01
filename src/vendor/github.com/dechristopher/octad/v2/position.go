@@ -11,15 +11,18 @@ import (
 )
 
 // Side represents a side to castle to. In octad, there are three types of
-// castling allowed. Knight, close pawn, and far pawn
+// castling allowed: with the near, center, or far piece. In the standard
+// starting setup these are the knight, the close pawn, and the far pawn
+// respectively, but with deployed positions any home-rank piece can fill each
+// role.
 type Side int
 
 const (
-	// KnightSide is castling with the knight
-	KnightSide Side = iota + 1
-	// CloseSide is castling with the close pawn
-	CloseSide
-	// FarSide is castling with the far pawn
+	// NearSide is castling with the near piece (the knight in the standard setup)
+	NearSide Side = iota + 1
+	// CenterSide is castling with the 'center' piece (the close pawn in the standard setup)
+	CenterSide
+	// FarSide is castling with the far piece (the far pawn in the standard setup)
 	FarSide
 )
 
@@ -30,7 +33,7 @@ type CastleRights string
 // can castle, otherwise returns false.
 func (cr CastleRights) CanCastle(c Color, side Side) bool {
 	char := "n"
-	if side == CloseSide {
+	if side == CenterSide {
 		char = "c"
 	}
 	if side == FarSide {
@@ -72,7 +75,7 @@ func StartingPosition() (*Position, error) {
 }
 
 // Update returns a new position resulting from the given move.
-// The move itself isn't validated, if validation is needed use
+// The move itself isn't validated. If validation is needed, use
 // Game's Move method. This method is more performant for bots that
 // rely on the ValidMoves because it skips redundant validation.
 func (pos *Position) Update(m *Move) *Position {
@@ -112,7 +115,7 @@ func (pos *Position) ValidMoves() []*Move {
 }
 
 // Status returns the position's status as one of the outcome methods.
-// Possible returns values include Checkmate, Stalemate, and NoMethod.
+// Possible return values include Checkmate, Stalemate, and NoMethod.
 func (pos *Position) Status() Method {
 	return engine{}.Status(pos)
 }
@@ -202,11 +205,11 @@ func (pos *Position) UnmarshalText(text []byte) error {
 }
 
 const (
-	bitsCastleWhiteKnight uint8 = 1 << iota
-	bitsCastleWhiteClose
+	bitsCastleWhiteNear uint8 = 1 << iota
+	bitsCastleWhiteCenter
 	bitsCastleWhiteFar
-	bitsCastleBlackKnight
-	bitsCastleBlackClose
+	bitsCastleBlackNear
+	bitsCastleBlackCenter
 	bitsCastleBlackFar
 	bitsTurn
 	bitsHasEnPassant
@@ -229,20 +232,20 @@ func (pos *Position) MarshalBinary() (data []byte, err error) {
 		return nil, err
 	}
 	var b uint8
-	if pos.castleRights.CanCastle(White, KnightSide) {
-		b = b | bitsCastleWhiteKnight
+	if pos.castleRights.CanCastle(White, NearSide) {
+		b = b | bitsCastleWhiteNear
 	}
-	if pos.castleRights.CanCastle(White, CloseSide) {
-		b = b | bitsCastleWhiteClose
+	if pos.castleRights.CanCastle(White, CenterSide) {
+		b = b | bitsCastleWhiteCenter
 	}
 	if pos.castleRights.CanCastle(White, FarSide) {
 		b = b | bitsCastleWhiteFar
 	}
-	if pos.castleRights.CanCastle(Black, KnightSide) {
-		b = b | bitsCastleBlackKnight
+	if pos.castleRights.CanCastle(Black, NearSide) {
+		b = b | bitsCastleBlackNear
 	}
-	if pos.castleRights.CanCastle(Black, CloseSide) {
-		b = b | bitsCastleBlackClose
+	if pos.castleRights.CanCastle(Black, CenterSide) {
+		b = b | bitsCastleBlackCenter
 	}
 	if pos.castleRights.CanCastle(Black, FarSide) {
 		b = b | bitsCastleBlackFar
@@ -310,19 +313,19 @@ func (pos *Position) UnmarshalBinary(data []byte) error {
 
 func decodeCastleRights(rights uint8) CastleRights {
 	cr := ""
-	if rights&bitsCastleWhiteKnight != 0 {
+	if rights&bitsCastleWhiteNear != 0 {
 		cr += "N"
 	}
-	if rights&bitsCastleWhiteClose != 0 {
+	if rights&bitsCastleWhiteCenter != 0 {
 		cr += "C"
 	}
 	if rights&bitsCastleWhiteFar != 0 {
 		cr += "F"
 	}
-	if rights&bitsCastleBlackKnight != 0 {
+	if rights&bitsCastleBlackNear != 0 {
 		cr += "n"
 	}
-	if rights&bitsCastleBlackClose != 0 {
+	if rights&bitsCastleBlackCenter != 0 {
 		cr += "c"
 	}
 	if rights&bitsCastleBlackFar != 0 {
@@ -336,8 +339,8 @@ func decodeCastleRights(rights uint8) CastleRights {
 
 // returns true if the move is not a castle move
 func isPureCapture(m *Move) bool {
-	return m.HasTag(Capture) && !m.HasTag(FarPawnCastle) &&
-		!m.HasTag(ClosePawnCastle) && !m.HasTag(KnightCastle)
+	return m.HasTag(Capture) && !m.HasTag(FarCastle) &&
+		!m.HasTag(CenterCastle) && !m.HasTag(NearCastle)
 }
 
 func (pos *Position) copy() *Position {
@@ -352,27 +355,37 @@ func (pos *Position) copy() *Position {
 	}
 }
 
+// updateCastleRights returns the castle rights after applying m. With the
+// "deploy" phase, the king and its castling partners may sit on any home-rank
+// square, so rights are tracked relative to the king's current square rather
+// than the "legacy" fixed home squares. A side forfeits all of its rights when
+// its king moves; an individual right is forfeited when its partner piece
+// leaves its square or is captured there.
 func (pos *Position) updateCastleRights(m *Move) CastleRights {
 	cr := string(pos.castleRights)
 
-	if didPieceMove(pos, m, WhiteKing, A1) {
-		removeCastlingRight(&cr, "N")
+	for _, c := range []Color{White, Black} {
+		letters := castleLetters(c)
+		// any king move forfeits every right for that color
+		if pos.board.Piece(m.s1) == getPiece(King, c) {
+			for _, l := range letters {
+				removeCastlingRight(&cr, l)
+			}
+			continue
+		}
+		// otherwise a right is lost only when its partner piece is disturbed
+		nearSq, centerSq, farSq := castlePartners(pos, c)
+		if partnerDisturbed(m, nearSq) {
+			removeCastlingRight(&cr, letters[0])
+		}
+		if partnerDisturbed(m, centerSq) {
+			removeCastlingRight(&cr, letters[1])
+		}
+		if partnerDisturbed(m, farSq) {
+			removeCastlingRight(&cr, letters[2])
+		}
 	}
-	if didPieceMove(pos, m, WhiteKing, C1) {
-		removeCastlingRight(&cr, "C")
-	}
-	if didPieceMove(pos, m, WhiteKing, D1) {
-		removeCastlingRight(&cr, "F")
-	}
-	if didPieceMove(pos, m, BlackKing, D4) {
-		removeCastlingRight(&cr, "n")
-	}
-	if didPieceMove(pos, m, BlackKing, B4) {
-		removeCastlingRight(&cr, "c")
-	}
-	if didPieceMove(pos, m, BlackKing, A4) {
-		removeCastlingRight(&cr, "f")
-	}
+
 	if cr == "" {
 		cr = "-"
 	}
@@ -380,8 +393,89 @@ func (pos *Position) updateCastleRights(m *Move) CastleRights {
 	return CastleRights(cr)
 }
 
-func didPieceMove(pos *Position, m *Move, p Piece, square Square) bool {
-	return pos.board.Piece(m.s1) == p || m.s1 == square || m.s2 == square
+// castleLetters returns a color's three castle-rights letters in
+// [near, center, far] order.
+func castleLetters(c Color) [3]string {
+	if c == White {
+		return [3]string{"N", "C", "F"}
+	}
+	return [3]string{"n", "c", "f"}
+}
+
+// partnerDisturbed reports whether move m moves a castling partner off its
+// square or captures it there.
+func partnerDisturbed(m *Move, sq Square) bool {
+	return sq != NoSquare && (m.s1 == sq || m.s2 == sq)
+}
+
+// homeRank returns the back rank a color's pieces deploy onto.
+func homeRank(c Color) Rank {
+	if c == White {
+		return Rank1
+	}
+	return Rank4
+}
+
+// castlePartners returns the home-rank squares of the king's three castling
+// partners for color c: the near piece (its knight), the 'center' piece (its
+// nearer pawn), and the far piece (its farther pawn). Any partner that is
+// absent — or the king itself being off its home rank — yields NoSquare. The
+// center/far split is measured by file distance from the king, breaking ties
+// toward the lower file, so the standard start reproduces the canonical N/C/F
+// mapping (knight a1/d4, close pawn c1/b4, far pawn d1/a4).
+func castlePartners(pos *Position, c Color) (near, center, far Square) {
+	near, center, far = NoSquare, NoSquare, NoSquare
+
+	kingSq := pos.board.whiteKingSq
+	if c == Black {
+		kingSq = pos.board.blackKingSq
+	}
+	hr := homeRank(c)
+	if kingSq == NoSquare || kingSq.Rank() != hr {
+		return
+	}
+
+	knightPiece := getPiece(Knight, c)
+	pawnPiece := getPiece(Pawn, c)
+
+	// collect up to two pawns with their file distance from the king
+	var p1, p2 = NoSquare, NoSquare
+	var d1, d2 int
+	for f := FileA; f <= FileD; f++ {
+		sq := getSquare(f, hr)
+		if sq == kingSq {
+			continue
+		}
+		switch pos.board.Piece(sq) {
+		case knightPiece:
+			near = sq
+		case pawnPiece:
+			dist := int(f) - int(kingSq.File())
+			if dist < 0 {
+				dist = -dist
+			}
+			if p1 == NoSquare {
+				p1, d1 = sq, dist
+			} else {
+				p2, d2 = sq, dist
+			}
+		}
+	}
+
+	// the nearer pawn is the 'center' piece; the file loop runs low-to-high, so an
+	// equal distance already favors the lower file
+	switch {
+	case p1 == NoSquare:
+		// no pawns on the home rank
+	case p2 == NoSquare:
+		center = p1
+	case d1 <= d2:
+		center, far = p1, p2
+	default:
+		center, far = p2, p1
+	}
+
+	return
 }
 
 func removeCastlingRight(rights *string, removedRight string) {

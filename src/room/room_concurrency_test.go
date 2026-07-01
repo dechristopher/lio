@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/player"

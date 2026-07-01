@@ -1,46 +1,108 @@
 package view
 
-import "github.com/dechristopher/lio/variant"
+import "github.com/dechristopher/lio/pools"
 
-// createGameModal is the custom-game dialog opened from the home page. It lists
-// the available time controls (in pool order) and submits a color choice. The
-// open/close script is wired to #createGameButton (the opener) and the modal's
-// own .modal-close button; styling lives in app.css (.modal-* / .tc-* / .submit-*).
-templ createGameModal(pools map[variant.Group][]variant.Variant) {
+// createGameModal is the custom-game dialog opened from the home page. It is a
+// horizontal two-panel layout: a left "setup" panel (opponent + mode toggles and
+// the open-challenge switch) and a right "time control" panel (the three shared
+// time-control cards and the play-as color submit). A single time-control choice
+// combined with the Classic/Deploy mode toggle resolves to a concrete variant —
+// each card carries both its classic and deploy HTMLName, and a small script
+// writes the resolved name into the hidden time-control field the form submits.
+// Choosing the computer as opponent hides (and clears) the open-challenge toggle,
+// since bot games are never public. Styling lives in app.css (.cg-* / .seg-* /
+// .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close chrome.
+templ createGameModal() {
 	<div id="modalCreateGame" class="modal-shade">
-		<div class="modal card">
+		<div class="modal cg-modal card">
 			<button type="button" class="modal-close" aria-label="Close">×</button>
-			<h2>Create a game</h2>
-			<form class="cg" action="/new/human" method="POST" hx-post="/new/human">
-				<div class="tc-select">
-					for _, tc := range sortedPools(pools) {
-						<input id={ tc.HTMLName } type="radio" class="tc-input" name="time-control" value={ tc.HTMLName } required/>
-						<label class="tc-label" for={ tc.HTMLName }>
-							<span class="tc-box">
-								<span class="tc-name">{ tc.Name }</span>
-								<span class="tc-pool">{ tc.Group.String() }</span>
+			<div class="cg-head">
+				<span class="cg-kicker">New game</span>
+				<h2 class="cg-title">Create a game</h2>
+			</div>
+			<form class="cg" action="/new/game" method="POST" hx-post="/new/game">
+				<div class="cg-body">
+					<div class="cg-panel">
+						<div class="cg-field">
+							<span class="cg-label">Opponent</span>
+							<div class="seg" role="radiogroup" aria-label="Opponent">
+								<input id="opp-human" class="seg-input" type="radio" name="opponent" value="human" checked/>
+								<label class="seg-btn" for="opp-human">
+									@iconUsers("seg-ico")
+									<span>Human</span>
+								</label>
+								<input id="opp-computer" class="seg-input" type="radio" name="opponent" value="computer"/>
+								<label class="seg-btn" for="opp-computer">
+									@iconCpu("seg-ico")
+									<span>Computer</span>
+								</label>
+							</div>
+						</div>
+						<div class="cg-field">
+							<span class="cg-label">Mode</span>
+							<div class="seg" role="radiogroup" aria-label="Mode">
+								<input id="mode-classic" class="seg-input" type="radio" name="mode" value="classic" checked/>
+								<label class="seg-btn" for="mode-classic">
+									<span>Classic</span>
+								</label>
+								<input id="mode-deploy" class="seg-input" type="radio" name="mode" value="deploy"/>
+								<label class="seg-btn" for="mode-deploy">
+									<span>Deploy</span>
+									<span class="seg-tag">blind</span>
+								</label>
+							</div>
+							<span class="cg-hint">Deploy: privately arrange your home rank before play begins.</span>
+						</div>
+						<label class="cg-public">
+							<input type="checkbox" class="cg-public-box" name="public" value="true"/>
+							<span class="cg-public-text">
+								<span class="cg-public-title">Open challenge</span>
+								<span class="cg-public-hint">Anyone can join from the home page. Off = only your link works.</span>
 							</span>
+							<span class="cg-switch" aria-hidden="true"></span>
 						</label>
-					}
+					</div>
+					<div class="cg-panel cg-panel-hero">
+						<div class="cg-field">
+							<span class="cg-label">Time control</span>
+							<div class="tc-select">
+								for _, ctrl := range pools.CreateControls {
+									<input
+										id={ ctrl.Classic.HTMLName }
+										class="tc-input"
+										type="radio"
+										name="tc-choice"
+										data-classic={ ctrl.Classic.HTMLName }
+										data-deploy={ ctrl.Deploy.HTMLName }
+										required
+									/>
+									<label class="tc-label" for={ ctrl.Classic.HTMLName }>
+										<span class="tc-box">
+											<span class="tc-name">{ ctrl.Label }</span>
+											<span class="tc-pool">{ ctrl.Group.String() }</span>
+										</span>
+									</label>
+								}
+							</div>
+						</div>
+						<div class="cg-field">
+							<span class="cg-label">Play as</span>
+							<div class="submit-row">
+								<button type="submit" class="submit-btn" name="color" value="w" title="Play the white pieces first">
+									<span class="piece-button wk"></span>
+								</button>
+								<button type="submit" class="submit-btn large" name="color" value="r" title="Play either color first">
+									<span class="piece-button random"></span>
+								</button>
+								<button type="submit" class="submit-btn" name="color" value="b" title="Play the black pieces first">
+									<span class="piece-button bk"></span>
+								</button>
+							</div>
+							<span class="cg-gate-hint">Pick a time control, then choose your color to start.</span>
+						</div>
+					</div>
 				</div>
-				<label class="cg-public">
-					<input type="checkbox" class="cg-public-box" name="public" value="true"/>
-					<span class="cg-public-text">
-						<span class="cg-public-title">List publicly as an Open Challenge</span>
-						<span class="cg-public-hint">Off (default): private — only people you share the link with can join. On: anyone can join from the home page.</span>
-					</span>
-				</label>
-				<div class="submit-row">
-					<button type="submit" class="submit-btn" name="color" value="w" title="Play the white pieces first">
-						<span class="piece-button wk"></span>
-					</button>
-					<button type="submit" class="submit-btn large" name="color" value="r" title="Play either set of pieces first">
-						<span class="piece-button random"></span>
-					</button>
-					<button type="submit" class="submit-btn" name="color" value="b" title="Play the black pieces first">
-						<span class="piece-button bk"></span>
-					</button>
-				</div>
+				<input type="hidden" name="time-control" id="cg-variant" value=""/>
 			</form>
 		</div>
 	</div>
@@ -59,6 +121,30 @@ templ createGameModal(pools map[variant.Group][]variant.Variant) {
 			if (closeBtn) closeBtn.addEventListener("click", close);
 			modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
 			document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+
+			// Resolve the chosen time control (classic vs its deploy twin) into the
+			// hidden field the form submits. Runs whenever the time control or the
+			// Classic/Deploy mode changes, so the value is current before the color
+			// submit buttons (gated until a time control is picked) are clickable.
+			const variantField = modal.querySelector("#cg-variant");
+			const modeOf = () => modal.querySelector("input[name=mode]:checked").value;
+			const syncVariant = () => {
+				const tc = modal.querySelector(".tc-input:checked");
+				variantField.value = tc
+					? (modeOf() === "deploy" ? tc.dataset.deploy : tc.dataset.classic)
+					: "";
+			};
+			modal.querySelectorAll(".tc-input, input[name=mode]").forEach((el) =>
+				el.addEventListener("change", syncVariant));
+
+			// Bot games are never public open challenges: clear the toggle when the
+			// computer is chosen (the toggle is also hidden via CSS, and the server
+			// forces bot games private regardless).
+			const publicBox = modal.querySelector(".cg-public-box");
+			modal.querySelectorAll("input[name=opponent]").forEach((el) =>
+				el.addEventListener("change", () => {
+					if (modal.querySelector("#opp-computer").checked && publicBox) publicBox.checked = false;
+				}));
 		})();
 	</script>
 	<link rel="prefetch" href="/res/img/cburnett/wK.svg"/>

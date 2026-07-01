@@ -9,21 +9,21 @@ import (
 	"strings"
 )
 
-// Scanner is modeled on the bufio.Scanner type but
+// Scanner is modeled on the bufio.Scanner type, but
 // instead of reading lines, it reads octad games
 // from concatenated PGN files. It is designed to
-// replace GamesFromPGN in order to handle very large
+// replace GamesFromPGN to handle very large
 // PGN database files such as https://database.lioctad.org/.
 type Scanner struct {
-	scanr *bufio.Scanner
-	game  *Game
-	err   error
+	scanner *bufio.Scanner
+	game    *Game
+	err     error
 }
 
 // NewScanner returns a new scanner.
 func NewScanner(r io.Reader) *Scanner {
-	scanr := bufio.NewScanner(r)
-	return &Scanner{scanr: scanr}
+	scanner := bufio.NewScanner(r)
+	return &Scanner{scanner: scanner}
 }
 
 // Scan returns false if there was an error parsing
@@ -34,12 +34,12 @@ func (s *Scanner) Scan() bool {
 	var sb strings.Builder
 	count := 0
 	for {
-		scan := s.scanr.Scan()
+		scan := s.scanner.Scan()
 		if scan == false {
-			s.err = s.scanr.Err()
+			s.err = s.scanner.Err()
 			return false
 		}
-		line := s.scanr.Text() + "\n"
+		line := s.scanner.Text() + "\n"
 		if strings.TrimSpace(line) == "" {
 			count++
 		} else {
@@ -64,8 +64,7 @@ func (s *Scanner) Next() *Game {
 }
 
 // Err returns an error encountered during scanning.
-// Typically this will be a PGN parsing error or an
-// io.EOF.
+// Typically, this will be a PGN parsing error or an io.EOF.
 func (s *Scanner) Err() error {
 	return s.err
 }
@@ -122,8 +121,8 @@ func (a multiDecoder) Decode(pos *Position, s string) (*Move, error) {
 
 func decodePGN(pgn string) (*Game, error) {
 	tagPairs := getTagPairs(pgn)
-	moveStrs, outcome := moveList(pgn)
-	gameFuncs := []func(*Game){}
+	moveStrings, outcome := moveList(pgn)
+	var gameFuncs []func(*Game)
 	for _, tp := range tagPairs {
 		if strings.ToLower(tp.Key) == "fen" {
 			fenFunc, err := OFEN(tp.Value)
@@ -141,7 +140,7 @@ func decodePGN(pgn string) (*Game, error) {
 	}
 	g.ignoreAutomaticDraws = true
 	decoder := multiDecoder([]Decoder{AlgebraicNotation{}, LongAlgebraicNotation{}, UOINotation{}})
-	for _, alg := range moveStrs {
+	for _, alg := range moveStrings {
 		m, err := decoder.Decode(g.Position(), alg)
 		if err != nil {
 			return nil, fmt.Errorf("octad: pgn decode error %s on move %d", err.Error(), g.Position().moveCount)

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dechristopher/octad"
+	"github.com/dechristopher/octad/v2"
 	"github.com/looplab/fsm"
 
 	"github.com/dechristopher/lio/bus"
@@ -29,6 +29,13 @@ import (
 )
 
 var gamePub = bus.NewPublisher("game", game.Channel)
+
+// deployChannelBuffer sizes the blind-deploy submission channel. Two human
+// players each submit exactly one arrangement per deploy phase, so two slots
+// hold the whole legitimate load without an unbuffered rendezvous. Kept as a
+// named constant so the test helpers that rebuild the channel stay in sync with
+// production. See SubmitDeploy and arch/DEPLOY_REMATCH_RACES.md (race #2).
+const deployChannelBuffer = 2
 
 // Type of room channel
 type Type string
@@ -80,6 +87,7 @@ type Instance struct {
 	stateChannel   chan State
 	moveChannel    chan *message.RoomMove
 	controlChannel chan message.RoomControl
+	deployChannel  chan *message.RoomDeploy
 
 	// done is closed exactly once by cleanup when the room routine exits.
 	// Senders into the room's channels select on it so they can never block
@@ -120,6 +128,27 @@ type Instance struct {
 	// stateMu (set by the room routine, read by the auto-rematch goroutine).
 	humanMoved bool
 
+	// deployDeadline is when the current blind deploy window closes. It is set
+	// when the deploy phase begins and read by DeployStateMessage so a
+	// (re)connecting client gets the correct remaining time. Zero when not in
+	// the deploy phase. Guarded by stateMu.
+	deployDeadline time.Time
+
+	// rematchDeadline is when the current game-over rematch window closes: the
+	// bot auto-rematch delay, or the human-vs-human rematch window (retimed when
+	// the window is shortened/restored on an opponent leaving/returning). It is
+	// set when handleGameOver begins and read by GameOverStateMessage so a
+	// (re)connecting client re-enters the result overlay with an accurate
+	// remaining countdown instead of resuming a finished game. Guarded by stateMu.
+	rematchDeadline time.Time
+
+	// deployed holds each side's committed blind arrangement during the deploy
+	// phase, so a (re)connecting client can be told its own confirmed order (and
+	// both sides' locked-in status) via DeployStateMessage. Written by the deploy
+	// handler as submissions arrive and reset when a new deploy phase begins.
+	// Guarded by stateMu.
+	deployed map[octad.Color]Deployment
+
 	joinToken   string // token to control joining challenges
 	cancelToken string // token to control cancelling challenges
 
@@ -141,6 +170,10 @@ type Params struct {
 	// Public lists an open human challenge in the home-page Open Challenges
 	// feed. Defaults to false (private, link-only); the creator opts in.
 	Public bool
+	// Deploy enables the blind deploy pre-game: before each game both players
+	// privately arrange their home rank, then normal play begins from the
+	// assembled position. Defaults to false (classic immediate start).
+	Deploy bool
 }
 
 // NewParams returns a new parameters object configured
@@ -152,6 +185,8 @@ func NewParams(creatorId string, variant variant.Variant) Params {
 		GameConfig: game.OctadGameConfig{
 			Variant: variant,
 		},
+		// the blind deploy pre-game is a property of the chosen variant
+		Deploy: variant.Deploy,
 	}
 }
 
@@ -193,6 +228,16 @@ func Create(params Params) (*Instance, error) {
 		// non-blocking send; each rematch button disables after one click, so
 		// no single client floods it
 		controlChannel: make(chan message.RoomControl, 2),
+
+		// buffered for 2 so each of the two human players' single blind-deploy
+		// submissions is always accepted without the WS read-loop goroutine
+		// blocking on an unbuffered send. A bot never uses this channel (it
+		// deploys in-handler) and each client sends at most one submission per
+		// phase (the client's deployConfirmed flag guards re-sends), so two slots
+		// exactly fit the worst legitimate case; SubmitDeploy's non-blocking send
+		// then makes an out-of-window straggler impossible to wedge on. See
+		// arch/DEPLOY_REMATCH_RACES.md (race #2).
+		deployChannel: make(chan *message.RoomDeploy, deployChannelBuffer),
 
 		done: make(chan struct{}),
 
@@ -274,6 +319,8 @@ func (r *Instance) routine() {
 			r.handleWaitingForPlayers()
 		case StateGameReady:
 			r.handleGameReady()
+		case StateDeploy:
+			r.handleDeploy()
 		case StateGameOngoing:
 			r.handleGameOngoing()
 		case StateGameOver:
@@ -328,8 +375,11 @@ func (r *Instance) event(event fsm.EventDesc, args ...interface{}) error {
 // parameters ahead of a rematch. The caller must hold stateMu (it mutates
 // players and params).
 func (r *Instance) flipBoardLocked() {
-	// change sides
-	r.players.FlipColor()
+	// subsequent games swap sides by default; a variant may lock colors to keep
+	// each player on the same side across rematches
+	if !r.params.GameConfig.Variant.LockColors {
+		r.players.FlipColor()
+	}
 
 	r.params.GameConfig.White = ""
 	r.params.GameConfig.Black = ""
@@ -640,6 +690,43 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 	}
 }
 
+// SubmitDeploy writes a player's blind deploy arrangement to the room's
+// deployChannel, consumed by the deploy handler. It is called from the WS read
+// loop, which processes that client's messages serially, so it must never block
+// that goroutine.
+//
+// The State()==StateDeploy guard is necessary but not sufficient: handleDeploy
+// stops reading deployChannel the instant it has both arrangements and enters
+// deployAndStart, yet the room stays in StateDeploy until deployAndStart fires
+// EventDeployComplete near its end. A submission landing in that window passes
+// the guard but finds no reader. With an unbuffered channel and a plain blocking
+// send the WS read loop would then wedge until the room closed (freezing that
+// client's moves and pings, and leaking the goroutine) — the deploy analogue of
+// the moveChannel wedge in arch/MATCH_ROOM_ARCH_REVIEW.md finding #3.
+//
+// Two defenses combine so a straggler is dropped cleanly instead: deployChannel
+// is buffered to deployChannelBuffer (which always has room for the ≤2
+// legitimate in-phase submissions, so a real arrangement is never dropped), and
+// the send is non-blocking with a final default. See
+// arch/DEPLOY_REMATCH_RACES.md (race #2).
+func (r *Instance) SubmitDeploy(deploy *message.RoomDeploy) {
+	if r.State() != StateDeploy {
+		util.DebugFlag("room", str.CRoom, "[%s] dropped deploy from %s: room not in deploy phase", r.ID, deploy.Player)
+		return
+	}
+
+	select {
+	case r.deployChannel <- deploy:
+	case <-r.done:
+		// room is being torn down; drop the deploy
+	default:
+		// buffer full or the deploy phase is ending (deployAndStart no longer
+		// reading): the submission is stale, so drop it rather than block the WS
+		// read loop. The client resyncs from the reveal / a board query.
+		util.DebugFlag("room", str.CRoom, "[%s] dropped deploy from %s: phase ending or buffer full", r.ID, deploy.Player)
+	}
+}
+
 // RequestRematch enqueues a rematch agreement on behalf of the requesting
 // player. It is called from the WS read loop, so it validates that the request
 // comes from a seated player while the game is over, and never blocks the
@@ -647,9 +734,23 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 // click again, and bot games auto-rematch regardless). The game-over handler
 // applies the agreement (and auto-agrees a bot opponent).
 func (r *Instance) RequestRematch(meta channel.SocketContext) {
-	// only meaningful once the game is over, which is also the only window the
-	// game-over handler is reading controlChannel
-	if r.State() != StateGameOver {
+	// A rematch is meaningful once the finishing game is decided. That is
+	// normally the StateGameOver window — the only window handleGameOver is
+	// reading controlChannel — but there is a hazardous sliver just before it:
+	// tryGameOver broadcasts the game-over message (which lights up the client's
+	// rematch button) a beat before the room routine fires the FSM transition
+	// into StateGameOver. An eager click can land in that sliver, while State()
+	// still reads StateGameOngoing, and a bare State()==StateGameOver guard would
+	// silently drop it. The player sees "Waiting…" forever and the room hangs out
+	// the entire rematch window on an agreement it never recorded.
+	//
+	// Keying off the decided game outcome in addition to the state closes the
+	// window: the terminal outcome is already set when any client can see the
+	// game-over message, and the controlChannel is buffered, so the early click
+	// is held and consumed by handleGameOver the moment it starts. A fresh game
+	// (post-rematch) reports NoOutcome, so this never accepts a stray click
+	// outside a real game-over. See arch/DEPLOY_REMATCH_RACES.md (race #3).
+	if r.State() != StateGameOver && r.GameState() == octad.NoOutcome {
 		return
 	}
 
@@ -671,6 +772,28 @@ func (r *Instance) RequestRematch(meta channel.SocketContext) {
 	}
 }
 
+// drainControlChannel non-blockingly empties any control messages still buffered
+// on controlChannel. It is called from the room routine at a game boundary (a
+// rematch reset) to discard controls that belonged to the game just finished —
+// e.g. a duplicate rematch click that raced the client's button-disable, or an
+// early click accepted by RequestRematch's decided-outcome window. Left in the
+// buffer such a message would be read by the *next* game-over as a spurious
+// rematch agreement. Only the room routine touches this between games, so a
+// non-blocking drain is race-free and can never wait on new traffic.
+//
+// Cancel controls are only produced in StateWaitingForPlayers (Cancel guards on
+// state), never at this boundary, so nothing meaningful is ever discarded here.
+// See arch/DEPLOY_REMATCH_RACES.md (race #3).
+func (r *Instance) drainControlChannel() {
+	for {
+		select {
+		case <-r.controlChannel:
+		default:
+			return
+		}
+	}
+}
+
 // CurrentGameStateMessage returns the octad position, marshalled as a move
 // payload. It is called from WS handler goroutines as well as the room routine,
 // so it snapshots the game under stateMu.
@@ -678,6 +801,57 @@ func (r *Instance) CurrentGameStateMessage(addLast bool, gameStart bool) []byte 
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	return r.currentGameStateMessageLocked(addLast, gameStart)
+}
+
+// setRematchDeadline updates the published rematch-window deadline under stateMu
+// so GameOverStateMessage can hand a (re)connecting client the correct remaining
+// countdown. Called by handleGameOver as the window opens and when it is
+// shortened/restored on an opponent leaving/returning.
+func (r *Instance) setRematchDeadline(at time.Time) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	r.rematchDeadline = at
+}
+
+// GameOverStateMessage returns the game-over payload for a client (re)connecting
+// while the room sits in the game-over / rematch window (a refresh, or returning
+// to a match after it ended). It lets the client re-enter the result overlay —
+// stopping the clocks and offering the rematch — instead of resuming a finished
+// game with the board still live. The rematch countdown is retimed to the actual
+// remaining window (from rematchDeadline) so the client's countdown is accurate
+// rather than restarting from the full window.
+//
+// Returns nil if the game is not actually over, so the caller falls back to the
+// normal board-state message. abandoned is always false here: an abandoned game
+// transitions straight to StateRoomOver and never rests in StateGameOver.
+func (r *Instance) GameOverStateMessage() []byte {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+
+	if r.game.Outcome() == octad.NoOutcome {
+		return nil
+	}
+
+	// remaining time in the rematch window, clamped at zero; a lapsed or unset
+	// deadline reads as no countdown (the room is about to close or start the
+	// next game). handleGameOver keeps rematchDeadline current, shortening it
+	// when an opponent leaves.
+	remaining := 0
+	if !r.rematchDeadline.IsZero() {
+		remaining = int(time.Until(r.rematchDeadline).Round(time.Second).Seconds())
+		if remaining < 0 {
+			remaining = 0
+		}
+	}
+
+	autoRematch, rematchWin := 0, 0
+	if r.players.HasBot() {
+		autoRematch = remaining
+	} else {
+		rematchWin = remaining
+	}
+
+	return r.buildGameOverMessageLocked(false, autoRematch, rematchWin)
 }
 
 // currentGameStateMessageLocked builds the current board-state payload. The
@@ -866,6 +1040,19 @@ func (r *Instance) requestEngineMove() {
 	r.stateMu.Unlock()
 
 	go dispatch.SubmitEngine(req)
+}
+
+// requestEngineDeploy asks the engine dispatcher to choose the bot's blind
+// home-rank arrangement, delivering the result on ch. It mirrors
+// requestEngineMove: the selection runs off the deploy handler goroutine so the
+// deploy timer and cancellation stay responsive. ch must be buffered by the
+// caller so the dispatcher's send never blocks even if the deploy phase has
+// already ended (see handleDeploy).
+func (r *Instance) requestEngineDeploy(botColor octad.Color, ch chan *message.RoomBotDeploy) {
+	go dispatch.SubmitDeploy(dispatch.DeployRequest{
+		Color:           botColor,
+		ResponseChannel: ch,
+	})
 }
 
 // legalMoveLocked checks to see if the given move is legal and returns its
@@ -1209,19 +1396,12 @@ func genBlackWinState(g *game.OctadGame) (int, string) {
 	return -1, ""
 }
 
-// gameOverMessageLocked builds the game over payload. The caller must hold
-// stateMu (it reads the game, clock, and players).
+// gameOverMessageLocked builds the live-finish game over payload: the rematch
+// countdown carries the full window (the auto-rematch delay or the human rematch
+// window), since the game has just ended. GameOverStateMessage builds the
+// equivalent payload with the remaining window for a (re)connecting client. The
+// caller must hold stateMu (it reads the game, clock, and players).
 func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
-	var id int
-	var status string
-
-	if abandoned {
-		id = -1
-		status = "PLAYER ABANDONED - MATCH OVER"
-	} else {
-		id, status = r.gameOverStateLocked()
-	}
-
 	// a bot game will auto-rematch after a fixed delay; tell the client so it
 	// can show a countdown. A human-vs-human game instead holds a rematch window
 	// (manual rematch); send its length so the client can count down to the room
@@ -1234,6 +1414,25 @@ func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 		} else {
 			rematchWin = int(rematchWindow.Seconds())
 		}
+	}
+
+	return r.buildGameOverMessageLocked(abandoned, autoRematch, rematchWin)
+}
+
+// buildGameOverMessageLocked assembles the game over payload with explicit
+// rematch countdown values (autoRematch for bot games, rematchWin for human
+// games; the two are mutually exclusive). Callers set the full window on a live
+// finish and the remaining window for a (re)connecting client. The caller must
+// hold stateMu (it reads the game, clock, and players).
+func (r *Instance) buildGameOverMessageLocked(abandoned bool, autoRematch, rematchWin int) []byte {
+	var id int
+	var status string
+
+	if abandoned {
+		id = -1
+		status = "PLAYER ABANDONED - MATCH OVER"
+	} else {
+		id, status = r.gameOverStateLocked()
 	}
 
 	gameOver := proto.GameOverPayload{

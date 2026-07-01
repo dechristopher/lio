@@ -8,13 +8,19 @@ package view
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/dechristopher/lio/variant"
+import "github.com/dechristopher/lio/pools"
 
-// createGameModal is the custom-game dialog opened from the home page. It lists
-// the available time controls (in pool order) and submits a color choice. The
-// open/close script is wired to #createGameButton (the opener) and the modal's
-// own .modal-close button; styling lives in app.css (.modal-* / .tc-* / .submit-*).
-func createGameModal(pools map[variant.Group][]variant.Variant) templ.Component {
+// createGameModal is the custom-game dialog opened from the home page. It is a
+// horizontal two-panel layout: a left "setup" panel (opponent + mode toggles and
+// the open-challenge switch) and a right "time control" panel (the three shared
+// time-control cards and the play-as color submit). A single time-control choice
+// combined with the Classic/Deploy mode toggle resolves to a concrete variant —
+// each card carries both its classic and deploy HTMLName, and a small script
+// writes the resolved name into the hidden time-control field the form submits.
+// Choosing the computer as opponent hides (and clears) the open-challenge toggle,
+// since bot games are never public. Styling lives in app.css (.cg-* / .seg-* /
+// .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close chrome.
+func createGameModal() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -35,82 +41,111 @@ func createGameModal(pools map[variant.Group][]variant.Variant) templ.Component 
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalCreateGame\" class=\"modal-shade\"><div class=\"modal card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">×</button><h2>Create a game</h2><form class=\"cg\" action=\"/new/human\" method=\"POST\" hx-post=\"/new/human\"><div class=\"tc-select\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalCreateGame\" class=\"modal-shade\"><div class=\"modal cg-modal card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">×</button><div class=\"cg-head\"><span class=\"cg-kicker\">New game</span><h2 class=\"cg-title\">Create a game</h2></div><form class=\"cg\" action=\"/new/game\" method=\"POST\" hx-post=\"/new/game\"><div class=\"cg-body\"><div class=\"cg-panel\"><div class=\"cg-field\"><span class=\"cg-label\">Opponent</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Opponent\"><input id=\"opp-human\" class=\"seg-input\" type=\"radio\" name=\"opponent\" value=\"human\" checked> <label class=\"seg-btn\" for=\"opp-human\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, tc := range sortedPools(pools) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<input id=\"")
+		templ_7745c5c3_Err = iconUsers("seg-ico").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span>Human</span></label> <input id=\"opp-computer\" class=\"seg-input\" type=\"radio\" name=\"opponent\" value=\"computer\"> <label class=\"seg-btn\" for=\"opp-computer\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = iconCpu("seg-ico").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span>Computer</span></label></div></div><div class=\"cg-field\"><span class=\"cg-label\">Mode</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Mode\"><input id=\"mode-classic\" class=\"seg-input\" type=\"radio\" name=\"mode\" value=\"classic\" checked> <label class=\"seg-btn\" for=\"mode-classic\"><span>Classic</span></label> <input id=\"mode-deploy\" class=\"seg-input\" type=\"radio\" name=\"mode\" value=\"deploy\"> <label class=\"seg-btn\" for=\"mode-deploy\"><span>Deploy</span> <span class=\"seg-tag\">blind</span></label></div><span class=\"cg-hint\">Deploy: privately arrange your home rank before play begins.</span></div><label class=\"cg-public\"><input type=\"checkbox\" class=\"cg-public-box\" name=\"public\" value=\"true\"> <span class=\"cg-public-text\"><span class=\"cg-public-title\">Open challenge</span> <span class=\"cg-public-hint\">Anyone can join from the home page. Off = only your link works.</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label></div><div class=\"cg-panel cg-panel-hero\"><div class=\"cg-field\"><span class=\"cg-label\">Time control</span><div class=\"tc-select\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, ctrl := range pools.CreateControls {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(tc.HTMLName)
+			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Classic.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 17, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 71, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" type=\"radio\" class=\"tc-input\" name=\"time-control\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" class=\"tc-input\" type=\"radio\" name=\"tc-choice\" data-classic=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(tc.HTMLName)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Classic.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 17, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 75, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" required> <label class=\"tc-label\" for=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" data-deploy=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(tc.HTMLName)
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 18, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 76, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><span class=\"tc-box\"><span class=\"tc-name\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" required> <label class=\"tc-label\" for=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(tc.Name)
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Classic.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 20, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 79, Col: 60}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span> <span class=\"tc-pool\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><span class=\"tc-box\"><span class=\"tc-name\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(tc.Group.String())
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 21, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 81, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span></span></label>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span> <span class=\"tc-pool\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Group.String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 82, Col: 54}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span></span></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><label class=\"cg-public\"><input type=\"checkbox\" class=\"cg-public-box\" name=\"public\" value=\"true\"> <span class=\"cg-public-text\"><span class=\"cg-public-title\">List publicly as an Open Challenge</span> <span class=\"cg-public-hint\">Off (default): private — only people you share the link with can join. On: anyone can join from the home page.</span></span></label><div class=\"submit-row\"><button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"w\" title=\"Play the white pieces first\"><span class=\"piece-button wk\"></span></button> <button type=\"submit\" class=\"submit-btn large\" name=\"color\" value=\"r\" title=\"Play either set of pieces first\"><span class=\"piece-button random\"></span></button> <button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"b\" title=\"Play the black pieces first\"><span class=\"piece-button bk\"></span></button></div></form></div></div><script>\n\t\t(function () {\n\t\t\tconst modal = document.getElementById(\"modalCreateGame\");\n\t\t\tconst closeBtn = modal.querySelector(\".modal-close\");\n\t\t\tconst open = () => modal.classList.add(\"open\");\n\t\t\tconst close = () => modal.classList.remove(\"open\");\n\t\t\t// Delegated open: any [data-open-create-game] element opens the modal,\n\t\t\t// including buttons that htmx swaps into the live home-activity region\n\t\t\t// after the initial page load.\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tif (e.target.closest(\"[data-open-create-game]\")) open();\n\t\t\t});\n\t\t\tif (closeBtn) closeBtn.addEventListener(\"click\", close);\n\t\t\tmodal.addEventListener(\"click\", (e) => { if (e.target === modal) close(); });\n\t\t\tdocument.addEventListener(\"keydown\", (e) => { if (e.key === \"Escape\") close(); });\n\t\t})();\n\t</script><link rel=\"prefetch\" href=\"/res/img/cburnett/wK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/bK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/wbK.svg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div><div class=\"cg-field\"><span class=\"cg-label\">Play as</span><div class=\"submit-row\"><button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"w\" title=\"Play the white pieces first\"><span class=\"piece-button wk\"></span></button> <button type=\"submit\" class=\"submit-btn large\" name=\"color\" value=\"r\" title=\"Play either color first\"><span class=\"piece-button random\"></span></button> <button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"b\" title=\"Play the black pieces first\"><span class=\"piece-button bk\"></span></button></div><span class=\"cg-gate-hint\">Pick a time control, then choose your color to start.</span></div></div></div><input type=\"hidden\" name=\"time-control\" id=\"cg-variant\" value=\"\"></form></div></div><script>\n\t\t(function () {\n\t\t\tconst modal = document.getElementById(\"modalCreateGame\");\n\t\t\tconst closeBtn = modal.querySelector(\".modal-close\");\n\t\t\tconst open = () => modal.classList.add(\"open\");\n\t\t\tconst close = () => modal.classList.remove(\"open\");\n\t\t\t// Delegated open: any [data-open-create-game] element opens the modal,\n\t\t\t// including buttons that htmx swaps into the live home-activity region\n\t\t\t// after the initial page load.\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tif (e.target.closest(\"[data-open-create-game]\")) open();\n\t\t\t});\n\t\t\tif (closeBtn) closeBtn.addEventListener(\"click\", close);\n\t\t\tmodal.addEventListener(\"click\", (e) => { if (e.target === modal) close(); });\n\t\t\tdocument.addEventListener(\"keydown\", (e) => { if (e.key === \"Escape\") close(); });\n\n\t\t\t// Resolve the chosen time control (classic vs its deploy twin) into the\n\t\t\t// hidden field the form submits. Runs whenever the time control or the\n\t\t\t// Classic/Deploy mode changes, so the value is current before the color\n\t\t\t// submit buttons (gated until a time control is picked) are clickable.\n\t\t\tconst variantField = modal.querySelector(\"#cg-variant\");\n\t\t\tconst modeOf = () => modal.querySelector(\"input[name=mode]:checked\").value;\n\t\t\tconst syncVariant = () => {\n\t\t\t\tconst tc = modal.querySelector(\".tc-input:checked\");\n\t\t\t\tvariantField.value = tc\n\t\t\t\t\t? (modeOf() === \"deploy\" ? tc.dataset.deploy : tc.dataset.classic)\n\t\t\t\t\t: \"\";\n\t\t\t};\n\t\t\tmodal.querySelectorAll(\".tc-input, input[name=mode]\").forEach((el) =>\n\t\t\t\tel.addEventListener(\"change\", syncVariant));\n\n\t\t\t// Bot games are never public open challenges: clear the toggle when the\n\t\t\t// computer is chosen (the toggle is also hidden via CSS, and the server\n\t\t\t// forces bot games private regardless).\n\t\t\tconst publicBox = modal.querySelector(\".cg-public-box\");\n\t\t\tmodal.querySelectorAll(\"input[name=opponent]\").forEach((el) =>\n\t\t\t\tel.addEventListener(\"change\", () => {\n\t\t\t\t\tif (modal.querySelector(\"#opp-computer\").checked && publicBox) publicBox.checked = false;\n\t\t\t\t}));\n\t\t})();\n\t</script><link rel=\"prefetch\" href=\"/res/img/cburnett/wK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/bK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/wbK.svg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

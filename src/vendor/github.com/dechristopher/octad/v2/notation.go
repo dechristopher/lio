@@ -7,14 +7,14 @@ import (
 
 // Encoder is the interface implemented by objects that can
 // encode a move into a string given the position. It is not
-// the encoders responsibility to validate the move.
+// the encoder's responsibility to validate the move.
 type Encoder interface {
 	Encode(pos *Position, m *Move) string
 }
 
 // Decoder is the interface implemented by objects that can
 // decode a string into a move given the position. It is not
-// the decoders responsibility to validate the move. An error
+// the decoder's responsibility to validate the move. An error
 // is returned if the string could not be decoded.
 type Decoder interface {
 	Decode(pos *Position, s string) (*Move, error)
@@ -27,7 +27,7 @@ type Notation interface {
 	Decoder
 }
 
-// UOINotation is a more computer friendly alternative to algebraic
+// UOINotation is a more computer-friendly alternative to algebraic
 // notation. This notation uses the same format as the UOI (Universal Octad
 // Interface). Example: d3d4q (for promotion)
 type UOINotation struct{}
@@ -39,7 +39,7 @@ func (UOINotation) String() string {
 }
 
 // Encode implements the Encoder interface.
-func (UOINotation) Encode(pos *Position, m *Move) string {
+func (UOINotation) Encode(_ *Position, m *Move) string {
 	return m.S1().String() + m.S2().String() + m.Promo().String()
 }
 
@@ -72,13 +72,22 @@ func (UOINotation) Decode(pos *Position, s string) (*Move, error) {
 	p := pos.Board().Piece(s1)
 	p2 := pos.Board().Piece(s2)
 
-	if p.Type() == King {
-		if ((s1 == B1 && s2 == A1) || (s1 == C4 && s2 == D4)) && p2.Type() == Knight && p.Color() == p2.Color() {
-			m.addTag(KnightCastle)
-		} else if ((s1 == B1 && s2 == C1) || (s1 == C4 && s2 == B4)) && p2.Type() == Pawn && p.Color() == p2.Color() {
-			m.addTag(ClosePawnCastle)
-		} else if ((s1 == B1 && s2 == D1) || (s1 == C4 && s2 == A4)) && p2.Type() == Pawn && p.Color() == p2.Color() {
-			m.addTag(FarPawnCastle)
+	if p.Type() == King && p.Color() == p2.Color() &&
+		s1.Rank() == s2.Rank() && s1.Rank() == homeRank(p.Color()) {
+		// position-relative castle detection: a king "moving" onto a friendly
+		// home-rank piece is a castle. An adjacent knight is a near castle, and an
+		// adjacent pawn a center castle; a pawn two files away is a far castle.
+		dist := int(s2.File()) - int(s1.File())
+		if dist < 0 {
+			dist = -dist
+		}
+		switch {
+		case dist == 1 && p2.Type() == Knight:
+			m.addTag(NearCastle)
+		case dist == 1 && p2.Type() == Pawn:
+			m.addTag(CenterCastle)
+		case dist == 2 && p2.Type() == Pawn:
+			m.addTag(FarCastle)
 		}
 	} else if p.Type() == Pawn && s2 == pos.enPassantSquare {
 		m.addTag(EnPassant)
@@ -107,11 +116,11 @@ func (AlgebraicNotation) String() string {
 // Encode implements the Encoder interface.
 func (AlgebraicNotation) Encode(pos *Position, m *Move) string {
 	checkChar := getCheckChar(pos, m)
-	if m.HasTag(KnightCastle) {
+	if m.HasTag(NearCastle) {
 		return "O" + checkChar
-	} else if m.HasTag(ClosePawnCastle) {
+	} else if m.HasTag(CenterCastle) {
 		return "O-O" + checkChar
-	} else if m.HasTag(FarPawnCastle) {
+	} else if m.HasTag(FarCastle) {
 		return "O-O-O" + checkChar
 	}
 	p := pos.Board().Piece(m.S1())
@@ -156,11 +165,11 @@ func (LongAlgebraicNotation) String() string {
 // Encode implements the Encoder interface.
 func (LongAlgebraicNotation) Encode(pos *Position, m *Move) string {
 	checkChar := getCheckChar(pos, m)
-	if m.HasTag(KnightCastle) {
+	if m.HasTag(NearCastle) {
 		return "O" + checkChar
-	} else if m.HasTag(ClosePawnCastle) {
+	} else if m.HasTag(CenterCastle) {
 		return "O-O" + checkChar
-	} else if m.HasTag(FarPawnCastle) {
+	} else if m.HasTag(FarCastle) {
 		return "O-O-O" + checkChar
 	}
 	p := pos.Board().Piece(m.S1())
@@ -257,8 +266,11 @@ func charFromPieceType(p PieceType) string {
 		return "B"
 	case Knight:
 		return "N"
+	default:
+		// Pawn and NoPieceType have no SAN piece letter (pawns are written by their
+		// destination square; a non-promotion move has no promotion suffix).
+		return ""
 	}
-	return ""
 }
 
 func pieceTypeFromChar(c string) PieceType {

@@ -1,6 +1,6 @@
 package octad
 
-// Color represents the color of a octad piece.
+// Color represents the color of an octad piece.
 type Color int8
 
 const (
@@ -19,8 +19,9 @@ func (c Color) Other() Color {
 		return Black
 	case Black:
 		return White
+	default:
+		return NoColor
 	}
-	return NoColor
 }
 
 // String implements the fmt.Stringer interface and returns
@@ -31,26 +32,28 @@ func (c Color) String() string {
 		return "w"
 	case Black:
 		return "b"
+	default:
+		return "-"
 	}
-	return "-"
 }
 
-// Name returns a display friendly name.
+// Name returns a display-friendly name.
 func (c Color) Name() string {
 	switch c {
 	case White:
 		return "White"
 	case Black:
 		return "Black"
+	default:
+		return "No Color"
 	}
-	return "No Color"
 }
 
-// PieceType is the type of a piece.
+// PieceType is the type of Piece.
 type PieceType int8
 
 const (
-	// NoPieceType represents a lack of piece type
+	// NoPieceType represents a lack of PieceType
 	NoPieceType PieceType = iota
 	// King represents a king
 	King
@@ -85,16 +88,18 @@ func (p PieceType) String() string {
 		return "n"
 	case Pawn:
 		return "p"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func (p PieceType) promotableTo() bool {
 	switch p {
 	case Queen, Rook, Bishop, Knight:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // Piece is a piece type with a color.
@@ -160,8 +165,9 @@ func (p Piece) Type() PieceType {
 		return Knight
 	case WhitePawn, BlackPawn:
 		return Pawn
+	default:
+		return NoPieceType
 	}
-	return NoPieceType
 }
 
 // Color returns the color of the piece.
@@ -171,17 +177,18 @@ func (p Piece) Color() Color {
 		return White
 	case BlackKing, BlackQueen, BlackRook, BlackBishop, BlackKnight, BlackPawn:
 		return Black
+	default:
+		return NoColor
 	}
-	return NoColor
 }
 
 // String implements the fmt.Stringer interface
 func (p Piece) String() string {
-	return pieceUnicodes[int(p)]
+	return pieceUnicodeChars[int(p)]
 }
 
 var (
-	pieceUnicodes = []string{" ", "♔", "♕", "♖", "♗", "♘", "♙", "♚", "♛", "♜", "♝", "♞", "♟"}
+	pieceUnicodeChars = []string{" ", "♔", "♕", "♖", "♗", "♘", "♙", "♚", "♛", "♜", "♝", "♞", "♟"}
 )
 
 func (p Piece) getOFENChar() string {

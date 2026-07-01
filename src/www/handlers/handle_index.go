@@ -7,7 +7,6 @@ import (
 
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/message"
-	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/user"
@@ -21,7 +20,7 @@ func IndexHandler(c *fiber.Ctx) error {
 	presence.Touch(user.GetID(c))
 	challenges, stats := homeActivity()
 	return view.Render(c, 200, view.Index(
-		view.PageMeta("Free Online Octad"), pools.RatingPools, challenges, stats))
+		view.PageMeta("Free Online Octad"), challenges, stats))
 }
 
 // HomeActivityHandler renders the live home-activity fragment (site stats, open
