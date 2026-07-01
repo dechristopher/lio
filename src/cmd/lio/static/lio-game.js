@@ -521,18 +521,21 @@ const showResult = (message) => {
 // wire result overlay actions once; the new-game broadcast clears the overlay
 if (rematchBtn) {
 	rematchBtn.addEventListener('click', () => {
-		// Bot rematch spins up a fresh room with the same settings and redirects
-		// there, rather than reusing this finished room (which is torn down after
-		// its analysis window). This is robust: it works whether or not the old
-		// room still exists, so it never "breaks" under an analyzer's feet.
-		if (opponentIsBot) {
-			const url = rematchBtn.dataset.rematchUrl;
-			if (url) {
-				window.location.href = url;
-			}
+		// Bot rematch reuses this finished room via the in-room agreement flow
+		// below, exactly like a human rematch: the server auto-agrees on the bot's
+		// behalf (room/handle_04_game_over.go), so one click starts the next game in
+		// the SAME room with the running match score preserved. Only when that room
+		// is genuinely gone — the player reviewed the game past the bot analysis
+		// window and the socket has since closed — do we fall back to spinning up a
+		// fresh room (which necessarily starts a new 0-0 series). data-rematch-url is
+		// set for bot games only, so this fallback never fires for human games.
+		const socketDead = !window.ws || window.ws.readyState !== WebSocket.OPEN;
+		const fallbackUrl = rematchBtn.dataset.rematchUrl;
+		if (socketDead && fallbackUrl) {
+			window.location.href = fallbackUrl;
 			return;
 		}
-		// human rematch: in-room agreement flow
+		// in-room agreement flow (humans always; bots while the room is alive)
 		send(buildCommand("r", {rm: true}));
 		// leave the overlay up until the rematch actually starts; mark the
 		// request sent and reflect it in the still-running countdown (human
@@ -780,7 +783,8 @@ const handleGameOver = (message) => {
 
 		// A finished bot room is torn down after its analysis window. If the player
 		// is reviewing the game, keep them on the page — analysis is client-side and
-		// rematch spins up a fresh room — instead of bouncing them home. Stop
+		// the now-closed room means Rematch falls back to spinning up a fresh room
+		// (the socket is closed just below) — instead of bouncing them home. Stop
 		// auto-reconnect so the client doesn't fight the now-gone room.
 		if (opponentIsBot && isAnalyzing()) {
 			if (typeof window.lioStopReconnect === 'function') {

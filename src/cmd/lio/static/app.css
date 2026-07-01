@@ -347,9 +347,6 @@
   .max-w-\[34rem\] {
     max-width: 34rem;
   }
-  .flex-1 {
-    flex: 1;
-  }
   .shrink-0 {
     flex-shrink: 0;
   }
@@ -500,6 +497,9 @@
   }
   .pt-3 {
     padding-top: calc(var(--spacing) * 3);
+  }
+  .pb-1 {
+    padding-bottom: var(--spacing);
   }
   .pb-2 {
     padding-bottom: calc(var(--spacing) * 2);
@@ -880,7 +880,7 @@
     width: min(96vw, 60rem);
     gap: 0.6rem;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "opp"	"board"	"you"	"rail"	"info";
+    grid-template-areas: "opp"	"board"	"you"	"rail"	"info"	"foot";
   }
   .ga-opp {
     grid-area: opp;
@@ -901,12 +901,15 @@
   .ga-info {
     grid-area: info;
   }
+  .ga-foot {
+    grid-area: foot;
+  }
   @media (min-width: 900px) {
     .game-grid {
       width: min(96vw, 48rem);
       grid-template-columns: minmax(0, 1fr) clamp(17rem, 26vw, 20rem);
-      grid-template-rows: auto 1fr auto auto;
-      grid-template-areas: "board opp"	"board rail"	"board you"	"board info";
+      grid-template-rows: auto 1fr auto auto auto;
+      grid-template-areas: "board opp"	"board rail"	"board you"	"board info"	"foot  .";
       gap: 0.7rem 1.25rem;
       align-items: start;
     }
@@ -955,17 +958,16 @@
       border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
     }
   }
-  .clock-row {
+  .clock-body {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.5rem 0.8rem;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.45rem 0.7rem;
   }
   .clock-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     min-width: 0;
   }
   .clockName {
@@ -975,8 +977,13 @@
     text-transform: uppercase;
     color: var(--text-muted);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
   .clockScore {
+    flex: none;
+    margin-left: auto;
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-size: 0.9rem;
@@ -990,6 +997,7 @@
     text-align: center;
   }
   .clockRating {
+    flex: none;
     font-size: 0.7rem;
     color: var(--text-subtle);
   }
@@ -998,6 +1006,7 @@
   }
   .clockBot {
     display: none;
+    flex: none;
     align-items: center;
     color: var(--text-subtle);
   }
@@ -1007,7 +1016,7 @@
   .clockTime {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    font-size: 1.75rem;
+    font-size: 1.6rem;
     font-weight: 500;
     line-height: 1;
     color: var(--text);
@@ -1047,6 +1056,7 @@
   }
   .thinking {
     display: none;
+    flex: none;
     align-items: center;
     gap: 3px;
   }
@@ -1089,9 +1099,7 @@
     min-height: 0;
   }
   .move-list {
-    flex: 1;
-    min-height: 4.5rem;
-    max-height: 16rem;
+    height: clamp(6rem, 20vh, 8rem);
     margin-top: 0.5rem;
     overflow-y: auto;
     display: flex;
@@ -1177,6 +1185,7 @@
   .controls {
     display: flex;
     gap: 0.5rem;
+    margin-top: auto;
   }
   .ctrl-btn {
     flex: 1;

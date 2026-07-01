@@ -15,13 +15,14 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 			<div class="page">
 				@header("max-w-[34rem]")
 				if !payload.IsCreator && !payload.IsJoining {
-					@roomGame(payload)
+					@roomGame(meta, payload)
 				} else if payload.IsCreator {
 					@roomCreator(meta, payload)
+					@footer(meta, "max-w-[34rem]")
 				} else if payload.IsJoining {
 					@roomJoiner(payload)
+					@footer(meta, "max-w-[34rem]")
 				}
-				@footer(meta, "max-w-[34rem]")
 			</div>
 		</body>
 		@scriptsBase(meta)
@@ -38,11 +39,11 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 // and a side rail (clocks, game info, reserved controls) that stacks on mobile.
 // The clocks sandwich the board on mobile and sit top/bottom of the rail on
 // desktop (via grid-template-areas). Time control + mode live in the rail.
-templ roomGame(payload message.RoomTemplatePayload) {
+templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 	<div class="game-room mt-2">
 		<div class="game-grid">
 			<div id="clockOpponent" class="clockOpponent ga-opp" data-bot={ strconv.FormatBool(payload.OpponentIsBot) }>
-				@clock("Opponent")
+				@clock(opponentName(payload))
 			</div>
 			<div class="ga-board">
 				@board(payload.PlayerColor, botRematchURL(payload))
@@ -52,7 +53,7 @@ templ roomGame(payload message.RoomTemplatePayload) {
 			</div>
 			<aside class="ga-rail">
 				<div class="rail-stack">
-					<div class="rail-card moves-panel flex flex-1 flex-col">
+					<div class="rail-card moves-panel flex flex-col">
 						<span class="rail-title">{ payload.VariantName } · Casual</span>
 						<div id="moveList" class="move-list" role="list" aria-label="Move history"></div>
 						<div class="move-nav">
@@ -75,6 +76,9 @@ templ roomGame(payload message.RoomTemplatePayload) {
 					<span>(<span id="lat">0</span><span class="unit">ms</span>)</span>
 				</div>
 			</div>
+			<footer class="ga-foot flex flex-col items-center gap-1.5 pt-3 pb-1 text-xs text-fg-subtle">
+				@footerContent(meta)
+			</footer>
 		</div>
 	</div>
 }

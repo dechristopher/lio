@@ -98,6 +98,16 @@ func groupTitle(g variant.Group) string {
 	return cases.Title(language.English).String(g.String())
 }
 
+// opponentName is the label shown on the opponent's clock: "BOT" for a game
+// against the built-in engine, otherwise the generic "Opponent" (there are no
+// human accounts/usernames yet).
+func opponentName(payload message.RoomTemplatePayload) string {
+	if payload.OpponentIsBot {
+		return "BOT"
+	}
+	return "Opponent"
+}
+
 // botRematchURL builds the "same settings" rematch link for a bot game: a fresh
 // vs-computer room with the same variant/time-control and the player's side. Bot
 // rematch does not reuse the finished room (which is torn down after the analysis

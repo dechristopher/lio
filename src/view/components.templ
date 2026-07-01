@@ -341,22 +341,28 @@ templ board(color string, rematchURL string) {
 // clock renders a single clock widget. The wrapping element in roomGame carries
 // the #clockPlayer/#clockOpponent id and the JS-toggled .active/.low/.playerWhite
 // state classes; lio-game.js reads the .clockScore/.clockTime/.clockProgressBar/
-// .thinking hooks inside. name is the static label ("You" / "Opponent").
+// .thinking hooks inside. name is the static label ("You" / "BOT" / "Opponent").
+//
+// Layout is vertically stacked: an identity row (bot glyph, name, rating,
+// thinking dots on the left; match-score chip pushed to the right) sits above
+// the big time on its own full-width line. Stacking decouples the time from the
+// name so a long name only ellipsizes within its row and never compresses the
+// clock horizontally.
 templ clock(name string) {
 	<div class="clock">
 		<div class="clockProgress">
 			<div class="clockProgressBg"></div>
 			<div class="clockProgressBar"></div>
 		</div>
-		<div class="clock-row">
+		<div class="clock-body">
 			<div class="clock-meta">
-				<span class="clockScore">0</span>
 				<span class="clockBot" aria-label="Computer player" title="Computer player">
 					@iconCpu("h-3.5 w-3.5")
 				</span>
 				<span class="clockName">{ name }</span>
-				<span class="thinking" aria-label="thinking"><i></i><i></i><i></i></span>
 				<span class="clockRating"><span class="clockRatingNumber">0</span></span>
+				<span class="thinking" aria-label="thinking"><i></i><i></i><i></i></span>
+				<span class="clockScore">0</span>
 			</div>
 			<span class="clockTime">0:00.0</span>
 		</div>

@@ -193,7 +193,8 @@
 			"board"
 			"you"
 			"rail"
-			"info";
+			"info"
+			"foot";
 	}
 	.ga-opp { grid-area: opp; }
 	.ga-board {
@@ -206,6 +207,9 @@
 	.ga-you { grid-area: you; }
 	.ga-rail { grid-area: rail; }
 	.ga-info { grid-area: info; }
+	/* footer nested under the board column (not the full page), centered beneath
+	   the board on both the single-column and desktop board+rail layouts */
+	.ga-foot { grid-area: foot; }
 
 	/* Switch to the board + rail two-column at 900px. The grid container is capped
 	   at min(96vw, 48rem) = 768px, which fits comfortably (board 408px + 20px gap +
@@ -217,12 +221,13 @@
 			   instead of floating in a wide 1fr column */
 			width: min(96vw, 48rem);
 			grid-template-columns: minmax(0, 1fr) clamp(17rem, 26vw, 20rem);
-			grid-template-rows: auto 1fr auto auto;
+			grid-template-rows: auto 1fr auto auto auto;
 			grid-template-areas:
 				"board opp"
 				"board rail"
 				"board you"
-				"board info";
+				"board info"
+				"foot  .";
 			gap: 0.7rem 1.25rem;
 			align-items: start;
 		}
@@ -269,14 +274,17 @@
 		background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
 		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 	}
-	.clock-row {
+	/* stacked clock: identity row on top, big time on its own full-width line
+	   below. Only .clockName flexes/ellipsizes; every other meta item keeps its
+	   intrinsic width (flex: none) so the score chip stays pinned right and the
+	   time never shifts with name length. */
+	.clock-body {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.5rem 0.8rem;
+		flex-direction: column;
+		gap: 0.15rem;
+		padding: 0.45rem 0.7rem;
 	}
-	.clock-meta { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+	.clock-meta { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
 	.clockName {
 		font-size: 0.78rem;
 		font-weight: 600;
@@ -284,8 +292,13 @@
 		text-transform: uppercase;
 		color: var(--text-muted);
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
 	}
 	.clockScore {
+		flex: none;
+		margin-left: auto;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
 		font-size: 0.9rem;
@@ -298,16 +311,16 @@
 		min-width: 1.4rem;
 		text-align: center;
 	}
-	.clockRating { font-size: 0.7rem; color: var(--text-subtle); }
+	.clockRating { flex: none; font-size: 0.7rem; color: var(--text-subtle); }
 	.clockRatingNumber { font-weight: 600; }
 	/* bot marker in the clock meta, revealed only on a bot-played side: the
 	   wrapping clock element carries data-bot="true" (set in room.templ) */
-	.clockBot { display: none; align-items: center; color: var(--text-subtle); }
+	.clockBot { display: none; flex: none; align-items: center; color: var(--text-subtle); }
 	[data-bot="true"] .clockBot { display: inline-flex; }
 	.clockTime {
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 1.75rem;
+		font-size: 1.6rem;
 		font-weight: 500;
 		line-height: 1;
 		color: var(--text);
@@ -332,7 +345,7 @@
 	.low .clockProgressBar { background: var(--loss); }
 
 	/* engine "thinking" dots */
-	.thinking { display: none; align-items: center; gap: 3px; }
+	.thinking { display: none; flex: none; align-items: center; gap: 3px; }
 	.thinking.thinking-on { display: inline-flex; }
 	.thinking i {
 		width: 4px;
@@ -360,10 +373,11 @@
 		color: var(--accent);
 	}
 	.moves-panel { min-height: 0; }
+	/* Fixed, modest height so the panel never grows as the game progresses —
+	   older moves scroll off the top (the live/viewed move is scrolled into view
+	   by renderMoveList). Keeps the rail height stable move-to-move. */
 	.move-list {
-		flex: 1;
-		min-height: 4.5rem;
-		max-height: 16rem;
+		height: clamp(6rem, 20vh, 8rem);
 		margin-top: 0.5rem;
 		overflow-y: auto;
 		display: flex;
@@ -422,7 +436,9 @@
 	}
 	.nav-btn:not(:disabled):hover { color: var(--text); border-color: var(--accent); }
 	.nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-	.controls { display: flex; gap: 0.5rem; }
+	/* margin-top:auto pins the controls to the bottom of the (desktop-stretched)
+	   rail now that the moves panel is content-height instead of flex-filling. */
+	.controls { display: flex; gap: 0.5rem; margin-top: auto; }
 	.ctrl-btn {
 		flex: 1;
 		display: inline-flex;
