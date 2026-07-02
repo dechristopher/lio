@@ -217,6 +217,9 @@ func (b *Board) UnmarshalBinary(data []byte) error {
 
 func (b *Board) update(m *Move) {
 	p1 := b.Piece(m.s1)
+	// for a castle, s2 holds the partner piece; capture it before the base
+	// update wipes the square
+	p2 := b.Piece(m.s2)
 	s1BB := bbForSquare(m.s1)
 	s2BB := bbForSquare(m.s2)
 
@@ -250,38 +253,41 @@ func (b *Board) update(m *Move) {
 		}
 	}
 	// move pieces while castling
-	moveCastledPieces(b, p1, m)
+	moveCastledPieces(b, p1, p2, m)
 	b.calcConvenienceBBs(m)
 }
 
-// moveCastledPieces relocates the partner piece (and, for a far castle, the
-// king) after the base board update has moved the king onto m.s2. It is
-// position-relative: m.s1 is the king's origin and m.s2 the partner's square.
-func moveCastledPieces(b *Board, p1 Piece, m *Move) {
-	c := p1.Color()
-	s1BB := bbForSquare(m.s1)
-	s2BB := bbForSquare(m.s2)
-
-	switch {
-	case m.HasTag(NearCastle):
-		// adjacent swap: the knight (removed from s2 by the base update) takes
-		// the king's origin square
-		knight := getPiece(Knight, c)
-		b.setBBForPiece(knight, (b.bbForPiece(knight) & ^s2BB)|s1BB)
-	case m.HasTag(CenterCastle):
-		// adjacent swap with a pawn
-		pawn := getPiece(Pawn, c)
-		b.setBBForPiece(pawn, (b.bbForPiece(pawn) & ^s2BB)|s1BB)
-	case m.HasTag(FarCastle):
-		// one-gap leap: the pawn lands on the king's origin, and the king
-		// settles on the empty gap square it passed into (s2 is the far
-		// partner, so finagle the king back from s2 to the gap)
-		pawn := getPiece(Pawn, c)
-		king := getPiece(King, c)
-		gapBB := bbForSquare(Square((int(m.s1) + int(m.s2)) / 2))
-		b.setBBForPiece(pawn, (b.bbForPiece(pawn) & ^s2BB)|s1BB)
-		b.setBBForPiece(king, (b.bbForPiece(king) & ^s2BB)|gapBB)
+// castleLandingSquares returns the squares the king and its partner occupy
+// after castle move m (m.s1 is the king's origin, m.s2 the partner's square).
+// An adjacent pair swaps squares; a distant pair crosses, with the king
+// landing one square short of the partner and the partner landing immediately
+// on the far side of the king.
+func castleLandingSquares(m *Move) (king, partner Square) {
+	dir := Square(1)
+	if m.s2 < m.s1 {
+		dir = -1
 	}
+	if m.s2-m.s1 == dir {
+		return m.s2, m.s1
+	}
+	king = m.s2 - dir
+	partner = king - dir
+	return king, partner
+}
+
+// moveCastledPieces relocates the king and its partner piece after the base
+// board update has moved the king onto m.s2 (and removed the partner from
+// it). It is position-relative: m.s1 is the king's origin and m.s2 the
+// partner's square; the landing squares follow from their file distance.
+func moveCastledPieces(b *Board, king, partner Piece, m *Move) {
+	if !m.castles() {
+		return
+	}
+	kingSq, partnerSq := castleLandingSquares(m)
+	if kingSq != m.s2 {
+		b.setBBForPiece(king, (b.bbForPiece(king) & ^bbForSquare(m.s2))|bbForSquare(kingSq))
+	}
+	b.setBBForPiece(partner, b.bbForPiece(partner)|bbForSquare(partnerSq))
 }
 
 func (b *Board) calcConvenienceBBs(m *Move) {
@@ -305,14 +311,14 @@ func (b *Board) calcConvenienceBBs(m *Move) {
 		}
 	} else if m.s1 == b.whiteKingSq {
 		b.whiteKingSq = m.s2
-		if m.HasTag(FarCastle) {
-			// the king settles on the gap, not the far partner's square (s2)
-			b.whiteKingSq = Square((int(m.s1) + int(m.s2)) / 2)
+		if m.castles() {
+			// a distant castle settles the king short of the partner's square (s2)
+			b.whiteKingSq, _ = castleLandingSquares(m)
 		}
 	} else if m.s1 == b.blackKingSq {
 		b.blackKingSq = m.s2
-		if m.HasTag(FarCastle) {
-			b.blackKingSq = Square((int(m.s1) + int(m.s2)) / 2)
+		if m.castles() {
+			b.blackKingSq, _ = castleLandingSquares(m)
 		}
 	}
 }

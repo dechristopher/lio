@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/dechristopher/octad/v2 v2.0.0
+	github.com/dechristopher/octad/v2 v2.1.0
 	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/gofiber/websocket/v2 v2.2.1
 	github.com/google/uuid v1.6.0

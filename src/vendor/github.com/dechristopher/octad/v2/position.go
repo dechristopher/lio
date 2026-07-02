@@ -11,18 +11,21 @@ import (
 )
 
 // Side represents a side to castle to. In octad, there are three types of
-// castling allowed: with the near, center, or far piece. In the standard
-// starting setup these are the knight, the close pawn, and the far pawn
-// respectively, but with deployed positions any home-rank piece can fill each
-// role.
+// castling allowed: with the near, center, or far piece. The three slots are
+// squares relative to the king, not piece identities: rank the other three
+// home-rank squares by file distance from the king, breaking the tie (a king
+// on a center file has two adjacent squares) toward the king's nearest edge.
+// In the standard starting setup these come out to the knight, the close
+// pawn, and the far pawn respectively, but with deployed positions any
+// home-rank piece can fill each slot.
 type Side int
 
 const (
-	// NearSide is castling with the near piece (the knight in the standard setup)
+	// NearSide is castling with the piece on the near square (the knight in the standard setup)
 	NearSide Side = iota + 1
-	// CenterSide is castling with the 'center' piece (the close pawn in the standard setup)
+	// CenterSide is castling with the piece on the 'center' square (the close pawn in the standard setup)
 	CenterSide
-	// FarSide is castling with the far piece (the far pawn in the standard setup)
+	// FarSide is castling with the piece on the far square (the far pawn in the standard setup)
 	FarSide
 )
 
@@ -339,8 +342,7 @@ func decodeCastleRights(rights uint8) CastleRights {
 
 // returns true if the move is not a castle move
 func isPureCapture(m *Move) bool {
-	return m.HasTag(Capture) && !m.HasTag(FarCastle) &&
-		!m.HasTag(CenterCastle) && !m.HasTag(NearCastle)
+	return m.HasTag(Capture) && !m.castles()
 }
 
 func (pos *Position) copy() *Position {
@@ -359,8 +361,9 @@ func (pos *Position) copy() *Position {
 // "deploy" phase, the king and its castling partners may sit on any home-rank
 // square, so rights are tracked relative to the king's current square rather
 // than the "legacy" fixed home squares. A side forfeits all of its rights when
-// its king moves; an individual right is forfeited when its partner piece
-// leaves its square or is captured there.
+// its king moves; an individual right is forfeited when its slot square is
+// disturbed — the partner piece leaves it or is captured there. The slot
+// squares are stable while rights exist because any king move clears them all.
 func (pos *Position) updateCastleRights(m *Move) CastleRights {
 	cr := string(pos.castleRights)
 
@@ -416,66 +419,36 @@ func homeRank(c Color) Rank {
 	return Rank4
 }
 
-// castlePartners returns the home-rank squares of the king's three castling
-// partners for color c: the near piece (its knight), the 'center' piece (its
-// nearer pawn), and the far piece (its farther pawn). Any partner that is
-// absent — or the king itself being off its home rank — yields NoSquare. The
-// center/far split is measured by file distance from the king, breaking ties
-// toward the lower file, so the standard start reproduces the canonical N/C/F
+// castleSlotFiles maps the king's file to the files of its near, center, and
+// far castle squares: the other three home-rank files ranked by distance from
+// the king, with a center-file king's adjacency tie broken toward its nearest
+// edge. The standard start (king on b1/c4) reproduces the canonical N/C/F
 // mapping (knight a1/d4, close pawn c1/b4, far pawn d1/a4).
-func castlePartners(pos *Position, c Color) (near, center, far Square) {
-	near, center, far = NoSquare, NoSquare, NoSquare
+var castleSlotFiles = [4][3]File{
+	FileA: {FileB, FileC, FileD},
+	FileB: {FileA, FileC, FileD},
+	FileC: {FileD, FileB, FileA},
+	FileD: {FileC, FileB, FileA},
+}
 
+// castlePartners returns the home-rank squares of the king's three castling
+// slots for color c: near, center, and far. The slots are fixed squares
+// relative to the king (see castleSlotFiles) and are reported whether or not
+// a partner piece currently occupies them; the corresponding castle right
+// tracks whether the piece that started there has been disturbed. All three
+// yield NoSquare when the king is missing or off its home rank.
+func castlePartners(pos *Position, c Color) (near, center, far Square) {
 	kingSq := pos.board.whiteKingSq
 	if c == Black {
 		kingSq = pos.board.blackKingSq
 	}
 	hr := homeRank(c)
 	if kingSq == NoSquare || kingSq.Rank() != hr {
-		return
+		return NoSquare, NoSquare, NoSquare
 	}
 
-	knightPiece := getPiece(Knight, c)
-	pawnPiece := getPiece(Pawn, c)
-
-	// collect up to two pawns with their file distance from the king
-	var p1, p2 = NoSquare, NoSquare
-	var d1, d2 int
-	for f := FileA; f <= FileD; f++ {
-		sq := getSquare(f, hr)
-		if sq == kingSq {
-			continue
-		}
-		switch pos.board.Piece(sq) {
-		case knightPiece:
-			near = sq
-		case pawnPiece:
-			dist := int(f) - int(kingSq.File())
-			if dist < 0 {
-				dist = -dist
-			}
-			if p1 == NoSquare {
-				p1, d1 = sq, dist
-			} else {
-				p2, d2 = sq, dist
-			}
-		}
-	}
-
-	// the nearer pawn is the 'center' piece; the file loop runs low-to-high, so an
-	// equal distance already favors the lower file
-	switch {
-	case p1 == NoSquare:
-		// no pawns on the home rank
-	case p2 == NoSquare:
-		center = p1
-	case d1 <= d2:
-		center, far = p1, p2
-	default:
-		center, far = p2, p1
-	}
-
-	return
+	slots := castleSlotFiles[kingSq.File()]
+	return getSquare(slots[0], hr), getSquare(slots[1], hr), getSquare(slots[2], hr)
 }
 
 func removeCastlingRight(rights *string, removedRight string) {

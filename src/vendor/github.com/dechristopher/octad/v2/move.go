@@ -4,14 +4,17 @@ package octad
 type MoveTag uint16
 
 const (
-	// NearCastle indicates that the move is a near castle (the king swapping
-	// with an adjacent knight).
+	// NearCastle indicates that the move is a castle with the piece on the
+	// king's near square — the closest home-rank square, always adjacent, so
+	// the two swap.
 	NearCastle MoveTag = 1 << iota
-	// CenterCastle indicates that the move is a center castle (the king
-	// swapping with an adjacent pawn).
+	// CenterCastle indicates that the move is a castle with the piece on the
+	// king's 'center' square — the second-closest home-rank square (adjacent
+	// swap for a center-file king, a one-gap crossing for an edge king).
 	CenterCastle
-	// FarCastle indicates that the move is a far castle (the king leaping one
-	// square over an empty gap to swap with a pawn two files away).
+	// FarCastle indicates that the move is a castle with the piece on the
+	// king's far square — the farthest home-rank square, crossed by the king
+	// landing one square short of it with the partner landing just beyond.
 	FarCastle
 	// Capture indicates that the move captures a piece.
 	Capture
@@ -68,6 +71,11 @@ func (m *Move) HasTag(tag MoveTag) bool {
 
 func (m *Move) addTag(tag MoveTag) {
 	m.tags = m.tags | tag
+}
+
+// castles returns true if the move is any of the three castle types.
+func (m *Move) castles() bool {
+	return m.HasTag(NearCastle) || m.HasTag(CenterCastle) || m.HasTag(FarCastle)
 }
 
 type moveSlice []*Move

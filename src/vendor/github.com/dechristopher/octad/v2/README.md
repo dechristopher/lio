@@ -47,17 +47,25 @@ All standard chess rules apply:
 * Stalemates are a draw
 
 The only catch, however, is that castling is possible between the king and any
-of its pieces on the starting rank before movement. Castling is
-position-relative — the king may castle from whatever home-rank square it
-occupies. The king simply switches spaces with the castling piece in all cases
-except the far piece, in which case the king travels one space toward it and
-that piece lands where the king was before. The three castle types are named
-for the king's relationship to its partner: **near** (an adjacent knight),
-**center** (an adjacent pawn), and **far** (a pawn two files away, leapt over an
-empty gap). An example of white performing a far castle can be expressed as
-`[ 1. c2 b3 2. O-O-O ... ]` with the resulting structure leaving the knight on
-a1, a pawn on b1, the king on c1, and the other pawn on c2. Here is what that
-would look like on the board:
+of its pieces on the starting rank before movement, regardless of where the
+two sit. Castling is position-relative — the king may castle from whatever
+home-rank square it occupies. An adjacent partner simply switches squares with
+the king. A distant partner (two or three files away) and the king cross
+instead: the king travels toward the partner and lands one square short of it,
+while the partner lands on the square just beyond the king. Every square
+between the two must be empty, and the king may never castle out of, through,
+or into check.
+
+The three castle types are named for their squares relative to the king. A
+king on an edge file castles **near**, **center**, or **far** with the
+closest, next-closest, and farthest home-rank square. A king on a center file
+castles **near** with the solo square on its closest edge, **center** with the
+adjacent square in the other center file, and **far** with the opposite edge
+square. In the standard starting setup these come out to the knight, the close
+pawn, and the far pawn. An example of white performing a far castle can be
+expressed as `[ 1. c2 b3 2. O-O-O ... ]` with the resulting structure leaving
+the knight on a1, a pawn on b1, the king on c1, and the other pawn on c2. Here
+is what that would look like on the board:
 
 ![Octad board](doc/far-castle.svg "White after a far castle")
 

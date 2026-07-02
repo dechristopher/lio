@@ -90,7 +90,8 @@ func standardMoves(pos *Position, first bool) []*Move {
 
 func addTags(m *Move, pos *Position) {
 	p := pos.board.Piece(m.s1)
-	if pos.board.isOccupied(m.s2) {
+	if pos.board.isOccupied(m.s2) && !m.castles() {
+		// a castle "moves onto" its friendly partner and is not a capture
 		m.addTag(Capture)
 	} else if m.s2 == pos.enPassantSquare && p.Type() == Pawn {
 		m.addTag(EnPassant)
@@ -200,10 +201,13 @@ func bbForPossibleMoves(pos *Position, pt PieceType, sq Square) bitboard {
 
 // castleMoves returns the legal castle moves for the side to move. Octad
 // castling is position-relative: the king may castle from whatever home-rank
-// square it deployed to. It swaps with an adjacent friendly near piece (the
-// knight, a near castle) or an adjacent pawn (a center castle), or makes a
-// one-square leap with a pawn two files away over an empty square (a far
-// castle). The king never castles into, through, or out of check.
+// square it deployed to, with any unmoved friendly piece on that rank. The
+// mechanics depend only on the file distance between the two: an adjacent
+// partner swaps squares with the king, while a distant partner (two or three
+// files away) and the king cross — the king lands one square short of the
+// partner and the partner lands immediately on the far side of the king.
+// Every square between the two must be empty, and the king never castles
+// into, through, or out of check.
 func castleMoves(pos *Position) []*Move {
 	var moves []*Move
 
@@ -224,10 +228,11 @@ func castleMoves(pos *Position) []*Move {
 	candidates := []struct {
 		sq   Square
 		side Side
+		tag  MoveTag
 	}{
-		{nearSq, NearSide},
-		{centerSq, CenterSide},
-		{farSq, FarSide},
+		{nearSq, NearSide, NearCastle},
+		{centerSq, CenterSide, CenterCastle},
+		{farSq, FarSide, FarCastle},
 	}
 
 	for _, candidate := range candidates {
@@ -235,43 +240,42 @@ func castleMoves(pos *Position) []*Move {
 			continue
 		}
 
-		dist := int(candidate.sq.File()) - int(kingSq.File())
-		if dist < 0 {
-			dist = -dist
-		}
-
-		var m *Move
-		switch dist {
-		case 1:
-			// adjacent swap: the king moves onto the partner square
-			if squaresAreAttacked(pos, candidate.sq) {
-				continue
-			}
-			m = &Move{s1: kingSq, s2: candidate.sq}
-			// the near piece is the knight (a near castle); any adjacent pawn
-			// is a center castle
-			if candidate.side == NearSide {
-				m.addTag(NearCastle)
-			} else {
-				m.addTag(CenterCastle)
-			}
-		case 2:
-			// one-gap leap: pawns only; the near piece (knight) cannot leap, and
-			// the gap must be empty and safe
-			if candidate.side == NearSide {
-				continue
-			}
-			gap := Square((int(kingSq) + int(candidate.sq)) / 2)
-			if pos.board.isOccupied(gap) || squaresAreAttacked(pos, gap) {
-				continue
-			}
-			m = &Move{s1: kingSq, s2: candidate.sq}
-			m.addTag(FarCastle)
-		default:
-			// too far to castle (e.g., a corner king's opposite-corner piece)
+		// a friendly non-king partner must still occupy the slot square
+		partner := pos.board.Piece(candidate.sq)
+		if partner.Color() != c || partner.Type() == King {
 			continue
 		}
 
+		// every square strictly between the king and its partner must be
+		// empty; for a distant partner those are exactly the squares the king
+		// passes through or lands on, so they must also be safe
+		dir := Square(1)
+		if candidate.sq < kingSq {
+			dir = -1
+		}
+		blocked := false
+		var kingPath []Square
+		for sq := kingSq + dir; sq != candidate.sq; sq += dir {
+			if pos.board.isOccupied(sq) {
+				blocked = true
+				break
+			}
+			kingPath = append(kingPath, sq)
+		}
+		if blocked {
+			continue
+		}
+
+		if len(kingPath) == 0 {
+			// adjacent swap: the king lands on the partner square itself
+			kingPath = []Square{candidate.sq}
+		}
+		if squaresAreAttacked(pos, kingPath...) {
+			continue
+		}
+
+		m := &Move{s1: kingSq, s2: candidate.sq}
+		m.addTag(candidate.tag)
 		addTags(m, pos)
 		// reject a castle that would leave the mover in check (a partner can
 		// unblock a slider as it vacates its square)

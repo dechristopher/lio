@@ -75,18 +75,15 @@ func (UOINotation) Decode(pos *Position, s string) (*Move, error) {
 	if p.Type() == King && p.Color() == p2.Color() &&
 		s1.Rank() == s2.Rank() && s1.Rank() == homeRank(p.Color()) {
 		// position-relative castle detection: a king "moving" onto a friendly
-		// home-rank piece is a castle. An adjacent knight is a near castle, and an
-		// adjacent pawn a center castle; a pawn two files away is a far castle.
-		dist := int(s2.File()) - int(s1.File())
-		if dist < 0 {
-			dist = -dist
-		}
-		switch {
-		case dist == 1 && p2.Type() == Knight:
+		// home-rank piece is a castle, tagged by which of the king's three
+		// slot squares the partner occupies
+		nearSq, centerSq, farSq := castlePartners(pos, p.Color())
+		switch s2 {
+		case nearSq:
 			m.addTag(NearCastle)
-		case dist == 1 && p2.Type() == Pawn:
+		case centerSq:
 			m.addTag(CenterCastle)
-		case dist == 2 && p2.Type() == Pawn:
+		case farSq:
 			m.addTag(FarCastle)
 		}
 	} else if p.Type() == Pawn && s2 == pos.enPassantSquare {
