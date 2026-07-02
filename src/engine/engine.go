@@ -40,9 +40,20 @@ const DrawEvalMargin float64 = 20
 // pub is the engine publisher
 var pub = bus.NewPublisher("engine", Channel)
 
-// Search returns the best move after running a search algorithm
-// on the given position to the given depth
-func Search(ofen string, depth int, alg SearchAlg) MoveEval {
+// Search returns the best move after running a search algorithm on the given
+// position to the given depth. A positive budget bounds how long the search
+// may run: MinimaxAB then iteratively deepens toward depth and returns the
+// best move found when the budget expires, so the caller can size the budget
+// off the bot's clock and never flag. A zero budget searches the full depth
+// unconditionally.
+func Search(ofen string, depth int, budget time.Duration, alg SearchAlg) MoveEval {
+	// establish the deadline before any parsing/setup so all engine-side
+	// overhead counts against the caller's budget
+	var deadline time.Time
+	if budget > 0 {
+		deadline = time.Now().Add(budget)
+	}
+
 	o, err := octad.OFEN(ofen)
 	if err != nil {
 		panic(err)
@@ -63,7 +74,7 @@ func Search(ofen string, depth int, alg SearchAlg) MoveEval {
 
 	// run selected search algorithm
 	if alg == MinimaxAB {
-		eval = searchMinimaxAB(situation, depth)
+		eval = searchMinimaxAB(situation, depth, deadline)
 	} else if alg == NegamaxAB {
 		eval = searchNegamaxAB(situation, depth)
 	} else if alg == Random {

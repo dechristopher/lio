@@ -3,6 +3,7 @@ package engine
 import (
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/dechristopher/octad/v2"
 
@@ -122,9 +123,9 @@ func positionValue(node *octad.Game, depth int) float64 {
 	// moves[0] is only used by mmABMax/mmABMin for debug logging of the last
 	// move; a real move keeps their depth-0 String() call safe.
 	if node.Position().Turn() == octad.White {
-		return mmABMax(node, moves[0], depth, -WinVal, WinVal)
+		return mmABMax(node, moves[0], depth, -WinVal, WinVal, noStop)
 	}
-	return mmABMin(node, moves[0], depth, -WinVal, WinVal)
+	return mmABMin(node, moves[0], depth, -WinVal, WinVal, noStop)
 }
 
 // scoredPlacement pairs one of a color's candidate placements with its expected
@@ -144,18 +145,37 @@ type scoredPlacement struct {
 // comparable. The list is in deterministic enumeration order.
 func scoreDeployments(color octad.Color, depth int) []scoredPlacement {
 	placements := deployPlacements()
-	scored := make([]scoredPlacement, len(placements))
 
+	// score all 12x12 assembled openings in parallel — each builds its own
+	// game from an OFEN, so the searches share no state. Mirrors the move
+	// search's per-root-move fan-out. Each goroutine writes only its own cell
+	// of the value grid; summing the grid sequentially afterward keeps the
+	// floating-point accumulation order (and thus the scores) deterministic.
+	values := make([][]float64, len(placements))
+	wg := &sync.WaitGroup{}
 	for i, mine := range placements {
-		var sum float64
-		for _, theirs := range placements {
+		values[i] = make([]float64, len(placements))
+		for j, theirs := range placements {
 			var ofen string
 			if color == octad.White {
 				ofen = deployOFEN(mine, theirs)
 			} else {
 				ofen = deployOFEN(theirs, mine)
 			}
-			sum += positionValue(mustGame(ofen), depth)
+			wg.Add(1)
+			go func(i, j int, ofen string) {
+				defer wg.Done()
+				values[i][j] = positionValue(mustGame(ofen), depth)
+			}(i, j, ofen)
+		}
+	}
+	wg.Wait()
+
+	scored := make([]scoredPlacement, len(placements))
+	for i, mine := range placements {
+		var sum float64
+		for _, v := range values[i] {
+			sum += v
 		}
 		scored[i] = scoredPlacement{
 			placement: mine,
@@ -166,19 +186,85 @@ func scoreDeployments(color octad.Color, depth int) []scoredPlacement {
 	return scored
 }
 
-// SelectDeployment chooses the bot's blind home-rank arrangement for the given
-// color at the default DeploySearchDepth. See selectDeployment.
-func SelectDeployment(color octad.Color) DeployPlacement {
-	return selectDeployment(color, DeploySearchDepth)
+// deployCache holds each color's candidate placement list. The scoring is
+// blind — a pure function of the color and DeploySearchDepth with no game-state
+// input — so the list is a per-process constant: the 144-search scoring runs
+// once per color (eagerly via WarmDeployCache when the engine comes online, or
+// lazily on the first deploy that beats it) and every subsequent deploy is just
+// a random pick from the cached list.
+var deployCache = map[octad.Color]*deployCacheEntry{
+	octad.White: {},
+	octad.Black: {},
 }
 
-// selectDeployment scores every candidate placement by its expected value
-// against an unknown opponent, then randomly picks among those within
-// DeployVarietyMargin of the best (white wants the highest white-positive score,
-// black the lowest) so the bot does not deploy identically every game — the
-// deploy analogue of pickOpeningMove. The returned placement is in board order;
-// the caller maps it to its own perspective.
+type deployCacheEntry struct {
+	once       sync.Once
+	candidates []DeployPlacement
+}
+
+// WarmDeployCache eagerly computes both colors' deploy candidate lists so the
+// first bot deploy of the process doesn't pay the scoring cost. It is invoked
+// by dispatch.UpEngine when the engine is brought online; instances that never
+// run the engine never pay for the cache.
+func WarmDeployCache() {
+	for _, color := range []octad.Color{octad.White, octad.Black} {
+		deployCandidates(color)
+	}
+}
+
+// deployCandidates returns color's cached candidate placements, computing and
+// caching them on first use at the DeploySearchDepth in effect at that moment.
+func deployCandidates(color octad.Color) []DeployPlacement {
+	entry := deployCache[color]
+	entry.once.Do(func() {
+		entry.candidates = candidatePlacements(color, DeploySearchDepth)
+	})
+	return entry.candidates
+}
+
+// SelectDeployment chooses the bot's blind home-rank arrangement for the given
+// color: a random pick from the cached candidate list (see selectDeployment
+// for the underlying scoring and filtering).
+func SelectDeployment(color octad.Color) DeployPlacement {
+	candidates := deployCandidates(color)
+	choice := candidates[rng.Intn(len(candidates))]
+
+	util.DebugFlag("engine", str.CEval, "deploy(%s): chose %s from %d cached candidates",
+		color, choice, len(candidates))
+
+	return choice
+}
+
+// RandomDeployment returns a uniformly random legal home-rank arrangement,
+// skipping the expected-value filter entirely. It is the easy-difficulty
+// deploy: a third of the arrangements trail the best by two-plus pawns of
+// expected value, so an unfiltered pick is a genuine handicap on top of being
+// maximally varied.
+func RandomDeployment() DeployPlacement {
+	placements := deployPlacements()
+	return placements[rng.Intn(len(placements))]
+}
+
+// selectDeployment picks randomly among candidatePlacements — the uncached
+// core of SelectDeployment, exercised directly by tests at custom depths.
 func selectDeployment(color octad.Color, depth int) DeployPlacement {
+	candidates := candidatePlacements(color, depth)
+	choice := candidates[rng.Intn(len(candidates))]
+
+	util.DebugFlag("engine", str.CEval, "deploy(%s): chose %s from %d candidates",
+		color, choice, len(candidates))
+
+	return choice
+}
+
+// candidatePlacements scores every candidate placement by its expected value
+// against an unknown opponent, then returns those within DeployVarietyMargin
+// of the best (white wants the highest white-positive score, black the lowest),
+// best-first, so a random pick among them varies the bot's arrangement
+// game-to-game without ever choosing an outright inferior setup — the deploy
+// analogue of pickOpeningMove. Placements are in board order; the caller maps
+// them to its own perspective.
+func candidatePlacements(color octad.Color, depth int) []DeployPlacement {
 	scored := scoreDeployments(color, depth)
 
 	// sort best-first from color's perspective
@@ -202,12 +288,7 @@ func selectDeployment(color octad.Color, depth int) DeployPlacement {
 		candidates = append(candidates, s.placement)
 	}
 
-	choice := candidates[rng.Intn(len(candidates))]
-
-	util.DebugFlag("engine", str.CEval, "deploy(%s): chose %s from %d candidates (best %.2f)",
-		color, choice, len(candidates), best)
-
-	return choice
+	return candidates
 }
 
 // mustGame builds a game from an engine-constructed OFEN. The OFEN is always

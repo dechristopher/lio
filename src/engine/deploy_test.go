@@ -97,6 +97,44 @@ func TestScoreDeploymentsDeterministic(t *testing.T) {
 	}
 }
 
+// TestSelectDeploymentCached confirms the cached production path: warming
+// computes each color's candidate list once, and SelectDeployment only ever
+// returns members of that cached list.
+func TestSelectDeploymentCached(t *testing.T) {
+	WarmDeployCache()
+	for _, color := range []octad.Color{octad.White, octad.Black} {
+		candidates := deployCandidates(color)
+		if len(candidates) == 0 {
+			t.Fatalf("deployCandidates(%s) is empty", color)
+		}
+
+		set := make(map[DeployPlacement]bool, len(candidates))
+		for _, c := range candidates {
+			set[c] = true
+		}
+		for i := 0; i < 15; i++ {
+			if p := SelectDeployment(color); !set[p] {
+				t.Fatalf("SelectDeployment(%s) = %s: not in the cached candidate list %v",
+					color, p, candidates)
+			}
+		}
+	}
+}
+
+// TestRandomDeploymentValid confirms the easy-difficulty deploy returns only
+// legal enumerated arrangements.
+func TestRandomDeploymentValid(t *testing.T) {
+	legal := make(map[DeployPlacement]bool, 12)
+	for _, p := range deployPlacements() {
+		legal[p] = true
+	}
+	for i := 0; i < 50; i++ {
+		if p := RandomDeployment(); !legal[p] {
+			t.Fatalf("RandomDeployment() = %s: not among enumerated placements", p)
+		}
+	}
+}
+
 // TestSelectDeploymentValid confirms selectDeployment always returns a legal
 // army and only ever chooses a candidate within the variety margin of the best
 // (never an outright inferior arrangement), for both colors, across repeated

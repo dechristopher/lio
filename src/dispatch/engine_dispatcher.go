@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"math"
+	"time"
 
 	"github.com/dechristopher/octad/v2"
 
@@ -15,9 +16,13 @@ import (
 
 // EngineRequest is a request for engine evaluation
 type EngineRequest struct {
-	GameID          string
-	OFEN            string
-	Depth           int
+	GameID string
+	OFEN   string
+	Depth  int
+	// Budget bounds how long the search may run (0 = unbounded): the engine
+	// iteratively deepens toward Depth and returns the best move found when
+	// the budget expires, so the bot answers in time instead of flagging.
+	Budget          time.Duration
 	ResponseChannel chan *message.RoomMove
 	// Done, if set, signals that the requesting room has been torn down so
 	// the worker can drop its result instead of blocking forever on the
@@ -33,9 +38,11 @@ type EngineRequest struct {
 // request is tagged with the game and position it evaluates so a verdict that
 // arrives after a move landed is dropped by the room.
 type DrawRequest struct {
-	GameID          string
-	OFEN            string
-	Depth           int
+	GameID string
+	OFEN   string
+	Depth  int
+	// Budget bounds the verdict search like EngineRequest.Budget (0 = unbounded)
+	Budget          time.Duration
 	ResponseChannel chan *message.RoomDrawEval
 	// Done, if set, signals that the requesting room has been torn down so the
 	// worker can drop its result instead of blocking on the response channel.
@@ -48,7 +55,10 @@ type DrawRequest struct {
 // (buffered) so this send never blocks even if the deploy phase has already
 // ended (see room.handleDeploy).
 type DeployRequest struct {
-	Color           octad.Color
+	Color octad.Color
+	// Random skips the expected-value scoring and deploys a uniformly random
+	// arrangement — the easy-difficulty deploy (see engine.RandomDeployment).
+	Random          bool
 	ResponseChannel chan *message.RoomBotDeploy
 }
 
@@ -69,6 +79,12 @@ func UpEngine() {
 		DrawRequests:   make(chan DrawRequest),
 	}
 	go instance.run()
+
+	// pre-compute the blind-deploy candidate lists off the boot path so the
+	// first bot deploy doesn't pay the scoring cost. Warming here (engine
+	// bring-up) rather than in an engine package init keeps instances that
+	// never run the engine free of the overhead.
+	go engine.WarmDeployCache()
 }
 
 // SubmitEngine submits a request to the engine dispatcher
@@ -107,7 +123,7 @@ func (d *EngineDispatcher) run() {
 // returned on the request's response channel, buffered by the caller so this
 // send never blocks even if the game already ended and no one is reading.
 func (d *EngineDispatcher) drawWorker(r DrawRequest) {
-	eval := engine.Search(r.OFEN, r.Depth, engine.MinimaxAB)
+	eval := engine.Search(r.OFEN, r.Depth, r.Budget, engine.MinimaxAB)
 	accept := math.Abs(eval.Eval) < engine.DrawEvalMargin
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] draw eval %.1f -> accept=%t", r.OFEN, eval.Eval, accept)
@@ -128,13 +144,19 @@ func (d *EngineDispatcher) drawWorker(r DrawRequest) {
 // deployWorker chooses the bot's blind home-rank arrangement via the engine and
 // returns it on the request's response channel.
 func (d *EngineDispatcher) deployWorker(r DeployRequest) {
-	util.DebugFlag("dispatch", str.CEng, "deploy request received for %s, selecting..", r.Color)
+	util.DebugFlag("dispatch", str.CEng, "deploy request received for %s (random=%t), selecting..",
+		r.Color, r.Random)
 
-	placement := engine.SelectDeployment(r.Color)
+	var placement engine.DeployPlacement
+	if r.Random {
+		placement = engine.RandomDeployment()
+	} else {
+		placement = engine.SelectDeployment(r.Color)
+	}
 
 	util.DebugFlag("dispatch", str.CEng, "deploy selected %s for %s", placement, r.Color)
 
-	// the response channel is buffered by the caller, so this send never blocks
+	// the caller buffers the response channel, so this send never blocks
 	// even if the room's deploy phase already ended and no one is reading
 	r.ResponseChannel <- &message.RoomBotDeploy{
 		Color:     r.Color,
@@ -150,7 +172,7 @@ func (d *EngineDispatcher) worker(r EngineRequest) {
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] request received, searching(%d)..", r.OFEN, r.Depth)
 
-	move := engine.Search(r.OFEN, r.Depth, engine.MinimaxAB)
+	move := engine.Search(r.OFEN, r.Depth, r.Budget, engine.MinimaxAB)
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] found move %s", r.OFEN, move.Move.String())
 

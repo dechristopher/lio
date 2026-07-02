@@ -186,6 +186,18 @@ type Params struct {
 	// privately arrange their home rank, then normal play begins from the
 	// assembled position. Defaults to false (classic immediate start).
 	Deploy bool
+	// BotTimeReserve is the bot difficulty knob: the fraction of the initial
+	// clock the bot tries not to dip below when budgeting its searches. A low
+	// reserve lets the bot spend nearly its whole clock thinking (hardest); a
+	// high reserve makes it move quickly and search shallower (easier). Zero
+	// means "unset" and falls back to DefaultBotTimeReserve; use a small
+	// positive value for the hardest setting.
+	BotTimeReserve float64
+	// BotRandomDeploy makes the bot deploy a uniformly random home-rank
+	// arrangement instead of one scored by the engine — the easy-difficulty
+	// deploy (about a third of arrangements are materially inferior).
+	// Defaults to false (engine-scored deploy).
+	BotRandomDeploy bool
 }
 
 // NewParams returns a new parameters object configured
@@ -1095,6 +1107,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 // by handleGameReady), so it locks to read the game fields it needs.
 func (r *Instance) requestEngineMove() {
 	r.stateMu.Lock()
+	depth, budget := r.calcSearchLocked(r.game.ToMove)
 	req := dispatch.EngineRequest{
 		Ctx: channel.SocketContext{
 			Channel: r.ID,
@@ -1107,7 +1120,8 @@ func (r *Instance) requestEngineMove() {
 		// staleness guard in makeMove instead of being applied to a new game
 		GameID: r.game.ID,
 		OFEN:   r.game.OFEN(),
-		Depth:  r.calcDepthLocked(r.game.ToMove),
+		Depth:  depth,
+		Budget: budget,
 	}
 	r.stateMu.Unlock()
 
@@ -1123,6 +1137,7 @@ func (r *Instance) requestEngineMove() {
 func (r *Instance) requestEngineDeploy(botColor octad.Color, ch chan *message.RoomBotDeploy) {
 	go dispatch.SubmitDeploy(dispatch.DeployRequest{
 		Color:           botColor,
+		Random:          r.params.BotRandomDeploy,
 		ResponseChannel: ch,
 	})
 }
@@ -1156,45 +1171,86 @@ func (r *Instance) flipClock() {
 	<-ackChannel
 }
 
-// calcDepthLocked returns the depth the engine should search to based on the
-// remaining time on the clock to try to avoid flagging as much as possible. The
+// Bot search time-budget policy: the engine iteratively deepens toward the
+// depth ceiling and returns the best move found when the budget expires, so
+// the bot's strength degrades gracefully under time pressure instead of the
+// search running long and flagging.
+const (
+	// DefaultBotTimeReserve is the BotTimeReserve used when Params doesn't set
+	// one: the bot banks a fifth of its initial clock and paces its thinking
+	// with the rest.
+	DefaultBotTimeReserve = 0.2
+	// botMoveHorizon is the number of future bot moves the spendable time
+	// (remaining minus reserve) is spread across when budgeting one search.
+	botMoveHorizon = 10
+	// botBudgetSafety is clock time the budget never touches, covering the
+	// dispatch/socket overhead between the search deadline and the move
+	// actually landing, so a full-budget search can't flag the bot.
+	botBudgetSafety = time.Second
+	// botMinBudget is the per-move budget floor once the bot is at or below
+	// its reserve. Shallow depths complete in well under this on a 4x4 board,
+	// so the bot still moves nearly instantly when scrambling.
+	botMinBudget = 50 * time.Millisecond
+)
+
+// calcSearchLocked returns the depth ceiling and time budget for an engine
+// search on behalf of color. The depth ceiling comes from the time control;
+// the budget comes from the bot's remaining clock: time above the configured
+// reserve (the difficulty knob, see Params.BotTimeReserve) is spread across a
+// horizon of future moves, plus any per-move increment/delay regain. The
 // caller must hold stateMu (it reads the game's variant and clock).
-func (r *Instance) calcDepthLocked(color octad.Color) int {
+func (r *Instance) calcSearchLocked(color octad.Color) (int, time.Duration) {
 	// depth 7 is about the best we can do in a reasonable timeframe
 	// on a good CPU, but it won't work well for bullet
 	var depth int
 
-	switch tc := r.game.Variant.Control.Time.Centi(); {
+	control := r.game.Variant.Control
+	switch tc := control.Time.Centi(); {
 	case tc >= 6000:
 		depth = 7
 	case tc >= 3000:
 		depth = 6
 	case tc >= 1500:
 		depth = 5
-	case tc >= 5:
-		depth = 4
 	default:
 		depth = 4
 	}
 
-	var remaining int64
+	var remaining time.Duration
 	clockState := r.game.Clock.State(true)
 	if color == octad.White {
-		remaining = clockState.WhiteTime.Centi()
+		remaining = time.Duration(clockState.WhiteTime.Centi()) * clock.Centisecond
 	} else {
-		remaining = clockState.BlackTime.Centi()
+		remaining = time.Duration(clockState.BlackTime.Centi()) * clock.Centisecond
 	}
 
-	modifier := float64(remaining) / float64(r.game.Variant.Control.Time.Centi())
-	if modifier > 1.0 {
-		modifier = 1.0
+	reserveFraction := r.params.BotTimeReserve
+	if reserveFraction <= 0 {
+		reserveFraction = DefaultBotTimeReserve
+	}
+	initial := time.Duration(control.Time.Centi()) * clock.Centisecond
+	reserve := time.Duration(float64(initial) * reserveFraction)
+
+	budget := (remaining - reserve) / botMoveHorizon
+	if budget < botMinBudget {
+		budget = botMinBudget
 	}
 
-	depth = int(float64(depth) * modifier)
+	// increment/delay time comes back every move, so it is spent on top of
+	// the paced budget without ever eating into the reserve
+	budget += time.Duration(control.Increment.Centi()+control.Delay.Centi()) * clock.Centisecond
 
-	util.DebugFlag("engine", str.CEng, "selected depth %d for game %s (%.2f%%) time remaining",
-		depth, r.ID, modifier*100)
-	return depth
+	// never budget into the safety margin, no matter how generous the pacing
+	if maxBudget := remaining - botBudgetSafety; budget > maxBudget {
+		budget = maxBudget
+	}
+	if budget < botMinBudget {
+		budget = botMinBudget
+	}
+
+	util.DebugFlag("engine", str.CEng, "selected depth %d budget %s for game %s (%s remaining)",
+		depth, budget, r.ID, remaining)
+	return depth, budget
 }
 
 // tryGameOver will emit a game over broadcast, record the game, and return an event

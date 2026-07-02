@@ -3,6 +3,7 @@ package engine
 import (
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/dechristopher/octad/v2"
 )
@@ -192,6 +193,78 @@ func TestMinimaxDeterminism(t *testing.T) {
 				ofen, evals, wantBest, badMove, trials, keys(bestMoves))
 		}
 	}
+}
+
+// TestDeepeningRootMatchesFixedDepth checks that iterative deepening with a
+// deadline it never hits lands on the same result as the fixed-depth search:
+// the final iteration is exactly minimaxABRoot's evaluateRootMoves pass.
+func TestDeepeningRootMatchesFixedDepth(t *testing.T) {
+	ofens := randomPositions(t, 10, 6)
+	for _, ofen := range ofens {
+		o, _ := octad.OFEN(ofen)
+		g, _ := octad.NewGame(o)
+		wantBest, bestMoves := refBest(g, diagDepth)
+
+		o2, _ := octad.OFEN(ofen)
+		g2, _ := octad.NewGame(o2)
+		got, results := deepeningRoot(g2, diagDepth, time.Now().Add(time.Minute))
+
+		if got.Eval != wantBest || !bestMoves[got.Move.String()] {
+			t.Errorf("OFEN %s\n  deepening: move=%s eval=%.1f\n  ref:       best=%.1f optimalMoves=%v",
+				ofen, got.Move.String(), got.Eval, wantBest, keys(bestMoves))
+		}
+		if len(results) != len(g.ValidMoves()) {
+			t.Errorf("OFEN %s: got %d root results, want %d", ofen, len(results), len(g.ValidMoves()))
+		}
+	}
+}
+
+// TestDeepeningRootDeadline checks that a deep search under a tight budget
+// returns a legal move promptly instead of running to full depth: the deadline
+// must cancel the in-flight iteration and bubble up the best completed move.
+func TestDeepeningRootDeadline(t *testing.T) {
+	const budget = 100 * time.Millisecond
+	for _, ofen := range randomPositions(t, 5, 6) {
+		o, _ := octad.OFEN(ofen)
+		g, _ := octad.NewGame(o)
+
+		start := time.Now()
+		got, _ := deepeningRoot(g, 20, time.Now().Add(budget))
+		elapsed := time.Since(start)
+
+		// generous slack over the budget: the abort must unwind promptly, but
+		// slow CI machines shouldn't flake this
+		if elapsed > budget+time.Second {
+			t.Errorf("OFEN %s: search ran %s, budget was %s", ofen, elapsed, budget)
+		}
+		if !legalMove(g, got.Move.String()) {
+			t.Errorf("OFEN %s: returned illegal move %s", ofen, got.Move.String())
+		}
+	}
+}
+
+// TestDeepeningRootExpiredDeadline checks the last-resort path: even with a
+// deadline already in the past, the search still returns a legal move (via the
+// unbounded depth-1 fallback) rather than nothing.
+func TestDeepeningRootExpiredDeadline(t *testing.T) {
+	for _, ofen := range randomPositions(t, 5, 6) {
+		o, _ := octad.OFEN(ofen)
+		g, _ := octad.NewGame(o)
+
+		got, _ := deepeningRoot(g, 7, time.Now().Add(-time.Second))
+		if !legalMove(g, got.Move.String()) {
+			t.Errorf("OFEN %s: returned illegal move %s", ofen, got.Move.String())
+		}
+	}
+}
+
+func legalMove(g *octad.Game, uoi string) bool {
+	for _, m := range g.ValidMoves() {
+		if m.String() == uoi {
+			return true
+		}
+	}
+	return false
 }
 
 func keys(m map[string]bool) []string {

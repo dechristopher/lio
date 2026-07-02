@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dechristopher/octad/v2"
@@ -34,39 +35,129 @@ type minimaxABParams struct {
 	depth     int
 	evalChan  chan MoveEval
 	wg        *sync.WaitGroup
+	// stop aborts the search when set: every node returns immediately and the
+	// iteration's results are discarded by the caller (see deepeningRoot)
+	stop *atomic.Bool
 }
 
-// searchMinimaxAB is the root for minimax with alpha-beta pruning
-func searchMinimaxAB(situation *octad.Game, depth int) MoveEval {
+// noStop is a shared, never-set stop flag for searches without a deadline.
+// It is only ever Load()ed, so sharing it across concurrent searches is safe.
+var noStop = new(atomic.Bool)
+
+// searchMinimaxAB is the root for minimax with alpha-beta pruning. A non-zero
+// deadline bounds the search: it runs iterative deepening up to depth and
+// returns the best move of the last fully completed depth, so the engine
+// always answers in time instead of flagging on deep searches.
+func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time) MoveEval {
 	// sleep for a random amount of time to make the engine easier to beat,
-	// anywhere from a fraction of a second to 1.25 seconds
-	time.Sleep(clock.Centisecond * 5 * time.Duration(rng.Intn(25)))
+	// anywhere from a fraction of a second to 1.25 seconds — but never more
+	// than a quarter of the remaining budget, so the handicap can't eat the
+	// search time on a low clock
+	sleep := clock.Centisecond * 5 * time.Duration(rng.Intn(25))
+	if !deadline.IsZero() {
+		if maxSleep := time.Until(deadline) / 4; sleep > maxSleep {
+			sleep = maxSleep
+		}
+	}
+	if sleep > 0 {
+		time.Sleep(sleep)
+	}
 
 	// add a little opening variety: on the first move of the game the engine
 	// otherwise always plays its single best move (e.g. P-c2 as white), which
 	// gets repetitive to play against. Pick randomly among the near-best
 	// opening moves instead. Later moves always take the single best move.
-	if isOpeningPosition(situation) {
-		return pickOpeningMove(situation, depth)
+	if deadline.IsZero() {
+		if isOpeningPosition(situation) {
+			return pickOpeningMove(situation, depth)
+		}
+		return minimaxABRoot(situation, depth)
 	}
 
-	return minimaxABRoot(situation, depth)
+	best, results := deepeningRoot(situation, depth, deadline)
+	if isOpeningPosition(situation) && len(results) > 0 {
+		return pickVariety(situation, results)
+	}
+	return best
+}
+
+// deepeningRoot runs the parallel root search with iterative deepening from
+// depth 1 up to maxDepth, keeping the best move and full root results of the
+// last depth that completed before the deadline. An iteration interrupted by
+// the deadline is discarded outright: its aborted subtrees returned bogus
+// bounds, so partial results can't be trusted. Depth 1 on a 4x4 board takes
+// microseconds, so a move is effectively always found in budget; if even that
+// is interrupted, a final depth-1 pass without a deadline guarantees one.
+func deepeningRoot(situation *octad.Game, maxDepth int, deadline time.Time) (MoveEval, []MoveEval) {
+	isWhite := situation.Position().Turn() == octad.White
+	moves := orderMoves(situation)
+
+	var best MoveEval
+	var results []MoveEval
+
+	for depth := 1; depth <= maxDepth; depth++ {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+
+		stop := new(atomic.Bool)
+		timer := time.AfterFunc(remaining, func() { stop.Store(true) })
+		iterStart := time.Now()
+		iterResults := evaluateRootMoves(situation, moves, depth, stop)
+		timer.Stop()
+
+		if stop.Load() {
+			break
+		}
+
+		results = iterResults
+		best = bestOf(results, moves, isWhite)
+
+		iterTime := time.Since(iterStart)
+		util.DebugFlag("engine", str.CEval, "deepening: depth %d done in %s, best %s (%2f)",
+			depth, iterTime, best.Move.String(), best.Eval)
+
+		// each extra ply costs a multiple of the last: if the next iteration
+		// can't plausibly finish in the time left, stop now instead of burning
+		// the rest of the budget on a search we'd have to abandon anyway
+		if time.Until(deadline) < 2*iterTime {
+			break
+		}
+	}
+
+	if len(results) == 0 {
+		results = evaluateRootMoves(situation, moves, 1, noStop)
+		best = bestOf(results, moves, isWhite)
+	}
+
+	return best, results
 }
 
 // minimaxABRoot runs the parallel alpha-beta root search and returns the single
 // best move. It is the pure, side-effect-free core of searchMinimaxAB (no
 // handicap sleep) so it can be exercised directly by tests.
 func minimaxABRoot(situation *octad.Game, depth int) MoveEval {
-	isWhite := situation.Position().Turn() == octad.White
+	moves := orderMoves(situation)
+	results := evaluateRootMoves(situation, moves, depth, noStop)
+	bestMove := bestOf(results, moves, situation.Position().Turn() == octad.White)
+
+	util.DebugFlag("engine", str.CEval, "chose best move: %s (%2f) for OFEN: %s",
+		bestMove.Move.String(), bestMove.Eval, situation.Position().String())
+
+	return bestMove
+}
+
+// bestOf returns the best root evaluation for the side to move, falling back
+// to the first legal move if no move beat the completely losing default
+// evaluation.
+func bestOf(results []MoveEval, moves []octad.Move, isWhite bool) MoveEval {
 	bestMoveEval := WinVal
 	if isWhite {
 		bestMoveEval = -WinVal
 	}
 
 	var bestMove MoveEval
-	moves := orderMoves(situation)
-	results := evaluateRootMoves(situation, moves, depth)
-
 	for _, evaluation := range results {
 		if (isWhite && evaluation.Eval > bestMoveEval) ||
 			(!isWhite && evaluation.Eval < bestMoveEval) {
@@ -75,15 +166,10 @@ func minimaxABRoot(situation *octad.Game, depth int) MoveEval {
 		}
 	}
 
-	// pick first legal move if no move found better than
-	// the completely losing default evaluation
 	if bestMove.Move.String() == "a1a1" {
 		bestMove.Move = moves[0]
 		bestMove.Eval = bestMoveEval
 	}
-
-	util.DebugFlag("engine", str.CEval, "chose best move: %s (%2f) for OFEN: %s",
-		bestMove.Move.String(), bestMove.Eval, situation.Position().String())
 
 	return bestMove
 }
@@ -94,7 +180,9 @@ func minimaxABRoot(situation *octad.Game, depth int) MoveEval {
 // pickOpeningMove (which keeps a random near-best move). Callers must pass the
 // orderMoves result for situation so the root validMoves cache is warmed before
 // the per-goroutine value-copies fan out (see the concurrency note in CLAUDE.md).
-func evaluateRootMoves(situation *octad.Game, moves []octad.Move, depth int) []MoveEval {
+// Setting stop aborts the in-flight search; the returned results are then
+// partial/unreliable and must be discarded (pass noStop for an unbounded search).
+func evaluateRootMoves(situation *octad.Game, moves []octad.Move, depth int, stop *atomic.Bool) []MoveEval {
 	isWhite := situation.Position().Turn() == octad.White
 
 	evaluations := make(chan MoveEval, len(moves))
@@ -110,6 +198,7 @@ func evaluateRootMoves(situation *octad.Game, moves []octad.Move, depth int) []M
 			depth:     depth,
 			evalChan:  evaluations,
 			wg:        wg,
+			stop:      stop,
 		})
 	}
 
@@ -140,14 +229,22 @@ func isOpeningPosition(situation *octad.Game) bool {
 // OpeningVarietyMargin. The best move always qualifies, so a candidate is
 // always returned; positions with a single sensible move simply play it.
 func pickOpeningMove(situation *octad.Game, depth int) MoveEval {
-	isWhite := situation.Position().Turn() == octad.White
 	moves := orderMoves(situation)
-	results := evaluateRootMoves(situation, moves, depth)
+	results := evaluateRootMoves(situation, moves, depth, noStop)
 	if len(results) == 0 {
 		// no moves searched (shouldn't happen for a live position); defer to
 		// the standard best-move logic and its losing-position fallback
 		return minimaxABRoot(situation, depth)
 	}
+
+	return pickVariety(situation, results)
+}
+
+// pickVariety applies the opening-variety selection to a completed set of root
+// evaluations: a random pick from the top OpeningVarietyMoves within
+// OpeningVarietyMargin of the best (see pickOpeningMove).
+func pickVariety(situation *octad.Game, results []MoveEval) MoveEval {
+	isWhite := situation.Position().Turn() == octad.White
 
 	// sort best-first from the side-to-move's perspective
 	sort.SliceStable(results, func(i, j int) bool {
@@ -191,7 +288,7 @@ func minimaxABAsync(params minimaxABParams) {
 			"pos: %+v, move: %+v", params.situation, params.move))
 	}
 
-	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth)
+	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth, params.stop)
 
 	util.DebugFlag("engine", str.CEval, "root eval: %s (%2f)",
 		params.move.String(), eval)
@@ -211,15 +308,21 @@ func minimaxAB(
 	move *octad.Move,
 	isMaxi bool,
 	depth int,
+	stop *atomic.Bool,
 ) float64 {
 	if isMaxi {
-		return mmABMax(node, move, depth, -WinVal, WinVal)
+		return mmABMax(node, move, depth, -WinVal, WinVal, stop)
 	}
-	return mmABMin(node, move, depth, -WinVal, WinVal)
+	return mmABMin(node, move, depth, -WinVal, WinVal, stop)
 }
 
 // mmABMax is the maximizing routine for minimax with alpha-beta pruning
-func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64) float64 {
+func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64, stop *atomic.Bool) float64 {
+	// search aborted: unwind immediately; the caller discards the result
+	if stop.Load() {
+		return alpha
+	}
+
 	moves := node.ValidMoves()
 
 	if depth == 0 || len(moves) == 0 {
@@ -237,7 +340,7 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 				"pos: %+v, move: %+v", node, move))
 		}
 
-		eval := mmABMin(node, move, depth-1, alpha, beta)
+		eval := mmABMin(node, move, depth-1, alpha, beta, stop)
 		node.UndoMove()
 
 		util.DebugFlag("eng-v", str.CEval, "minimax: d%d: MAX move=%s eval=%2f",
@@ -257,8 +360,13 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 	return alpha
 }
 
-// mmABMax is the minimizing routine for minimax with alpha-beta pruning
-func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64) float64 {
+// mmABMin is the minimizing routine for minimax with alpha-beta pruning
+func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64, stop *atomic.Bool) float64 {
+	// search aborted: unwind immediately; the caller discards the result
+	if stop.Load() {
+		return beta
+	}
+
 	moves := node.ValidMoves()
 
 	if depth == 0 || len(moves) == 0 {
@@ -276,7 +384,7 @@ func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 				"pos: %+v, move: %+v", node, move))
 		}
 
-		eval := mmABMax(node, move, depth-1, alpha, beta)
+		eval := mmABMax(node, move, depth-1, alpha, beta, stop)
 		node.UndoMove()
 
 		util.DebugFlag("eng-v", str.CEval, "minimax: d%d: MIN move=%s eval=%2f",

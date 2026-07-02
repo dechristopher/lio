@@ -171,10 +171,12 @@ func (r *Instance) applyAgreedDraw(meta channel.SocketContext) (bool, *fsm.Event
 // send never blocks even if the game ends first.
 func (r *Instance) requestEngineDraw() {
 	r.stateMu.Lock()
+	depth, budget := r.calcSearchLocked(r.game.ToMove)
 	req := dispatch.DrawRequest{
 		GameID:          r.game.ID,
 		OFEN:            r.game.OFEN(),
-		Depth:           r.calcDepthLocked(r.game.ToMove),
+		Depth:           depth,
+		Budget:          budget,
 		ResponseChannel: r.drawEvalChannel,
 		Done:            r.done,
 	}
