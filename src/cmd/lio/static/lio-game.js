@@ -754,15 +754,26 @@ const handleDrawOffer = (message) => {
 // step through the finished game with the board unobstructed.
 const analyzeBtn = document.getElementById('result-analyze');
 const restoreResultBtn = document.getElementById('result-restore');
+
+/**
+ * dismissResultForAnalysis hides the showing result card and exposes the
+ * restore button. Besides the "Analyze board" button, any review-navigation
+ * input (arrow keys, nav buttons, move-list clicks) dismisses the card, so the
+ * modal never blocks stepping through the finished game.
+ */
+const dismissResultForAnalysis = () => {
+	if (!resultOverlayEl || !resultOverlayEl.classList.contains('result-show')
+		|| resultOverlayEl.classList.contains('result-dismissed')) {
+		return;
+	}
+	resultOverlayEl.classList.add('result-dismissed');
+	if (restoreResultBtn) {
+		restoreResultBtn.classList.remove('hidden');
+	}
+};
+
 if (analyzeBtn) {
-	analyzeBtn.addEventListener('click', () => {
-		if (resultOverlayEl) {
-			resultOverlayEl.classList.add('result-dismissed');
-		}
-		if (restoreResultBtn) {
-			restoreResultBtn.classList.remove('hidden');
-		}
-	});
+	analyzeBtn.addEventListener('click', dismissResultForAnalysis);
 }
 if (restoreResultBtn) {
 	restoreResultBtn.addEventListener('click', () => {
@@ -976,9 +987,18 @@ const handleGameOver = (message) => {
 		return;
 	}
 
+	// whether this message is a room-cleanup notice arriving after the result was
+	// already shown (the rematch/analysis window lapsed), rather than a fresh
+	// game-over — captured before the flag is (re)set below
+	const wasGameOver = gameOver;
+
 	cancelAnimationFrame(frameId);
 	document.getElementById("info").innerHTML = message.d.s;
-	window.notification.play();
+	// don't replay the end sound for a room-cleanup notice while the player is
+	// reviewing the finished game; the result it announces is long since heard
+	if (!(wasGameOver && message.d.o === true && isAnalyzing())) {
+		window.notification.play();
+	}
 
 	// the game has ended: keep the board non-interactive even if the player
 	// reviews and returns to the live tip (see renderLivePosition)
@@ -1008,10 +1028,10 @@ const handleGameOver = (message) => {
 	// update match score
 	updateScore(message);
 
-	// if room over, redirect home after a moment
+	// if room over, decide whether to keep the player here or send them home
 	if (message.d.o === true) {
 		// no next game is coming; stop any post-rematch resync poll so it can't
-		// outlive the room while we wait to redirect
+		// outlive the room
 		stopRematchResync();
 
 		// A finished bot room is torn down after its analysis window. If the player
@@ -1020,6 +1040,23 @@ const handleGameOver = (message) => {
 		// (the socket is closed just below) — instead of bouncing them home. Stop
 		// auto-reconnect so the client doesn't fight the now-gone room.
 		if (opponentIsBot && isAnalyzing()) {
+			if (typeof window.lioStopReconnect === 'function') {
+				window.lioStopReconnect();
+			}
+			return;
+		}
+
+		// A human-vs-human room that closed because no rematch was agreed (a bare
+		// cleanup notice — no result attached — after the result was already
+		// shown). Don't boot the player: a rematch is now impossible, so disable
+		// it and drop the socket for good, but leave them free to analyze the
+		// finished game.
+		if (!opponentIsBot && wasGameOver && !message.d.w) {
+			setRematchButtonsDisabled();
+			stopCountdown();
+			if (resultCountdownEl) {
+				resultCountdownEl.innerHTML = 'Room closed';
+			}
 			if (typeof window.lioStopReconnect === 'function') {
 				window.lioStopReconnect();
 			}
@@ -1981,6 +2018,9 @@ const goToPly = (ply) => {
 	if (deployMode || deploySpectating) {
 		return;
 	}
+	// touching any navigation control while the result card is up dismisses it,
+	// so the modal never blocks reviewing the finished game
+	dismissResultForAnalysis();
 	if (ply < 0) {
 		ply = 0;
 	}
