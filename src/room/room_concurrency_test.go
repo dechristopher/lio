@@ -38,6 +38,7 @@ func newTestInstance(t *testing.T, white, black string) *Instance {
 		game:         g,
 		players:      players,
 		rematch:      player.Agreement{},
+		draw:         player.Agreement{},
 		done:         make(chan struct{}),
 		joinToken:    "tok",
 	}

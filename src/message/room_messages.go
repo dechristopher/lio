@@ -52,6 +52,18 @@ type RoomBotDeploy struct {
 	Placement [4]octad.PieceType
 }
 
+// RoomDrawEval carries the engine's verdict on a human's draw offer in a bot
+// game: whether the bot accepts the draw. It is the draw-offer analogue of
+// RoomMove — produced by the engine dispatcher and consumed by the room's
+// game-ongoing handler — and is tagged with the game and position it was
+// evaluated for so a verdict that arrives after the position changed (a move
+// landed) is dropped instead of ending the wrong game.
+type RoomDrawEval struct {
+	GameID string
+	OFEN   string
+	Accept bool
+}
+
 type RoomControlType int
 
 const (

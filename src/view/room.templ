@@ -13,15 +13,19 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header("max-w-[34rem]")
-				if !payload.IsCreator && !payload.IsJoining {
+				if payload.IsCreator || payload.IsJoining {
+					// pre-game waiting hero: wider than the game view to fit the
+					// two-panel layout, so header/footer widths match the hero.
+					@header("max-w-[44rem]")
+					if payload.IsCreator {
+						@roomCreator(meta, payload)
+					} else {
+						@roomJoiner(payload)
+					}
+					@footer(meta, "max-w-[44rem]")
+				} else {
+					@header("max-w-[34rem]")
 					@roomGame(meta, payload)
-				} else if payload.IsCreator {
-					@roomCreator(meta, payload)
-					@footer(meta, "max-w-[34rem]")
-				} else if payload.IsJoining {
-					@roomJoiner(payload)
-					@footer(meta, "max-w-[34rem]")
 				}
 			</div>
 		</body>
@@ -63,9 +67,18 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<button type="button" id="nav-last" class="nav-btn" title="Jump to live (↓)" aria-label="Jump to live">⏭</button>
 						</div>
 					</div>
-					<div class="controls">
-						<button type="button" class="ctrl-btn" disabled title="Resign — coming soon">⚑ Resign</button>
-						<button type="button" class="ctrl-btn" disabled title="Offer draw — coming soon">½ Draw</button>
+					<!--
+						In-game controls. During play these are Resign / Draw (.play-ctrl);
+						once the game is over lio-game.js adds .controls-over, swapping in a
+						Rematch button (.over-ctrl) so a player reviewing the finished game
+						can rematch without the result overlay. The rematch button reuses the
+						result overlay's data-rematch-url bot fallback and shared enable/disable
+						state (perpetual vs a bot, disabled once a human opponent leaves).
+					-->
+					<div id="game-controls" class="controls">
+						<button type="button" id="btn-resign" class="ctrl-btn play-ctrl" title="Resign the game">⚑ Resign</button>
+						<button type="button" id="btn-draw" class="ctrl-btn play-ctrl" title="Offer a draw">½ Draw</button>
+						<button type="button" id="btn-rematch" class="ctrl-btn ctrl-rematch over-ctrl" title="Play again" data-rematch-url={ botRematchURL(payload) }>↻ Rematch</button>
 					</div>
 				</div>
 			</aside>

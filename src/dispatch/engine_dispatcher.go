@@ -1,6 +1,8 @@
 package dispatch
 
 import (
+	"math"
+
 	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
@@ -24,6 +26,22 @@ type EngineRequest struct {
 	Ctx  channel.SocketContext
 }
 
+// DrawRequest asks the engine whether the bot should accept a human's draw
+// offer in the given position. Like EngineRequest it is served off the room
+// goroutine; the verdict is returned on ResponseChannel, which the caller sizes
+// (buffered) so the send never blocks even if the game already ended. The
+// request is tagged with the game and position it evaluates so a verdict that
+// arrives after a move landed is dropped by the room.
+type DrawRequest struct {
+	GameID          string
+	OFEN            string
+	Depth           int
+	ResponseChannel chan *message.RoomDrawEval
+	// Done, if set, signals that the requesting room has been torn down so the
+	// worker can drop its result instead of blocking on the response channel.
+	Done <-chan struct{}
+}
+
 // DeployRequest is a request for the engine to choose a bot's blind home-rank
 // deployment. Like EngineRequest it is served off the room goroutine; the chosen
 // board-order placement is returned on ResponseChannel, which the caller sizes
@@ -38,6 +56,7 @@ type DeployRequest struct {
 type EngineDispatcher struct {
 	Requests       chan EngineRequest
 	DeployRequests chan DeployRequest
+	DrawRequests   chan DrawRequest
 }
 
 var instance EngineDispatcher
@@ -47,6 +66,7 @@ func UpEngine() {
 	instance = EngineDispatcher{
 		Requests:       make(chan EngineRequest),
 		DeployRequests: make(chan DeployRequest),
+		DrawRequests:   make(chan DrawRequest),
 	}
 	go instance.run()
 }
@@ -61,6 +81,11 @@ func SubmitDeploy(request DeployRequest) {
 	instance.DeployRequests <- request
 }
 
+// SubmitDraw submits a bot draw-offer evaluation request to the engine dispatcher
+func SubmitDraw(request DrawRequest) {
+	instance.DrawRequests <- request
+}
+
 // dispatcher for engine evaluation requests from games against the engine
 func (d *EngineDispatcher) run() {
 	util.Debug(str.CEng, str.DEngOk)
@@ -70,7 +95,33 @@ func (d *EngineDispatcher) run() {
 			go d.worker(request)
 		case request := <-d.DeployRequests:
 			go d.deployWorker(request)
+		case request := <-d.DrawRequests:
+			go d.drawWorker(request)
 		}
+	}
+}
+
+// drawWorker evaluates the current position and decides whether the bot accepts
+// a draw offer: it agrees only when neither side is winning by more than
+// engine.DrawEvalMargin, and otherwise declines and plays on. The verdict is
+// returned on the request's response channel, buffered by the caller so this
+// send never blocks even if the game already ended and no one is reading.
+func (d *EngineDispatcher) drawWorker(r DrawRequest) {
+	eval := engine.Search(r.OFEN, r.Depth, engine.MinimaxAB)
+	accept := math.Abs(eval.Eval) < engine.DrawEvalMargin
+
+	util.DebugFlag("dispatch", str.CEng, "[%s] draw eval %.1f -> accept=%t", r.OFEN, eval.Eval, accept)
+
+	response := &message.RoomDrawEval{
+		GameID: r.GameID,
+		OFEN:   r.OFEN,
+		Accept: accept,
+	}
+
+	select {
+	case r.ResponseChannel <- response:
+	case <-r.Done:
+		util.DebugFlag("dispatch", str.CEng, "[%s] room gone, dropping draw verdict", r.OFEN)
 	}
 }
 

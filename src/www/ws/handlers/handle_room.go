@@ -27,6 +27,16 @@ func HandleRoom(m []byte, meta channel.SocketContext) []byte {
 		return nil
 	}
 
+	// in-game resign / draw controls are read the same way and handed to the room
+	if fastjson.GetBool(m, "d", "rs") {
+		thisRoom.RequestResign(meta)
+		return nil
+	}
+	if fastjson.GetBool(m, "d", "dr") {
+		thisRoom.RequestDraw(meta)
+		return nil
+	}
+
 	var msg proto.RoomMessage
 	err = json.Unmarshal(m, &msg)
 	if err != nil {

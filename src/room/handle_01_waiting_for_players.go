@@ -10,6 +10,24 @@ import (
 	"github.com/dechristopher/lio/util"
 )
 
+// vacancyGrace returns how long the room should wait, once it has gone empty,
+// before it is torn down — given whether anyone has ever connected during its
+// lifetime.
+//
+// An open challenge that has been occupied and then vacated (its creator's
+// socket dropped) gets the short reconnect grace, so routine reconnection churn
+// — the client's stale-socket watchdog, a throttled background tab, a brief
+// network blip — never clears a live seek before the client reconnects. Every
+// other vacancy keeps the full grace: nobody has arrived yet (initial page
+// load), or an opponent has already joined and a game is committed mid-handoff
+// (hasOpenSeat is already false, since Join fills the seat before the redirect).
+func (r *Instance) vacancyGrace(connected bool) time.Duration {
+	if connected && r.hasOpenSeat() {
+		return reconnectGrace
+	}
+	return roomExpiryTime
+}
+
 // handle waiting for players period
 // waits for <roomExpiryTime> seconds if all players are disconnected and will
 // proceed to clean up the room if exceeded
@@ -22,16 +40,19 @@ func (r *Instance) handleWaitingForPlayers() {
 	cleanupTimer := time.NewTimer(roomExpiryTime)
 	defer cleanupTimer.Stop()
 
-	// armCleanup (re)starts the timer, draining any pending fire first so a
-	// previous expiry can't trigger an immediate, spurious cleanup.
-	armCleanup := func() {
+	// armCleanup (re)starts the timer for the given grace, draining any pending
+	// fire first so a previous expiry can't trigger an immediate, spurious
+	// cleanup. The duration differs by why the room is empty (see
+	// reconcileCleanup): the full initial grace before anyone has connected vs.
+	// the shorter reconnect grace once the creator has been present and dropped.
+	armCleanup := func(grace time.Duration) {
 		if !cleanupTimer.Stop() {
 			select {
 			case <-cleanupTimer.C:
 			default:
 			}
 		}
-		cleanupTimer.Reset(roomExpiryTime)
+		cleanupTimer.Reset(grace)
 	}
 	// stopCleanup disarms the timer, draining any pending fire.
 	stopCleanup := func() {
@@ -64,38 +85,40 @@ func (r *Instance) handleWaitingForPlayers() {
 	// has connected does the room going empty trigger the instant teardown.
 	var connected bool
 
-	// reconcileCleanup adjusts the cleanup timer for the current occupancy and
-	// reports whether the room was torn down (so the caller exits the handler).
+	// reconcileCleanup adjusts the cleanup timer for the current occupancy. It no
+	// longer tears the room down itself — every vacancy arms the timer and the
+	// teardown happens on the timer fire — so it always returns false; the return
+	// is kept so callers read uniformly with the timer-fire path.
 	//
-	// When the last occupant leaves an open challenge that no opponent has
-	// joined, the room is junk — its creator abandoned it before anyone joined
-	// or any game began — so we tear it down immediately instead of letting it
-	// linger out the grace period. Every other vacancy keeps the grace timer:
-	// the creator may not have arrived yet, or an opponent has already joined and
-	// we are mid-handoff from the challenge page to the board (a brief window
-	// where both channels can read empty even though the game is committed —
-	// hasOpenSeat is already false by then because Join fills the seat before the
-	// redirect, so it is correctly excluded here).
-	reconcileCleanup := func() (teardown bool) {
+	// The grace differs by why the room is empty:
+	//
+	//   - An open challenge the creator has connected to and then vacated gets the
+	//     shorter reconnect grace. Previously this case tore the room down the
+	//     instant the socket count hit zero, which meant routine reconnection
+	//     churn — the stale-socket watchdog, a throttled background tab, a network
+	//     blip — killed a live challenge before the client's reconnect landed. The
+	//     grace timer survives those transient drops and is cancelled the moment
+	//     the creator reconnects (occupants() > 0 below), so a challenge waits
+	//     indefinitely while its creator is present and only clears once they are
+	//     genuinely gone for reconnectGrace.
+	//
+	//   - Every other vacancy keeps the full grace: the creator may not have
+	//     arrived yet (initial load), or an opponent has already joined and we are
+	//     mid-handoff from the challenge page to the board (a brief window where
+	//     both channels can read empty even though the game is committed —
+	//     hasOpenSeat is already false by then because Join fills the seat before
+	//     the redirect, so it is correctly excluded from the reconnect grace).
+	reconcileCleanup := func() {
 		if occupants() > 0 {
 			connected = true
 			util.DebugFlag("room", str.CRoom, "[%s] stopped cleanup timer, players connected", r.ID)
 			stopCleanup()
-			return false
+			return
 		}
 
-		if connected && r.hasOpenSeat() {
-			util.DebugFlag("room", str.CRoom, "[%s] open challenge vacated before any game, cleaning up", r.ID)
-			r.abandoned = true
-			if err := r.event(EventPlayerAbandons); err != nil {
-				panic(err)
-			}
-			return true
-		}
-
-		util.DebugFlag("room", str.CRoom, "[%s] no players connected, cleanup timer enabled", r.ID)
-		armCleanup()
-		return false
+		grace := r.vacancyGrace(connected)
+		util.DebugFlag("room", str.CRoom, "[%s] room empty, teardown in %s unless someone (re)connects", r.ID, grace)
+		armCleanup(grace)
 	}
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for players", r.ID)
@@ -103,13 +126,9 @@ func (r *Instance) handleWaitingForPlayers() {
 	for {
 		select {
 		case <-waitingListener:
-			if reconcileCleanup() {
-				return
-			}
+			reconcileCleanup()
 		case <-connectionListener:
-			if reconcileCleanup() {
-				return
-			}
+			reconcileCleanup()
 
 			// nothing more to do while the room is empty (timer already armed)
 			if occupants() == 0 {
@@ -132,6 +151,15 @@ func (r *Instance) handleWaitingForPlayers() {
 				return
 			}
 		case <-cleanupTimer.C:
+			// Re-check occupancy at fire time. A (re)connect can race the timer
+			// fire — both cases become ready and select may pick the timer even
+			// though someone is now present (a creator who reconnected within the
+			// grace, or a joiner who arrived) — so don't tear down a room that is
+			// no longer empty. The pending listener event re-reconciles next loop.
+			if occupants() > 0 {
+				util.DebugFlag("room", str.CRoom, "[%s] cleanup fire raced a (re)connect, keeping room", r.ID)
+				continue
+			}
 			r.abandoned = true
 			// room expired, clean up
 			util.DebugFlag("room", str.CRoom, "[%s] room expired, cleaning up", r.ID)

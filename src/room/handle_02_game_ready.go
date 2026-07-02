@@ -18,6 +18,15 @@ func (r *Instance) handleGameReady() {
 	// instead of waiting for white's first move. The deploy handler broadcasts
 	// its own start state, assembles the game, and transitions to GameOngoing.
 	if r.params.Deploy {
+		// sweep any straggler submission left buffered from a previous deploy
+		// phase (one that landed after that phase stopped reading) so it cannot
+		// be consumed as a legitimate submission in the phase about to start.
+		// This must happen BEFORE EventStartDeploy fires: SubmitDeploy rejects
+		// sends outside StateDeploy, so at this point the buffer can only hold
+		// stragglers — draining inside handleDeploy instead would race (and
+		// discard) a real submission arriving right after the transition.
+		r.drainDeployChannel()
+
 		util.DebugFlag("room", str.CRoom, "[%s] starting deploy phase", r.ID)
 		if err := r.event(EventStartDeploy); err != nil {
 			panic(err)

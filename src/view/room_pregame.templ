@@ -2,60 +2,89 @@ package view
 
 import "github.com/dechristopher/lio/message"
 
-// roomCreator is the creator's pre-game waiting view: a live "waiting for an
-// opponent" status, the match summary, a scannable QR code + shareable invite
-// link, and a cancel form. It waits over the websocket for an opponent.
-// lio-room-create.js wires #copyInviteButton (toggling .copied) and reads
-// #gameInviteLink, so those hooks are preserved.
+// roomCreator is the creator's pre-game waiting view: a wide two-panel hero
+// echoing the create-game modal. The left panel is the match summary + cancel;
+// the right (hero) panel is the share surface — a scannable QR and a copyable
+// invite link. It waits over the websocket for an opponent. lio-room-create.js
+// wires #copyInviteButton (toggling .copied) and reads #gameInviteLink, so those
+// hooks are preserved.
 templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
-	<main class="card mt-2 mb-4 w-[92vw] max-w-[24rem] text-center">
-		<div class="waiting-status">
-			<span class="waiting-dot" aria-hidden="true"></span>
-			<h1 class="font-display text-lg font-bold text-fg">Waiting for an opponent…</h1>
+	<main class="wait card mt-2 mb-4">
+		<div class="wait-head">
+			<span class="wait-kicker">Open challenge</span>
+			<div class="waiting-status">
+				<span class="waiting-dot" aria-hidden="true"></span>
+				<h1 class="wait-title">Waiting for an opponent…</h1>
+			</div>
+			<p class="wait-sub">Your challenge is live — share it to bring someone in.</p>
 		</div>
-		<p class="prose mt-1 text-sm">Your challenge is live — share it to start the game.</p>
-		<div class="mt-4 flex flex-col items-center gap-4">
-			@gameSummary(payload)
-			<div class="flex flex-col items-center gap-1.5">
+		<div class="wait-body">
+			<div class="wait-panel">
+				<span class="wait-label">Match</span>
+				@gameSummary(payload)
+				<div class="wait-actions">
+					<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
+						<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
+						<button type="submit" class="btn btn-danger btn-block" title="Cancel the game">× Cancel game</button>
+					</form>
+				</div>
+			</div>
+			<div class="wait-panel wait-panel-hero">
+				<span class="wait-label">Invite</span>
 				<div class="qr-tile">
 					@inviteQR(meta.SiteURL + payload.RoomID)
 				</div>
-				<p class="text-xs text-fg-subtle">Scan to join from a phone on the same network</p>
-			</div>
-			<div class="w-full">
-				<label class="sr-only" for="gameInviteLink">Invite link</label>
-				<div class="invite-row">
-					<input type="text" id="gameInviteLink" class="invite-field" onClick="this.select();" value={ meta.SiteURL + payload.RoomID } readonly/>
-					<button type="button" id="copyInviteButton" class="btn btn-ghost copy-btn" title="Copy invite URL" aria-label="Copy invite URL">
-						@iconCopy()
-						@iconCheck()
-					</button>
+				<p class="wait-note">Scan to join from a phone on the same network</p>
+				<div class="w-full">
+					<label class="sr-only" for="gameInviteLink">Invite link</label>
+					<div class="invite-row">
+						<input type="text" id="gameInviteLink" class="invite-field" onClick="this.select();" value={ meta.SiteURL + payload.RoomID } readonly/>
+						<button type="button" id="copyInviteButton" class="btn btn-ghost copy-btn" title="Copy invite URL" aria-label="Copy invite URL">
+							@iconCopy()
+							@iconCheck()
+						</button>
+					</div>
+					<p class="wait-note mt-2">Anyone who opens this link can take the open seat.</p>
 				</div>
-				<p class="prose mt-2 text-xs">Anyone who opens this link can take the open seat.</p>
 			</div>
-			<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
-				<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
-				<button type="submit" class="btn btn-danger btn-block" title="Cancel the game">× Cancel game</button>
-			</form>
 		</div>
 	</main>
 }
 
-// roomJoiner is the joining player's view: a "you've been challenged" hero, the
-// match summary (showing the open seat they would take), and a join form.
+// roomJoiner is the joining player's pre-game view: the same two-panel hero as
+// the creator, with the match summary (showing the open seat they would take) on
+// the left and the join call-to-action on the right.
 templ roomJoiner(payload message.RoomTemplatePayload) {
-	<main class="card mt-2 mb-4 w-[92vw] max-w-[24rem] text-center">
-		<div class="waiting-status">
-			<span class="waiting-dot" aria-hidden="true"></span>
-			<h1 class="font-display text-lg font-bold text-fg">You've been challenged</h1>
+	<main class="wait card mt-2 mb-4">
+		<div class="wait-head">
+			<span class="wait-kicker">You've been challenged</span>
+			<div class="waiting-status">
+				<span class="waiting-dot" aria-hidden="true"></span>
+				<h1 class="wait-title">An opponent is waiting for you</h1>
+			</div>
+			<p class="wait-sub">An anonymous player set up this game and is waiting for someone to join.</p>
 		</div>
-		<p class="prose mt-1 text-sm">An anonymous player is waiting for an opponent.</p>
-		<div class="mt-4 flex flex-col items-center gap-4">
-			@gameSummary(payload)
-			<form class="contents" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>
-				<input type="hidden" name="join_token" value={ payload.JoinToken }/>
-				<button type="submit" class="btn btn-primary btn-block" title="Join the game">Join game</button>
-			</form>
+		<div class="wait-body">
+			<div class="wait-panel">
+				<span class="wait-label">Match</span>
+				@gameSummary(payload)
+			</div>
+			<div class="wait-panel wait-panel-hero wait-panel-join">
+				<span class="wait-label">Take the seat</span>
+				<p class="wait-note wait-note-lg">You'll play as { joinColorName(payload.PlayerColor) } — the game starts the moment you join.</p>
+				<form class="w-full" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>
+					<input type="hidden" name="join_token" value={ payload.JoinToken }/>
+					<button type="submit" class="btn btn-primary btn-block btn-lg" title="Join the game">Join game</button>
+				</form>
+			</div>
 		</div>
 	</main>
+}
+
+// joinColorName renders the open-seat color as a word for the joiner's copy.
+func joinColorName(color string) string {
+	if color == "w" {
+		return "White"
+	}
+	return "Black"
 }

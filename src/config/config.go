@@ -25,6 +25,13 @@ const (
 )
 
 var (
+	// Revision is the short git commit hash the running binary was built from. It
+	// is empty in local/dev builds and injected at release build time via ldflags
+	// (`-X github.com/dechristopher/lio/config.Revision=<hash>`) — see the
+	// Dockerfile GIT_REV arg and deploy/deploy-fly.sh. VersionString folds it into
+	// the displayed version.
+	Revision string
+
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
 
@@ -67,6 +74,17 @@ func ReadSecret(name string) (string, error) {
 	}
 
 	return string(secret), nil
+}
+
+// VersionString returns the display version: the base Version, suffixed with the
+// build's git revision as semver build metadata (v0.9.0+6f80260) when Revision
+// was injected at build time. Local/dev builds carry no Revision and show just
+// the base version.
+func VersionString() string {
+	if Revision != "" {
+		return Version + "+" + Revision
+	}
+	return Version
 }
 
 // GenerateCode generates an N character sequence with naughty safety baked in

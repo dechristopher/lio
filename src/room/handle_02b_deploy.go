@@ -248,8 +248,15 @@ func (r *Instance) lockMessage(color octad.Color) []byte {
 // already committed — their own confirmed order and locked state, and both
 // sides' locked status. It is safe to call from WS handler goroutines and is how
 // a refreshed/reconnected client re-enters deploy mode (restoring its prior
-// arrangement) instead of seeing a stale board. The caller should only use it
-// while the room is in the deploy phase (see State).
+// arrangement) instead of seeing a stale board.
+//
+// Returns nil once the phase is no longer live: the caller's State()==StateDeploy
+// check races deployAndStart (the room stays in StateDeploy until
+// EventDeployComplete fires near its end), and a deploy-state message built from
+// the already-cleared fields — zero seconds, no locks — arriving after the
+// reveal would push a client back into deploy mode over a live game. deployAndStart
+// clears deployDeadline under stateMu before revealing, so a nil here tells the
+// caller to fall through to the current board state instead.
 func (r *Instance) DeployStateMessage(uid string) []byte {
 	r.stateMu.Lock()
 	deadline := r.deployDeadline
@@ -267,11 +274,13 @@ func (r *Instance) DeployStateMessage(uid string) []byte {
 	_, lockedBlack := r.deployed[octad.Black]
 	r.stateMu.Unlock()
 
+	if deadline.IsZero() {
+		return nil
+	}
+
 	remaining := 0
-	if !deadline.IsZero() {
-		if d := time.Until(deadline); d > 0 {
-			remaining = int(d.Seconds())
-		}
+	if d := time.Until(deadline); d > 0 {
+		remaining = int(d.Seconds())
 	}
 
 	msg := proto.Message{

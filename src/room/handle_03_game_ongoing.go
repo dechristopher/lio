@@ -114,6 +114,31 @@ func (r *Instance) handleGameOngoing() {
 			// good, while the bot's move (re)arms it as we wait on the human
 			refreshIdle()
 
+		// handle in-game player controls (resign / draw offer). A control that
+		// ends the game (a resignation, or a draw both sides agreed) transitions
+		// out of the ongoing state exactly like a move that ends the game.
+		case control := <-r.controlChannel:
+			isOver, event := r.handleGameControl(control)
+			if isOver {
+				if err := r.event(*event); err != nil {
+					panic(err)
+				}
+				stopAbandon()
+				return
+			}
+
+		// handle the engine's verdict on a draw offer in a bot game: an accepted
+		// draw ends the game, a declined one is surfaced to the player.
+		case eval := <-r.drawEvalChannel:
+			isOver, event := r.handleDrawEval(eval)
+			if isOver {
+				if err := r.event(*event); err != nil {
+					panic(err)
+				}
+				stopAbandon()
+				return
+			}
+
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:
 			// automatically resign the flagged player. The game mutation runs

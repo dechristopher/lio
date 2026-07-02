@@ -84,10 +84,11 @@ type Instance struct {
 
 	stateMachine *fsm.FSM
 
-	stateChannel   chan State
-	moveChannel    chan *message.RoomMove
-	controlChannel chan message.RoomControl
-	deployChannel  chan *message.RoomDeploy
+	stateChannel    chan State
+	moveChannel     chan *message.RoomMove
+	controlChannel  chan message.RoomControl
+	deployChannel   chan *message.RoomDeploy
+	drawEvalChannel chan *message.RoomDrawEval
 
 	// done is closed exactly once by cleanup when the room routine exits.
 	// Senders into the room's channels select on it so they can never block
@@ -116,6 +117,17 @@ type Instance struct {
 
 	players player.Players
 	rematch player.Agreement
+
+	// draw records in-game draw-offer agreement between the two seats: a side is
+	// marked when it offers (or accepts) a draw, and the game is drawn by
+	// agreement once both sides are marked. drawOffer names the color with a
+	// currently standing offer (NoColor when none), so a re-offer is idempotent
+	// and the opponent's "accept draw" affordance can be surfaced. Both are reset
+	// when a move supersedes the offer (makeMove), on a decline, and on a new
+	// game. Guarded by stateMu (touched by the room routine and read for
+	// broadcasts). See room/controls.go.
+	draw      player.Agreement
+	drawOffer octad.Color
 
 	// humanMoved reports whether the human player has made at least one move in
 	// the current game. It is reset to false when a new game begins (Create's
@@ -238,10 +250,17 @@ func Create(params Params) (*Instance, error) {
 		// arch/DEPLOY_REMATCH_RACES.md (race #2).
 		deployChannel: make(chan *message.RoomDeploy, deployChannelBuffer),
 
+		// buffered for 1 so the engine dispatcher's draw-verdict send (bot games)
+		// never blocks the worker even if the game already ended before the verdict
+		// returned; a stale verdict is dropped by the game-ongoing handler.
+		drawEvalChannel: make(chan *message.RoomDrawEval, 1),
+
 		done: make(chan struct{}),
 
-		players: params.Players,
-		rematch: player.Agreement{},
+		players:   params.Players,
+		rematch:   player.Agreement{},
+		draw:      player.Agreement{},
+		drawOffer: octad.NoColor,
 
 		public: params.Public,
 
@@ -675,10 +694,36 @@ func (r *Instance) humanIdleEligible() bool {
 // room routine. moveChannel is only drained while the game is ready or
 // ongoing, so the send selects on r.done to guarantee it can never block a
 // caller goroutine (a WS read loop) forever once the room is torn down.
+//
+// The state guard is a positive allowlist: only StateGameReady and
+// StateGameOngoing have a moveChannel reader, so a move landing in any other
+// state (deploy, game-over/rematch window, waiting) is dropped outright. A
+// blocking send there would park the WS read loop — freezing that client's
+// subsequent messages (including a rematch click or deploy submission) until
+// the room closed.
+//
+// Two further defenses close the game-end transition sliver (outcome decided
+// but the FSM not yet in StateGameOver — the same window as RequestRematch's
+// race #3): a move for an already-decided game is dropped, and a client move
+// (which carries no GameID) is stamped with the game it was sent for, so a
+// send that still manages to park across a rematch boundary is rejected by
+// makeMove's staleness guard instead of being applied to the next game.
 func (r *Instance) SendMove(move *message.RoomMove) {
-	// prevent first moves before moves are allowed to be played
-	if r.State() == StateWaitingForPlayers {
-		util.DebugFlag("room", str.CRoom, "[%s] dropped move %s: room still waiting for players", r.ID, move.Move.UOI)
+	switch r.State() {
+	case StateGameReady, StateGameOngoing:
+	default:
+		util.DebugFlag("room", str.CRoom, "[%s] dropped move %s: room in state %s", r.ID, move.Move.UOI, r.State())
+		return
+	}
+
+	r.stateMu.Lock()
+	decided := r.game.Outcome() != octad.NoOutcome
+	if move.GameID == "" {
+		move.GameID = r.game.ID
+	}
+	r.stateMu.Unlock()
+	if decided {
+		util.DebugFlag("room", str.CRoom, "[%s] dropped move %s: game already decided", r.ID, move.Move.UOI)
 		return
 	}
 
@@ -793,6 +838,25 @@ func (r *Instance) drainControlChannel() {
 	}
 }
 
+// drainDeployChannel non-blockingly empties any deploy submissions still
+// buffered on deployChannel. It is called from the room routine as a deploy
+// phase begins, so a straggler from the *previous* phase — one that landed in
+// the buffer after handleDeploy stopped reading (the race #2 window) — cannot
+// be consumed as a legitimate submission in the new phase. Left in place it
+// would be attributed to the sender's post-flip color, pre-fill the phase with
+// last game's arrangement, and (with two stragglers) complete the phase before
+// either player actually deployed. Only the room routine touches the channel
+// between phases, so the drain is race-free.
+func (r *Instance) drainDeployChannel() {
+	for {
+		select {
+		case <-r.deployChannel:
+		default:
+			return
+		}
+	}
+}
+
 // CurrentGameStateMessage returns the octad position, marshalled as a move
 // payload. It is called from WS handler goroutines as well as the room routine,
 // so it snapshots the game under stateMu.
@@ -863,6 +927,10 @@ func (r *Instance) currentGameStateMessageLocked(addLast bool, gameStart bool) [
 		Black:     r.players[octad.Black].ID,
 		Score:     r.players.ScoreMap(),
 		GameStart: gameStart,
+		// carry the game identity so a client that missed the single game-start
+		// broadcast recognizes the new game from any later snapshot (its
+		// gs/ply staleness guards would otherwise drop it forever)
+		GameID: r.game.ID,
 	}
 
 	// set legal moves if we're in GameReady or GameOngoing
@@ -970,6 +1038,15 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	// and playing.
 	if move.Ctx.IsHuman() {
 		r.humanMoved = true
+	}
+
+	// a played move supersedes any standing draw offer (the offer stands only
+	// until the next move by either side). Clearing it here means a late accept /
+	// a stale bot verdict for the pre-move position is dropped; clients clear the
+	// affordance when the move broadcast arrives. See room/controls.go.
+	if r.drawOffer != octad.NoColor {
+		r.drawOffer = octad.NoColor
+		r.draw = player.NewAgreement()
 	}
 
 	// flip the game clock. This blocks briefly on the clock acknowledgement,

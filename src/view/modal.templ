@@ -51,7 +51,7 @@ templ createGameModal() {
 									<span class="seg-tag">blind</span>
 								</label>
 							</div>
-							<span class="cg-hint">Deploy: privately arrange your home rank before play begins.</span>
+							<span id="cg-mode-desc" class="cg-hint">Classic: the standard Octad opening position — play begins the moment your opponent joins.</span>
 						</div>
 						<label class="cg-public">
 							<input type="checkbox" class="cg-public-box" name="public" value="true"/>
@@ -110,13 +110,25 @@ templ createGameModal() {
 		(function () {
 			const modal = document.getElementById("modalCreateGame");
 			const closeBtn = modal.querySelector(".modal-close");
+			const publicBox = modal.querySelector(".cg-public-box");
+			const humanOpp = modal.querySelector("#opp-human");
 			const open = () => modal.classList.add("open");
 			const close = () => modal.classList.remove("open");
 			// Delegated open: any [data-open-create-game] element opens the modal,
 			// including buttons that htmx swaps into the live home-activity region
-			// after the initial page load.
+			// after the initial page load. A trigger carrying [data-prefill-public]
+			// (the Open Challenges "+ New" / "create one" affordances) pre-selects an
+			// Open Challenge: force a human opponent (public requires it) and check
+			// the toggle so the modal opens already set up to publish a seek.
 			document.addEventListener("click", (e) => {
-				if (e.target.closest("[data-open-create-game]")) open();
+				const trigger = e.target.closest("[data-open-create-game]");
+				if (!trigger) return;
+				if (trigger.hasAttribute("data-prefill-public") && publicBox) {
+					if (humanOpp) humanOpp.checked = true;
+					publicBox.checked = true;
+					syncMode();
+				}
+				open();
 			});
 			if (closeBtn) closeBtn.addEventListener("click", close);
 			modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
@@ -127,20 +139,35 @@ templ createGameModal() {
 			// Classic/Deploy mode changes, so the value is current before the color
 			// submit buttons (gated until a time control is picked) are clickable.
 			const variantField = modal.querySelector("#cg-variant");
-			const modeOf = () => modal.querySelector("input[name=mode]:checked").value;
+			const modeInput = () => modal.querySelector("input[name=mode]:checked");
+			const modeOf = () => modeInput().value;
 			const syncVariant = () => {
 				const tc = modal.querySelector(".tc-input:checked");
 				variantField.value = tc
 					? (modeOf() === "deploy" ? tc.dataset.deploy : tc.dataset.classic)
 					: "";
 			};
-			modal.querySelectorAll(".tc-input, input[name=mode]").forEach((el) =>
-				el.addEventListener("change", syncVariant));
+
+			// Describe the selected mode under the mode toggle, so the copy tracks
+			// the choice instead of only ever explaining Deploy.
+			const modeDesc = modal.querySelector("#cg-mode-desc");
+			const modeDescriptions = {
+				classic: "Classic: the standard Octad opening position — play begins the moment your opponent joins.",
+				deploy: "Deploy: privately arrange your home rank before play begins, then the assembled position is revealed.",
+			};
+			const syncModeDesc = () => {
+				if (modeDesc) modeDesc.textContent = modeDescriptions[modeOf()] || "";
+			};
+			// syncMode keeps both the hidden variant field and the description in step.
+			const syncMode = () => { syncVariant(); syncModeDesc(); };
+
+			modal.querySelectorAll(".tc-input").forEach((el) => el.addEventListener("change", syncVariant));
+			modal.querySelectorAll("input[name=mode]").forEach((el) => el.addEventListener("change", syncMode));
+			syncModeDesc();
 
 			// Bot games are never public open challenges: clear the toggle when the
-			// computer is chosen (the toggle is also hidden via CSS, and the server
-			// forces bot games private regardless).
-			const publicBox = modal.querySelector(".cg-public-box");
+			// computer is chosen (the toggle is also faded + disabled via CSS, and the
+			// server forces bot games private regardless).
 			modal.querySelectorAll("input[name=opponent]").forEach((el) =>
 				el.addEventListener("change", () => {
 					if (modal.querySelector("#opp-computer").checked && publicBox) publicBox.checked = false;

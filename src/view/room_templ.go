@@ -54,30 +54,12 @@ func Room(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = header("max-w-[34rem]").Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if !payload.IsCreator && !payload.IsJoining {
-				templ_7745c5c3_Err = roomGame(meta, payload).Render(ctx, templ_7745c5c3_Buffer)
+			if payload.IsCreator || payload.IsJoining {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "  ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-			} else if payload.IsCreator {
-				templ_7745c5c3_Err = roomCreator(meta, payload).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, " ")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = footer(meta, "max-w-[34rem]").Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else if payload.IsJoining {
-				templ_7745c5c3_Err = roomJoiner(payload).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = header("max-w-[44rem]").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -85,12 +67,40 @@ func Room(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = footer(meta, "max-w-[34rem]").Render(ctx, templ_7745c5c3_Buffer)
+				if payload.IsCreator {
+					templ_7745c5c3_Err = roomCreator(meta, payload).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = roomJoiner(payload).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = footer(meta, "max-w-[44rem]").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = header("max-w-[34rem]").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = roomGame(meta, payload).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div></body>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></body>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -98,7 +108,7 @@ func Room(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -149,20 +159,20 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"game-room mt-2\"><div class=\"game-grid\"><div id=\"clockOpponent\" class=\"clockOpponent ga-opp\" data-bot=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"game-room mt-2\"><div class=\"game-grid\"><div id=\"clockOpponent\" class=\"clockOpponent ga-opp\" data-bot=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.OpponentIsBot))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 45, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 49, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -170,7 +180,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div class=\"ga-board\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><div class=\"ga-board\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -178,7 +188,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div id=\"clockPlayer\" class=\"clockPlayer ga-you\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div id=\"clockPlayer\" class=\"clockPlayer ga-you\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -186,20 +196,33 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><aside class=\"ga-rail\"><div class=\"rail-stack\"><div class=\"rail-card moves-panel flex flex-col\"><span class=\"rail-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><aside class=\"ga-rail\"><div class=\"rail-stack\"><div class=\"rail-card moves-panel flex flex-col\"><span class=\"rail-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(payload.VariantName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 57, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 61, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " · Casual</span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div></div><div class=\"controls\"><button type=\"button\" class=\"ctrl-btn\" disabled title=\"Resign — coming soon\">⚑ Resign</button> <button type=\"button\" class=\"ctrl-btn\" disabled title=\"Offer draw — coming soon\">½ Draw</button></div></div></aside><div class=\"ga-info\"><div class=\"info-bar\"><span id=\"info\"></span> <span><span id=\"crowd\">0</span> connected</span> <span>(<span id=\"lat\">0</span><span class=\"unit\">ms</span>)</span></div></div><footer class=\"ga-foot flex flex-col items-center gap-1.5 pt-3 pb-1 text-xs text-fg-subtle\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " · Casual</span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div></div><!--\n\t\t\t\t\t\tIn-game controls. During play these are Resign / Draw (.play-ctrl);\n\t\t\t\t\t\tonce the game is over lio-game.js adds .controls-over, swapping in a\n\t\t\t\t\t\tRematch button (.over-ctrl) so a player reviewing the finished game\n\t\t\t\t\t\tcan rematch without the result overlay. The rematch button reuses the\n\t\t\t\t\t\tresult overlay's data-rematch-url bot fallback and shared enable/disable\n\t\t\t\t\t\tstate (perpetual vs a bot, disabled once a human opponent leaves).\n\t\t\t\t\t--><div id=\"game-controls\" class=\"controls\"><button type=\"button\" id=\"btn-resign\" class=\"ctrl-btn play-ctrl\" title=\"Resign the game\">⚑ Resign</button> <button type=\"button\" id=\"btn-draw\" class=\"ctrl-btn play-ctrl\" title=\"Offer a draw\">½ Draw</button> <button type=\"button\" id=\"btn-rematch\" class=\"ctrl-btn ctrl-rematch over-ctrl\" title=\"Play again\" data-rematch-url=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var6 string
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 81, Col: 145}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">↻ Rematch</button></div></div></aside><div class=\"ga-info\"><div class=\"info-bar\"><span id=\"info\"></span> <span><span id=\"crowd\">0</span> connected</span> <span>(<span id=\"lat\">0</span><span class=\"unit\">ms</span>)</span></div></div><footer class=\"ga-foot flex flex-col items-center gap-1.5 pt-3 pb-1 text-xs text-fg-subtle\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -207,7 +230,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</footer></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</footer></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

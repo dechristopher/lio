@@ -216,6 +216,9 @@ func (r *Instance) handleGameOver() {
 				r.game = newGame
 				// reset rematch flags for the next game over
 				r.rematch = player.NewAgreement()
+				// clear any draw-offer state so it can't carry into the next game
+				r.draw = player.NewAgreement()
+				r.drawOffer = octad.NoColor
 				// the new game has no human move yet; reset engagement so the
 				// next game-over re-evaluates idle-abandon fresh
 				r.humanMoved = false

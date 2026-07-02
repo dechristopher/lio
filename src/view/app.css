@@ -451,10 +451,34 @@
 		border-radius: var(--radius-sm);
 		border: 1px solid var(--border);
 		background: var(--surface-3);
-		color: var(--text-muted);
-		cursor: not-allowed;
-		opacity: 0.55;
+		color: var(--text);
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
 	}
+	.ctrl-btn:not(:disabled):hover { background: var(--surface-2); transform: translateY(-1px); }
+	.ctrl-btn:not(:disabled):active { transform: translateY(0); }
+	.ctrl-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+	/* resign two-step confirm state: charge to the loss color to signal intent */
+	.ctrl-btn.confirm {
+		background: color-mix(in srgb, var(--loss) 22%, var(--surface-3));
+		border-color: var(--loss);
+		color: var(--loss);
+	}
+	/* highlight the Draw button when the opponent has offered a draw to accept */
+	.ctrl-btn.wants-draw {
+		background: var(--accent);
+		color: var(--accent-contrast);
+		border-color: transparent;
+		animation: wantsRematchPulse 1.1s var(--ease-snappy) infinite;
+	}
+	/* the over-mode rematch control shares the accent styling of the overlay's */
+	.ctrl-btn.ctrl-rematch { background: var(--accent); color: var(--accent-contrast); border-color: transparent; }
+	.ctrl-btn.ctrl-rematch:not(:disabled):hover { background: var(--accent-hover); }
+	.ctrl-btn.ctrl-rematch.wants-rematch { animation: wantsRematchPulse 1.1s var(--ease-snappy) infinite; }
+	/* control-set swap: play controls during a game, rematch once it is over */
+	.controls .over-ctrl { display: none; }
+	.controls.controls-over .play-ctrl { display: none; }
+	.controls.controls-over .over-ctrl { display: inline-flex; }
 
 	/* connection / crowd / latency bar */
 	.info-bar {
@@ -704,6 +728,7 @@
 	.btn-ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 	.btn-ghost:hover { border-color: var(--accent); }
 	.btn-block { width: 100%; }
+	.btn-lg { padding: 0.8rem 1.4rem; font-size: 1.05rem; }
 
 	/* ---- create-game modal ---- */
 	.modal-shade {
@@ -906,11 +931,18 @@
 		background: var(--surface-2);
 		cursor: pointer;
 		text-align: left;
-		transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy);
+		transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy), opacity 150ms var(--ease-snappy), filter 150ms var(--ease-snappy);
 	}
 	.cg-public:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 	.cg-public:has(.cg-public-box:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
-	.cg:has(#opp-computer:checked) .cg-public { display: none; }
+	/* bot games are never public: fade + disable the toggle in place (no layout
+	   shift) rather than removing it. pointer-events:none also blocks the label
+	   click, and the modal script clears the checkbox when computer is chosen. */
+	.cg:has(#opp-computer:checked) .cg-public {
+		opacity: 0.4;
+		filter: grayscale(0.5);
+		pointer-events: none;
+	}
 	.cg-public-box { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 	.cg-public-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
 	.cg-public-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
@@ -1040,10 +1072,76 @@
 	.copy-btn.copied .icon-check { display: inline-flex; }
 
 	/* ---- pre-game waiting room (creator + joiner) ---- */
+	/* Wide two-panel hero echoing the create-game modal: match details beside the
+	   share/join action. The panels stack on narrow viewports and sit side by side
+	   from 34rem up (matching .cg-body's breakpoint). */
+	.wait {
+		width: min(92vw, 44rem);
+		padding: 1.35rem;
+		text-align: left;
+		border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+		background:
+			radial-gradient(130% 90% at 100% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
+			var(--surface-3);
+		box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+	}
+	.wait-head { display: flex; flex-direction: column; gap: 0.15rem; margin-bottom: 1rem; }
+	.wait-kicker {
+		display: block;
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+	.wait-title {
+		margin: 0.05rem 0 0;
+		font-family: var(--font-display);
+		font-size: 1.5rem;
+		font-weight: 700;
+		line-height: 1.1;
+		color: var(--text);
+	}
+	.wait-sub { margin: 0.3rem 0 0; font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); }
+	.wait-body { display: grid; grid-template-columns: 1fr; gap: 0.9rem; }
+	@media (min-width: 34rem) {
+		.wait-body { grid-template-columns: 1fr 1fr; gap: 1.1rem; align-items: stretch; }
+	}
+	.wait-panel {
+		display: flex;
+		flex-direction: column;
+		gap: 0.9rem;
+		padding: 1.1rem;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border);
+		background: color-mix(in srgb, var(--surface) 55%, var(--surface-2));
+	}
+	.wait-panel-hero {
+		align-items: center;
+		text-align: center;
+		border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+		background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 12%, var(--surface-3)), var(--surface-3) 72%);
+	}
+	/* join panel centers its CTA vertically so a short right column balances the
+	   match column beside it */
+	.wait-panel-join { justify-content: center; gap: 1.1rem; }
+	.wait-label {
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+	/* push a panel's trailing action (creator cancel) to the bottom so both
+	   columns' actions align even when the hero column is taller */
+	.wait-actions { margin-top: auto; }
+	.wait-note { font-size: 0.72rem; line-height: 1.4; color: var(--text-subtle); }
+	.wait-note-lg { font-size: 0.9rem; color: var(--text-muted); }
+
 	/* "live, listening" status: a radar-ping dot beside the heading. The pulse is
 	   the motion cue; under prefers-reduced-motion the dot simply stops pulsing
 	   (still visible) via the global animation reset. */
-	.waiting-status { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+	.waiting-status { display: flex; align-items: center; gap: 0.5rem; }
 	.waiting-dot {
 		flex: none;
 		width: 0.6rem;

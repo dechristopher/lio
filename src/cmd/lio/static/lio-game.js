@@ -31,10 +31,18 @@ let lastLiveMessage = null;
 // tip after review never re-enables dragging on a finished game (a resignation
 // or timeout can leave a position that still has legal moves).
 let gameOver = false;
+// currentGameID tracks which game the board state we've applied belongs to
+// (MovePayload.i). Game-boundary transitions (rematch reset, deploy reveal) are
+// announced by single-shot broadcasts; if one is missed, the id changing on any
+// later snapshot identifies the new game so it can be treated as a game start
+// instead of being dropped by the gs/ply staleness guards (which break across
+// game boundaries). null until the first id-carrying state arrives.
+let currentGameID = null;
 
 const moveTag = "m";
 const gameOverTag = "g";
 const rematchUpdateTag = "ru";
+const drawOfferTag = "do";
 const deployTag = "d";
 
 // Blind deploy phase state. While deployMode is true the board is in
@@ -277,6 +285,95 @@ let countdownRender = null;
 let rematchRequested = false; // this client has clicked Rematch
 let opponentLeft = false;     // the opponent disconnected during the window
 
+// ---- in-game rail controls (resign / draw, swapped for rematch once over) ----
+// The rail's control set (view/room.templ #game-controls) shows Resign/Draw
+// during play and a Rematch button once the game is over (via the .controls-over
+// class), so a player reviewing a finished game can rematch without the result
+// overlay. The rail Rematch button shares its enable/disable/pending state with
+// the overlay's #result-rematch (both listed in rematchButtons) and its
+// data-rematch-url bot fallback, so the two stay in lockstep.
+const gameControlsEl = document.getElementById('game-controls');
+const resignBtn = document.getElementById('btn-resign');
+const drawBtn = document.getElementById('btn-draw');
+const railRematchBtn = document.getElementById('btn-rematch');
+
+// two-step resign confirm state, and draw-offer state mirrored from the server's
+// 'do' broadcasts (reset on each new game / whenever a move supersedes the offer)
+let resignArmed = false;       // resign button is showing its confirm prompt
+let resignArmTimer = null;     // auto-disarm timeout for the confirm prompt
+let drawOfferedByMe = false;   // we have a standing draw offer out
+let drawOfferedByOpp = false;  // the opponent has offered us a draw to accept
+
+// the rematch buttons (overlay + rail) driven together as a set; capture each
+// one's idle label once so pending/disabled states can restore it
+const rematchButtons = [rematchBtn, railRematchBtn].filter(Boolean);
+rematchButtons.forEach((b) => { b.dataset.defaultLabel = b.innerHTML; });
+
+const setRematchButtonsDefault = () => rematchButtons.forEach((b) => {
+	b.disabled = false;
+	b.innerHTML = b.dataset.defaultLabel;
+	b.classList.remove('wants-rematch');
+});
+const setRematchButtonsPending = () => rematchButtons.forEach((b) => {
+	b.disabled = true;
+	b.innerHTML = 'Waiting&hellip;';
+});
+// opponent left (human games): a rematch needs both players, so grey it out
+const setRematchButtonsDisabled = () => rematchButtons.forEach((b) => {
+	b.disabled = true;
+	b.innerHTML = b.dataset.defaultLabel;
+});
+const setRematchButtonsWants = () => rematchButtons.forEach((b) => {
+	if (!rematchRequested) { b.classList.add('wants-rematch'); }
+});
+const clearRematchButtonsWants = () => rematchButtons.forEach((b) => {
+	b.classList.remove('wants-rematch');
+});
+
+/**
+ * setControlsMode swaps the rail control set between live play (Resign / Draw)
+ * and game-over (Rematch). Toggling .controls-over does the visual swap; the
+ * play-control state is reset either way so a stale confirm/offer never lingers.
+ * @param over - true once the game is over (show Rematch), false during play
+ */
+const setControlsMode = (over) => {
+	if (gameControlsEl) {
+		gameControlsEl.classList.toggle('controls-over', over);
+	}
+	resetResignButton();
+	clearDrawOfferUI();
+};
+
+/**
+ * resetResignButton returns the Resign button to its idle (un-armed) state and
+ * cancels any pending auto-disarm.
+ */
+const resetResignButton = () => {
+	resignArmed = false;
+	if (resignArmTimer !== null) {
+		clearTimeout(resignArmTimer);
+		resignArmTimer = null;
+	}
+	if (resignBtn) {
+		resignBtn.classList.remove('confirm');
+		resignBtn.innerHTML = '⚑ Resign';
+	}
+};
+
+/**
+ * clearDrawOfferUI drops any draw-offer affordance and returns the Draw button
+ * to its idle state.
+ */
+const clearDrawOfferUI = () => {
+	drawOfferedByMe = false;
+	drawOfferedByOpp = false;
+	if (drawBtn) {
+		drawBtn.classList.remove('wants-draw');
+		drawBtn.disabled = false;
+		drawBtn.innerHTML = '½ Draw';
+	}
+};
+
 // backend reason codes -> human-readable method subtitles
 const resultReasons = {
 	checkmate: 'by checkmate',
@@ -408,13 +505,13 @@ const hideResult = () => {
 	if (restoreBtn) {
 		restoreBtn.classList.add('hidden');
 	}
-	if (rematchBtn) {
-		rematchBtn.disabled = false;
-		rematchBtn.innerHTML = 'Rematch';
-	}
+	setRematchButtonsDefault();
 	rematchRequested = false;
 	opponentLeft = false;
 	hideOpponentRematchRequest();
+	// the overlay is gone: a new/live game is in play, so return the rail controls
+	// to Resign / Draw (and reset any lingering confirm/offer state)
+	setControlsMode(false);
 	// the next game has started (or the overlay is being torn down): stop polling
 	stopRematchResync();
 	stopCountdown();
@@ -432,9 +529,7 @@ const showOpponentRematchRequest = () => {
 		note.classList.remove('hidden');
 	}
 	// draw the eye to the action unless we've already committed to it
-	if (rematchBtn && !rematchRequested) {
-		rematchBtn.classList.add('wants-rematch');
-	}
+	setRematchButtonsWants();
 };
 
 const hideOpponentRematchRequest = () => {
@@ -443,9 +538,7 @@ const hideOpponentRematchRequest = () => {
 		note.classList.add('hidden');
 		note.textContent = '';
 	}
-	if (rematchBtn) {
-		rematchBtn.classList.remove('wants-rematch');
-	}
+	clearRematchButtonsWants();
 };
 
 /**
@@ -462,10 +555,7 @@ const showResult = (message) => {
 	rematchRequested = false;
 	opponentLeft = false;
 	hideOpponentRematchRequest();
-	if (rematchBtn) {
-		rematchBtn.disabled = false;
-		rematchBtn.innerHTML = 'Rematch';
-	}
+	setRematchButtonsDefault();
 
 	const winner = message.d.w; // "w", "b", or "d"
 
@@ -485,9 +575,14 @@ const showResult = (message) => {
 		headline = 'You lose';
 	}
 
-	// a rematch is impossible once the whole room is over (abandon / match end)
+	// a rematch is impossible once the whole room is over (abandon / match end):
+	// hide the overlay's button and disable the rail's
+	const roomOver = !!message.d.o;
 	if (rematchBtn) {
-		rematchBtn.style.display = message.d.o ? 'none' : '';
+		rematchBtn.style.display = roomOver ? 'none' : '';
+	}
+	if (railRematchBtn && roomOver) {
+		railRematchBtn.disabled = true;
 	}
 
 	resultHeadlineEl.className = `result-headline ${outcome}`;
@@ -518,44 +613,140 @@ const showResult = (message) => {
 	resultOverlayEl.classList.add('result-show');
 };
 
-// wire result overlay actions once; the new-game broadcast clears the overlay
-if (rematchBtn) {
-	rematchBtn.addEventListener('click', () => {
-		// Bot rematch reuses this finished room via the in-room agreement flow
-		// below, exactly like a human rematch: the server auto-agrees on the bot's
-		// behalf (room/handle_04_game_over.go), so one click starts the next game in
-		// the SAME room with the running match score preserved. Only when that room
-		// is genuinely gone — the player reviewed the game past the bot analysis
-		// window and the socket has since closed — do we fall back to spinning up a
-		// fresh room (which necessarily starts a new 0-0 series). data-rematch-url is
-		// set for bot games only, so this fallback never fires for human games.
-		const socketDead = !window.ws || window.ws.readyState !== WebSocket.OPEN;
-		const fallbackUrl = rematchBtn.dataset.rematchUrl;
-		if (socketDead && fallbackUrl) {
-			window.location.href = fallbackUrl;
-			return;
-		}
-		// in-room agreement flow (humans always; bots while the room is alive)
-		send(buildCommand("r", {rm: true}));
-		// leave the overlay up until the rematch actually starts; mark the
-		// request sent and reflect it in the still-running countdown (human
-		// games relabel to "Waiting for opponent").
-		rematchBtn.disabled = true;
-		rematchBtn.innerHTML = 'Waiting&hellip;';
-		rematchRequested = true;
-		hideOpponentRematchRequest();
-		// guard against missing the single next-game / deploy-start broadcast:
-		// poll for authoritative state until the new game begins (see
-		// startRematchResync).
-		startRematchResync();
-		refreshCountdownLabel();
-	});
-}
+/**
+ * requestRematch drives a rematch from either the result-overlay or the rail
+ * Rematch button. Bot rematch reuses this finished room via the in-room
+ * agreement flow: the server auto-agrees on the bot's behalf
+ * (room/handle_04_game_over.go), so one click starts the next game in the SAME
+ * room with the running match score preserved. Only when that room is genuinely
+ * gone — the player reviewed the game past the bot analysis window and the socket
+ * has since closed — do we fall back to spinning up a fresh room (a new 0-0
+ * series). data-rematch-url is set for bot games only, so this fallback never
+ * fires for human games.
+ * @param btn - the clicked rematch button (carries the bot fallback url)
+ */
+const requestRematch = (btn) => {
+	const socketDead = !window.ws || window.ws.readyState !== WebSocket.OPEN;
+	const fallbackUrl = btn && btn.dataset.rematchUrl;
+	if (socketDead && fallbackUrl) {
+		window.location.href = fallbackUrl;
+		return;
+	}
+	// in-room agreement flow (humans always; bots while the room is alive)
+	send(buildCommand("r", {rm: true}));
+	// leave the overlay up until the rematch actually starts; mark the request
+	// sent and reflect it on both rematch buttons + the still-running countdown
+	// (human games relabel to "Waiting for opponent").
+	setRematchButtonsPending();
+	rematchRequested = true;
+	hideOpponentRematchRequest();
+	// guard against missing the single next-game / deploy-start broadcast: poll
+	// for authoritative state until the new game begins (see startRematchResync).
+	startRematchResync();
+	refreshCountdownLabel();
+};
+
+// wire both rematch buttons once; the new-game broadcast clears the overlay
+rematchButtons.forEach((b) => b.addEventListener('click', () => requestRematch(b)));
 if (homeBtn) {
 	homeBtn.addEventListener('click', () => {
 		window.location.href = "/";
 	});
 }
+
+// Resign is a two-step confirm so a mis-click can't throw the game: the first
+// click arms the button ("Confirm?"), a second within the window sends it, and
+// it auto-disarms after a few seconds. The server (RequestResign) only accepts
+// it from a seated player during an ongoing game.
+if (resignBtn) {
+	resignBtn.addEventListener('click', () => {
+		if (gameOver) {
+			return;
+		}
+		if (!resignArmed) {
+			resignArmed = true;
+			resignBtn.classList.add('confirm');
+			resignBtn.innerHTML = 'Confirm?';
+			resignArmTimer = setTimeout(resetResignButton, 4000);
+			return;
+		}
+		resetResignButton();
+		send(buildCommand("r", {rs: true}));
+	});
+}
+
+// Draw offers/accepts a draw. If the opponent has a standing offer this click
+// accepts it (the game ends by agreement); otherwise it sends our offer and
+// shows a pending state until the opponent answers, the bot's engine decides, or
+// a move supersedes it. The button doubles as "Accept draw" while an opponent
+// offer stands (see handleDrawOffer).
+if (drawBtn) {
+	drawBtn.addEventListener('click', () => {
+		if (gameOver || drawOfferedByMe) {
+			return;
+		}
+		send(buildCommand("r", {dr: true}));
+		if (drawOfferedByOpp) {
+			// accepting the opponent's standing offer; the game will end shortly
+			drawBtn.disabled = true;
+			drawBtn.classList.remove('wants-draw');
+		} else {
+			// we offered: reflect pending until it is answered / superseded
+			drawOfferedByMe = true;
+			drawBtn.disabled = true;
+			drawBtn.innerHTML = 'Offered&hellip;';
+		}
+	});
+}
+
+/**
+ * handleDrawOffer reflects server draw-offer state ('do'): a standing offer
+ * (by = offering uid) shows a pending state for the offerer and an "accept draw"
+ * affordance for the opponent; a decline (dc) briefly notes it and restores the
+ * button. Offers are also cleared locally when a move arrives (see handleMove).
+ * @param message - draw offer message
+ */
+const handleDrawOffer = (message) => {
+	if (gameOver) {
+		return;
+	}
+	const d = message.d || {};
+	if (d.dc) {
+		// a standing offer was declined (bot) or withdrawn; note it, then reset
+		const wasPending = drawOfferedByMe || drawOfferedByOpp;
+		clearDrawOfferUI();
+		if (wasPending && drawBtn) {
+			drawBtn.disabled = true;
+			drawBtn.innerHTML = 'Declined';
+			setTimeout(() => {
+				if (!gameOver && drawBtn) {
+					drawBtn.disabled = false;
+					drawBtn.innerHTML = '½ Draw';
+				}
+			}, 1500);
+		}
+		return;
+	}
+	if (!d.by) {
+		return;
+	}
+	if (d.by === getCookie('uid')) {
+		// our own offer, echoed by the server: reflect the pending state
+		drawOfferedByMe = true;
+		if (drawBtn) {
+			drawBtn.disabled = true;
+			drawBtn.innerHTML = 'Offered&hellip;';
+		}
+	} else {
+		// the opponent offered a draw: turn Draw into an accept affordance
+		drawOfferedByOpp = true;
+		if (drawBtn) {
+			drawBtn.disabled = false;
+			drawBtn.classList.add('wants-draw');
+			drawBtn.innerHTML = '½ Accept draw';
+		}
+	}
+};
 
 // "Analyze board" dismisses the result card (without tearing down its state, so
 // the rematch window / countdown keep running and Rematch stays reachable) and
@@ -587,21 +778,35 @@ if (restoreResultBtn) {
  * @param message - move message
  */
 const handleMove = (message) => {
+	// game identity: a snapshot carrying a different game id than the one we're
+	// tracking is our first sight of a new game — we missed its single-shot
+	// start broadcast (gs=true reveal or 'd' deploy start) — so it must be
+	// handled as a game start rather than dropped by the staleness guards
+	// below, which all break across a game boundary. The very first id after a
+	// page load is adopted silently (it describes the game already in
+	// progress, not a boundary we crossed).
+	const gid = message.d.i;
+	const newGame = !!message.d.gs || (!!gid && !!currentGameID && gid !== currentGameID);
+	if (gid) {
+		currentGameID = gid;
+	}
+
 	// while arranging or spectating the blind deploy phase, ignore stale pre-deploy
-	// board states (r.game is still the previous position server-side); only the
-	// reveal (gs = game start) board state ends the phase and renders pieces
-	if ((deployMode || deploySpectating) && !message.d.gs) {
+	// board states (r.game is still the previous position server-side); only a
+	// new game's board state (the reveal, or any later snapshot of it if the
+	// reveal was missed) ends the phase and renders pieces
+	if ((deployMode || deploySpectating) && !newGame) {
 		return;
 	}
 
-	// while waiting for a clicked rematch to start, ignore any non-start board
-	// state. The resync poll (startRematchResync) re-requests state on an interval,
-	// and the finished game's position can still carry legal moves (a resignation
-	// or timeout ends the game with a playable board), which would otherwise
-	// re-enable dragging behind the result overlay — and a stray move sent during
-	// StateGameOver would wedge the server's moveChannel. Only the next game's
-	// reveal (gs) or a 'd' deploy message (handled elsewhere) may pull us forward.
-	if (rematchRequested && !message.d.gs) {
+	// while waiting for a clicked rematch to start, ignore stale board states
+	// for the finished game. The resync poll (startRematchResync) re-requests
+	// state on an interval, and the finished game's position can still carry
+	// legal moves (a resignation or timeout ends the game with a playable
+	// board), which would otherwise re-enable dragging behind the result
+	// overlay. Only the next game — recognized by gs or its id — pulls us
+	// forward (a 'd' deploy message is routed elsewhere).
+	if (rematchRequested && !newGame) {
 		return;
 	}
 
@@ -610,9 +815,16 @@ const handleMove = (message) => {
 
 	// ignore a stale board snapshot that would regress the board to an older
 	// position (e.g. a late board-state response landing after newer state). A
-	// game-start/reset (gs) legitimately resets the ply, so always honor it.
-	if (!message.d.gs && serverPly < lastPly) {
+	// game start legitimately resets the ply, so always honor it.
+	if (!newGame && serverPly < lastPly) {
 		return;
+	}
+
+	// a played move supersedes any standing draw offer (the server withdraws it
+	// on the move too); drop the affordance so a stale "accept draw" / "offered…"
+	// can't linger past the position it referred to
+	if (!newGame && serverPly > lastPly) {
+		clearDrawOfferUI();
 	}
 
 	// reconcile any move we sent but haven't seen confirmed yet
@@ -650,7 +862,7 @@ const handleMove = (message) => {
 	// cache the player's color for the result overlay, and clear any prior
 	// result when a new game (e.g. a rematch) starts
 	playerWhite = isPlayerWhite(message);
-	if (message.d.gs) {
+	if (newGame) {
 		gameOver = false;
 		// a new game always returns us to the live board
 		followingLive = true;
@@ -678,7 +890,7 @@ const handleMove = (message) => {
 	// move list and live clocks update
 	if (followingLive) {
 		viewPly = currentPly;
-		playSounds(message, ofenParts);
+		playSounds(message, ofenParts, newGame);
 		renderLivePosition(message, ofenParts);
 	}
 
@@ -747,6 +959,23 @@ const isAnalyzing = () => {
  * @param message - game over message
  */
 const handleGameOver = (message) => {
+	// A repeat of the game-over we're already showing: while a player waits out
+	// the rematch window, the resync poll's a:0 queries are answered with the
+	// game-over payload again (handle_move.go's StateGameOver branch). A repeat
+	// must not reset the rematch UI — showResult would silently un-click a sent
+	// rematch request (rematchRequested = false) and disarm the stale-board
+	// guard — nor replay the notification sound every poll tick. Just retime
+	// the countdown to the server's authoritative remaining window. A room-over
+	// notice (o) is never a repeat; it always runs the full path below.
+	if (gameOver && message.d.o !== true
+		&& resultOverlayEl && resultOverlayEl.classList.contains('result-show')) {
+		if (message.d.rw) {
+			startCountdown(message.d.rw, rematchWindowLabel);
+		}
+		updateScore(message);
+		return;
+	}
+
 	cancelAnimationFrame(frameId);
 	document.getElementById("info").innerHTML = message.d.s;
 	window.notification.play();
@@ -754,6 +983,10 @@ const handleGameOver = (message) => {
 	// the game has ended: keep the board non-interactive even if the player
 	// reviews and returns to the live tip (see renderLivePosition)
 	gameOver = true;
+
+	// swap the rail's Resign / Draw controls for the Rematch button so a player
+	// reviewing the finished game can rematch without the result overlay
+	setControlsMode(true);
 
 	// game is over; the engine is no longer thinking
 	setThinking(false);
@@ -805,9 +1038,11 @@ const handleGameOver = (message) => {
  * on the contents of the move message received
  * @param message - move message
  * @param ofenParts - OFEN parts array
+ * @param newGame - the message is a game start (gs flag, or a game-id change
+ *                  recognized in handleMove after a missed start broadcast)
  */
-const playSounds = (message, ofenParts) => {
-	if (message.d.gs) {
+const playSounds = (message, ofenParts, newGame) => {
+	if (newGame) {
 		// play confirmation sound on game start
 		window.confirmation.play();
 	} else {
@@ -1201,17 +1436,19 @@ const handleRematchUpdate = (message) => {
 	}
 
 	opponentLeft = !!message.d.ol;
-	if (rematchBtn) {
-		if (opponentLeft) {
-			// a rematch needs both players; once the opponent leaves it can't happen
-			rematchBtn.disabled = true;
-			rematchBtn.innerHTML = 'Rematch';
-		} else {
-			// opponent returned within the grace: offer the rematch afresh
-			rematchBtn.disabled = false;
-			rematchBtn.innerHTML = 'Rematch';
-			rematchRequested = false;
-		}
+	if (opponentLeft) {
+		// a rematch needs both players; once the opponent leaves it can't happen —
+		// grey out both the overlay and rail rematch buttons
+		setRematchButtonsDisabled();
+	} else if (rematchRequested) {
+		// opponent returned within the grace and we had already asked for a
+		// rematch: the server still holds our recorded agreement, so restore the
+		// pending "waiting" state rather than silently un-clicking (which would
+		// desync the UI from the server and disarm the stale-board guard)
+		setRematchButtonsPending();
+	} else {
+		// opponent returned within the grace: offer the rematch afresh
+		setRematchButtonsDefault();
 	}
 
 	// startCountdown resets the countdown element; (re)apply the amber
@@ -1272,9 +1509,18 @@ const handleDeploy = (message) => {
 const enterDeployMode = (seconds, payload) => {
 	const d = payload || {};
 	if (deployMode) {
-		// already arranging (e.g. a duplicate start): just refresh lock indicators
+		// already arranging (e.g. a reconnect's deploy-state response): refresh
+		// lock indicators and reconcile confirmation. If we believe we confirmed
+		// but the server has no arrangement for us (cf absent), the submission
+		// was lost in transit — clear the latch and resend the current
+		// arrangement, otherwise we'd sit on "waiting" until the server's
+		// deploy-timeout autofill while the opponent waits out the full window.
 		if (d.lw) { updateDeployLock('white'); }
 		if (d.lb) { updateDeployLock('black'); }
+		if (deployConfirmed && !d.cf) {
+			deployConfirmed = false;
+			confirmDeploy();
+		}
 		return;
 	}
 	deployMode = true;
@@ -1865,4 +2111,5 @@ document.addEventListener('keydown', (e) => {
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
 window.handlers.set(rematchUpdateTag, handleRematchUpdate);
+window.handlers.set(drawOfferTag, handleDrawOffer);
 window.handlers.set(deployTag, handleDeploy);

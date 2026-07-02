@@ -1,11 +1,18 @@
 # build stage
 FROM golang:1.25.11-alpine3.24 AS build
 
+# short git commit hash of the source being built, injected into config.Revision
+# so the running binary reports its exact build in the footer. The build context
+# is src/ (no .git), so the deploy tooling passes this in — see deploy/deploy-fly.sh.
+ARG GIT_REV=""
+
 WORKDIR /build
 COPY . .
 
 WORKDIR cmd/lio
-RUN CGO_ENABLED=0 go build -v -trimpath -o lio
+RUN CGO_ENABLED=0 go build -v -trimpath \
+    -ldflags "-X github.com/dechristopher/lio/config.Revision=${GIT_REV}" \
+    -o lio
 
 # final packaging
 FROM golang:1.25.11-alpine3.24

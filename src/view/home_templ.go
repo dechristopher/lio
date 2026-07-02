@@ -186,12 +186,12 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"card\"><div class=\"flex items-center justify-between\"><p class=\"text-xs font-semibold uppercase tracking-wider text-fg-muted\">Open challenges</p><button type=\"button\" data-open-create-game class=\"text-xs font-semibold text-accent hover:underline\">+ New</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"card\"><div class=\"flex items-center justify-between\"><p class=\"text-xs font-semibold uppercase tracking-wider text-fg-muted\">Open challenges</p><button type=\"button\" data-open-create-game data-prefill-public class=\"text-xs font-semibold text-accent hover:underline\">+ New</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(challenges) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"mt-3 text-sm text-fg-subtle\">No open challenges right now — <button type=\"button\" data-open-create-game class=\"font-semibold text-accent hover:underline\">create one</button> to get a game going</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"mt-3 text-sm text-fg-subtle\">No open challenges right now — <button type=\"button\" data-open-create-game data-prefill-public class=\"font-semibold text-accent hover:underline\">create one</button> to get a game going</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -30,6 +30,13 @@ const Random SearchAlg = 2
 // Channel is the engine monitoring bus channel
 const Channel bus.Channel = "lio:engine"
 
+// DrawEvalMargin is the maximum absolute (white-positive) search evaluation,
+// in the engine's material units (a pawn is 10), within which the bot will
+// accept a human's draw offer: the bot agrees only when neither side is winning
+// by more than this margin, and otherwise plays on. It is a strength/behavior
+// knob, not a correctness value.
+const DrawEvalMargin float64 = 20
+
 // pub is the engine publisher
 var pub = bus.NewPublisher("engine", Channel)
 

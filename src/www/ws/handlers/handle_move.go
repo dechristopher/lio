@@ -23,9 +23,14 @@ func HandleMove(m []byte, meta channel.SocketContext) []byte {
 	// quickly return current state on new connection / board-update request
 	if fastjson.GetInt(m, "d", "a") == 0 {
 		// during the blind deploy phase a (re)connecting client must enter
-		// deploy mode, not render the stale pre-deploy board
+		// deploy mode, not render the stale pre-deploy board. DeployStateMessage
+		// returns nil if the phase ended between the state check and the
+		// snapshot (deployAndStart clears the deadline under stateMu), in which
+		// case we fall through to the live board state below.
 		if thisRoom.State() == room.StateDeploy {
-			return thisRoom.DeployStateMessage(meta.UID)
+			if deployMsg := thisRoom.DeployStateMessage(meta.UID); deployMsg != nil {
+				return deployMsg
+			}
 		}
 		// a client returning to a finished game (a refresh, or reopening the tab
 		// during the rematch window) must re-enter the game-over overlay rather

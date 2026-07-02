@@ -42,7 +42,7 @@ const (
 // the title as "lioctad.org • {name}".
 func PageMeta(name string) Meta {
 	return Meta{
-		Version:     config.Version,
+		Version:     config.VersionString(),
 		CacheKey:    config.CacheKey,
 		SiteURL:     config.SiteURL(),
 		Title:       "lioctad.org • " + name,
@@ -59,7 +59,7 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	challenge := group + " (" + payload.Variant.Name +
 		") casual octad • Challenge from anonymous player"
 	return Meta{
-		Version:     config.Version,
+		Version:     config.VersionString(),
 		CacheKey:    config.CacheKey,
 		SiteURL:     config.SiteURL(),
 		Title:       challenge + " • lioctad.org",

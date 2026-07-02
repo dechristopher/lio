@@ -24,6 +24,8 @@ const (
 	GameOverTag PayloadTag = "g"
 	// RematchUpdateTag is the message type tag for the RematchUpdatePayload
 	RematchUpdateTag PayloadTag = "ru"
+	// DrawOfferTag is the message type tag for the DrawOfferPayload
+	DrawOfferTag PayloadTag = "do"
 	// RoomTag is the message type tag for the RoomMessage
 	RoomTag PayloadTag = "r"
 	// RedirectTag is the message type tag for the RedirectMessage
@@ -68,7 +70,7 @@ type OFENPayload struct {
 type ScorePayload map[string]float64
 
 // MovePayloadVersion represents the current proto version of the MovePayload
-const MovePayloadVersion = 3
+const MovePayloadVersion = 4
 
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
@@ -89,6 +91,13 @@ type MovePayload struct {
 	Black      string              `json:"b,omitempty"`  // black player id
 	Score      ScorePayload        `json:"sc,omitempty"` // match score
 	GameStart  bool                `json:"gs,omitempty"`
+	// GameID identifies the game this board state belongs to. Game-boundary
+	// transitions (rematch reset, deploy reveal) are announced by single-shot
+	// broadcasts; a client that misses one can recognize the new game from any
+	// later snapshot by the id changing, instead of dropping it via the
+	// stale-board heuristics (gs flag + ply monotonicity, which break across
+	// game boundaries). See arch/DEPLOY_REMATCH_RACES.md (follow-up findings).
+	GameID string `json:"i,omitempty"`
 }
 
 // MessageMove contains a MovePayload message
@@ -184,6 +193,18 @@ type RematchUpdatePayload struct {
 	// wants a rematch" indicator. When set, this message is purely that signal and
 	// does not retime the countdown (Seconds is omitted).
 	Requested string `json:"rq,omitempty"`
+}
+
+// DrawOfferPayload signals draw-offer state to clients during a live game. A
+// standing offer names the offering player (By) so the opponent's client can
+// surface an "accept draw" affordance and the offerer's client can show a
+// pending state; each client compares By to its own uid to pick the view.
+// Declined reports that a standing offer was refused or withdrawn — the bot's
+// engine evaluation declined it, or a move superseded it — so clients clear the
+// affordance. Exactly one of By / Declined is meaningful per message.
+type DrawOfferPayload struct {
+	By       string `json:"by,omitempty"` // uid of the player who offered a draw
+	Declined bool   `json:"dc,omitempty"` // a standing offer was declined/withdrawn
 }
 
 // RoomMessage contains room state data

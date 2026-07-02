@@ -27,6 +27,8 @@
     --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
     --text-2xl--line-height: calc(2 / 1.5);
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: calc(2.25 / 1.875);
     --text-6xl: 3.75rem;
     --text-6xl--line-height: 1;
     --font-weight-medium: 500;
@@ -260,9 +262,6 @@
   .mt-0\.5 {
     margin-top: calc(var(--spacing) * 0.5);
   }
-  .mt-1 {
-    margin-top: var(--spacing);
-  }
   .mt-2 {
     margin-top: calc(var(--spacing) * 2);
   }
@@ -341,14 +340,14 @@
   .w-full {
     width: 100%;
   }
-  .max-w-\[24rem\] {
-    max-width: 24rem;
-  }
   .max-w-\[26rem\] {
     max-width: 26rem;
   }
   .max-w-\[34rem\] {
     max-width: 34rem;
+  }
+  .max-w-\[44rem\] {
+    max-width: 44rem;
   }
   .shrink-0 {
     flex-shrink: 0;
@@ -480,9 +479,6 @@
   .px-3 {
     padding-inline: calc(var(--spacing) * 3);
   }
-  .px-4 {
-    padding-inline: calc(var(--spacing) * 4);
-  }
   .py-0\.5 {
     padding-block: calc(var(--spacing) * 0.5);
   }
@@ -531,6 +527,10 @@
   .text-2xl {
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
+  }
+  .text-3xl {
+    font-size: var(--text-3xl);
+    line-height: var(--tw-leading, var(--text-3xl--line-height));
   }
   .text-6xl {
     font-size: var(--text-6xl);
@@ -1202,9 +1202,55 @@
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--surface-3);
-    color: var(--text-muted);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 150ms var(--ease-snappy);
+  }
+  .ctrl-btn:not(:disabled):hover {
+    background: var(--surface-2);
+    transform: translateY(-1px);
+  }
+  .ctrl-btn:not(:disabled):active {
+    transform: translateY(0);
+  }
+  .ctrl-btn:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
-    opacity: 0.55;
+    transform: none;
+  }
+  .ctrl-btn.confirm {
+    background: var(--loss);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: color-mix(in srgb, var(--loss) 22%, var(--surface-3));
+    }
+    border-color: var(--loss);
+    color: var(--loss);
+  }
+  .ctrl-btn.wants-draw {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: transparent;
+    animation: wantsRematchPulse 1.1s var(--ease-snappy) infinite;
+  }
+  .ctrl-btn.ctrl-rematch {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: transparent;
+  }
+  .ctrl-btn.ctrl-rematch:not(:disabled):hover {
+    background: var(--accent-hover);
+  }
+  .ctrl-btn.ctrl-rematch.wants-rematch {
+    animation: wantsRematchPulse 1.1s var(--ease-snappy) infinite;
+  }
+  .controls .over-ctrl {
+    display: none;
+  }
+  .controls.controls-over .play-ctrl {
+    display: none;
+  }
+  .controls.controls-over .over-ctrl {
+    display: inline-flex;
   }
   .info-bar {
     display: flex;
@@ -1546,6 +1592,10 @@
   .btn-block {
     width: 100%;
   }
+  .btn-lg {
+    padding: 0.8rem 1.4rem;
+    font-size: 1.05rem;
+  }
   .modal-shade {
     display: none;
     position: fixed;
@@ -1841,7 +1891,7 @@
     background: var(--surface-2);
     cursor: pointer;
     text-align: left;
-    transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy);
+    transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy), opacity 150ms var(--ease-snappy), filter 150ms var(--ease-snappy);
   }
   .cg-public:hover {
     border-color: var(--accent);
@@ -1860,7 +1910,9 @@
     }
   }
   .cg:has(#opp-computer:checked) .cg-public {
-    display: none;
+    opacity: 0.4;
+    filter: grayscale(0.5);
+    pointer-events: none;
   }
   .cg-public-box {
     position: absolute;
@@ -2076,10 +2128,113 @@
   .copy-btn.copied .icon-check {
     display: inline-flex;
   }
+  .wait {
+    width: min(92vw, 44rem);
+    padding: 1.35rem;
+    text-align: left;
+    border-color: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+    }
+    background: radial-gradient(130% 90% at 100% -10%, var(--accent), transparent 55%),	var(--surface-3);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: radial-gradient(130% 90% at 100% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),	var(--surface-3);
+    }
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+  }
+  .wait-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 1rem;
+  }
+  .wait-kicker {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .wait-title {
+    margin: 0.05rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  .wait-sub {
+    margin: 0.3rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+  }
+  .wait-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+  }
+  @media (min-width: 34rem) {
+    .wait-body {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.1rem;
+      align-items: stretch;
+    }
+  }
+  .wait-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1.1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: color-mix(in srgb, var(--surface) 55%, var(--surface-2));
+    }
+  }
+  .wait-panel-hero {
+    align-items: center;
+    text-align: center;
+    border-color: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    }
+    background: linear-gradient(160deg, var(--accent), var(--surface-3) 72%);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 12%, var(--surface-3)), var(--surface-3) 72%);
+    }
+  }
+  .wait-panel-join {
+    justify-content: center;
+    gap: 1.1rem;
+  }
+  .wait-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .wait-actions {
+    margin-top: auto;
+  }
+  .wait-note {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--text-subtle);
+  }
+  .wait-note-lg {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
   .waiting-status {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 0.5rem;
   }
   .waiting-dot {
