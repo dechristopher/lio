@@ -1,7 +1,0 @@
-dist/
-dist/*
-dist/**
-coverage/**
-webpack.config.parsed.json
-
-.DS_Store
