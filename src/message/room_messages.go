@@ -17,8 +17,11 @@ type RoomTemplatePayload struct {
 	Variant       variant.Variant
 	IsCreator     bool
 	IsJoining     bool
-	CancelToken   string
-	JoinToken     string
+	// Public reports whether the challenge is listed in the home-page Open
+	// Challenges feed (vs a private, link-only challenge).
+	Public      bool
+	CancelToken string
+	JoinToken   string
 }
 
 type RoomMove struct {

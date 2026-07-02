@@ -2,6 +2,14 @@ const redirectTag = "e";
 const roomUpdateTag = "r";
 
 window.addEventListener('load', () => {
+	// collapse the QR fold on phones so the invite link leads; it renders
+	// open so the QR stays visible without JS and on desktop (where the
+	// toggle is hidden). 34rem matches the .wait-hero CSS breakpoint.
+	const qrFold = document.getElementById('qrFold');
+	if (qrFold && !window.matchMedia('(min-width: 34rem)').matches) {
+		qrFold.removeAttribute('open');
+	}
+
 	document.getElementById('copyInviteButton').onclick = () => {
 		document.getElementById('copyInviteButton').classList.add('copied');
 		navigator.clipboard.writeText(document.getElementById('gameInviteLink').value);

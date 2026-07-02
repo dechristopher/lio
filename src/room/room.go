@@ -1409,6 +1409,7 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		OpponentIsBot: opponentIsBot,
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
 		Variant:       r.game.Variant,
+		Public:        r.public,
 	}
 }
 

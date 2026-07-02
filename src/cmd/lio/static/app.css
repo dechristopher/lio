@@ -203,6 +203,9 @@
   }
 }
 @layer utilities {
+  .collapse {
+    visibility: collapse;
+  }
   .visible {
     visibility: visible;
   }
@@ -2149,7 +2152,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
   }
   .wait-kicker {
     display: block;
@@ -2162,9 +2167,9 @@
   .wait-title {
     margin: 0.05rem 0 0;
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 5.5vw, 1.5rem);
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1.15;
     color: var(--text);
   }
   .wait-sub {
@@ -2173,72 +2178,108 @@
     line-height: 1.4;
     color: var(--text-muted);
   }
-  .wait-body {
+  .wait-hero {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.9rem;
+    gap: 1rem;
+    grid-template-areas: "share" "qr" "actions";
   }
   @media (min-width: 34rem) {
-    .wait-body {
-      grid-template-columns: 1fr 1fr;
-      gap: 1.1rem;
-      align-items: stretch;
+    .wait-hero {
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-rows: 1fr auto;
+      grid-template-areas: "qr share"	"qr actions";
+      column-gap: 1.5rem;
+      align-items: start;
     }
   }
-  .wait-panel {
+  .wait-share {
+    grid-area: share;
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
-    padding: 1.1rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background: var(--surface);
-    @supports (color: color-mix(in lab, red, red)) {
-      background: color-mix(in srgb, var(--surface) 55%, var(--surface-2));
-    }
-  }
-  .wait-panel-hero {
-    align-items: center;
-    text-align: center;
-    border-color: var(--accent);
-    @supports (color: color-mix(in lab, red, red)) {
-      border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-    }
-    background: linear-gradient(160deg, var(--accent), var(--surface-3) 72%);
-    @supports (color: color-mix(in lab, red, red)) {
-      background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 12%, var(--surface-3)), var(--surface-3) 72%);
-    }
-  }
-  .wait-panel-join {
-    justify-content: center;
-    gap: 1.1rem;
-  }
-  .wait-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
+    gap: 1rem;
+    min-width: 0;
   }
   .wait-actions {
-    margin-top: auto;
+    grid-area: actions;
   }
   .wait-note {
     font-size: 0.72rem;
     line-height: 1.4;
     color: var(--text-subtle);
   }
-  .wait-note-lg {
-    font-size: 0.9rem;
+  .qr-fold {
+    grid-area: qr;
+  }
+  .qr-fold summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    list-style: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
     color: var(--text-muted);
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    user-select: none;
+  }
+  .qr-fold summary::-webkit-details-marker {
+    display: none;
+  }
+  .qr-fold summary:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .qr-fold[open] summary {
+    margin-bottom: 0.75rem;
+  }
+  .qr-fold[open] .qr-show {
+    display: none;
+  }
+  .qr-fold:not([open]) .qr-hide {
+    display: none;
+  }
+  .qr-fold-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  @media (min-width: 34rem) {
+    .qr-fold summary {
+      display: none;
+    }
+  }
+  .wait-join {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  .wait-join-cta {
+    width: 100%;
+  }
+  @media (min-width: 34rem) {
+    .wait-join {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+    }
+    .wait-join-cta {
+      width: 15rem;
+      flex: none;
+    }
   }
   .waiting-status {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.5rem;
   }
   .waiting-dot {
     flex: none;
+    margin-top: 0.55em;
     width: 0.6rem;
     height: 0.6rem;
     border-radius: var(--radius-full, 9999px);
@@ -2255,8 +2296,8 @@
   }
   .invite-qr {
     display: block;
-    width: 11rem;
-    height: 11rem;
+    width: 10rem;
+    height: 10rem;
     shape-rendering: crispEdges;
   }
   .tv-live-dot {

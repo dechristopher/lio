@@ -7,8 +7,7 @@ import "github.com/dechristopher/lio/message"
 // (currently always casual) rating mode. PlayerColor is the viewer's color for
 // the creator and the open-seat color for the joiner (set in HandlePreGame), so
 // "You play …" reads correctly for both. colorDot is reused from the home page.
-// It renders as borderless content: the surrounding .wait-panel supplies the
-// frame in the two-panel waiting-room hero.
+// It renders as borderless content within the waiting-room hero.
 templ gameSummary(payload message.RoomTemplatePayload) {
 	<div class="flex flex-col gap-3">
 		<div class="flex items-baseline gap-2">

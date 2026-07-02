@@ -10,12 +10,15 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/dechristopher/lio/message"
 
-// roomCreator is the creator's pre-game waiting view: a wide two-panel hero
-// echoing the create-game modal. The left panel is the match summary + cancel;
-// the right (hero) panel is the share surface — a scannable QR and a copyable
-// invite link. It waits over the websocket for an opponent. lio-room-create.js
-// wires #copyInviteButton (toggling .copied) and reads #gameInviteLink, so those
-// hooks are preserved.
+// roomCreator is the creator's pre-game waiting view: a single horizontal share
+// hero. The QR sits on the left; the match summary, copyable invite link, and
+// cancel action stack on the right, so no column is taller than its content.
+// On narrow viewports everything stacks and the QR collapses behind a
+// "Show QR code" fold (lio-room-create.js closes #qrFold on load below the
+// 34rem breakpoint; it renders open so the QR stays visible without JS and on
+// desktop). It waits over the websocket for an opponent. lio-room-create.js
+// wires #copyInviteButton (toggling .copied) and reads #gameInviteLink, so
+// those hooks are preserved.
 func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -37,7 +40,37 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main class=\"wait card mt-2 mb-4\"><div class=\"wait-head\"><span class=\"wait-kicker\">Open challenge</span><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"wait-title\">Waiting for an opponent…</h1></div><p class=\"wait-sub\">Your challenge is live — share it to bring someone in.</p></div><div class=\"wait-body\"><div class=\"wait-panel\"><span class=\"wait-label\">Match</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main class=\"wait card mt-2 mb-4\"><div class=\"wait-head\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if payload.Public {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span class=\"wait-kicker\">Open challenge</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span class=\"wait-kicker\">Private challenge</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"wait-title\">Waiting for an opponent…</h1></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if payload.Public {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"wait-sub\">Your challenge is listed on the home page — anyone can join, or share the link directly.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"wait-sub\">Your challenge is unlisted — share the link to bring someone in.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div><div class=\"wait-hero\"><div class=\"wait-share\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -45,67 +78,20 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"wait-actions\"><form class=\"contents\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div><label class=\"sr-only\" for=\"gameInviteLink\">Invite link</label><div class=\"invite-row\"><input type=\"text\" id=\"gameInviteLink\" class=\"invite-field\" onClick=\"this.select();\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var2 templ.SafeURL
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs("/" + payload.RoomID + "/cancel")
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.SiteURL + payload.RoomID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 26, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 38, Col: 128}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-post=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("/" + payload.RoomID + "/cancel")
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 26, Col: 128}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><input type=\"hidden\" name=\"cancel_token\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.CancelToken)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 27, Col: 74}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"> <button type=\"submit\" class=\"btn btn-danger btn-block\" title=\"Cancel the game\">× Cancel game</button></form></div></div><div class=\"wait-panel wait-panel-hero\"><span class=\"wait-label\">Invite</span><div class=\"qr-tile\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = inviteQR(meta.SiteURL+payload.RoomID).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><p class=\"wait-note\">Scan to join from a phone on the same network</p><div class=\"w-full\"><label class=\"sr-only\" for=\"gameInviteLink\">Invite link</label><div class=\"invite-row\"><input type=\"text\" id=\"gameInviteLink\" class=\"invite-field\" onClick=\"this.select();\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.SiteURL + payload.RoomID)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 41, Col: 128}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" readonly> <button type=\"button\" id=\"copyInviteButton\" class=\"btn btn-ghost copy-btn\" title=\"Copy invite URL\" aria-label=\"Copy invite URL\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" readonly> <button type=\"button\" id=\"copyInviteButton\" class=\"btn btn-ghost copy-btn\" title=\"Copy invite URL\" aria-label=\"Copy invite URL\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -117,7 +103,54 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</button></div><p class=\"wait-note mt-2\">Anyone who opens this link can take the open seat.</p></div></div></div></main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</button></div><p class=\"wait-note mt-2\">Anyone who opens this link can take the open seat.</p></div></div><details id=\"qrFold\" class=\"qr-fold\" open><summary><span class=\"qr-show\">Show QR code</span> <span class=\"qr-hide\">Hide QR code</span></summary><div class=\"qr-fold-body\"><div class=\"qr-tile\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = inviteQR(meta.SiteURL+payload.RoomID).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><p class=\"wait-note\">Scan to join from another device</p></div></details><div class=\"wait-actions\"><form class=\"contents\" method=\"post\" action=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 templ.SafeURL
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs("/" + payload.RoomID + "/cancel")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 60, Col: 82}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" hx-post=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue("/" + payload.RoomID + "/cancel")
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 60, Col: 127}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"><input type=\"hidden\" name=\"cancel_token\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var5 string
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.CancelToken)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 61, Col: 73}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"> <button type=\"submit\" class=\"btn btn-danger btn-block\" title=\"Cancel the game\">× Cancel game</button></form></div></div></main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -125,9 +158,10 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 	})
 }
 
-// roomJoiner is the joining player's pre-game view: the same two-panel hero as
-// the creator, with the match summary (showing the open seat they would take) on
-// the left and the join call-to-action on the right.
+// roomJoiner is the joining player's pre-game view: the same head treatment as
+// the creator over a single compact row — the match summary (showing the open
+// seat they would take) beside the join call-to-action. The row stacks on
+// narrow viewports.
 func roomJoiner(payload message.RoomTemplatePayload) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -149,7 +183,7 @@ func roomJoiner(payload message.RoomTemplatePayload) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<main class=\"wait card mt-2 mb-4\"><div class=\"wait-head\"><span class=\"wait-kicker\">You've been challenged</span><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"wait-title\">An opponent is waiting for you</h1></div><p class=\"wait-sub\">An anonymous player set up this game and is waiting for someone to join.</p></div><div class=\"wait-body\"><div class=\"wait-panel\"><span class=\"wait-label\">Match</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<main class=\"wait card mt-2 mb-4\"><div class=\"wait-head\"><span class=\"wait-kicker\">You've been challenged</span><div class=\"waiting-status\"><span class=\"waiting-dot\" aria-hidden=\"true\"></span><h1 class=\"wait-title\">An opponent is waiting for you</h1></div><p class=\"wait-sub\">An anonymous player set up this game — it starts the moment you take the seat.</p></div><div class=\"wait-join\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -157,72 +191,51 @@ func roomJoiner(payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><div class=\"wait-panel wait-panel-hero wait-panel-join\"><span class=\"wait-label\">Take the seat</span><p class=\"wait-note wait-note-lg\">You'll play as ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<form class=\"wait-join-cta\" method=\"post\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(joinColorName(payload.PlayerColor))
+		var templ_7745c5c3_Var7 templ.SafeURL
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs("/" + payload.RoomID + "/join")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 74, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 85, Col: 84}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " — the game starts the moment you join.</p><form class=\"w-full\" method=\"post\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var8 templ.SafeURL
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs("/" + payload.RoomID + "/join")
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue("/" + payload.RoomID + "/join")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 75, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 85, Col: 127}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"><input type=\"hidden\" name=\"join_token\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("/" + payload.RoomID + "/join")
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.JoinToken)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 75, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 86, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"><input type=\"hidden\" name=\"join_token\" value=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.JoinToken)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room_pregame.templ`, Line: 76, Col: 69}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"> <button type=\"submit\" class=\"btn btn-primary btn-block btn-lg\" title=\"Join the game\">Join game</button></form></div></div></main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"> <button type=\"submit\" class=\"btn btn-primary btn-block btn-lg\" title=\"Join the game\">Join game</button></form></div></main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
-}
-
-// joinColorName renders the open-seat color as a word for the joiner's copy.
-func joinColorName(color string) string {
-	if color == "w" {
-		return "White"
-	}
-	return "Black"
 }
 
 var _ = templruntime.GeneratedTemplate

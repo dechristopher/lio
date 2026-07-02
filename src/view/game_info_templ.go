@@ -15,8 +15,7 @@ import "github.com/dechristopher/lio/message"
 // (currently always casual) rating mode. PlayerColor is the viewer's color for
 // the creator and the open-seat color for the joiner (set in HandlePreGame), so
 // "You play …" reads correctly for both. colorDot is reused from the home page.
-// It renders as borderless content: the surrounding .wait-panel supplies the
-// frame in the two-panel waiting-room hero.
+// It renders as borderless content within the waiting-room hero.
 func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -45,7 +44,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(payload.Variant.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 15, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 14, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -58,7 +57,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(groupTitle(payload.Variant.Group))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 16, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 15, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
