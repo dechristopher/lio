@@ -1176,6 +1176,19 @@
 	/* four-up grid: each board ~half the width of the old 2-up layout, i.e. about
 	   a quarter of the area. Drops to three columns on narrow phones so the
 	   boards stay legible. */
+	/* red radar-ping dot beside the "Live games" heading, shown by lio-tv.js
+	   while any game is live. The pulse is the motion cue; under
+	   prefers-reduced-motion the dot simply stops pulsing (still visible) via
+	   the global animation reset. */
+	.tv-live-dot {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: var(--radius-full, 9999px);
+		background: var(--loss);
+		animation: tvLivePulse 1.6s var(--ease-snappy) infinite;
+	}
+
 	.tv-grid {
 		display: grid;
 		grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1322,6 +1335,11 @@
 @keyframes thinkingPulse {
 	0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
 	40% { opacity: 1; transform: scale(1); }
+}
+@keyframes tvLivePulse {
+	0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--loss) 45%, transparent); opacity: 1; }
+	70% { box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--loss) 0%, transparent); opacity: 0.8; }
+	100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--loss) 0%, transparent); opacity: 1; }
 }
 @keyframes waitingPulse {
 	0% { box-shadow: 0 0 0 0 var(--focus-ring); opacity: 1; }

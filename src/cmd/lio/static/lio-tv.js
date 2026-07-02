@@ -10,6 +10,7 @@
 	const grid = document.getElementById('tv-grid');
 	const emptyEl = document.getElementById('tv-empty');
 	const statusEl = document.getElementById('tv-status');
+	const liveDot = document.getElementById('tv-live-dot');
 	if (!grid || typeof Octadground === 'undefined') {
 		return;
 	}
@@ -372,6 +373,9 @@
 		const n = slots.size;
 		if (emptyEl) {
 			emptyEl.classList.toggle('hidden', n > 0);
+		}
+		if (liveDot) {
+			liveDot.classList.toggle('hidden', n === 0);
 		}
 		grid.classList.toggle('hidden', n === 0);
 		setStatus(n > 0 ? (n + ' live') : 'no games');

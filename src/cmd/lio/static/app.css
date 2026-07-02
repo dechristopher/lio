@@ -2259,6 +2259,14 @@
     height: 11rem;
     shape-rendering: crispEdges;
   }
+  .tv-live-dot {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--loss);
+    animation: tvLivePulse 1.6s var(--ease-snappy) infinite;
+  }
   .tv-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2485,6 +2493,20 @@
   40% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+@keyframes tvLivePulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--loss) 45%, transparent);
+    opacity: 1;
+  }
+  70% {
+    box-shadow: 0 0 0 0.4rem color-mix(in srgb, var(--loss) 0%, transparent);
+    opacity: 0.8;
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--loss) 0%, transparent);
+    opacity: 1;
   }
 }
 @keyframes waitingPulse {

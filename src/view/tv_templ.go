@@ -35,7 +35,7 @@ func tvWidget() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"tv-widget\" class=\"card\"><div class=\"flex items-center justify-between\"><p class=\"text-xs font-semibold uppercase tracking-wider text-fg-muted\">Live games</p><span id=\"tv-status\" class=\"text-[11px] text-fg-subtle\">connecting&hellip;</span></div><p id=\"tv-empty\" class=\"mt-3 text-sm text-fg-subtle\">No games in progress. Be the first to play!</p><div id=\"tv-grid\" class=\"tv-grid mt-3 hidden\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"tv-widget\" class=\"card\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-2\"><span id=\"tv-live-dot\" class=\"tv-live-dot hidden\" aria-hidden=\"true\"></span><p class=\"text-xs font-semibold uppercase tracking-wider text-fg-muted\">Live games</p></div><span id=\"tv-status\" class=\"text-[11px] text-fg-subtle\">connecting&hellip;</span></div><p id=\"tv-empty\" class=\"mt-3 text-sm text-fg-subtle\">No games in progress. Be the first to play!</p><div id=\"tv-grid\" class=\"tv-grid mt-3 hidden\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
