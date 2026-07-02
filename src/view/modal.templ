@@ -152,8 +152,8 @@ templ createGameModal() {
 			// the choice instead of only ever explaining Deploy.
 			const modeDesc = modal.querySelector("#cg-mode-desc");
 			const modeDescriptions = {
-				classic: "Classic: the standard Octad opening position — play begins the moment your opponent joins.",
-				deploy: "Deploy: privately arrange your home rank before play begins, then the assembled position is revealed.",
+				classic: "Classic: the standard Octad opening position. Play begins the moment your opponent joins.",
+				deploy: "Deploy: privately arrange your home rank before play begins, then the position is revealed.",
 			};
 			const syncModeDesc = () => {
 				if (modeDesc) modeDesc.textContent = modeDescriptions[modeOf()] || "";
