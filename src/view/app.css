@@ -192,19 +192,20 @@
 			"opp"
 			"board"
 			"you"
+			"tline"
 			"rail"
 			"info"
 			"foot";
 	}
 	.ga-opp { grid-area: opp; }
-	.ga-board {
-		grid-area: board;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.5rem;
-	}
+	/* On the single-column layout the wrapper dissolves so its children place
+	   themselves into their own grid rows: the board into "board" and the match
+	   timeline into "tline" (beneath the bottom clock). On desktop it becomes a
+	   real flex column instead (see the media query), putting the timeline a
+	   fixed slight gap beneath the board regardless of viewport height. */
+	.ga-board { display: contents; }
 	.ga-you { grid-area: you; }
+	.ga-timeline { grid-area: tline; }
 	.ga-rail { grid-area: rail; }
 	.ga-info { grid-area: info; }
 	/* footer nested under the board column (not the full page), centered beneath
@@ -233,16 +234,29 @@
 		}
 		/* shrink the board to ~75% of its previous desktop max (34rem -> 25.5rem) */
 		.board-shell { --bs: min(100%, 58vh, 25.5rem); }
+		/* a real box again: board on top, match timeline a fixed slight gap
+		   beneath it (the timeline's mobile grid-area is ignored here — it's a
+		   flex child, so it hugs the board instead of a rail-height-driven row) */
 		.ga-board {
+			grid-area: board;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 0.6rem;
 			align-self: start;
 			position: sticky;
 			top: 1rem;
 		}
+		.ga-timeline { width: 100%; }
 	}
 
-	/* board: a square sized off --bs, capped to the column / viewport */
+	/* board: a square sized off --bs, capped to the column / viewport. The
+	   grid-area applies on the single-column layout, where the dissolved
+	   .ga-board wrapper leaves the shell as the grid item; on desktop the shell
+	   is a flex child of .ga-board and the placement is ignored. */
 	.board-shell {
 		--bs: min(100%, 78vh, 34rem);
+		grid-area: board;
 		width: 100%;
 		display: flex;
 		justify-content: center;
@@ -356,6 +370,107 @@
 	}
 	.thinking i:nth-child(1) { animation-delay: -0.32s; }
 	.thinking i:nth-child(2) { animation-delay: -0.16s; }
+
+	/* ---- match score timeline ----
+	   One row per player (local player bottom, mirroring their point of view of
+	   the board), one fixed-width cell per game so the two rows stay column-
+	   aligned. The shared identity column is sized by the wider name via the
+	   display:contents rows. Cells are tinted/edged by the color the player held
+	   that game (sides swap between games), carry the points + win-method glyph,
+	   and the in-progress game shows as a pulsing accent cell. Built by
+	   renderTimeline in lio-game.js — keep the tl-* hooks in sync with the JS. */
+	.timeline {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		column-gap: 0.7rem;
+		row-gap: 0.35rem;
+		align-items: center;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		padding: 0.5rem 0.7rem;
+	}
+	.tl-row { display: contents; }
+	.tl-id { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+	.tl-name {
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		min-width: 0;
+		max-width: 9rem;
+	}
+	.tl-total {
+		flex: none;
+		margin-left: auto;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--text);
+		background: var(--surface-3);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		padding: 0 0.4rem;
+		min-width: 1.3rem;
+		text-align: center;
+	}
+	.tl-games {
+		display: flex;
+		gap: 0.25rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.tl-games::-webkit-scrollbar { display: none; }
+	.tl-cell {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.15rem;
+		width: 2.15rem;
+		height: 1.45rem;
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		background: var(--surface-3);
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--text-muted);
+	}
+	/* side the player held that game: a white/black bottom edge plus a subtle
+	   background tint, readable in both themes without stealing focus */
+	.tl-cell.tl-white {
+		background: color-mix(in srgb, #ffffff 9%, var(--surface-3));
+		box-shadow: inset 0 -2px 0 color-mix(in srgb, #ffffff 80%, var(--border));
+	}
+	.tl-cell.tl-black {
+		background: color-mix(in srgb, #000000 9%, var(--surface-3));
+		box-shadow: inset 0 -2px 0 color-mix(in srgb, #000000 65%, var(--border));
+	}
+	.tl-cell.tl-win { color: var(--win); }
+	.tl-cell.tl-draw { color: var(--draw); }
+	.tl-cell.tl-loss { color: var(--text-subtle); }
+	/* the in-progress game's column */
+	.tl-cell.tl-live {
+		border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+		background: color-mix(in srgb, var(--accent) 8%, var(--surface-3));
+		color: var(--accent);
+	}
+	.tl-cell.tl-live::before {
+		content: "";
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: var(--accent);
+		animation: tlLivePulse 1.6s ease-in-out infinite;
+	}
+	.tl-glyph { font-family: var(--font-sans); font-weight: 600; }
 
 	/* ---- side rail ---- */
 	.rail-stack { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; }
@@ -1361,6 +1476,7 @@
 	0% { color: var(--text-muted); transform: scale(1.18); }
 	100% { color: inherit; transform: scale(1); }
 }
+@keyframes tlLivePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
 @keyframes thinkingPulse {
 	0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
 	40% { opacity: 1; transform: scale(1); }

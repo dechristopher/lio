@@ -12,9 +12,15 @@ import (
 // encoding/json, and they're irrelevant here).
 type moveMsg struct {
 	Data struct {
-		White string             `json:"w"`
-		Black string             `json:"b"`
-		Score map[string]float64 `json:"sc"`
+		White   string             `json:"w"`
+		Black   string             `json:"b"`
+		Score   map[string]float64 `json:"sc"`
+		History []struct {
+			White       float64 `json:"w"`
+			Black       float64 `json:"b"`
+			Reason      string  `json:"r"`
+			WhitePlayed string  `json:"wp"`
+		} `json:"h"`
 	} `json:"d"`
 }
 
@@ -59,5 +65,63 @@ func TestScoreAttributionOnLoss(t *testing.T) {
 	}
 	if got := over.Data.Score["b"]; got != 0 {
 		t.Errorf("game-over black (human) score = %v, want 0", got)
+	}
+}
+
+// TestMatchHistoryRekeysAcrossColorFlip guards the match-history seat
+// convention: entries are keyed by the players' CURRENT seats (like the score),
+// so after the between-games color flip a past game's points must follow the
+// player to their new seat, and WhitePlayed must report the color the
+// now-white player actually held in that game.
+func TestMatchHistoryRekeysAcrossColorFlip(t *testing.T) {
+	// bot plays White, human "human" plays Black
+	r := newBotTestInstance(t, "human", octad.White)
+
+	// white wins game 1 by black resigning
+	r.stateMu.Lock()
+	r.game.Resign(octad.Black)
+	r.updateScoreLocked()
+	r.stateMu.Unlock()
+
+	var state moveMsg
+	if err := json.Unmarshal(r.CurrentGameStateMessage(true, false), &state); err != nil {
+		t.Fatalf("unmarshal board state: %v", err)
+	}
+	if len(state.Data.History) != 1 {
+		t.Fatalf("history length = %d, want 1", len(state.Data.History))
+	}
+	e := state.Data.History[0]
+	if e.White != 1 || e.Black != 0 {
+		t.Errorf("game 1 points = w:%v b:%v, want w:1 b:0", e.White, e.Black)
+	}
+	if e.Reason != "resignation" {
+		t.Errorf("game 1 reason = %q, want resignation", e.Reason)
+	}
+	if e.WhitePlayed != "w" {
+		t.Errorf("game 1 whitePlayed = %q, want w (no flip yet)", e.WhitePlayed)
+	}
+
+	// the rematch color swap: the human now holds the white seat
+	r.stateMu.Lock()
+	r.players.FlipColor()
+	r.stateMu.Unlock()
+
+	if err := json.Unmarshal(r.CurrentGameStateMessage(true, false), &state); err != nil {
+		t.Fatalf("unmarshal board state after flip: %v", err)
+	}
+	if state.Data.White != "human" {
+		t.Fatalf("expected human seated on white after flip: white=%q", state.Data.White)
+	}
+	if len(state.Data.History) != 1 {
+		t.Fatalf("history length after flip = %d, want 1", len(state.Data.History))
+	}
+	e = state.Data.History[0]
+	// the human lost game 1 and now sits white: their 0 follows them
+	if e.White != 0 || e.Black != 1 {
+		t.Errorf("game 1 points after flip = w:%v b:%v, want w:0 b:1", e.White, e.Black)
+	}
+	// the now-white human played black in game 1
+	if e.WhitePlayed != "b" {
+		t.Errorf("game 1 whitePlayed after flip = %q, want b", e.WhitePlayed)
 	}
 }

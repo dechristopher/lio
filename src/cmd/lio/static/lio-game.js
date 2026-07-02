@@ -1091,6 +1091,115 @@ const playSounds = (message, ofenParts, newGame) => {
 	}
 };
 
+// ---- match score timeline ----
+// One column per game of the room's match, one row per player, with the local
+// player always on the bottom row (their bottom-of-board point of view — the
+// rows do NOT swap when the colors do between games). Rebuilt in full from the
+// history payload (d.h) of every score-bearing message via updateScore, so
+// moves, game overs, and reconnect snapshots all refresh it and missed game
+// boundaries self-heal. Markup shell lives in view/room.templ (#match-timeline).
+const timelineEl = document.getElementById('match-timeline');
+const tlOpp = timelineEl ? timelineEl.querySelector('#tl-row-opponent') : null;
+const tlPly = timelineEl ? timelineEl.querySelector('#tl-row-player') : null;
+
+// backend reason codes -> timeline win-method glyphs. Draw methods all render
+// as '=' on both rows (the cell's ½ already says it was a draw); decisive
+// methods mark only the winner's cell (see tlCell).
+const tlGlyphs = {
+	checkmate: '#',
+	time: '⌛',
+	resignation: '⚑',
+	stalemate: '=',
+	insufficient: '=',
+	agreement: '=',
+	repetition: '=',
+	moverule: '=',
+	abandoned: '×',
+};
+
+// 0.5 -> ½, 1.5 -> 1½, 2 -> 2 (cells and the name-side totals)
+const tlPoints = (pts) => {
+	const whole = Math.floor(pts);
+	const half = pts - whole >= 0.5 ? '½' : '';
+	return (whole || !half) ? `${whole}${half}` : half;
+};
+
+/**
+ * tlCell builds one finished-game timeline cell for one player: their points,
+ * the win-method glyph (winner's cell only; draws mark both), and the
+ * white/black tint of the side they held that game.
+ * @param pts - points this player earned (1, 0.5, or 0)
+ * @param color - 'w'/'b', the side this player held that game
+ * @param reason - backend method code (see resultReasons)
+ * @param num - 1-based game number, for the tooltip
+ * @returns {HTMLElement} the cell
+ */
+const tlCell = (pts, color, reason, num) => {
+	const cell = document.createElement('span');
+	const result = pts >= 1 ? 'win' : (pts >= 0.5 ? 'draw' : 'loss');
+	cell.className = `tl-cell tl-${result} tl-${color === 'w' ? 'white' : 'black'}`;
+	cell.setAttribute('role', 'listitem');
+
+	const method = resultReasons[reason] || '';
+	cell.title = `Game ${num}: ${result} ${method}`.trim();
+
+	let html = tlPoints(pts);
+	const glyph = tlGlyphs[reason];
+	if (glyph && pts >= 0.5) {
+		html += `<span class="tl-glyph">${glyph}</span>`;
+	}
+	cell.innerHTML = html;
+	return cell;
+};
+
+/**
+ * renderTimeline rebuilds the match timeline from a score-bearing message:
+ * name-side totals, one column per finished game, plus a pulsing live column
+ * for the game in progress (absent between games / once the room is over).
+ * @param message - move/game-over message (d.sc present, d.h optional)
+ */
+const renderTimeline = (message) => {
+	if (!tlOpp || !tlPly) {
+		return;
+	}
+
+	// totals beside the names mirror the clock score chips
+	const w = message.d.sc.w || 0;
+	const b = message.d.sc.b || 0;
+	tlPly.querySelector('.tl-total').innerHTML = tlPoints(playerWhite ? w : b);
+	tlOpp.querySelector('.tl-total').innerHTML = tlPoints(playerWhite ? b : w);
+
+	const plyGames = tlPly.querySelector('.tl-games');
+	const oppGames = tlOpp.querySelector('.tl-games');
+	plyGames.innerHTML = '';
+	oppGames.innerHTML = '';
+
+	// history entries are keyed by the players' CURRENT seats (the ScorePayload
+	// convention); wp is the color the currently-white player held in that game
+	(message.d.h || []).forEach((e, i) => {
+		const myColor = playerWhite ? e.wp : (e.wp === 'w' ? 'b' : 'w');
+		const oppColor = myColor === 'w' ? 'b' : 'w';
+		plyGames.appendChild(tlCell(playerWhite ? e.w : e.b, myColor, e.r, i + 1));
+		oppGames.appendChild(tlCell(playerWhite ? e.b : e.w, oppColor, e.r, i + 1));
+	});
+
+	// the in-progress game's column
+	if (!gameOver) {
+		const num = (message.d.h || []).length + 1;
+		[plyGames, oppGames].forEach((rowEl) => {
+			const cell = document.createElement('span');
+			cell.className = 'tl-cell tl-live';
+			cell.setAttribute('role', 'listitem');
+			cell.title = `Game ${num}: in progress`;
+			rowEl.appendChild(cell);
+		});
+	}
+
+	// keep the newest games in view if the match outgrows the row
+	plyGames.scrollLeft = plyGames.scrollWidth;
+	oppGames.scrollLeft = oppGames.scrollWidth;
+};
+
 // previous match score (raw white/black), so updateScore can flash only the side
 // whose score actually changed at game end. null until the first score message.
 let prevScoreW = null, prevScoreB = null;
@@ -1128,9 +1237,12 @@ const updateScore = (message) => {
 	const w = message.d.sc.w || 0;
 	const b = message.d.sc.b || 0;
 
-	// resolve which clock element is white vs black so the flash lands correctly
-	const whiteScore = isPlayerWhite(message) ? plyScore : oppScore;
-	const blackScore = isPlayerWhite(message) ? oppScore : plyScore;
+	// resolve which clock element is white vs black so the values and flash land
+	// correctly. Uses the color cached from move messages (playerWhite), NOT
+	// isPlayerWhite: game-over messages reuse the `w` key for the winner, so
+	// isPlayerWhite misreads them and would swap the chips for a white player.
+	const whiteScore = playerWhite ? plyScore : oppScore;
+	const blackScore = playerWhite ? oppScore : plyScore;
 
 	whiteScore.innerHTML = w;
 	blackScore.innerHTML = b;
@@ -1142,6 +1254,9 @@ const updateScore = (message) => {
 	}
 	prevScoreW = w;
 	prevScoreB = b;
+
+	// the same score-bearing messages drive the match timeline
+	renderTimeline(message);
 }
 
 /**

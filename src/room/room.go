@@ -938,6 +938,7 @@ func (r *Instance) currentGameStateMessageLocked(addLast bool, gameStart bool) [
 		White:     r.players[octad.White].ID,
 		Black:     r.players[octad.Black].ID,
 		Score:     r.players.ScoreMap(),
+		History:   r.players.MatchHistory(),
 		GameStart: gameStart,
 		// carry the game identity so a client that missed the single game-start
 		// broadcast recognizes the new game from any later snapshot (its
@@ -1307,16 +1308,18 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	return true, event
 }
 
-// updateScoreLocked increments score counters for the winner of a game. The
-// caller must hold stateMu (it reads the game outcome and mutates players).
+// updateScoreLocked increments score counters for the winner of a game and
+// appends the result to both players' match histories. The caller must hold
+// stateMu (it reads the game outcome and mutates players).
 func (r *Instance) updateScoreLocked() {
+	reason := r.gameOverReasonLocked(false)
 	switch r.game.Outcome() {
 	case octad.Draw:
-		r.players.ScoreDraw()
+		r.players.ScoreDraw(reason)
 	case octad.WhiteWon:
-		r.players.ScoreWin(octad.White)
+		r.players.ScoreWin(octad.White, reason)
 	case octad.BlackWon:
-		r.players.ScoreWin(octad.Black)
+		r.players.ScoreWin(octad.Black, reason)
 	}
 }
 
@@ -1585,6 +1588,7 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int) []
 		Reason:        r.gameOverReasonLocked(abandoned),
 		Clock:         r.currentClockLocked(),
 		Score:         r.players.ScoreMap(),
+		History:       r.players.MatchHistory(),
 		RoomOver:      abandoned,
 		RematchWindow: rematchWin,
 	}

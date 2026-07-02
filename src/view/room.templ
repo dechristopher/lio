@@ -51,6 +51,33 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 			</div>
 			<div class="ga-board">
 				@board(payload.PlayerColor, botRematchURL(payload))
+				<!--
+					Match score timeline: one column per game of the room's match, one
+					row per player. The local player is always the bottom row (matching
+					their bottom-of-board point of view), regardless of the color swaps
+					between games. lio-game.js fills the .tl-total chips and builds the
+					.tl-games cells from the match-history payload on every score-bearing
+					message, so reconnects rebuild it for free. On desktop it's a flex
+					sibling of the board (fixed slight gap beneath it); on mobile the
+					.ga-board wrapper dissolves (display: contents) and the timeline
+					places itself into the "tline" grid row beneath the bottom clock.
+				-->
+				<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline">
+					<div class="tl-row" id="tl-row-opponent">
+						<div class="tl-id">
+							<span class="tl-name">{ opponentName(payload) }</span>
+							<span class="tl-total">0</span>
+						</div>
+						<div class="tl-games" role="list"></div>
+					</div>
+					<div class="tl-row" id="tl-row-player">
+						<div class="tl-id">
+							<span class="tl-name">You</span>
+							<span class="tl-total">0</span>
+						</div>
+						<div class="tl-games" role="list"></div>
+					</div>
+				</div>
 			</div>
 			<div id="clockPlayer" class="clockPlayer ga-you">
 				@clock("You")

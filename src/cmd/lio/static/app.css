@@ -886,20 +886,19 @@
     width: min(96vw, 60rem);
     gap: 0.6rem;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "opp"	"board"	"you"	"rail"	"info"	"foot";
+    grid-template-areas: "opp"	"board"	"you"	"tline"	"rail"	"info"	"foot";
   }
   .ga-opp {
     grid-area: opp;
   }
   .ga-board {
-    grid-area: board;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
+    display: contents;
   }
   .ga-you {
     grid-area: you;
+  }
+  .ga-timeline {
+    grid-area: tline;
   }
   .ga-rail {
     grid-area: rail;
@@ -923,13 +922,22 @@
       --bs: min(100%, 58vh, 25.5rem);
     }
     .ga-board {
+      grid-area: board;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
       align-self: start;
       position: sticky;
       top: 1rem;
     }
+    .ga-timeline {
+      width: 100%;
+    }
   }
   .board-shell {
     --bs: min(100%, 78vh, 34rem);
+    grid-area: board;
     width: 100%;
     display: flex;
     justify-content: center;
@@ -1081,6 +1089,131 @@
   }
   .thinking i:nth-child(2) {
     animation-delay: -0.16s;
+  }
+  .timeline {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.7rem;
+    row-gap: 0.35rem;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    padding: 0.5rem 0.7rem;
+  }
+  .tl-row {
+    display: contents;
+  }
+  .tl-id {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+  .tl-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    max-width: 9rem;
+  }
+  .tl-total {
+    flex: none;
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 0.4rem;
+    min-width: 1.3rem;
+    text-align: center;
+  }
+  .tl-games {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tl-games::-webkit-scrollbar {
+    display: none;
+  }
+  .tl-cell {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    width: 2.15rem;
+    height: 1.45rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-3);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .tl-cell.tl-white {
+    background: #ffffff;
+    @supports (color: color-mix(in lab, red, red)) {
+      background: color-mix(in srgb, #ffffff 9%, var(--surface-3));
+    }
+    box-shadow: inset 0 -2px 0 #ffffff;
+    @supports (color: color-mix(in lab, red, red)) {
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, #ffffff 80%, var(--border));
+    }
+  }
+  .tl-cell.tl-black {
+    background: #000000;
+    @supports (color: color-mix(in lab, red, red)) {
+      background: color-mix(in srgb, #000000 9%, var(--surface-3));
+    }
+    box-shadow: inset 0 -2px 0 #000000;
+    @supports (color: color-mix(in lab, red, red)) {
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, #000000 65%, var(--border));
+    }
+  }
+  .tl-cell.tl-win {
+    color: var(--win);
+  }
+  .tl-cell.tl-draw {
+    color: var(--draw);
+  }
+  .tl-cell.tl-loss {
+    color: var(--text-subtle);
+  }
+  .tl-cell.tl-live {
+    border-color: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    }
+    background: var(--accent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: color-mix(in srgb, var(--accent) 8%, var(--surface-3));
+    }
+    color: var(--accent);
+  }
+  .tl-cell.tl-live::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: tlLivePulse 1.6s ease-in-out infinite;
+  }
+  .tl-glyph {
+    font-family: var(--font-sans);
+    font-weight: 600;
   }
   .rail-stack {
     display: flex;
@@ -2524,6 +2657,16 @@
   100% {
     color: inherit;
     transform: scale(1);
+  }
+}
+@keyframes tlLivePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
   }
 }
 @keyframes thinkingPulse {

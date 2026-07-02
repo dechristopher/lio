@@ -51,15 +51,24 @@ func (p Players) Lookup(id string) (*Player, octad.Color) {
 	return nil, octad.NoColor
 }
 
-// ScoreWin tracks a win for the given color
-func (p Players) ScoreWin(color octad.Color) {
+// ScoreWin tracks a win for the given color and records the finished game in
+// both players' match histories with the given method code
+func (p Players) ScoreWin(color octad.Color, reason string) {
 	p[color].scorePoints++
+	p[color].results = append(p[color].results,
+		GameResult{Points: 1, Color: color, Reason: reason})
+	loser := color.Other()
+	p[loser].results = append(p[loser].results,
+		GameResult{Points: 0, Color: loser, Reason: reason})
 }
 
-// ScoreDraw tracks a draw (1/2 point) for both players
-func (p Players) ScoreDraw() {
+// ScoreDraw tracks a draw (1/2 point) for both players and records the
+// finished game in both players' match histories with the given method code
+func (p Players) ScoreDraw(reason string) {
 	util.DoBothColors(func(c octad.Color) {
 		p[c].scoreHalf++
+		p[c].results = append(p[c].results,
+			GameResult{Points: 0.5, Color: c, Reason: reason})
 	})
 }
 
@@ -69,6 +78,30 @@ func (p Players) ScoreMap() proto.ScorePayload {
 		octad.White.String(): p[octad.White].Score(),
 		octad.Black.String(): p[octad.Black].Score(),
 	}
+}
+
+// MatchHistory returns the per-game history of the room's match keyed by the
+// players' current seats, following the ScorePayload convention: entry i's
+// White/Black are the points earned in game i+1 by the players *now* seated
+// white/black, however many color swaps ago that game was played. WhitePlayed
+// carries the color the currently-white player actually held in that game so
+// clients can show the side alternation.
+func (p Players) MatchHistory() proto.MatchHistoryPayload {
+	w, b := p[octad.White].Results(), p[octad.Black].Results()
+
+	// the slices are appended in lockstep by ScoreWin/ScoreDraw; guard anyway
+	n := min(len(w), len(b))
+
+	hist := make(proto.MatchHistoryPayload, 0, n)
+	for i := 0; i < n; i++ {
+		hist = append(hist, proto.GameHistoryEntry{
+			White:       w[i].Points,
+			Black:       b[i].Points,
+			Reason:      w[i].Reason,
+			WhitePlayed: w[i].Color.String(),
+		})
+	}
+	return hist
 }
 
 // AnchorColor returns a stable color to orient a spectator/TV board to, so that

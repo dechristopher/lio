@@ -69,6 +69,22 @@ type OFENPayload struct {
 
 type ScorePayload map[string]float64
 
+// GameHistoryEntry describes one finished game of a room's match, keyed by the
+// players' *current* seats (the ScorePayload convention): White/Black are the
+// points that game earned for the players now seated white/black. Reason is
+// the short method code (same values as GameOverPayload.Reason). WhitePlayed
+// is the color the currently-white player actually played that game ("w"/"b")
+// — sides swap between games, and the client tints timeline cells by it.
+type GameHistoryEntry struct {
+	White       float64 `json:"w"`
+	Black       float64 `json:"b"`
+	Reason      string  `json:"r,omitempty"`
+	WhitePlayed string  `json:"wp,omitempty"`
+}
+
+// MatchHistoryPayload lists every finished game of a room's match in order
+type MatchHistoryPayload []GameHistoryEntry
+
 // MovePayloadVersion represents the current proto version of the MovePayload
 const MovePayloadVersion = 4
 
@@ -90,6 +106,7 @@ type MovePayload struct {
 	White      string              `json:"w,omitempty"`  // white player id
 	Black      string              `json:"b,omitempty"`  // black player id
 	Score      ScorePayload        `json:"sc,omitempty"` // match score
+	History    MatchHistoryPayload `json:"h,omitempty"`  // per-game match history
 	GameStart  bool                `json:"gs,omitempty"`
 	// GameID identifies the game this board state belongs to. Game-boundary
 	// transitions (rematch reset, deploy reveal) are announced by single-shot
@@ -163,13 +180,14 @@ type CrowdPayload struct {
 
 // GameOverPayload contains data regarding the outcome of the game
 type GameOverPayload struct {
-	Winner   string       `json:"w,omitempty"`
-	StatusID int          `json:"i,omitempty"`
-	Status   string       `json:"s"`
-	Reason   string       `json:"r,omitempty"` // short method code for the UI (checkmate, time, resignation, stalemate, agreement, repetition, moverule, abandoned)
-	Clock    ClockPayload `json:"c,omitempty"`
-	Score    ScorePayload `json:"sc,omitempty"`
-	RoomOver bool         `json:"o,omitempty"`
+	Winner   string              `json:"w,omitempty"`
+	StatusID int                 `json:"i,omitempty"`
+	Status   string              `json:"s"`
+	Reason   string              `json:"r,omitempty"` // short method code for the UI (checkmate, time, resignation, stalemate, agreement, repetition, moverule, abandoned)
+	Clock    ClockPayload        `json:"c,omitempty"`
+	Score    ScorePayload        `json:"sc,omitempty"`
+	History  MatchHistoryPayload `json:"h,omitempty"` // per-game match history
+	RoomOver bool                `json:"o,omitempty"`
 	// RematchWindow, when > 0, is the number of seconds the human-vs-human
 	// rematch window stays open before the room closes; drives the client
 	// countdown. No new game is guaranteed — the room simply closes if both
