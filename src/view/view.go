@@ -32,9 +32,9 @@ type Meta struct {
 }
 
 const (
-	defaultOGTitle     = "The best free, adless octad server"
+	defaultOGTitle     = "Octad — 4x4 chess with a twist"
 	defaultDescription = "Free online octad server. Play octad in a clean interface. " +
-		"No registration, no ads. Play octad with the computer, friends or random players."
+		"Play octad with the computer, friends or random players. No ads."
 	roomDescription = "Join the challenge or watch the game here."
 )
 
