@@ -2298,7 +2298,16 @@ const renderMoveList = () => {
 
 	const active = moveListEl.querySelector('.move.active');
 	if (active) {
-		active.scrollIntoView({ block: 'nearest' });
+		// scroll only the move-list panel ("nearest" semantics by hand):
+		// scrollIntoView also scrolls the page itself, which on mobile yanks
+		// the viewport down to the move list on every move.
+		const listRect = moveListEl.getBoundingClientRect();
+		const cellRect = active.getBoundingClientRect();
+		if (cellRect.top < listRect.top) {
+			moveListEl.scrollTop += cellRect.top - listRect.top;
+		} else if (cellRect.bottom > listRect.bottom) {
+			moveListEl.scrollTop += cellRect.bottom - listRect.bottom;
+		}
 	}
 	updateNavButtons();
 };
