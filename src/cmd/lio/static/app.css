@@ -1023,9 +1023,27 @@
     flex: none;
     align-items: center;
     color: var(--text-subtle);
+    transition: color 150ms var(--ease-snappy);
   }
   [data-bot="true"] .clockBot {
     display: inline-flex;
+  }
+  .clockPresence {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--text-subtle);
+    transition: background-color 150ms var(--ease-snappy);
+  }
+  .presence-on .clockPresence {
+    background: var(--win);
+  }
+  [data-bot="true"] .clockPresence {
+    display: none;
+  }
+  [data-bot="true"].presence-on .clockBot {
+    color: var(--win);
   }
   .clockTime {
     font-family: var(--font-mono);
@@ -1320,6 +1338,12 @@
   .nav-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+  @media (max-width: 899px) {
+    .nav-btn {
+      padding: 0.65rem 0;
+      font-size: 1.05rem;
+    }
   }
   .controls {
     display: flex;
@@ -1678,6 +1702,37 @@
   .result-restore:hover {
     color: var(--text);
     border-color: var(--accent);
+  }
+  .end-annotation {
+    z-index: 15;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    pointer-events: none;
+    max-width: 92%;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    @supports (color: color-mix(in lab, red, red)) {
+      background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+    }
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    box-shadow: var(--shadow-md);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: resultFade 180ms var(--ease-snappy);
+  }
+  .end-annotation.ea-show {
+    display: block;
   }
   .card {
     background: var(--surface-3);

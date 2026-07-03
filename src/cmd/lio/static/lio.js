@@ -70,13 +70,16 @@ const connect = (prefix) => {
 		clearTimeout(pingRunner);
 		pingsSincePong = 0;
 
+		// lock the board + grey the presence indicators on any close, intentional
+		// or not — presence is unknowable without a socket either way
+		if (typeof disableBoard !== 'undefined') {
+			disableBoard();
+		}
+
 		if (!disconnected) {
 			console.warn("Lost connection to lioctad.org");
 			if (window.lioConn) {
 				window.lioConn.set("reconnecting");
-			}
-			if (typeof disableBoard !== 'undefined') {
-				disableBoard();
 			}
 			reconnect(prefix);
 		} else {

@@ -329,8 +329,24 @@
 	.clockRatingNumber { font-weight: 600; }
 	/* bot marker in the clock meta, revealed only on a bot-played side: the
 	   wrapping clock element carries data-bot="true" (set in room.templ) */
-	.clockBot { display: none; flex: none; align-items: center; color: var(--text-subtle); }
+	.clockBot { display: none; flex: none; align-items: center; color: var(--text-subtle); transition: color 150ms var(--ease-snappy); }
 	[data-bot="true"] .clockBot { display: inline-flex; }
+	/* seat presence: a dot left of the name, mirroring the header connection
+	   indicator — green while that seat's socket is connected (.presence-on is
+	   toggled on the clock wrapper by lio-game.js from crowd messages). A bot
+	   seat has no socket of its own: the dot hides and the CPU glyph above is
+	   tinted as the indicator instead (green while the room link is live). */
+	.clockPresence {
+		flex: none;
+		width: 7px;
+		height: 7px;
+		border-radius: 999px;
+		background: var(--text-subtle);
+		transition: background-color 150ms var(--ease-snappy);
+	}
+	.presence-on .clockPresence { background: var(--win); }
+	[data-bot="true"] .clockPresence { display: none; }
+	[data-bot="true"].presence-on .clockBot { color: var(--win); }
 	.clockTime {
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
@@ -551,6 +567,11 @@
 	}
 	.nav-btn:not(:disabled):hover { color: var(--text); border-color: var(--accent); }
 	.nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+	/* single-column (mobile) layout: taller review-nav buttons for easier
+	   thumb targets (matches the 900px layout breakpoint above) */
+	@media (max-width: 899px) {
+		.nav-btn { padding: 0.65rem 0; font-size: 1.05rem; }
+	}
 	/* margin-top:auto pins the controls to the bottom of the (desktop-stretched)
 	   rail now that the moves panel is content-height instead of flex-filling. */
 	.controls { display: flex; gap: 0.5rem; margin-top: auto; }
@@ -810,6 +831,39 @@
 		box-shadow: var(--shadow-md);
 	}
 	.result-restore:hover { color: var(--text); border-color: var(--accent); }
+
+	/* ---- endgame annotation ----
+	   A small pill centered on the board naming the finished game's result, so
+	   reviewing the last move reads in context without the result card. Toggled
+	   by lio-game.js (.ea-show) only while the final position is on the board;
+	   sits below the result overlay (z 20) so the card always wins, and is
+	   non-interactive + translucent to stay out of the position's way. */
+	.end-annotation {
+		z-index: 15;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		display: none;
+		pointer-events: none;
+		max-width: 92%;
+		padding: 0.35rem 0.8rem;
+		border-radius: 999px;
+		border: 1px solid var(--border);
+		background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+		-webkit-backdrop-filter: blur(3px);
+		backdrop-filter: blur(3px);
+		box-shadow: var(--shadow-md);
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--text);
+		text-align: center;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		animation: resultFade 180ms var(--ease-snappy);
+	}
+	.end-annotation.ea-show { display: block; }
 
 	/* ---- shared surfaces + buttons (home, modal, pre-game) ---- */
 	.card {

@@ -320,6 +320,10 @@ templ board(payload message.RoomTemplatePayload) {
 						<div id="deploy-opponent-status" class="deploy-opp-status hidden"></div>
 					</div>
 				</div>
+				<!-- endgame annotation: a small non-interactive pill naming the finished
+				     game's result, shown mid-board while the final position is reviewed
+				     with the result card out of the way (lio-game.js toggles .ea-show) -->
+				<div id="end-annotation" class="end-annotation" aria-hidden="true"></div>
 				<div id="promo-shade" class="promo-shade hidden"></div>
 				<div id="promo-select" class="promo hidden">
 					<piece class="promo queen"></piece>
@@ -366,6 +370,10 @@ templ clock(name string) {
 		</div>
 		<div class="clock-body">
 			<div class="clock-meta">
+				<!-- seat presence: green while this seat's socket is connected (crowd
+				     messages toggle .presence-on on the wrapper). A bot seat hides the
+				     dot and tints the CPU glyph below as its indicator instead. -->
+				<span class="clockPresence" title="Player connection"></span>
 				<span class="clockBot" aria-label="Computer player" title="Computer player">
 					@iconCpu("h-3.5 w-3.5")
 				</span>

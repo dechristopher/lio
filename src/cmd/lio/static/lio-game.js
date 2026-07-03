@@ -284,10 +284,48 @@ const whiteToMove = (ofenParts) => {
 // color, so either the top (black) or bottom (white) clock may be the engine.
 // The "thinking" indicator lives on whichever clock that is.
 const clockOpponentEl = document.getElementById('clockOpponent');
+const clockPlayerEl = document.getElementById('clockPlayer');
 const opponentIsBot = !!clockOpponentEl && clockOpponentEl.dataset.bot === 'true';
 const botClockEl = document.querySelector('#clockOpponent[data-bot="true"], #clockPlayer[data-bot="true"]');
 const botClockOnBottom = !!botClockEl && botClockEl.id === 'clockPlayer';
 const thinkingEl = botClockEl ? botClockEl.querySelector('.thinking') : null;
+
+// ---- seat presence indicators (the dot / tinted CPU glyph in each clock) ----
+// Crowd messages report presence by color; the bottom clock is the local
+// player's seat (white for spectators), so the server-rendered orientation
+// class on the board container maps colors to clocks statically.
+const bottomClockIsWhite = isSpec || !document.getElementById('gcon-xx').classList.contains('b');
+
+const setPresence = (el, on) => {
+	if (el) {
+		el.classList.toggle('presence-on', !!on);
+	}
+};
+
+/**
+ * updatePresence reflects per-seat connection state on the clock presence
+ * indicators. A bot seat never holds a socket (the server always reports it
+ * disconnected), but the bot lives server-side: it is present whenever this
+ * client's room link is — and crowd messages only arrive over a live link, so
+ * a bot seat simply reads connected here (clearPresence greys it on close).
+ * @param whiteConnected - white seat holds a connected socket
+ * @param blackConnected - black seat holds a connected socket
+ */
+const updatePresence = (whiteConnected, blackConnected) => {
+	const bottomOn = bottomClockIsWhite ? whiteConnected : blackConnected;
+	const topOn = bottomClockIsWhite ? blackConnected : whiteConnected;
+	setPresence(clockPlayerEl, (clockPlayerEl && clockPlayerEl.dataset.bot === 'true') || bottomOn);
+	setPresence(clockOpponentEl, (clockOpponentEl && clockOpponentEl.dataset.bot === 'true') || topOn);
+};
+
+/**
+ * clearPresence greys every presence indicator (bots included): with our own
+ * socket down we can't know anyone's state, and a closed room has no bot.
+ */
+const clearPresence = () => {
+	setPresence(clockPlayerEl, false);
+	setPresence(clockOpponentEl, false);
+};
 
 /**
  * Show or hide the engine "thinking" indicator. No-op unless a seat is the
@@ -316,7 +354,9 @@ const updateThinking = (message, ofenParts) => {
 	const botTurn = botClockOnBottom
 		? isPlayerTurn(message, ofenParts)
 		: !isPlayerTurn(message, ofenParts);
-	setThinking(gameOngoing && botTurn);
+	// gameOver guards finished-but-playable positions (resignation, flag):
+	// their snapshots still carry legal moves, but nobody is thinking anymore
+	setThinking(!gameOver && gameOngoing && botTurn);
 };
 
 // game-end result overlay elements and the player's color, cached from move
@@ -329,6 +369,10 @@ const resultScoreEl = document.getElementById('result-score');
 const resultCountdownEl = document.getElementById('result-countdown');
 const rematchBtn = document.getElementById('result-rematch');
 const homeBtn = document.getElementById('result-home');
+// endgame annotation: the mid-board pill naming the finished game's result
+// while its final position is on the board (see updateEndAnnotation)
+const endAnnotationEl = document.getElementById('end-annotation');
+let endAnnotationText = '';
 let playerWhite = false;
 let countdownInterval = null;
 // live countdown state, shared so the rematch click and the 'ru' update can
@@ -446,6 +490,42 @@ const resultReasons = {
 	repetition: 'by repetition',
 	moverule: 'by 25-move rule',
 	abandoned: 'opponent left',
+};
+
+/**
+ * resultSummary builds the short result line for the endgame annotation
+ * ("White wins by checkmate", "Draw by agreement"). Deliberately by color,
+ * not "You win" — the same line reads correctly for players and spectators.
+ * @param d - game over payload data
+ * @returns {string} one-line result summary
+ */
+const resultSummary = (d) => {
+	if (d.r === 'abandoned') {
+		return 'Match over';
+	}
+	const who = d.w === 'd' ? 'Draw:' : (d.w === 'w' ? 'White wins:' : 'Black wins:');
+	const method = resultReasons[d.r] || '';
+	return method ? `${who} ${method}` : who;
+};
+
+/**
+ * updateEndAnnotation shows/hides the mid-board result pill: visible only when
+ * the game is over, the board is showing its final position (the live tip),
+ * and the result card isn't already telling the story (never shown, or
+ * dismissed for analysis). Called from every path that changes one of those
+ * inputs: game over, ply navigation, card dismiss/restore, and new-game reset.
+ */
+const updateEndAnnotation = () => {
+	if (!endAnnotationEl) {
+		return;
+	}
+	const cardShowing = !!resultOverlayEl
+		&& resultOverlayEl.classList.contains('result-show')
+		&& !resultOverlayEl.classList.contains('result-dismissed');
+	const show = gameOver && !!endAnnotationText
+		&& viewPly === currentPly && !cardShowing;
+	endAnnotationEl.textContent = endAnnotationText;
+	endAnnotationEl.classList.toggle('ea-show', show);
 };
 
 /**
@@ -605,6 +685,9 @@ const hideResult = () => {
 	// the next game has started (or the overlay is being torn down): stop polling
 	stopRematchResync();
 	stopCountdown();
+	// the finished game's context is gone with it
+	endAnnotationText = '';
+	updateEndAnnotation();
 };
 
 /**
@@ -661,7 +744,7 @@ const showResult = (message) => {
 		// a spectator has no side to win or lose; report the result by color,
 		// styled neutrally
 		outcome = 'draw';
-		headline = winner === 'w' ? 'White won' : 'Black won';
+		headline = winner === 'w' ? 'White wins' : 'Black wins';
 	} else if ((winner === 'w' && playerWhite) || (winner === 'b' && !playerWhite)) {
 		outcome = 'win';
 		headline = 'You win';
@@ -910,6 +993,8 @@ const dismissResultForAnalysis = () => {
 	if (restoreResultBtn) {
 		restoreResultBtn.classList.remove('hidden');
 	}
+	// the card no longer names the result; the board annotation takes over
+	updateEndAnnotation();
 };
 
 if (analyzeBtn) {
@@ -921,6 +1006,8 @@ if (restoreResultBtn) {
 			resultOverlayEl.classList.remove('result-dismissed');
 		}
 		restoreResultBtn.classList.add('hidden');
+		// the card is back over the board; drop the redundant annotation
+		updateEndAnnotation();
 	});
 }
 
@@ -1001,9 +1088,12 @@ const handleMove = (message) => {
 			clearPending();
 		} else if (reconciling) {
 			// we explicitly re-queried and the server is still at our pre-move
-			// position, so the move never arrived. Resend if it's still our turn.
+			// position, so the move never arrived. Resend if it's still our turn
+			// — unless the game has since ended (a move fired right at game end,
+			// e.g. a premove on the final position, can never land; resending it
+			// would just spin the reconcile loop against the finished room).
 			reconciling = false;
-			if (isPlayerTurn(message, ofenParts)) {
+			if (!gameOver && isPlayerTurn(message, ofenParts)) {
 				resendPending();
 			} else {
 				clearPending();
@@ -1041,10 +1131,14 @@ const handleMove = (message) => {
 		}
 		// a new game invalidates any move left unconfirmed from the prior one
 		clearPending();
-	} else if (!followingLive && message.d.m
+	} else if (!gameOver && !followingLive && message.d.m
 		&& isPlayerParticipant(message) && isPlayerTurn(message, ofenParts)) {
 		// snap a reviewing player back to the live board the moment it becomes
-		// their turn to move, so they're never left unable to play
+		// their turn to move, so they're never left unable to play. Never after
+		// game over: the final position often has the player "to move" (mated,
+		// flagged, or opponent resigned), and the server re-answers board queries
+		// with that final state, which would repeatedly yank an analyzing player
+		// off the ply they're reviewing.
 		followingLive = true;
 	}
 
@@ -1147,6 +1241,9 @@ const handleGameOver = (message) => {
 	// notice (o) is never a repeat; it always runs the full path below.
 	if (gameOver && message.d.o !== true
 		&& resultOverlayEl && resultOverlayEl.classList.contains('result-show')) {
+		// defensively re-freeze the clocks: a repeat means the game is over, so
+		// no interpolator may be left running whatever path armed it
+		cancelAnimationFrame(frameId);
 		if (message.d.rw) {
 			startCountdown(message.d.rw, rematchWindowLabel);
 		}
@@ -1186,7 +1283,11 @@ const handleGameOver = (message) => {
 	// trigger the redirect below and leave any existing result card in place
 	if (message.d.w) {
 		showResult(message);
+		// remember the result line for the mid-board analysis annotation (hidden
+		// for now behind the result card; dismissing it hands over)
+		endAnnotationText = resultSummary(message.d);
 	}
+	updateEndAnnotation();
 
 	// disallow further moves
 	og.set({
@@ -1514,8 +1615,12 @@ const updateUI = (message, ofenParts) => {
 	}
 
 	// only run this when move is provided, otherwise we flip
-	// the clock on regular game updates, which is not intended
-	if (message.d.m) {
+	// the clock on regular game updates, which is not intended. Never once the
+	// game is over: the clocks must stay frozen at their final values, and the
+	// server re-answers board queries (reconnects, reconcile re-queries) with
+	// the finished game's state, whose moves would otherwise re-arm the ticker
+	// with no game-over message coming to cancel it (repeats return early).
+	if (message.d.m && !gameOver) {
 		// set frame time to compare against
 		frameTime = performance.now();
 		// reset centi-second clock interpolator to decrement correct player
@@ -1620,7 +1725,9 @@ const getLastMove = (moves) => {
 };
 
 /**
- * Disable board if disconnected
+ * Disable board if disconnected. Also greys the seat presence indicators:
+ * with the socket down nobody's presence is knowable (a reconnect's crowd
+ * broadcast restores them).
  */
 const disableBoard = () => {
 	og.set({
@@ -1629,6 +1736,7 @@ const disableBoard = () => {
 			dests: new Map(),
 		}
 	});
+	clearPresence();
 };
 
 /**
@@ -2461,6 +2569,9 @@ const renderMoveList = () => {
 		}
 	}
 	updateNavButtons();
+	// every ply change funnels through here (nav buttons, keys, move-list
+	// clicks, live updates), so the last-move annotation stays in step
+	updateEndAnnotation();
 };
 
 // nav buttons + clickable move rows
@@ -2514,6 +2625,17 @@ document.addEventListener('keydown', (e) => {
 			return;
 	}
 	e.preventDefault();
+});
+
+// crowd messages: the room view layers seat presence on top of the base
+// spectator-count handler in lio.js (lio.js loads first, so setting the same
+// tag replaces it).
+window.handlers.set(crowdTag, (message) => {
+	const crowdEl = document.getElementById("crowd");
+	if (crowdEl) {
+		crowdEl.innerHTML = message.d.s;
+	}
+	updatePresence(!!message.d.w, !!message.d.b);
 });
 
 window.handlers.set(moveTag, handleMove);

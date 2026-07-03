@@ -49,7 +49,7 @@ func TestScoreAttributionOnLoss(t *testing.T) {
 			state.Data.White, state.Data.Black)
 	}
 	if got := state.Data.Score["w"]; got != 1 {
-		t.Errorf("board-state white score = %v, want 1 (white won)", got)
+		t.Errorf("board-state white score = %v, want 1 (white wins)", got)
 	}
 	if got := state.Data.Score["b"]; got != 0 {
 		t.Errorf("board-state black (human) score = %v, want 0 (human lost)", got)
