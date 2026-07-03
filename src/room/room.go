@@ -1644,6 +1644,11 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int) []
 		History:       r.players.MatchHistory(),
 		RoomOver:      abandoned,
 		RematchWindow: rematchWin,
+		// live per-seat rematch agreement: the initial broadcast carries both
+		// false, but the repeats a polling/reconnecting client receives carry
+		// current truth so it can reconcile a lost or reloaded-away click
+		RematchWhite: r.rematch.AgreedBy(octad.White),
+		RematchBlack: r.rematch.AgreedBy(octad.Black),
 	}
 
 	return gameOver.Marshal()

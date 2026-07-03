@@ -14,6 +14,15 @@ import (
 // ordering so the game always begins. It is a var so tests can shorten it.
 var deployTimeout = 30 * time.Second
 
+// deployAnnounceInterval is how often the live deploy phase is re-broadcast.
+// The phase-start message is otherwise single-shot; a client that misses it (a
+// dropped socket, a throttled tab, a poll response racing the phase boundary)
+// has no push-based way in and would sit on a stale board until the deploy
+// timer autofills. The periodic re-announce makes every such miss a bounded
+// (~one interval) delay instead. Clients already in the phase treat it as an
+// idempotent refresh. It is a var so tests can shorten it.
+var deployAnnounceInterval = 2 * time.Second
+
 // Deployment is a player's blind home-rank arrangement of their four pieces
 // (one king, one knight, two pawns), given from that player's own left-to-right
 // perspective: index 0 is the player's leftmost home-rank square.

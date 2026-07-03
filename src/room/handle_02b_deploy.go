@@ -37,6 +37,14 @@ func (r *Instance) handleDeploy() {
 	deployTimer := time.NewTimer(deployTimeout)
 	defer deployTimer.Stop()
 
+	// periodically re-announce the live phase so a client that missed the
+	// single phase-start broadcast is pulled in within one interval, and so
+	// in-phase clients can reconcile lock state (and a lost confirm — the
+	// announce carries both sides' locked flags, so a client whose own color
+	// isn't locked despite having confirmed knows to resend)
+	announce := time.NewTicker(deployAnnounceInterval)
+	defer announce.Stop()
+
 	// collected arrangements by color
 	got := make(map[octad.Color]Deployment, 2)
 
@@ -81,6 +89,8 @@ func (r *Instance) handleDeploy() {
 			got[bot.Color] = d
 			r.recordAndLock(bot.Color, d)
 			util.DebugFlag("room", str.CRoom, "[%s] bot (%s) deployed %s", r.ID, bot.Color, d.order())
+		case <-announce.C:
+			channel.Broadcast(r.deployAnnounceMessage(), channel.SocketContext{Channel: r.ID, MT: 1})
 		case <-deployTimer.C:
 			util.DebugFlag("room", str.CRoom, "[%s] deploy timer expired, auto-filling", r.ID)
 			r.deployAndStart(got, botColor)
@@ -204,9 +214,12 @@ func colorName(c octad.Color) string {
 // to clients, carrying the given number of seconds remaining plus the current
 // white/black player ids so a client can determine its own side (important after
 // a rematch swaps colors — the board orientation class in the DOM is stale).
+// Like every outbound deploy message it names the pre-deploy game (GameID) so
+// the client can anchor reveal recognition and reject stale phase messages.
 func (r *Instance) deployMessage(seconds int) []byte {
 	r.stateMu.Lock()
 	white, black := r.playerIDsLocked()
+	gid := r.game.ID
 	r.stateMu.Unlock()
 
 	msg := proto.Message{
@@ -216,6 +229,42 @@ func (r *Instance) deployMessage(seconds int) []byte {
 			Seconds: seconds,
 			White:   white,
 			Black:   black,
+			GameID:  gid,
+		},
+		ProtoVersion: proto.DeployPayloadVersion,
+	}
+	return msg.Please()
+}
+
+// deployAnnounceMessage builds the periodic re-broadcast of the live deploy
+// phase: remaining seconds, player ids, both sides' locked status, and the
+// pre-deploy game id. It carries no per-recipient fields (Order/Confirmed are
+// unicast-only, from DeployStateMessage), so a confirmed client reconciles a
+// lost submission off its own color's locked flag instead.
+func (r *Instance) deployAnnounceMessage() []byte {
+	r.stateMu.Lock()
+	deadline := r.deployDeadline
+	white, black := r.playerIDsLocked()
+	_, lockedWhite := r.deployed[octad.White]
+	_, lockedBlack := r.deployed[octad.Black]
+	gid := r.game.ID
+	r.stateMu.Unlock()
+
+	remaining := 0
+	if d := time.Until(deadline); d > 0 {
+		remaining = int(d.Seconds())
+	}
+
+	msg := proto.Message{
+		Tag: string(proto.DeployTag),
+		Data: proto.DeployPayload{
+			Active:      true,
+			Seconds:     remaining,
+			White:       white,
+			Black:       black,
+			LockedWhite: lockedWhite,
+			LockedBlack: lockedBlack,
+			GameID:      gid,
 		},
 		ProtoVersion: proto.DeployPayloadVersion,
 	}
@@ -228,6 +277,7 @@ func (r *Instance) deployMessage(seconds int) []byte {
 func (r *Instance) lockMessage(color octad.Color) []byte {
 	r.stateMu.Lock()
 	white, black := r.playerIDsLocked()
+	gid := r.game.ID
 	r.stateMu.Unlock()
 
 	msg := proto.Message{
@@ -237,6 +287,7 @@ func (r *Instance) lockMessage(color octad.Color) []byte {
 			Locked: colorName(color),
 			White:  white,
 			Black:  black,
+			GameID: gid,
 		},
 		ProtoVersion: proto.DeployPayloadVersion,
 	}
@@ -272,6 +323,7 @@ func (r *Instance) DeployStateMessage(uid string) []byte {
 	}
 	_, lockedWhite := r.deployed[octad.White]
 	_, lockedBlack := r.deployed[octad.Black]
+	gid := r.game.ID
 	r.stateMu.Unlock()
 
 	if deadline.IsZero() {
@@ -294,6 +346,7 @@ func (r *Instance) DeployStateMessage(uid string) []byte {
 			Confirmed:   confirmed,
 			LockedWhite: lockedWhite,
 			LockedBlack: lockedBlack,
+			GameID:      gid,
 		},
 		ProtoVersion: proto.DeployPayloadVersion,
 	}

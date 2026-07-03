@@ -201,3 +201,163 @@ func TestDrainDeployChannel(t *testing.T) {
 	// draining an already-empty channel must be a no-op (and must not block)
 	r.drainDeployChannel()
 }
+
+// deployGameIDFromMessage extracts the game id (d.i) from a deploy wire
+// message, the same way the client reads it.
+func deployGameIDFromMessage(raw []byte) string {
+	return fastjson.GetString(raw, "d", "i")
+}
+
+// TestDeployMessagesCarryPreDeployGameID verifies every outbound deploy-phase
+// message names the pre-deploy game it supersedes, and that the deployed game
+// carries a different id. The pair is what lets a client (a) recognize any
+// post-phase board state as the reveal even when the single gs=true broadcast
+// was missed and it never saw a pre-deploy snapshot, and (b) reject a stale
+// deploy-state message delivered after the reveal instead of being wedged back
+// into deploy mode over the live game.
+func TestDeployMessagesCarryPreDeployGameID(t *testing.T) {
+	r := newTestInstance(t, "w", "b")
+	driveToDeploy(t, r)
+
+	preID := r.game.ID
+	if preID == "" {
+		t.Fatal("precondition: pre-deploy game has no id")
+	}
+
+	r.stateMu.Lock()
+	r.deployDeadline = time.Now().Add(30 * time.Second)
+	r.deployed = map[octad.Color]Deployment{octad.White: standardDeployment}
+	r.stateMu.Unlock()
+
+	for name, raw := range map[string][]byte{
+		"deployMessage":         r.deployMessage(30),
+		"lockMessage":           r.lockMessage(octad.White),
+		"DeployStateMessage":    r.DeployStateMessage("w"),
+		"deployAnnounceMessage": r.deployAnnounceMessage(),
+	} {
+		if got := deployGameIDFromMessage(raw); got != preID {
+			t.Errorf("%s game id = %q, want pre-deploy id %q", name, got, preID)
+		}
+	}
+
+	// complete the phase; the deployed game must carry a fresh id
+	r.stateMu.Lock()
+	r.deployed = make(map[octad.Color]Deployment, 2)
+	r.stateMu.Unlock()
+	r.deployAndStart(map[octad.Color]Deployment{
+		octad.White: standardDeployment,
+		octad.Black: standardDeployment,
+	}, octad.NoColor)
+
+	if r.game.ID == preID {
+		t.Fatal("deployed game kept the pre-deploy id; clients cannot recognize the reveal")
+	}
+	if got := gameIDFromState(r.CurrentGameStateMessage(false, true)); got != r.game.ID {
+		t.Fatalf("reveal board state game id = %q, want %q", got, r.game.ID)
+	}
+}
+
+// TestDeployAnnounceMessageContent verifies the periodic re-announce carries
+// the live phase state — remaining seconds, both sides' locked flags, player
+// ids — and no per-recipient fields (the recipient's own order/confirmed state
+// is unicast-only, via DeployStateMessage).
+func TestDeployAnnounceMessageContent(t *testing.T) {
+	r := newTestInstance(t, "w", "b")
+	driveToDeploy(t, r)
+
+	r.stateMu.Lock()
+	r.deployDeadline = time.Now().Add(17 * time.Second)
+	r.deployed = map[octad.Color]Deployment{octad.Black: standardDeployment}
+	r.stateMu.Unlock()
+
+	raw := r.deployAnnounceMessage()
+
+	if !fastjson.GetBool(raw, "d", "a") {
+		t.Fatal("announce not marked active")
+	}
+	if s := fastjson.GetInt(raw, "d", "s"); s <= 0 || s > 17 {
+		t.Fatalf("announce seconds = %d, want remaining time in (0, 17]", s)
+	}
+	if fastjson.GetBool(raw, "d", "lw") {
+		t.Fatal("announce reports white locked; only black has deployed")
+	}
+	if !fastjson.GetBool(raw, "d", "lb") {
+		t.Fatal("announce does not report black locked")
+	}
+	if got := fastjson.GetString(raw, "d", "w"); got != "w" {
+		t.Fatalf("announce white id = %q, want %q", got, "w")
+	}
+	if fastjson.Exists(raw, "d", "cf") || fastjson.GetString(raw, "d", "o") != "" {
+		t.Fatalf("announce carries per-recipient fields: %s", raw)
+	}
+}
+
+// TestDeployPhaseCompletesWithAnnounceTicker drives a full deploy phase with
+// the re-announce ticker firing rapidly, confirming the announce case never
+// starves or stalls submission collection.
+func TestDeployPhaseCompletesWithAnnounceTicker(t *testing.T) {
+	prev := deployAnnounceInterval
+	deployAnnounceInterval = 5 * time.Millisecond
+	defer func() { deployAnnounceInterval = prev }()
+
+	r := newTestInstance(t, "w", "b")
+	driveToDeploy(t, r)
+
+	done := make(chan struct{})
+	go func() {
+		r.handleDeploy()
+		close(done)
+	}()
+
+	// let several announce ticks elapse between submissions
+	submitDeploy(r, "w", "nkpp")
+	time.Sleep(25 * time.Millisecond)
+	submitDeploy(r, "b", "nkpp")
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("deploy did not complete with the announce ticker running")
+	}
+	if r.State() != StateGameOngoing {
+		t.Fatalf("expected StateGameOngoing after deploy, got %s", r.State())
+	}
+}
+
+// TestGameOverMessageCarriesRematchAgreement verifies the game-over payload
+// reports the server's recorded per-seat rematch agreements, which is what
+// lets a waiting client's resync poll detect a click that never arrived (and
+// resend it) or restore a pending request after a reload.
+func TestGameOverMessageCarriesRematchAgreement(t *testing.T) {
+	r := newTestInstance(t, "w", "b")
+	driveToOngoing(t, r)
+
+	r.stateMu.Lock()
+	r.game.Resign(octad.Black)
+	r.stateMu.Unlock()
+	if err := r.event(EventWhiteWinsResignation); err != nil {
+		t.Fatalf("event: %v", err)
+	}
+
+	// nothing recorded yet: both seats read un-agreed
+	raw := r.GameOverStateMessage()
+	if raw == nil {
+		t.Fatal("GameOverStateMessage = nil for a finished game")
+	}
+	if fastjson.GetBool(raw, "d", "rqw") || fastjson.GetBool(raw, "d", "rqb") {
+		t.Fatalf("agreement reported before any click: %s", raw)
+	}
+
+	// white's click recorded: the payload must reflect exactly that seat
+	r.stateMu.Lock()
+	r.rematch.Agree(octad.White)
+	r.stateMu.Unlock()
+
+	raw = r.GameOverStateMessage()
+	if !fastjson.GetBool(raw, "d", "rqw") {
+		t.Fatalf("white's recorded agreement not reported: %s", raw)
+	}
+	if fastjson.GetBool(raw, "d", "rqb") {
+		t.Fatalf("black reported agreed without a click: %s", raw)
+	}
+}

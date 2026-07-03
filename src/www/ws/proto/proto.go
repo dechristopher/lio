@@ -126,7 +126,7 @@ type MessageMove struct {
 }
 
 // DeployPayloadVersion represents the current proto version of the DeployPayload
-const DeployPayloadVersion = 1
+const DeployPayloadVersion = 2
 
 // DeployPayload carries blind deploy-phase data. Inbound (client to server) it
 // holds the player's four-character home-rank ordering (k/n/p letters from the
@@ -150,6 +150,14 @@ type DeployPayload struct {
 	// so a late-joining client's indicator reflects who is already locked in.
 	LockedWhite bool `json:"lw,omitempty"`
 	LockedBlack bool `json:"lb,omitempty"`
+	// GameID identifies the pre-deploy game the phase supersedes (the reveal's
+	// board state carries a different, fresh id). It anchors the client's
+	// reveal recognition — any board state whose id differs from this is the
+	// deployed game, even when the single gs=true reveal broadcast was missed —
+	// and lets the client reject a stale deploy-state message delivered after
+	// the reveal (its id no longer matches the game the client is showing),
+	// which would otherwise wedge it back into deploy mode over a live game.
+	GameID string `json:"i,omitempty"`
 }
 
 // MessageDeploy contains a DeployPayload message
@@ -198,6 +206,15 @@ type GameOverPayload struct {
 	// nor time-boxed (the finished room stays open for review + manual rematch),
 	// so they never carry this.
 	RematchWindow int `json:"rw,omitempty"`
+	// RematchWhite / RematchBlack report which seats' rematch agreements the
+	// server has recorded so far. The initial game-over broadcast carries both
+	// false; the repeats a waiting client's resync poll receives (and the
+	// reconnect game-over state) carry live truth, letting the client reconcile
+	// a rematch click that never arrived — resending it — and restore or surface
+	// pending/opponent-wants state after a reload. This is the rematch analogue
+	// of DeployPayload.Confirmed (see arch/DEPLOY_REMATCH_RACES.md, F4).
+	RematchWhite bool `json:"rqw,omitempty"`
+	RematchBlack bool `json:"rqb,omitempty"`
 }
 
 // RematchUpdatePayload retimes the human rematch-window countdown mid-window
