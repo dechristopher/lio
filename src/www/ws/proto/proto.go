@@ -171,11 +171,14 @@ type ClockPayload struct {
 	Lag     int64 `json:"l"`  // internal server lag in ms
 }
 
-// CrowdPayload contains data about connected players and spectator count
+// CrowdPayload contains data about connected players and spectator count.
+// Spec counts connected spectators only (seated players excluded) and is
+// always emitted — zero spectators is the common case, so it must not be
+// omitted from the wire payload.
 type CrowdPayload struct {
 	Black bool `json:"b"`
 	White bool `json:"w"`
-	Spec  int  `json:"s,omitempty"`
+	Spec  int  `json:"s"`
 }
 
 // GameOverPayload contains data regarding the outcome of the game

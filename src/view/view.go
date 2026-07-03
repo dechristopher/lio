@@ -108,6 +108,58 @@ func opponentName(payload message.RoomTemplatePayload) string {
 	return "Opponent"
 }
 
+// topClockName / bottomClockName label the two clocks (and the matching match-
+// timeline rows). Players see the relative You/Opponent labels; spectators
+// view from White's side, so their labels are the current seats by color —
+// White on the bottom, Black on top.
+func topClockName(payload message.RoomTemplatePayload) string {
+	if payload.IsSpectator {
+		return "Black"
+	}
+	return opponentName(payload)
+}
+
+func bottomClockName(payload message.RoomTemplatePayload) string {
+	if payload.IsSpectator {
+		return "White"
+	}
+	return "You"
+}
+
+// topClockIsBot / bottomClockIsBot drive the data-bot attribute that the
+// client's engine "thinking" indicator keys off. For a player the top clock is
+// the opponent and the bottom (their own) is never a bot; for a spectator the
+// clocks are by color — White bottom, Black top.
+func topClockIsBot(payload message.RoomTemplatePayload) bool {
+	if payload.IsSpectator {
+		return payload.BlackIsBot
+	}
+	return payload.OpponentIsBot
+}
+
+func bottomClockIsBot(payload message.RoomTemplatePayload) bool {
+	return payload.IsSpectator && payload.WhiteIsBot
+}
+
+// controlTitle returns a game-control button's tooltip: the action for a
+// player, or a "watching only" explanation for a spectator, whose controls
+// render permanently disabled.
+func controlTitle(payload message.RoomTemplatePayload, action string) string {
+	if payload.IsSpectator {
+		return "Watching as a spectator"
+	}
+	return action
+}
+
+// boardOrientation returns the #gcon-xx orientation class: the player's own
+// color, or white for spectators (whose PlayerColor is NoColor / "-").
+func boardOrientation(payload message.RoomTemplatePayload) string {
+	if payload.IsSpectator {
+		return "w"
+	}
+	return payload.PlayerColor
+}
+
 // botRematchURL builds the "same settings" rematch link for a bot game: a fresh
 // vs-computer room with the same variant/time-control and the player's side. Bot
 // rematch does not reuse the finished room (which is torn down after the analysis
@@ -118,7 +170,8 @@ func botRematchURL(payload message.RoomTemplatePayload) string {
 		return ""
 	}
 	color := "w"
-	if payload.PlayerColor == "black" {
+	// octad.Color.String() renders as "w"/"b" (not the full color name)
+	if payload.PlayerColor == "b" {
 		color = "b"
 	}
 	return "/new/computer?tc=" + payload.Variant.HTMLName + "&color=" + color

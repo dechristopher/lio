@@ -20,21 +20,24 @@ func HandleRoom(m []byte, meta channel.SocketContext) []byte {
 		return nil
 	}
 
-	// a rematch request is a control, not a state query; read it from the
-	// message payload directly (like HandleMove) and hand it to the room
-	if fastjson.GetBool(m, "d", "rm") {
-		thisRoom.RequestRematch(meta)
-		return nil
-	}
-
-	// in-game resign / draw controls are read the same way and handed to the room
-	if fastjson.GetBool(m, "d", "rs") {
-		thisRoom.RequestResign(meta)
-		return nil
-	}
-	if fastjson.GetBool(m, "d", "dr") {
-		thisRoom.RequestDraw(meta)
-		return nil
+	// rematch / resign / draw are controls, not state queries; read them from
+	// the message payload directly (like HandleMove) and hand them to the room.
+	// Spectator frames skip the whole control block — only seated players hold
+	// game controls (the room's own seat checks remain as a second layer) — but
+	// fall through to the readiness query below, which spectators may use.
+	if !meta.IsSpectator {
+		if fastjson.GetBool(m, "d", "rm") {
+			thisRoom.RequestRematch(meta)
+			return nil
+		}
+		if fastjson.GetBool(m, "d", "rs") {
+			thisRoom.RequestResign(meta)
+			return nil
+		}
+		if fastjson.GetBool(m, "d", "dr") {
+			thisRoom.RequestDraw(meta)
+			return nil
+		}
 	}
 
 	var msg proto.RoomMessage

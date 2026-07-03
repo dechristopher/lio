@@ -87,23 +87,45 @@ window.checkSound = new Howl({
 	volume: 0.9
 });
 
-// create game board
+// Watch-only (spectator) mode, decided server-side (view/components.templ sets
+// data-spectator on the board container for viewers holding no seat). While
+// spectating, the board never accepts input — no movable dests, no dragging,
+// no premoves — and every player-only affordance below is skipped. The server
+// independently drops game-affecting frames from spectator sockets, so this
+// flag is presentation-only: forging it can't affect the real match.
+const isSpec = document.getElementById('gcon-xx').dataset.spectator === 'true';
+
+// create game board. Spectators view from white's side with all interaction
+// off (mirrors enterDeploySpectatorMode's config; drawable shapes stay usable).
 let og = Octadground(document.getElementById('game'), {
 	ofen: 'ppkn/4/4/NKPP', // set initial board state to prevent brief period of missing pieces
-	orientation: document.getElementById('gcon-xx').classList.contains('w') ? 'white' : 'black',
+	orientation: !isSpec && document.getElementById('gcon-xx').classList.contains('b') ? 'black' : 'white',
 	highlight: {
 		lastMove: true,
 		check: true,
 	},
-	movable: {
+	movable: isSpec ? {
+		free: false,
+		color: undefined,
+		dests: new Map(),
+	} : {
 		free: false,
 		color: document.getElementById('gcon-xx').classList.contains('w') ? 'white' : 'black'
 	},
+	draggable: {
+		enabled: !isSpec,
+	},
+	premovable: {
+		enabled: !isSpec,
+	},
 	selectable: {
-		enabled: window.isMobile,
+		enabled: !isSpec && window.isMobile,
 	},
 	events: {
 		move: (orig, dest, capturedPiece) => {
+			if (isSpec) {
+				return; // never reachable with input disabled; belt and braces
+			}
 			if (deployMode) {
 				onDeploySwap(orig, dest, capturedPiece);
 			} else {
@@ -191,6 +213,11 @@ const resendPending = () => {
  * @param num - move number
  */
 const sendGameMove = (uoi, num) => {
+	// final chokepoint: a spectator's client never puts a move on the wire,
+	// whatever input path produced it (the server would drop it anyway)
+	if (isSpec) {
+		return;
+	}
 	pendingMove = {uoi: uoi, ply: lastPly, attempts: 0};
 	armPendingTimer();
 	sendMoveOnWire(uoi, num);
@@ -206,12 +233,15 @@ window.onSocketReconnect = () => {
 };
 
 /**
- * Returns true if the player is playing white
+ * Returns true if the player is playing white. Spectators view from white's
+ * side, so they read as "white" here — this one convention orients everything
+ * downstream of it (clock mapping, active-clock highlight, score chips, the
+ * match timeline rows, and review orientation) to bottom = the white seat.
  * @param message - move message
  * @returns {boolean} is white
  */
 const isPlayerWhite = (message) => {
-	return message.d.w === getCookie('uid');
+	return isSpec || message.d.w === getCookie('uid');
 };
 
 /**
@@ -234,19 +264,24 @@ const whiteToMove = (ofenParts) => {
 	return ofenParts[1] === 'w';
 };
 
-// whether the opponent in this game is the engine/bot, and the opponent's
-// "thinking" indicator element (only the opponent clock carries data-bot)
+// whether the opponent in this game is the engine/bot (only meaningful for a
+// player — the bot always sits on the opponent clock for them), plus the clock
+// element carrying the bot seat, wherever it is: a spectator's clocks are by
+// color, so either the top (black) or bottom (white) clock may be the engine.
+// The "thinking" indicator lives on whichever clock that is.
 const clockOpponentEl = document.getElementById('clockOpponent');
 const opponentIsBot = !!clockOpponentEl && clockOpponentEl.dataset.bot === 'true';
-const thinkingEl = clockOpponentEl ? clockOpponentEl.querySelector('.thinking') : null;
+const botClockEl = document.querySelector('#clockOpponent[data-bot="true"], #clockPlayer[data-bot="true"]');
+const botClockOnBottom = !!botClockEl && botClockEl.id === 'clockPlayer';
+const thinkingEl = botClockEl ? botClockEl.querySelector('.thinking') : null;
 
 /**
- * Show or hide the opponent "thinking" indicator. No-op unless the opponent
- * is the engine, so it never appears in human-vs-human games.
+ * Show or hide the engine "thinking" indicator. No-op unless a seat is the
+ * engine, so it never appears in human-vs-human games.
  * @param on - whether the engine is currently thinking
  */
 const setThinking = (on) => {
-	if (!thinkingEl || !opponentIsBot) {
+	if (!thinkingEl) {
 		return;
 	}
 	thinkingEl.classList.toggle('thinking-on', !!on);
@@ -254,7 +289,9 @@ const setThinking = (on) => {
 
 /**
  * Update the thinking indicator from a board-state message: the engine is
- * thinking whenever the game is still ongoing and it is the opponent's turn.
+ * thinking whenever the game is still ongoing and it is the bot's turn. The
+ * bottom clock is "the player" in isPlayerTurn terms (white, for a spectator),
+ * so the bot's turn is the bottom clock's turn when the bot sits there.
  * @param message - move message
  * @param ofenParts - OFEN parts array
  */
@@ -262,7 +299,10 @@ const updateThinking = (message, ofenParts) => {
 	// a non-empty legal-move set means the game is still in progress; an empty
 	// set means checkmate/stalemate, where nobody is "thinking"
 	const gameOngoing = !!message.d.v && Object.keys(message.d.v).length > 0;
-	setThinking(gameOngoing && !isPlayerTurn(message, ofenParts));
+	const botTurn = botClockOnBottom
+		? isPlayerTurn(message, ofenParts)
+		: !isPlayerTurn(message, ofenParts);
+	setThinking(gameOngoing && botTurn);
 };
 
 // game-end result overlay elements and the player's color, cached from move
@@ -305,8 +345,10 @@ let drawOfferedByMe = false;   // we have a standing draw offer out
 let drawOfferedByOpp = false;  // the opponent has offered us a draw to accept
 
 // the rematch buttons (overlay + rail) driven together as a set; capture each
-// one's idle label once so pending/disabled states can restore it
-const rematchButtons = [rematchBtn, railRematchBtn].filter(Boolean);
+// one's idle label once so pending/disabled states can restore it. A spectator's
+// buttons render permanently disabled and are left out of the set entirely, so
+// none of the shared state helpers (default/pending/wants) can re-enable them.
+const rematchButtons = isSpec ? [] : [rematchBtn, railRematchBtn].filter(Boolean);
 rematchButtons.forEach((b) => { b.dataset.defaultLabel = b.innerHTML; });
 
 const setRematchButtonsDefault = () => rematchButtons.forEach((b) => {
@@ -367,6 +409,11 @@ const resetResignButton = () => {
 const clearDrawOfferUI = () => {
 	drawOfferedByMe = false;
 	drawOfferedByOpp = false;
+	// a spectator's draw button is permanently disabled; the reset below would
+	// re-enable it (this runs from handleMove whenever a move lands)
+	if (isSpec) {
+		return;
+	}
 	if (drawBtn) {
 		drawBtn.classList.remove('wants-draw');
 		drawBtn.disabled = false;
@@ -567,6 +614,11 @@ const showResult = (message) => {
 	} else if (winner === 'd') {
 		outcome = 'draw';
 		headline = 'Draw';
+	} else if (isSpec) {
+		// a spectator has no side to win or lose; report the result by color,
+		// styled neutrally
+		outcome = 'draw';
+		headline = winner === 'w' ? 'White won' : 'Black won';
 	} else if ((winner === 'w' && playerWhite) || (winner === 'b' && !playerWhite)) {
 		outcome = 'win';
 		headline = 'You win';
@@ -626,6 +678,11 @@ const showResult = (message) => {
  * @param btn - the clicked rematch button (carries the bot fallback url)
  */
 const requestRematch = (btn) => {
+	// spectators hold no rematch action (buttons render disabled and unwired;
+	// this is the chokepoint guard behind them)
+	if (isSpec) {
+		return;
+	}
 	const socketDead = !window.ws || window.ws.readyState !== WebSocket.OPEN;
 	const fallbackUrl = btn && btn.dataset.rematchUrl;
 	if (socketDead && fallbackUrl) {
@@ -658,7 +715,7 @@ if (homeBtn) {
 // click arms the button ("Confirm?"), a second within the window sends it, and
 // it auto-disarms after a few seconds. The server (RequestResign) only accepts
 // it from a seated player during an ongoing game.
-if (resignBtn) {
+if (resignBtn && !isSpec) {
 	resignBtn.addEventListener('click', () => {
 		if (gameOver) {
 			return;
@@ -680,7 +737,7 @@ if (resignBtn) {
 // shows a pending state until the opponent answers, the bot's engine decides, or
 // a move supersedes it. The button doubles as "Accept draw" while an opponent
 // offer stands (see handleDrawOffer).
-if (drawBtn) {
+if (drawBtn && !isSpec) {
 	drawBtn.addEventListener('click', () => {
 		if (gameOver || drawOfferedByMe) {
 			return;
@@ -707,7 +764,8 @@ if (drawBtn) {
  * @param message - draw offer message
  */
 const handleDrawOffer = (message) => {
-	if (gameOver) {
+	// spectators have no draw button and no stake in a standing offer
+	if (isSpec || gameOver) {
 		return;
 	}
 	const d = message.d || {};
@@ -911,8 +969,9 @@ const handleMove = (message) => {
 	// show/hide the engine thinking indicator based on whose turn it is
 	updateThinking(message, ofenParts);
 
-	// perform pre-move if set
-	if (followingLive) {
+	// perform pre-move if set (spectators can never set one — premovable is
+	// disabled — but never even ask the board to play one for them)
+	if (followingLive && !isSpec) {
 		og.playPremove();
 	}
 
@@ -930,12 +989,22 @@ const handleMove = (message) => {
  */
 const renderLivePosition = (message, ofenParts) => {
 	og.set({
-		orientation: message.d.w === getCookie('uid') ? 'white' : 'black',
+		orientation: isPlayerWhite(message) ? 'white' : 'black',
 		ofen: ofenParts[0],
 		lastMove: getLastMove(message.d.m),
 		turnColor: whiteToMove(ofenParts) ? "white" : "black",
 		check: message.d.k,
-		movable: {
+		// a spectator's board never carries destinations or a movable color:
+		// populating them from the uid test (which reads "black" for a viewer
+		// matching neither player) would let a spectator drag the black pieces
+		// around their own out-of-sync board. Premoves are re-asserted off on
+		// every spectator render (players' premove state is left untouched).
+		...(isSpec ? { premovable: { enabled: false } } : {}),
+		movable: isSpec ? {
+			free: false,
+			dests: new Map(),
+			color: undefined,
+		} : {
 			free: false,
 			dests: gameOver ? new Map() : allMoves(message.d.v),
 			color: message.d.w === getCookie('uid') ? 'white' : 'black',
@@ -1033,6 +1102,20 @@ const handleGameOver = (message) => {
 		// no next game is coming; stop any post-rematch resync poll so it can't
 		// outlive the room
 		stopRematchResync();
+
+		// A spectator always stays on the final position: the full move history
+		// is client-held, so review keeps working after the room is gone. Stop
+		// auto-reconnect so the client doesn't fight the deleted room.
+		if (isSpec) {
+			stopCountdown();
+			if (resultCountdownEl) {
+				resultCountdownEl.innerHTML = 'Room closed';
+			}
+			if (typeof window.lioStopReconnect === 'function') {
+				window.lioStopReconnect();
+			}
+			return;
+		}
 
 		// A finished bot room is torn down after its analysis window. If the player
 		// is reviewing the game, keep them on the page — analysis is client-side and
@@ -1578,6 +1661,15 @@ const handleRematchUpdate = (message) => {
 		return;
 	}
 
+	// a spectator has no rematch controls or opponent-left state to manage;
+	// just keep the window countdown honest and skip the rest
+	if (isSpec) {
+		if (message.d.s) {
+			startCountdown(message.d.s, rematchWindowLabel);
+		}
+		return;
+	}
+
 	// a rematch-request signal ({rq: requester id}): surface it to the opponent
 	// only (our own click already shows "Waiting…"), and don't retime the window
 	if (message.d.rq) {
@@ -1649,8 +1741,9 @@ const handleDeploy = (message) => {
 	const seconds = d.s ? d.s : 30;
 	// derive our side from the message's player ids rather than the DOM
 	// orientation class, which is stale after a rematch swaps colors. A spectator
-	// matches neither id and watches the blind phase (both ranks hidden).
-	if (uid !== d.w && uid !== d.b) {
+	// matches neither id and watches the blind phase (both ranks hidden); the
+	// explicit isSpec check is belt-and-braces for the same viewer.
+	if (isSpec || (uid !== d.w && uid !== d.b)) {
 		enterDeploySpectatorMode(d);
 		return;
 	}

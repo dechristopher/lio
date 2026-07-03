@@ -20,6 +20,13 @@ func HandleDeploy(m []byte, meta channel.SocketContext) []byte {
 		return nil
 	}
 
+	// spectators never deploy; drop the frame before it can consume a slot in
+	// the room's two-entry deploy channel. The deploy loop's seat check
+	// (Lookup == NoColor) remains as a second layer behind this.
+	if meta.IsSpectator {
+		return nil
+	}
+
 	var msg proto.MessageDeploy
 	if err := json.Unmarshal(m, &msg); err != nil {
 		util.Error(str.CHMov, "deploy unmarshal error: %s %v", m, err)

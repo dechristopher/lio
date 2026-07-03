@@ -289,8 +289,11 @@ func Create(params Params) (*Instance, error) {
 		channel.Map.GetSockMap(fmt.Sprintf("%s%s", channelType, r.ID))
 	}
 
-	// handle crowd messages for primary room channel
-	go handlers.HandleCrowd(r.ID)
+	// handle crowd messages for primary room channel. The seat closure keeps
+	// the channel handler room-agnostic (room imports channel/handlers, not
+	// the reverse); players are populated before Create runs, so the primed
+	// first wakeup reads valid seats.
+	go handlers.HandleCrowd(r.ID, r.PlayerIDs)
 
 	// populate the game config and create the initial game. No concurrency
 	// exists yet (the routine has not started and the room is not yet in the
@@ -524,12 +527,31 @@ func (r *Instance) CanJoin(uid string) (asPlayer, asSpectator bool) {
 
 	// force into spectator mode if match has both players
 	if hasPlayers && !r.players.IsPlayer(uid) {
-		// TODO track spectator somehow
 		return false, true
 	}
 
 	// player can return if P1, or join as P2
 	return true, false
+}
+
+// IsPlayer reports whether the given uid holds a seat in this room. It is the
+// spectator gate used at websocket connect time: a connection whose uid is not
+// seated is tagged spectator and its game-affecting messages are dropped at
+// the ws-handler layer. Locks stateMu (reads players).
+func (r *Instance) IsPlayer(uid string) bool {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	return r.players.IsPlayer(uid)
+}
+
+// PlayerIDs returns the current white/black player ids. It is the seat
+// snapshot the crowd broadcaster keys presence off of (rematch color flips
+// swap these between wakeups, which is fine — presence is re-derived on every
+// wakeup). Locks stateMu.
+func (r *Instance) PlayerIDs() (white, black string) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	return r.playerIDsLocked()
 }
 
 // Join attempts to join the room as a human player. It is called from HTTP
@@ -671,6 +693,26 @@ func (r *Instance) bothPlayersConnected() bool {
 		}
 		return channel.Map.GetSockMap(r.ID).Connected(id)
 	})
+}
+
+// connectedSeats returns how many *human* seats currently hold a live
+// connection on the room channel. Bot seats count zero — a bot never holds a
+// socket, so this matches how raw socket counts always read for bots and, in
+// particular, still lets an unattended bot room go vacant and expire. It
+// exists so waiting-state occupancy counts seated presence rather than raw
+// distinct uids: a spectator socket must neither keep an abandoned room alive
+// nor count toward the players-connected transition. Same lock discipline as
+// bothPlayersConnected: playerInfo locks stateMu and Connected locks the
+// channel layer independently, never nested.
+func (r *Instance) connectedSeats() int {
+	seats := 0
+	util.DoBothColors(func(color octad.Color) {
+		id, isBot := r.playerInfo(color)
+		if !isBot && channel.Map.GetSockMap(r.ID).Connected(id) {
+			seats++
+		}
+	})
+	return seats
 }
 
 // humanMovedThisGame reports whether the human has made at least one move in the
@@ -1405,11 +1447,22 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		opponentIsBot = opp.IsBot
 	}
 
+	whiteIsBot := false
+	if p := r.players[octad.White]; p != nil {
+		whiteIsBot = p.IsBot
+	}
+	blackIsBot := false
+	if p := r.players[octad.Black]; p != nil {
+		blackIsBot = p.IsBot
+	}
+
 	return message.RoomTemplatePayload{
 		RoomID:        r.ID,
 		PlayerColor:   playerColor.String(),
 		OpponentColor: playerColor.Other().String(),
 		OpponentIsBot: opponentIsBot,
+		WhiteIsBot:    whiteIsBot,
+		BlackIsBot:    blackIsBot,
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
 		Variant:       r.game.Variant,
 		Public:        r.public,

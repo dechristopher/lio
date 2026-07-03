@@ -49,6 +49,13 @@ func HandleMove(m []byte, meta channel.SocketContext) []byte {
 		return thisRoom.CurrentGameStateMessage(true, false)
 	}
 
+	// spectators may request state (above) but never submit moves; drop the
+	// frame here so it can't even reach the room's move channel. The room's
+	// seat checks (isTurn/Lookup) remain as a second layer behind this.
+	if meta.IsSpectator {
+		return nil
+	}
+
 	var msg proto.MessageMove
 	err = json.Unmarshal(m, &msg)
 	if err != nil {

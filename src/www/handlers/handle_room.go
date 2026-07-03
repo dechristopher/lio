@@ -76,16 +76,12 @@ func RoomHandler(c *fiber.Ctx) error {
 		// render template
 		return view.Render(c, 200, view.Room(view.RoomMeta(payload), payload))
 	} else if asSpectator { // user is spectator
-		// TODO signal to JS that this player is a spectator
-		// by excluding some player-specific scripts
-		// --->
-		// only receive game updates
-		// only able to draw on board and scroll moves
-
-		// payload.IsSpectator = true?
-
-		// TODO spectator page template
-		return c.Redirect("/#TODO")
+		// watch-only room page: the flag suppresses the game controls in the
+		// view and all move input in the client JS; the socket layer tags the
+		// connection independently (ws.connHandler) so game-affecting frames
+		// are dropped server-side no matter what the page claims
+		payload.IsSpectator = true
+		return view.Render(c, 200, view.Room(view.RoomMeta(payload), payload))
 	} else {
 		// no spectators allowed
 		return c.Redirect("/#noSpec")

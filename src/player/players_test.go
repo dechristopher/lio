@@ -57,3 +57,63 @@ func TestAnchorColorStableAcrossFlip(t *testing.T) {
 		t.Errorf("anchor moved to a different player across flip: before=%v after=%v", before, after)
 	}
 }
+
+// TestHasTwoPlayers locks seat-occupancy semantics: a bot seat is configured
+// despite having no uid. This drives CanJoin's player-vs-spectator decision —
+// treating a bot seat as empty sent bot-room spectators down the interactive
+// player render path.
+func TestHasTwoPlayers(t *testing.T) {
+	tests := []struct {
+		name        string
+		p           Players
+		wantHasTwo  bool
+		wantMissing octad.Color
+	}{
+		{
+			name: "two humans",
+			p: Players{
+				octad.White: &Player{ID: "w"},
+				octad.Black: &Player{ID: "b"},
+			},
+			wantHasTwo:  true,
+			wantMissing: octad.NoColor,
+		},
+		{
+			name: "open challenge",
+			p: Players{
+				octad.White: &Player{ID: "w"},
+				octad.Black: &Player{ID: ""},
+			},
+			wantHasTwo:  false,
+			wantMissing: octad.Black,
+		},
+		{
+			name: "human vs bot",
+			p: Players{
+				octad.White: &Player{ID: "w"},
+				octad.Black: &Player{IsBot: true},
+			},
+			wantHasTwo:  true,
+			wantMissing: octad.NoColor,
+		},
+		{
+			name: "bot as white",
+			p: Players{
+				octad.White: &Player{IsBot: true},
+				octad.Black: &Player{ID: "b"},
+			},
+			wantHasTwo:  true,
+			wantMissing: octad.NoColor,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hasTwo, missing := tt.p.HasTwoPlayers()
+			if hasTwo != tt.wantHasTwo || missing != tt.wantMissing {
+				t.Errorf("HasTwoPlayers() = (%v, %v), want (%v, %v)",
+					hasTwo, missing, tt.wantHasTwo, tt.wantMissing)
+			}
+		})
+	}
+}

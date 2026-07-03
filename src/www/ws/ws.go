@@ -64,13 +64,23 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 
 	// ensure room exists for connection. The global TV channel (/socket/tv) is
 	// not a room — it is a site-wide read-only stream — so it bypasses this check.
+	//
+	// isSpectator is decided once, at connect time: a uid with no seat in the
+	// room (or any TV viewer) is a spectator, and every message it sends is
+	// tagged as such so game-affecting handlers drop it outright. Seat
+	// membership is stable for a socket's lifetime — a joiner claims their seat
+	// over HTTP before opening the game socket, and rematches flip colors, not
+	// uids — so this never goes stale.
+	isSpectator := true
 	if !tv.IsTV(roomId) {
-		if thisRoom, err := room.Get(roomId); thisRoom == nil {
+		thisRoom, err := room.Get(roomId)
+		if thisRoom == nil {
 			util.Error(str.CWS, str.EWSConn, err.Error())
 			return func(conn *websocket.Conn) {
 				_ = conn.Close()
 			}
 		}
+		isSpectator = !thisRoom.IsPlayer(uid)
 	}
 
 	util.Info(str.CWS, str.MWSConn, uid, thisChannel, ctx.IP())
@@ -150,10 +160,11 @@ func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
 
 			// route message to proper handler and await response
 			resp := routes.Map[proto.PayloadTag(tag)](b, channel.SocketContext{
-				UID:     uid,
-				Channel: thisChannel,
-				RoomID:  roomId,
-				MT:      mt,
+				UID:         uid,
+				Channel:     thisChannel,
+				RoomID:      roomId,
+				IsSpectator: isSpectator,
+				MT:          mt,
 			})
 
 			if resp == nil {

@@ -13,10 +13,19 @@ type RoomTemplatePayload struct {
 	PlayerColor   string
 	OpponentColor string
 	OpponentIsBot bool
-	VariantName   string
-	Variant       variant.Variant
-	IsCreator     bool
-	IsJoining     bool
+	// IsSpectator marks a viewer with no seat in the room: the room page
+	// renders watch-only (no game controls, White-oriented board) and the
+	// client JS suppresses all move input.
+	IsSpectator bool
+	// WhiteIsBot / BlackIsBot report each seat's bot status by color — the
+	// spectator view labels clocks by color rather than You/Opponent, so the
+	// relative OpponentIsBot (meaningless for a non-player) doesn't apply.
+	WhiteIsBot  bool
+	BlackIsBot  bool
+	VariantName string
+	Variant     variant.Variant
+	IsCreator   bool
+	IsJoining   bool
 	// Public reports whether the challenge is listed in the home-page Open
 	// Challenges feed (vs a private, link-only challenge).
 	Public      bool

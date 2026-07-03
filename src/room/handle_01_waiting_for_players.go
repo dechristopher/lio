@@ -72,11 +72,14 @@ func (r *Instance) handleWaitingForPlayers() {
 	connectionListener := gameRoom.Listen()
 	defer gameRoom.UnListen(connectionListener)
 
-	// occupants is the number of live connections across both the challenge
-	// (waiting) and game channels — how many people are in the room right now,
-	// regardless of which page they are on.
+	// occupants is how many people with a stake in the room are present right
+	// now: everyone on the challenge (waiting) page plus every *seated* player
+	// connected on the game channel. Seated presence — not the game channel's
+	// raw uid count — matters on the game side: once both seats are claimed a
+	// stranger's socket is a spectator, and a lurking spectator must not keep
+	// an abandoned challenge alive.
 	occupants := func() int {
-		return waitingRoom.Length() + gameRoom.Length()
+		return waitingRoom.Length() + r.connectedSeats()
 	}
 
 	// connected records whether anyone has ever connected to this room. Until
@@ -135,15 +138,13 @@ func (r *Instance) handleWaitingForPlayers() {
 				continue
 			}
 
-			// automatically ready bot players; otherwise both human seats must
-			// be connected on the game channel before the game can start
-			gamePlayers := gameRoom.Length()
-			if r.HasBot() {
-				gamePlayers = 2
-			}
-
-			// both players connected, transition to StateGameReady
-			if gamePlayers == 2 {
+			// automatically ready bot players; otherwise both *seated* players
+			// must be connected on the game channel before the game can start.
+			// Seat-keyed presence (bothPlayersConnected) rather than a raw
+			// distinct-uid count, so a spectator connecting during the join
+			// handoff (seats claimed, joiner's socket not yet open) can never
+			// trigger a premature start.
+			if r.HasBot() || r.bothPlayersConnected() {
 				util.DebugFlag("room", str.CRoom, "[%s] players connected, game ready", r.ID)
 				if err := r.event(EventPlayersConnected); err != nil {
 					panic(err)

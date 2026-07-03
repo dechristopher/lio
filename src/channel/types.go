@@ -369,7 +369,11 @@ type SocketContext struct {
 	RoomID  string
 	UID     string
 	IsBot   bool
-	MT      int // websocket message type
+	// IsSpectator is set when the connection's uid holds no seat in the room
+	// it is attached to. Spectator messages must never reach game-affecting
+	// paths; the ws handlers drop them before the room's seat checks ever run.
+	IsSpectator bool
+	MT          int // websocket message type
 }
 
 // IsHuman returns true if the context belongs to a human player

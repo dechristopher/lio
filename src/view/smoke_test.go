@@ -27,6 +27,13 @@ func mustContain(t *testing.T, s, sub string) {
 	}
 }
 
+func mustNotContain(t *testing.T, s, sub string) {
+	t.Helper()
+	if strings.Contains(s, sub) {
+		t.Errorf("output must not contain %q", sub)
+	}
+}
+
 func TestRenderIndex(t *testing.T) {
 	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneTwoRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
@@ -100,6 +107,51 @@ func TestRenderRoomGame(t *testing.T) {
 	mustContain(t, out, "octadground")                     // scriptsRoom loaded
 	mustContain(t, out, `id="game"`)                       // board mount
 	mustContain(t, out, "Challenge from anonymous player") // room title meta
+
+	// a player's page is not the watch-only variant: interactive controls with
+	// their real action tooltips, no spectator flag on the board container
+	mustContain(t, out, `data-spectator="false"`)
+	mustContain(t, out, `id="btn-resign" class="ctrl-btn play-ctrl" title="Resign the game">`)
+	mustContain(t, out, `id="btn-draw" class="ctrl-btn play-ctrl" title="Offer a draw">`)
+	mustNotContain(t, out, "Watching as a spectator")
+}
+
+// TestRenderRoomSpectator locks the watch-only room page: the spectator flag
+// lio-game.js keys off, the White-oriented board, seat-labeled clocks and
+// timeline rows, and every game control rendered permanently disabled.
+func TestRenderRoomSpectator(t *testing.T) {
+	p := message.RoomTemplatePayload{
+		RoomID:      "abc",
+		PlayerColor: "-", // Lookup returns NoColor for a non-player
+		IsSpectator: true,
+		WhiteIsBot:  true, // bot seat may be either color for a spectator
+		VariantName: "Half One blitz",
+		Variant:     variant.HalfOneBlitz,
+	}
+	out := renderSmoke(t, Room(RoomMeta(p), p))
+
+	// the flag the client reads once at init to enter watch-only mode
+	mustContain(t, out, `data-spectator="true"`)
+	// spectators always view from White's side, whatever PlayerColor says
+	mustContain(t, out, `class="gcon w"`)
+	mustNotContain(t, out, `class="gcon -"`)
+
+	// clocks and timeline rows are labeled by seat, not You/Opponent, and the
+	// bot marker follows the bot's color (white here, so the bottom clock)
+	mustContain(t, out, ">White</span>")
+	mustContain(t, out, ">Black</span>")
+	mustNotContain(t, out, ">You</span>")
+	mustContain(t, out, `id="clockPlayer" class="clockPlayer ga-you" data-bot="true"`)
+	mustContain(t, out, `id="clockOpponent" class="clockOpponent ga-opp" data-bot="false"`)
+
+	// every game control renders, permanently disabled, with the watching tooltip
+	mustContain(t, out, `id="btn-resign" class="ctrl-btn play-ctrl" title="Watching as a spectator" disabled>`)
+	mustContain(t, out, `id="btn-draw" class="ctrl-btn play-ctrl" title="Watching as a spectator" disabled>`)
+	mustContain(t, out, `id="btn-rematch" class="ctrl-btn ctrl-rematch over-ctrl" title="Watching as a spectator" data-rematch-url="" disabled>`)
+	mustContain(t, out, `id="result-rematch" type="button" class="result-btn result-rematch" title="Watching as a spectator" data-rematch-url="" disabled>`)
+
+	// crowd label reflects the spectator-only count semantics
+	mustContain(t, out, "watching")
 }
 
 func TestRenderRoomCreator(t *testing.T) {

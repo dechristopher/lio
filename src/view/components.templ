@@ -1,5 +1,11 @@
 package view
 
+import (
+	"strconv"
+
+	"github.com/dechristopher/lio/message"
+)
+
 // header is the site wordmark + account/preferences/theme controls shown at the
 // top of every page. Accounts are not built yet, so "Log in" opens a
 // coming-soon dialog; the preferences popover exposes the working theme control
@@ -279,12 +285,14 @@ templ createGameButton() {
 }
 
 // board renders the octadground board mount and its promotion / result-overlay
-// scaffolding. color is the player's color, used as a board-orientation class.
-// rematchURL, when set (bot games only), is the "same settings" fresh-room
+// scaffolding. The payload's PlayerColor becomes the board-orientation class
+// ("w"/"b"); spectators are always oriented white and carry a data-spectator
+// attribute that lio-game.js reads once at init to enter watch-only mode.
+// botRematchURL, when set (bot games only), is the "same settings" fresh-room
 // rematch link the result overlay's Rematch button navigates to.
-templ board(color string, rematchURL string) {
+templ board(payload message.RoomTemplatePayload) {
 	<div class="board-shell">
-		<div id="gcon-xx" class={ "gcon " + color }>
+		<div id="gcon-xx" class={ "gcon " + boardOrientation(payload) } data-spectator={ strconv.FormatBool(payload.IsSpectator) }>
 			<div class="gwrap green alpha">
 				<div id="game" class="og-wrap"></div>
 				<!-- blind deploy: opponent home-rank "?" cells, overlaid on the top rank -->
@@ -326,7 +334,7 @@ templ board(color string, rematchURL string) {
 						<div id="result-score" class="result-score"></div>
 						<div id="result-note" class="result-note hidden"></div>
 						<div class="result-actions">
-							<button id="result-rematch" type="button" class="result-btn result-rematch" data-rematch-url={ rematchURL }>Rematch</button>
+							<button id="result-rematch" type="button" class="result-btn result-rematch" title={ controlTitle(payload, "Play again") } data-rematch-url={ botRematchURL(payload) } disabled?={ payload.IsSpectator }>Rematch</button>
 							<button id="result-home" type="button" class="result-btn result-home">Home</button>
 						</div>
 						<button id="result-analyze" type="button" class="result-analyze">Analyze board</button>

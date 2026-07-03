@@ -18,10 +18,13 @@ func (p Players) FlipColor() {
 }
 
 // HasTwoPlayers returns true if both players are configured, and
-// the color of the missing player if only one player is missing
+// the color of the missing player if only one player is missing.
+// A bot seat is configured even though it has no uid — a bot room is never
+// joinable and its third visitors are spectators (this was the bug that sent
+// bot-room spectators down the player render path).
 func (p Players) HasTwoPlayers() (hasTwo bool, missing octad.Color) {
 	hasTwo = util.BothColors(func(color octad.Color) bool {
-		return p[color].ID != ""
+		return p[color].ID != "" || p[color].IsBot
 	})
 
 	if p[octad.White].ID == "" && !p[octad.White].IsBot {

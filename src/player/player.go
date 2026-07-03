@@ -14,11 +14,13 @@ type GameResult struct {
 	Reason string
 }
 
-// Player struct for keeping track of info, status, state, and score
+// Player struct for keeping track of info, status, state, and score.
+// Spectators are never Players: they hold no seat, are tagged at the socket
+// layer (channel.SocketContext.IsSpectator), and are flagged to the view via
+// RoomTemplatePayload.IsSpectator.
 type Player struct {
 	ID          string
 	IsBot       bool
-	IsSpectator bool
 	scorePoints int
 	scoreHalf   int
 	results     []GameResult

@@ -17,11 +17,14 @@ func TestBotRematchURL(t *testing.T) {
 		payload message.RoomTemplatePayload
 		want    string
 	}{
+		// PlayerColor carries octad.Color.String() values ("w"/"b", or "-" for
+		// a non-player), not full color names — the same tokens the board's
+		// orientation class check keys off.
 		{
 			name: "bot game as white",
 			payload: message.RoomTemplatePayload{
 				OpponentIsBot: true,
-				PlayerColor:   "white",
+				PlayerColor:   "w",
 				Variant:       variant.HalfOneBlitz,
 			},
 			want: "/new/computer?tc=half-one-blitz&color=w",
@@ -30,7 +33,7 @@ func TestBotRematchURL(t *testing.T) {
 			name: "bot game as black preserves side and deploy variant",
 			payload: message.RoomTemplatePayload{
 				OpponentIsBot: true,
-				PlayerColor:   "black",
+				PlayerColor:   "b",
 				Variant:       variant.HalfOneBlitzDeploy,
 			},
 			want: "/new/computer?tc=half-one-blitz-deploy&color=b",
@@ -39,7 +42,7 @@ func TestBotRematchURL(t *testing.T) {
 			name: "human game has no rematch link",
 			payload: message.RoomTemplatePayload{
 				OpponentIsBot: false,
-				PlayerColor:   "white",
+				PlayerColor:   "w",
 				Variant:       variant.HalfOneBlitz,
 			},
 			want: "",
