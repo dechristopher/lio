@@ -7,16 +7,14 @@
 package fiber
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/google/uuid"
-
 	"github.com/gofiber/fiber/v2/utils"
+	"github.com/google/uuid"
 )
 
 // routeParser holds the path segments and param names
@@ -48,7 +46,7 @@ type routeSegment struct {
 
 // different special routing signs
 const (
-	wildcardParam                byte = '*'  // indicates an optional greedy parameter
+	wildcardParam                byte = '*'  // indicates a optional greedy parameter
 	plusParam                    byte = '+'  // indicates a required greedy parameter
 	optionalParam                byte = '?'  // concludes a parameter by name and makes it optional
 	paramStarterChar             byte = ':'  // start character for a parameter with name
@@ -115,19 +113,7 @@ var (
 	parameterConstraintDataSeparatorChars = []byte{paramConstraintDataSeparator}
 )
 
-// RoutePatternMatch reports whether the given request path would match the
-// provided Fiber route pattern using the same rules as the router. This can be
-// handy in tests or tooling where you need to verify patterns without
-// registering them on an App instance.
-//
-// An optional Config may be passed to control matching behavior such as
-// case-sensitivity or strict routing. When no configuration is supplied the
-// default Config is used.
-//
-// Example:
-//
-//	match := fiber.RoutePatternMatch("/api/v1/users", "/api/:version/*")
-//	// match == true
+// RoutePatternMatch checks if a given path matches a Fiber route pattern.
 func RoutePatternMatch(path, pattern string, cfg ...Config) bool {
 	// See logic in (*Route).match and (*App).register
 	var ctxParams [maxParams]string
@@ -152,7 +138,7 @@ func RoutePatternMatch(path, pattern string, cfg ...Config) bool {
 
 	patternPretty := pattern
 
-	// Case-sensitive routing, all to lowercase
+	// Case sensitive routing, all to lowercase
 	if !config.CaseSensitive {
 		patternPretty = utils.ToLower(patternPretty)
 		path = utils.ToLower(path)
@@ -190,7 +176,6 @@ func RoutePatternMatch(path, pattern string, cfg ...Config) bool {
 // this information is needed later when assigning the requests to the declared routes
 func parseRoute(pattern string) routeParser {
 	parser := routeParser{}
-	originalPattern := pattern
 
 	part := ""
 	for len(pattern) > 0 {
@@ -215,12 +200,6 @@ func parseRoute(pattern string) routeParser {
 		parser.segs[len(parser.segs)-1].IsLast = true
 	}
 	parser.segs = addParameterMetaInfo(parser.segs)
-
-	// Check if the route has too many parameters
-	if len(parser.params) > maxParams {
-		panic(fmt.Sprintf("Route '%s' has %d parameters, which exceeds the maximum of %d",
-			originalPattern, len(parser.params), maxParams))
-	}
 
 	return parser
 }
@@ -249,7 +228,7 @@ func addParameterMetaInfo(segs []*routeSegment) []*routeSegment {
 		// check how often the compare part is in the following const parts
 		if segs[i].IsParam {
 			// check if parameter segments are directly after each other and if one of them is greedy
-			// in case the next parameter or the current parameter is not a wildcard it's not greedy, we only want one character
+			// in case the next parameter or the current parameter is not a wildcard its not greedy, we only want one character
 			if segLen > i+1 && !segs[i].IsGreedy && segs[i+1].IsParam && !segs[i+1].IsGreedy {
 				segs[i].Length = 1
 			}
@@ -504,7 +483,7 @@ func (routeParser *routeParser) getMatch(detectionPath, path string, params *[ma
 		if !segment.IsParam {
 			i = segment.Length
 			// is optional part or the const part must match with the given string
-			// check if the end of the segment is an optional slash
+			// check if the end of the segment is a optional slash
 			if segment.HasOptionalSlash && partLen == i-1 && detectionPath == segment.Const[:i-1] {
 				i--
 			} else if !(i <= partLen && detectionPath[:i] == segment.Const) {

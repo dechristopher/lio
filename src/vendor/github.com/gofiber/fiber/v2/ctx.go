@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"mime/multipart"
 	"net"
@@ -27,6 +27,7 @@ import (
 	"github.com/gofiber/fiber/v2/internal/schema"
 	"github.com/gofiber/fiber/v2/utils"
 
+	"github.com/savsgio/dictpool"
 	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 )
@@ -39,23 +40,22 @@ const (
 // maxParams defines the maximum number of parameters per route.
 const maxParams = 30
 
-// Some constants for BodyParser, QueryParser, CookieParser and ReqHeaderParser.
+// Some constants for BodyParser, QueryParser and ReqHeaderParser.
 const (
 	queryTag     = "query"
 	reqHeaderTag = "reqHeader"
 	bodyTag      = "form"
 	paramsTag    = "params"
-	cookieTag    = "cookie"
 )
 
 // userContextKey define the key name for storing context.Context in *fasthttp.RequestCtx
 const userContextKey = "__local_user_context__"
 
 var (
-	// decoderPoolMap helps to improve BodyParser's, QueryParser's, CookieParser's and ReqHeaderParser's performance
+	// decoderPoolMap helps to improve BodyParser's, QueryParser's and ReqHeaderParser's performance
 	decoderPoolMap = map[string]*sync.Pool{}
 	// tags is used to classify parser's pool
-	tags = []string{queryTag, bodyTag, reqHeaderTag, paramsTag, cookieTag}
+	tags = []string{queryTag, bodyTag, reqHeaderTag, paramsTag}
 )
 
 func init() {
@@ -97,7 +97,7 @@ type Ctx struct {
 	values              [maxParams]string    // Route parameter values
 	fasthttp            *fasthttp.RequestCtx // Reference to *fasthttp.RequestCtx
 	matched             bool                 // Non use route matched
-	viewBindMap         sync.Map             // Default view map to bind template engine
+	viewBindMap         *dictpool.Dict       // Default view map to bind template engine
 }
 
 // TLSHandler object
@@ -105,9 +105,8 @@ type TLSHandler struct {
 	clientHelloInfo *tls.ClientHelloInfo
 }
 
-// GetClientInfo Callback function to set ClientHelloInfo
-// Must comply with the method structure of https://cs.opensource.google/go/go/+/refs/tags/go1.20:src/crypto/tls/common.go;l=554-563
-// Since we overlay the method of the tls config in the listener method
+// GetClientInfo Callback function to set CHI
+// TODO: Why is this a getter which sets stuff?
 func (t *TLSHandler) GetClientInfo(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	t.clientHelloInfo = info
 	return nil, nil //nolint:nilnil // Not returning anything useful here is probably fine
@@ -116,13 +115,10 @@ func (t *TLSHandler) GetClientInfo(info *tls.ClientHelloInfo) (*tls.Certificate,
 // Range data for c.Range
 type Range struct {
 	Type   string
-	Ranges []RangeSet
-}
-
-// RangeSet represents a single content range from a request.
-type RangeSet struct {
-	Start int
-	End   int
+	Ranges []struct {
+		Start int
+		End   int
+	}
 }
 
 // Cookie data for c.Cookie
@@ -192,7 +188,10 @@ func (app *App) ReleaseCtx(c *Ctx) {
 	// Reset values
 	c.route = nil
 	c.fasthttp = nil
-	c.viewBindMap = sync.Map{}
+	if c.viewBindMap != nil {
+		dictpool.ReleaseDict(c.viewBindMap)
+		c.viewBindMap = nil
+	}
 	app.pool.Put(c)
 }
 
@@ -265,99 +264,35 @@ func (c *Ctx) BaseURL() string {
 	return c.baseURI
 }
 
-// BodyRaw contains the raw body submitted in a POST request.
+// Body contains the raw body submitted in a POST request.
 // Returned value is only valid within the handler. Do not store any references.
 // Make copies or use the Immutable setting instead.
-func (c *Ctx) BodyRaw() []byte {
-	return c.getBody()
-}
-
-func (c *Ctx) tryDecodeBodyInOrder(
-	originalBody *[]byte,
-	encodings []string,
-) ([]byte, uint8, error) {
-	var (
-		err             error
-		body            []byte
-		decodesRealized uint8
-	)
-
-	for index, encoding := range encodings {
-		decodesRealized++
-		switch encoding {
-		case StrGzip:
-			body, err = c.fasthttp.Request.BodyGunzip()
-		case StrBr, StrBrotli:
-			body, err = c.fasthttp.Request.BodyUnbrotli()
-		case StrDeflate:
-			body, err = c.fasthttp.Request.BodyInflate()
-		default:
-			decodesRealized--
-			if len(encodings) == 1 {
-				body = c.fasthttp.Request.Body()
-			}
-			return body, decodesRealized, nil
-		}
-
-		if err != nil {
-			return nil, decodesRealized, err
-		}
-
-		// Only execute body raw update if it has a next iteration to try to decode
-		if index < len(encodings)-1 && decodesRealized > 0 {
-			if index == 0 {
-				tempBody := c.fasthttp.Request.Body()
-				*originalBody = make([]byte, len(tempBody))
-				copy(*originalBody, tempBody)
-			}
-			c.fasthttp.Request.SetBodyRaw(body)
-		}
-	}
-
-	return body, decodesRealized, nil
-}
-
-// Body contains the raw body submitted in a POST request.
-// This method will decompress the body if the 'Content-Encoding' header is provided.
-// It returns the original (or decompressed) body data which is valid only within the handler.
-// Don't store direct references to the returned data.
-// If you need to keep the body's data later, make a copy or use the Immutable option.
 func (c *Ctx) Body() []byte {
-	var (
-		err                error
-		body, originalBody []byte
-		headerEncoding     string
-		encodingOrder      = []string{"", "", ""}
-	)
-
+	var err error
+	var encoding string
+	var body []byte
 	// faster than peek
 	c.Request().Header.VisitAll(func(key, value []byte) {
 		if c.app.getString(key) == HeaderContentEncoding {
-			headerEncoding = c.app.getString(value)
+			encoding = c.app.getString(value)
 		}
 	})
 
-	// Split and get the encodings list, in order to attend the
-	// rule defined at: https://www.rfc-editor.org/rfc/rfc9110#section-8.4-5
-	encodingOrder = getSplicedStrList(headerEncoding, encodingOrder)
-	if len(encodingOrder) == 0 {
-		return c.getBody()
+	switch encoding {
+	case StrGzip:
+		body, err = c.fasthttp.Request.BodyGunzip()
+	case StrBr, StrBrotli:
+		body, err = c.fasthttp.Request.BodyUnbrotli()
+	case StrDeflate:
+		body, err = c.fasthttp.Request.BodyInflate()
+	default:
+		body = c.fasthttp.Request.Body()
 	}
 
-	var decodesRealized uint8
-	body, decodesRealized, err = c.tryDecodeBodyInOrder(&originalBody, encodingOrder)
-
-	// Ensure that the body will be the original
-	if originalBody != nil && decodesRealized > 0 {
-		c.fasthttp.Request.SetBodyRaw(originalBody)
-	}
 	if err != nil {
-		return c.app.getBytes(err.Error())
+		return []byte(err.Error())
 	}
 
-	if c.app.config.Immutable {
-		return utils.CopyBytes(body)
-	}
 	return body
 }
 
@@ -377,7 +312,6 @@ func decoderBuilder(parserConfig ParserConfig) interface{} {
 // BodyParser binds the request body to a struct.
 // It supports decoding the following content types based on the Content-Type header:
 // application/json, application/xml, application/x-www-form-urlencoded, multipart/form-data
-// All JSON extenstion mime types are supported (eg. application/problem+json)
 // If none of the content types above are matched, it will return a ErrUnprocessableEntity error
 func (c *Ctx) BodyParser(out interface{}) error {
 	// Get content-type
@@ -385,17 +319,11 @@ func (c *Ctx) BodyParser(out interface{}) error {
 
 	ctype = utils.ParseVendorSpecificContentType(ctype)
 
-	// Only use ctype string up to and excluding byte ';'
-	ctypeEnd := strings.IndexByte(ctype, ';')
-	if ctypeEnd != -1 {
-		ctype = ctype[:ctypeEnd]
-	}
-
 	// Parse body accordingly
-	if strings.HasSuffix(ctype, "json") {
+	if strings.HasPrefix(ctype, MIMEApplicationJSON) {
 		return c.app.config.JSONDecoder(c.Body(), out)
 	}
-	if ctype == MIMEApplicationForm {
+	if strings.HasPrefix(ctype, MIMEApplicationForm) {
 		data := make(map[string][]string)
 		var err error
 
@@ -407,45 +335,30 @@ func (c *Ctx) BodyParser(out interface{}) error {
 			k := c.app.getString(key)
 			v := c.app.getString(val)
 
-			err = formatParserData(out, data, bodyTag, k, v, c.app.config.EnableSplittingOnParsers, true)
+			if strings.Contains(k, "[") {
+				k, err = parseParamSquareBrackets(k)
+			}
+
+			if strings.Contains(v, ",") && equalFieldType(out, reflect.Slice, k) {
+				values := strings.Split(v, ",")
+				for i := 0; i < len(values); i++ {
+					data[k] = append(data[k], values[i])
+				}
+			} else {
+				data[k] = append(data[k], v)
+			}
 		})
 
+		return c.parseToStruct(bodyTag, out, data)
+	}
+	if strings.HasPrefix(ctype, MIMEMultipartForm) {
+		data, err := c.fasthttp.MultipartForm()
 		if err != nil {
 			return err
 		}
-
-		return c.parseToStruct(bodyTag, out, data)
+		return c.parseToStruct(bodyTag, out, data.Value)
 	}
-	if ctype == MIMEMultipartForm {
-		multipartForm, err := c.fasthttp.MultipartForm()
-		if err != nil {
-			return err
-		}
-
-		data := make(map[string][]string)
-		for key, values := range multipartForm.Value {
-			processedKey := key
-			processedValues := values
-			if c.app.config.Immutable {
-				processedKey = c.app.getString([]byte(key))
-				if len(values) > 0 {
-					copied := make([]string, len(values))
-					for i, val := range values {
-						copied[i] = c.app.getString([]byte(val))
-					}
-					processedValues = copied
-				}
-			}
-
-			err = formatParserData(out, data, bodyTag, processedKey, processedValues, c.app.config.EnableSplittingOnParsers, true)
-			if err != nil {
-				return err
-			}
-		}
-
-		return c.parseToStruct(bodyTag, out, data)
-	}
-	if ctype == MIMETextXML || ctype == MIMEApplicationXML {
+	if strings.HasPrefix(ctype, MIMETextXML) || strings.HasPrefix(ctype, MIMEApplicationXML) {
 		if err := xml.Unmarshal(c.Body(), out); err != nil {
 			return fmt.Errorf("failed to unmarshal: %w", err)
 		}
@@ -533,29 +446,6 @@ func (c *Ctx) Cookies(key string, defaultValue ...string) string {
 	return defaultString(c.app.getString(c.fasthttp.Request.Header.Cookie(key)), defaultValue)
 }
 
-// CookieParser is used to bind cookies to a struct
-func (c *Ctx) CookieParser(out interface{}) error {
-	data := make(map[string][]string)
-	var err error
-
-	// loop through all cookies
-	c.fasthttp.Request.Header.VisitAllCookie(func(key, val []byte) {
-		if err != nil {
-			return
-		}
-
-		k := c.app.getString(key)
-		v := c.app.getString(val)
-
-		err = formatParserData(out, data, cookieTag, k, v, c.app.config.EnableSplittingOnParsers, true)
-	})
-	if err != nil {
-		return err
-	}
-
-	return c.parseToStruct(cookieTag, out, data)
-}
-
 // Download transfers the file from path as an attachment.
 // Typically, browsers will prompt the user for download.
 // By default, the Content-Disposition header filename= parameter is the filepath (this typically appears in the browser dialog).
@@ -607,7 +497,7 @@ func (c *Ctx) Format(body interface{}) error {
 	// Format based on the accept content type
 	switch accept {
 	case "html":
-		return c.SendString("<p>" + html.EscapeString(b) + "</p>")
+		return c.SendString("<p>" + b + "</p>")
 	case "json":
 		return c.JSON(body)
 	case "txt":
@@ -704,11 +594,10 @@ func (c *Ctx) GetRespHeader(key string, defaultValue ...string) string {
 // GetReqHeaders returns the HTTP request headers.
 // Returned value is only valid within the handler. Do not store any references.
 // Make copies or use the Immutable setting instead.
-func (c *Ctx) GetReqHeaders() map[string][]string {
-	headers := make(map[string][]string)
+func (c *Ctx) GetReqHeaders() map[string]string {
+	headers := make(map[string]string)
 	c.Request().Header.VisitAll(func(k, v []byte) {
-		key := c.app.getString(k)
-		headers[key] = append(headers[key], c.app.getString(v))
+		headers[string(k)] = c.app.getString(v)
 	})
 
 	return headers
@@ -717,27 +606,27 @@ func (c *Ctx) GetReqHeaders() map[string][]string {
 // GetRespHeaders returns the HTTP response headers.
 // Returned value is only valid within the handler. Do not store any references.
 // Make copies or use the Immutable setting instead.
-func (c *Ctx) GetRespHeaders() map[string][]string {
-	headers := make(map[string][]string)
+func (c *Ctx) GetRespHeaders() map[string]string {
+	headers := make(map[string]string)
 	c.Response().Header.VisitAll(func(k, v []byte) {
-		key := c.app.getString(k)
-		headers[key] = append(headers[key], c.app.getString(v))
+		headers[string(k)] = c.app.getString(v)
 	})
 
 	return headers
 }
 
 // Hostname contains the hostname derived from the X-Forwarded-Host or Host HTTP header.
-// Returned value is only valid within the handler. Do not store any references unless
-// Config.Immutable is enabled, in which case the value is copied before it is returned.
+// Returned value is only valid within the handler. Do not store any references.
+// Make copies or use the Immutable setting instead.
 // Please use Config.EnableTrustedProxyCheck to prevent header spoofing, in case when your app is behind the proxy.
 func (c *Ctx) Hostname() string {
 	if c.IsProxyTrusted() {
-		if hostBytes := c.fasthttp.Request.Header.Peek(HeaderXForwardedHost); len(hostBytes) > 0 {
-			if commaPos := bytes.IndexByte(hostBytes, ','); commaPos != -1 {
-				hostBytes = hostBytes[:commaPos]
+		if host := c.Get(HeaderXForwardedHost); len(host) > 0 {
+			commaPos := strings.Index(host, ",")
+			if commaPos != -1 {
+				return host[:commaPos]
 			}
-			return c.app.getString(hostBytes)
+			return host
 		}
 	}
 	return c.app.getString(c.fasthttp.Request.URI().Host())
@@ -803,7 +692,7 @@ iploop:
 			j++
 		}
 
-		for i < j && (headerValue[i] == ' ' || headerValue[i] == ',') {
+		for i < j && headerValue[i] == ' ' {
 			i++
 		}
 
@@ -890,32 +779,24 @@ func (c *Ctx) Is(extension string) bool {
 		return false
 	}
 
-	ct := c.app.getString(c.fasthttp.Request.Header.ContentType())
-	if i := strings.IndexByte(ct, ';'); i != -1 {
-		ct = ct[:i]
-	}
-	ct = utils.Trim(ct, ' ')
-	return utils.EqualFold(ct, extensionHeader)
+	return strings.HasPrefix(
+		utils.TrimLeft(c.app.getString(c.fasthttp.Request.Header.ContentType()), ' '),
+		extensionHeader,
+	)
 }
 
 // JSON converts any interface or string to JSON.
 // Array and slice values encode as JSON arrays,
 // except that []byte encodes as a base64-encoded string,
 // and a nil slice encodes as the null JSON value.
-// If the ctype parameter is given, this method will set the
-// Content-Type header equal to ctype. If ctype is not given,
-// The Content-Type header will be set to application/json.
-func (c *Ctx) JSON(data interface{}, ctype ...string) error {
+// This method also sets the content header to application/json.
+func (c *Ctx) JSON(data interface{}) error {
 	raw, err := c.app.config.JSONEncoder(data)
 	if err != nil {
 		return err
 	}
 	c.fasthttp.Response.SetBodyRaw(raw)
-	if len(ctype) > 0 {
-		c.fasthttp.Response.Header.SetContentType(ctype[0])
-	} else {
-		c.fasthttp.Response.Header.SetContentType(MIMEApplicationJSON)
-	}
+	c.fasthttp.Response.Header.SetContentType(MIMEApplicationJSON)
 	return nil
 }
 
@@ -923,9 +804,9 @@ func (c *Ctx) JSON(data interface{}, ctype ...string) error {
 // This method is identical to JSON, except that it opts-in to JSONP callback support.
 // By default, the callback name is simply callback.
 func (c *Ctx) JSONP(data interface{}, callback ...string) error {
-	raw, err := c.app.config.JSONEncoder(data)
+	raw, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal: %w", err)
 	}
 
 	var result, cb string
@@ -963,11 +844,11 @@ func (c *Ctx) Links(link ...string) {
 	bb := bytebufferpool.Get()
 	for i := range link {
 		if i%2 == 0 {
-			_ = bb.WriteByte('<')
-			_, _ = bb.WriteString(link[i])
-			_ = bb.WriteByte('>')
+			_ = bb.WriteByte('<')          //nolint:errcheck // This will never fail
+			_, _ = bb.WriteString(link[i]) //nolint:errcheck // This will never fail
+			_ = bb.WriteByte('>')          //nolint:errcheck // This will never fail
 		} else {
-			_, _ = bb.WriteString(`; rel="` + link[i] + `",`)
+			_, _ = bb.WriteString(`; rel="` + link[i] + `",`) //nolint:errcheck // This will never fail
 		}
 	}
 	c.setCanonical(HeaderLink, utils.TrimRight(c.app.getString(bb.Bytes()), ','))
@@ -976,10 +857,6 @@ func (c *Ctx) Links(link ...string) {
 
 // Locals makes it possible to pass interface{} values under keys scoped to the request
 // and therefore available to all following routes that match the request.
-//
-// All the values are removed from ctx after returning from the top
-// RequestHandler. Additionally, Close method is called on each value
-// implementing io.Closer before removing the value from ctx.
 func (c *Ctx) Locals(key interface{}, value ...interface{}) interface{} {
 	if len(value) == 0 {
 		return c.fasthttp.UserValue(key)
@@ -993,24 +870,17 @@ func (c *Ctx) Location(path string) {
 	c.setCanonical(HeaderLocation, path)
 }
 
-// Method returns the HTTP request method for the context, optionally overridden by the provided argument.
-// If no override is given or if the provided override is not a valid HTTP method, it returns the current method from the context.
-// Otherwise, it updates the context's method and returns the overridden method as a string.
+// Method contains a string corresponding to the HTTP method of the request: GET, POST, PUT and so on.
 func (c *Ctx) Method(override ...string) string {
-	if len(override) == 0 {
-		// Nothing to override, just return current method from context
-		return c.method
+	if len(override) > 0 {
+		method := utils.ToUpper(override[0])
+		mINT := c.app.methodInt(method)
+		if mINT == -1 {
+			return c.method
+		}
+		c.method = method
+		c.methodINT = mINT
 	}
-
-	method := utils.ToUpper(override[0])
-	mINT := c.app.methodInt(method)
-	if mINT == -1 {
-		// Provided override does not valid HTTP method, no override, return current method
-		return c.method
-	}
-
-	c.method = method
-	c.methodINT = mINT
 	return c.method
 }
 
@@ -1034,7 +904,7 @@ func (c *Ctx) Next() error {
 	// Increment handler index
 	c.indexHandler++
 	var err error
-	// Did we execute all route handlers?
+	// Did we executed all route handlers?
 	if c.indexHandler < len(c.route.Handlers) {
 		// Continue route stack
 		err = c.route.Handlers[c.indexHandler](c)
@@ -1063,8 +933,8 @@ func (c *Ctx) OriginalURL() string {
 // Params is used to get the route parameters.
 // Defaults to empty string "" if the param doesn't exist.
 // If a default value is given, it will return that value if the param doesn't exist.
-// Returned value is only valid within the handler. Do not store any references unless
-// Config.Immutable is enabled, in which case the value is copied before it is returned.
+// Returned value is only valid within the handler. Do not store any references.
+// Make copies or use the Immutable setting to use the value outside the Handler.
 func (c *Ctx) Params(key string, defaultValue ...string) string {
 	if key == "*" || key == "+" {
 		key += "1"
@@ -1078,11 +948,7 @@ func (c *Ctx) Params(key string, defaultValue ...string) string {
 			if len(c.values) <= i || len(c.values[i]) == 0 {
 				break
 			}
-			value := c.values[i]
-			if c.app.config.Immutable {
-				return c.app.getString([]byte(value))
-			}
-			return value
+			return c.values[i]
 		}
 	}
 	return defaultString("", defaultValue)
@@ -1188,35 +1054,6 @@ func (c *Ctx) Query(key string, defaultValue ...string) string {
 	return defaultString(c.app.getString(c.fasthttp.QueryArgs().Peek(key)), defaultValue)
 }
 
-// Queries returns a map of query parameters and their values.
-//
-// GET /?name=alex&wanna_cake=2&id=
-// Queries()["name"] == "alex"
-// Queries()["wanna_cake"] == "2"
-// Queries()["id"] == ""
-//
-// GET /?field1=value1&field1=value2&field2=value3
-// Queries()["field1"] == "value2"
-// Queries()["field2"] == "value3"
-//
-// GET /?list_a=1&list_a=2&list_a=3&list_b[]=1&list_b[]=2&list_b[]=3&list_c=1,2,3
-// Queries()["list_a"] == "3"
-// Queries()["list_b[]"] == "3"
-// Queries()["list_c"] == "1,2,3"
-//
-// GET /api/search?filters.author.name=John&filters.category.name=Technology&filters[customer][name]=Alice&filters[status]=pending
-// Queries()["filters.author.name"] == "John"
-// Queries()["filters.category.name"] == "Technology"
-// Queries()["filters[customer][name]"] == "Alice"
-// Queries()["filters[status]"] == "pending"
-func (c *Ctx) Queries() map[string]string {
-	m := make(map[string]string, c.Context().QueryArgs().Len())
-	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
-		m[c.app.getString(key)] = c.app.getString(value)
-	})
-	return m
-}
-
 // QueryInt returns integer value of key string parameter in the url.
 // Default to empty or invalid key is 0.
 //
@@ -1239,7 +1076,7 @@ func (c *Ctx) QueryInt(key string, defaultValue ...int) int {
 }
 
 // QueryBool returns bool value of key string parameter in the url.
-// Default to empty or invalid key is false.
+// Default to empty or invalid key is true.
 //
 //	Get /?name=alex&want_pizza=false&id=
 //	QueryBool("want_pizza") == false
@@ -1293,7 +1130,18 @@ func (c *Ctx) QueryParser(out interface{}) error {
 		k := c.app.getString(key)
 		v := c.app.getString(val)
 
-		err = formatParserData(out, data, queryTag, k, v, c.app.config.EnableSplittingOnParsers, true)
+		if strings.Contains(k, "[") {
+			k, err = parseParamSquareBrackets(k)
+		}
+
+		if strings.Contains(v, ",") && equalFieldType(out, reflect.Slice, k) {
+			values := strings.Split(v, ",")
+			for i := 0; i < len(values); i++ {
+				data[k] = append(data[k], values[i])
+			}
+		} else {
+			data[k] = append(data[k], v)
+		}
 	})
 
 	if err != nil {
@@ -1303,25 +1151,47 @@ func (c *Ctx) QueryParser(out interface{}) error {
 	return c.parseToStruct(queryTag, out, data)
 }
 
+func parseParamSquareBrackets(k string) (string, error) {
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+
+	kbytes := []byte(k)
+
+	for i, b := range kbytes {
+		if b == '[' && kbytes[i+1] != ']' {
+			if err := bb.WriteByte('.'); err != nil {
+				return "", fmt.Errorf("failed to write: %w", err)
+			}
+		}
+
+		if b == '[' || b == ']' {
+			continue
+		}
+
+		if err := bb.WriteByte(b); err != nil {
+			return "", fmt.Errorf("failed to write: %w", err)
+		}
+	}
+
+	return bb.String(), nil
+}
+
 // ReqHeaderParser binds the request header strings to a struct.
 func (c *Ctx) ReqHeaderParser(out interface{}) error {
 	data := make(map[string][]string)
-	var err error
-
 	c.fasthttp.Request.Header.VisitAll(func(key, val []byte) {
-		if err != nil {
-			return
-		}
-
 		k := c.app.getString(key)
 		v := c.app.getString(val)
 
-		err = formatParserData(out, data, reqHeaderTag, k, v, c.app.config.EnableSplittingOnParsers, false)
+		if strings.Contains(v, ",") && equalFieldType(out, reflect.Slice, k) {
+			values := strings.Split(v, ",")
+			for i := 0; i < len(values); i++ {
+				data[k] = append(data[k], values[i])
+			}
+		} else {
+			data[k] = append(data[k], v)
+		}
 	})
-
-	if err != nil {
-		return err
-	}
 
 	return c.parseToStruct(reqHeaderTag, out, data)
 }
@@ -1344,45 +1214,44 @@ func (*Ctx) parseToStruct(aliasTag string, out interface{}, data map[string][]st
 	return nil
 }
 
-func equalFieldType(out interface{}, kind reflect.Kind, key, tag string) bool {
+func equalFieldType(out interface{}, kind reflect.Kind, key string) bool {
+	// Get type of interface
 	outTyp := reflect.TypeOf(out).Elem()
+	key = utils.ToLower(key)
+	// Must be a struct to match a field
 	if outTyp.Kind() != reflect.Struct {
 		return false
 	}
-	key = utils.ToLower(key)
-	return checkEqualFieldType(outTyp, kind, key, tag)
-}
-
-func checkEqualFieldType(outTyp reflect.Type, kind reflect.Kind, key, tag string) bool {
+	// Copy interface to an value to be used
+	outVal := reflect.ValueOf(out).Elem()
+	// Loop over each field
 	for i := 0; i < outTyp.NumField(); i++ {
+		// Get field value data
+		structField := outVal.Field(i)
+		// Can this field be changed?
+		if !structField.CanSet() {
+			continue
+		}
+		// Get field key data
 		typeField := outTyp.Field(i)
-
-		if typeField.Anonymous && typeField.Type.Kind() == reflect.Struct {
-			if checkEqualFieldType(typeField.Type, kind, key, tag) {
-				return true
-			}
-		}
-
-		if typeField.PkgPath != "" { // unexported field
+		// Get type of field key
+		structFieldKind := structField.Kind()
+		// Does the field type equals input?
+		if structFieldKind != kind {
 			continue
 		}
-
-		if typeField.Type.Kind() != kind {
-			continue
-		}
-
-		inputFieldName := typeField.Tag.Get(tag)
+		// Get tag from field if exist
+		inputFieldName := typeField.Tag.Get(queryTag)
 		if inputFieldName == "" {
 			inputFieldName = typeField.Name
-		} else if idx := strings.IndexByte(inputFieldName, ','); idx > -1 {
-			inputFieldName = inputFieldName[:idx]
+		} else {
+			inputFieldName = strings.Split(inputFieldName, ",")[0]
 		}
-
+		// Compare field/tag with provided key
 		if utils.ToLower(inputFieldName) == key {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -1393,44 +1262,25 @@ var (
 
 // Range returns a struct containing the type and a slice of ranges.
 func (c *Ctx) Range(size int) (Range, error) {
-	var (
-		rangeData Range
-		ranges    string
-	)
+	var rangeData Range
 	rangeStr := c.Get(HeaderRange)
-
-	i := strings.IndexByte(rangeStr, '=')
-	if i == -1 || strings.Contains(rangeStr[i+1:], "=") {
+	if rangeStr == "" || !strings.Contains(rangeStr, "=") {
 		return rangeData, ErrRangeMalformed
 	}
-	rangeData.Type = rangeStr[:i]
-	ranges = rangeStr[i+1:]
-
-	var (
-		singleRange string
-		moreRanges  = ranges
-	)
-	for moreRanges != "" {
-		singleRange = moreRanges
-		if i := strings.IndexByte(moreRanges, ','); i >= 0 {
-			singleRange = moreRanges[:i]
-			moreRanges = moreRanges[i+1:]
-		} else {
-			moreRanges = ""
-		}
-
-		var (
-			startStr, endStr string
-			i                int
-		)
-		if i = strings.IndexByte(singleRange, '-'); i == -1 {
+	data := strings.Split(rangeStr, "=")
+	const expectedDataParts = 2
+	if len(data) != expectedDataParts {
+		return rangeData, ErrRangeMalformed
+	}
+	rangeData.Type = data[0]
+	arr := strings.Split(data[1], ",")
+	for i := 0; i < len(arr); i++ {
+		item := strings.Split(arr[i], "-")
+		if len(item) == 1 {
 			return rangeData, ErrRangeMalformed
 		}
-		startStr = singleRange[:i]
-		endStr = singleRange[i+1:]
-
-		start, startErr := fasthttp.ParseUint(utils.UnsafeBytes(startStr))
-		end, endErr := fasthttp.ParseUint(utils.UnsafeBytes(endStr))
+		start, startErr := strconv.Atoi(item[0])
+		end, endErr := strconv.Atoi(item[1])
 		if startErr != nil { // -nnn
 			start = size - end
 			end = size - 1
@@ -1474,9 +1324,13 @@ func (c *Ctx) Redirect(location string, status ...int) error {
 // Variables are read by the Render method and may be overwritten.
 func (c *Ctx) Bind(vars Map) error {
 	// init viewBindMap - lazy map
-	for k, v := range vars {
-		c.viewBindMap.Store(k, v)
+	if c.viewBindMap == nil {
+		c.viewBindMap = dictpool.AcquireDict()
 	}
+	for k, v := range vars {
+		c.viewBindMap.Set(k, v)
+	}
+
 	return nil
 }
 
@@ -1530,10 +1384,10 @@ func (c *Ctx) RedirectToRoute(routeName string, params Map, status ...int) error
 
 		i := 1
 		for k, v := range queries {
-			_, _ = queryText.WriteString(k + "=" + v)
+			_, _ = queryText.WriteString(k + "=" + v) //nolint:errcheck // This will never fail
 
 			if i != len(queries) {
-				_, _ = queryText.WriteString("&")
+				_, _ = queryText.WriteString("&") //nolint:errcheck // This will never fail
 			}
 			i++
 		}
@@ -1559,11 +1413,6 @@ func (c *Ctx) Render(name string, bind interface{}, layouts ...string) error {
 	// Get new buffer from pool
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-
-	// Initialize empty bind map if bind is nil
-	if bind == nil {
-		bind = make(Map)
-	}
 
 	// Pass-locals-to-views, bind, appListKeys
 	c.renderExtensions(bind)
@@ -1620,16 +1469,14 @@ func (c *Ctx) Render(name string, bind interface{}, layouts ...string) error {
 func (c *Ctx) renderExtensions(bind interface{}) {
 	if bindMap, ok := bind.(Map); ok {
 		// Bind view map
-		c.viewBindMap.Range(func(key, value interface{}) bool {
-			keyValue, ok := key.(string)
-			if !ok {
-				return true
+		if c.viewBindMap != nil {
+			for _, v := range c.viewBindMap.D {
+				// make sure key does not exist already
+				if _, ok := bindMap[v.Key]; !ok {
+					bindMap[v.Key] = v.Value
+				}
 			}
-			if _, ok := bindMap[keyValue]; !ok {
-				bindMap[keyValue] = value
-			}
-			return true
-		})
+		}
 
 		// Check if the PassLocalsToViews option is enabled (by default it is disabled)
 		if c.app.config.PassLocalsToViews {
@@ -1835,11 +1682,6 @@ func (c *Ctx) Subdomains(offset ...int) []string {
 		l = len(subdomains)
 	}
 	subdomains = subdomains[:l]
-	if c.app.config.Immutable {
-		for i, subdomain := range subdomains {
-			subdomains[i] = c.app.getString([]byte(subdomain))
-		}
-	}
 	return subdomains
 }
 
@@ -1859,40 +1701,14 @@ func (c *Ctx) Status(status int) *Ctx {
 //
 // The returned value may be useful for logging.
 func (c *Ctx) String() string {
-	// Get buffer from pool
-	buf := bytebufferpool.Get()
-
-	// Start with the ID, converting it to a hex string without fmt.Sprintf
-	buf.WriteByte('#')
-
-	// Convert ID to hexadecimal
-	id := strconv.FormatUint(c.fasthttp.ID(), 16)
-	// Pad with leading zeros to ensure 16 characters
-	for i := 0; i < (16 - len(id)); i++ {
-		buf.WriteByte('0')
-	}
-	buf.WriteString(id)
-	buf.WriteString(" - ")
-
-	// Add local and remote addresses directly
-	buf.WriteString(c.fasthttp.LocalAddr().String())
-	buf.WriteString(" <-> ")
-	buf.WriteString(c.fasthttp.RemoteAddr().String())
-	buf.WriteString(" - ")
-
-	// Add method and URI
-	buf.WriteString(c.app.getString(c.fasthttp.Request.Header.Method()))
-	buf.WriteByte(' ')
-	buf.WriteString(c.app.getString(c.fasthttp.URI().FullURI()))
-
-	// Allocate string
-	str := buf.String()
-
-	// Reset buffer
-	buf.Reset()
-	bytebufferpool.Put(buf)
-
-	return str
+	return fmt.Sprintf(
+		"#%016X - %s <-> %s - %s %s",
+		c.fasthttp.ID(),
+		c.fasthttp.LocalAddr(),
+		c.fasthttp.RemoteAddr(),
+		c.fasthttp.Request.Header.Method(),
+		c.fasthttp.URI().FullURI(),
+	)
 }
 
 // Type sets the Content-Type HTTP header to the MIME type specified by the file extension.
@@ -1987,12 +1803,11 @@ func (c *Ctx) IsProxyTrusted() bool {
 	return false
 }
 
-var localHosts = [...]string{"127.0.0.1", "::1"}
-
 // IsLocalHost will return true if address is a localhost address.
 func (*Ctx) isLocalHost(address string) bool {
+	localHosts := []string{"127.0.0.1", "0.0.0.0", "::1"}
 	for _, h := range localHosts {
-		if address == h {
+		if strings.Contains(address, h) {
 			return true
 		}
 	}
@@ -2001,13 +1816,9 @@ func (*Ctx) isLocalHost(address string) bool {
 
 // IsFromLocal will return true if request came from local.
 func (c *Ctx) IsFromLocal() bool {
-	return c.isLocalHost(c.fasthttp.RemoteIP().String())
-}
-
-func (c *Ctx) getBody() []byte {
-	if c.app.config.Immutable {
-		return utils.CopyBytes(c.fasthttp.Request.Body())
+	ips := c.IPs()
+	if len(ips) == 0 {
+		ips = append(ips, c.IP())
 	}
-
-	return c.fasthttp.Request.Body()
+	return c.isLocalHost(ips[0])
 }

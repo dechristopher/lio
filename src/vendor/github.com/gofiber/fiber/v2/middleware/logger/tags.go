@@ -2,7 +2,6 @@ package logger
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -86,10 +85,13 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 			return output.Write(c.Body())
 		},
 		TagBytesReceived: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
-			return output.WriteString(strconv.Itoa((c.Request().Header.ContentLength())))
+			return appendInt(output, len(c.Request().Body()))
 		},
 		TagBytesSent: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
-			return output.WriteString(strconv.Itoa((c.Response().Header.ContentLength())))
+			if c.Response().Header.ContentLength() < 0 {
+				return appendInt(output, 0)
+			}
+			return appendInt(output, len(c.Response().Body()))
 		},
 		TagRoute: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			return output.WriteString(c.Route().Path)
@@ -100,7 +102,7 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 		TagReqHeaders: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			reqHeaders := make([]string, 0)
 			for k, v := range c.GetReqHeaders() {
-				reqHeaders = append(reqHeaders, k+"="+strings.Join(v, ","))
+				reqHeaders = append(reqHeaders, k+"="+v)
 			}
 			return output.Write([]byte(strings.Join(reqHeaders, "&")))
 		},
@@ -137,10 +139,6 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 		},
 		TagError: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			if data.ChainErr != nil {
-				if cfg.enableColors {
-					colors := c.App().Config().ColorScheme
-					return output.WriteString(fmt.Sprintf("%s%s%s", colors.Red, data.ChainErr.Error(), colors.Reset))
-				}
 				return output.WriteString(data.ChainErr.Error())
 			}
 			return output.WriteString("-")
@@ -178,14 +176,14 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 		TagStatus: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			if cfg.enableColors {
 				colors := c.App().Config().ColorScheme
-				return output.WriteString(fmt.Sprintf("%s%3d%s", statusColor(c.Response().StatusCode(), colors), c.Response().StatusCode(), colors.Reset))
+				return output.WriteString(fmt.Sprintf("%s %3d %s", statusColor(c.Response().StatusCode(), colors), c.Response().StatusCode(), colors.Reset))
 			}
 			return appendInt(output, c.Response().StatusCode())
 		},
 		TagMethod: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			if cfg.enableColors {
 				colors := c.App().Config().ColorScheme
-				return output.WriteString(fmt.Sprintf("%s%s%s", methodColor(c.Method(), colors), c.Method(), colors.Reset))
+				return output.WriteString(fmt.Sprintf("%s %-7s %s", methodColor(c.Method(), colors), c.Method(), colors.Reset))
 			}
 			return output.WriteString(c.Method())
 		},
@@ -194,15 +192,17 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 		},
 		TagLatency: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			latency := data.Stop.Sub(data.Start)
-			return output.WriteString(fmt.Sprintf("%13v", latency))
+			return output.WriteString(fmt.Sprintf("%7v", latency))
 		},
 		TagTime: func(output Buffer, c *fiber.Ctx, data *Data, extraParam string) (int, error) {
 			return output.WriteString(data.Timestamp.Load().(string)) //nolint:forcetypeassert // We always store a string in here
 		},
 	}
 	// merge with custom tags from user
-	for k, v := range cfg.CustomTags {
-		tagFunctions[k] = v
+	if cfg.CustomTags != nil {
+		for k, v := range cfg.CustomTags {
+			tagFunctions[k] = v
+		}
 	}
 
 	return tagFunctions

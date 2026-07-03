@@ -1,10 +1,9 @@
 package filesystem
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -144,11 +143,11 @@ func New(config ...Config) fiber.Handler {
 			path = utils.TrimRight(path, '/')
 		}
 		file, err := cfg.Root.Open(path)
-		if err != nil && (errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid)) && cfg.NotFoundFile != "" {
+		if err != nil && os.IsNotExist(err) && cfg.NotFoundFile != "" {
 			file, err = cfg.Root.Open(cfg.NotFoundFile)
 		}
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrInvalid) {
+			if os.IsNotExist(err) {
 				return c.Status(fiber.StatusNotFound).Next()
 			}
 			return fmt.Errorf("failed to open: %w", err)
@@ -179,8 +178,6 @@ func New(config ...Config) fiber.Handler {
 			}
 			return fiber.ErrForbidden
 		}
-
-		c.Status(fiber.StatusOK)
 
 		modTime := stat.ModTime()
 		contentLength := int(stat.Size())
@@ -219,13 +216,11 @@ func New(config ...Config) fiber.Handler {
 	}
 }
 
-// SendFile serves a file from an HTTP file system at the specified path.
-// It handles content serving, sets appropriate headers, and returns errors when needed.
-// Usage: err := SendFile(ctx, fs, "/path/to/file.txt")
-func SendFile(c *fiber.Ctx, filesystem http.FileSystem, path string) error {
-	file, err := filesystem.Open(path)
+// SendFile ...
+func SendFile(c *fiber.Ctx, fs http.FileSystem, path string) error {
+	file, err := fs.Open(path)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if os.IsNotExist(err) {
 			return fiber.ErrNotFound
 		}
 		return fmt.Errorf("failed to open: %w", err)
@@ -239,7 +234,7 @@ func SendFile(c *fiber.Ctx, filesystem http.FileSystem, path string) error {
 	// Serve index if path is directory
 	if stat.IsDir() {
 		indexPath := utils.TrimRight(path, '/') + ConfigDefault.Index
-		index, err := filesystem.Open(indexPath)
+		index, err := fs.Open(indexPath)
 		if err == nil {
 			indexStat, err := index.Stat()
 			if err == nil {
@@ -253,8 +248,6 @@ func SendFile(c *fiber.Ctx, filesystem http.FileSystem, path string) error {
 	if stat.IsDir() {
 		return fiber.ErrForbidden
 	}
-
-	c.Status(fiber.StatusOK)
 
 	modTime := stat.ModTime()
 	contentLength := int(stat.Size())

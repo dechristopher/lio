@@ -11,26 +11,17 @@ import (
 
 // Group struct
 type Group struct {
-	app             *App
-	parentGroup     *Group
-	name            string
-	anyRouteDefined bool
+	app         *App
+	parentGroup *Group
+	name        string
 
 	Prefix string
 }
 
-// Name Assign name to specific route or group itself.
-//
-// If this method is used before any route added to group, it'll set group name and OnGroupNameHook will be used.
-// Otherwise, it'll set route name and OnName hook will be used.
+// Name Assign name to specific route.
 func (grp *Group) Name(name string) Router {
-	if grp.anyRouteDefined {
-		grp.app.Name(name)
-
-		return grp
-	}
-
 	grp.app.mutex.Lock()
+
 	if grp.parentGroup != nil {
 		grp.name = grp.parentGroup.name + name
 	} else {
@@ -83,10 +74,6 @@ func (grp *Group) Use(args ...interface{}) Router {
 
 	for _, prefix := range prefixes {
 		grp.app.register(methodUse, getGroupPath(grp.Prefix, prefix), grp, handlers...)
-	}
-
-	if !grp.anyRouteDefined {
-		grp.anyRouteDefined = true
 	}
 
 	return grp
@@ -148,22 +135,12 @@ func (grp *Group) Patch(path string, handlers ...Handler) Router {
 
 // Add allows you to specify a HTTP method to register a route
 func (grp *Group) Add(method, path string, handlers ...Handler) Router {
-	grp.app.register(method, getGroupPath(grp.Prefix, path), grp, handlers...)
-	if !grp.anyRouteDefined {
-		grp.anyRouteDefined = true
-	}
-
-	return grp
+	return grp.app.register(method, getGroupPath(grp.Prefix, path), grp, handlers...)
 }
 
 // Static will create a file server serving static files
 func (grp *Group) Static(prefix, root string, config ...Static) Router {
-	grp.app.registerStatic(getGroupPath(grp.Prefix, prefix), root, config...)
-	if !grp.anyRouteDefined {
-		grp.anyRouteDefined = true
-	}
-
-	return grp
+	return grp.app.registerStatic(getGroupPath(grp.Prefix, prefix), root, config...)
 }
 
 // All will register the handler on all HTTP methods
@@ -181,7 +158,7 @@ func (grp *Group) All(path string, handlers ...Handler) Router {
 func (grp *Group) Group(prefix string, handlers ...Handler) Router {
 	prefix = getGroupPath(grp.Prefix, prefix)
 	if len(handlers) > 0 {
-		grp.app.register(methodUse, prefix, grp, handlers...)
+		_ = grp.app.register(methodUse, prefix, grp, handlers...)
 	}
 
 	// Create new group
