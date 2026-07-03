@@ -57,6 +57,16 @@ let deployArrangement = null; // Map<square, piece> tracking our home-rank layou
 let deployIsWhite = false;    // our side this game, from the deploy message ids
 let deployLockWhite = false;  // white has committed its arrangement
 let deployLockBlack = false;  // black has committed its arrangement
+// deployStartGameID is currentGameID as of entering the deploy phase — the
+// finished (pre-deploy) game's id, or null when no board state carried an id
+// before the phase began (the norm for game 1 of a bot room, where the room
+// enters deploy the instant the player's socket connects and the connect-time
+// a:0 is answered with a DeployStateMessage, which has no id). While in deploy
+// mode, any board state whose id differs from this baseline can only be the
+// deployed game, so it is treated as the reveal even when gs was missed and
+// currentGameID is null — the case the plain gid !== currentGameID test in
+// handleMove cannot recognize (see DEPLOY_REMATCH_RACES.md, F2 gap).
+let deployStartGameID = null;
 
 window.addEventListener('load', () => {
 	if (window.ws) {
@@ -539,6 +549,35 @@ const stopRematchResync = () => {
 	}
 };
 
+// Deploy-phase resync safety net, the deploy analogue of the rematch poll
+// above. After confirming an arrangement (or while spectating the blind
+// phase) the client is waiting on a single server broadcast — the gs=true
+// reveal — with nothing else scheduled to pull it forward if that one message
+// is lost (mobile backgrounding half-opens the socket; a stalled write or
+// full send buffer drops the connection server-side with the reveal still
+// queued). While waiting, poll a:0: during the live phase the server answers
+// with a DeployStateMessage (harmless re-entry refresh, and it resends a
+// confirm the server never received); after the phase it answers with the
+// deployed game's board state, which handleMove now recognizes as the reveal
+// via deployStartGameID. Stopped by exitDeployMode and on room teardown. The
+// happy path (reveal arrives within ~1s of the second confirm) sends zero
+// extra traffic.
+let deployResyncTimer = null;
+
+const startDeployResync = () => {
+	stopDeployResync();
+	deployResyncTimer = setInterval(() => {
+		sendBoardUpdateRequest();
+	}, rematchResyncIntervalMs);
+};
+
+const stopDeployResync = () => {
+	if (deployResyncTimer !== null) {
+		clearInterval(deployResyncTimer);
+		deployResyncTimer = null;
+	}
+};
+
 /**
  * Hide the game-end result overlay and reset its rematch button and countdown.
  */
@@ -851,20 +890,31 @@ const handleMove = (message) => {
 	// tracking is our first sight of a new game — we missed its single-shot
 	// start broadcast (gs=true reveal or 'd' deploy start) — so it must be
 	// handled as a game start rather than dropped by the staleness guards
-	// below, which all break across a game boundary. The very first id after a
-	// page load is adopted silently (it describes the game already in
-	// progress, not a boundary we crossed).
+	// below, which all break across a game boundary. Outside the deploy phase,
+	// the very first id after a page load is adopted silently (it describes the
+	// game already in progress, not a boundary we crossed).
 	const gid = message.d.i;
-	const newGame = !!message.d.gs || (!!gid && !!currentGameID && gid !== currentGameID);
-	if (gid) {
-		currentGameID = gid;
-	}
+	// during the deploy phase the id is compared against the baseline captured
+	// at phase entry (deployStartGameID) rather than currentGameID: the only
+	// board state that can follow a deploy phase is the deployed game, so any
+	// different id — including the first id ever seen, when the baseline is
+	// null — is the reveal, even when the gs=true broadcast was missed. The
+	// plain currentGameID test below requires a non-null prior id and so can
+	// never recognize the reveal for a client whose only pre-deploy server
+	// message was a DeployStateMessage (the norm for game 1 of a bot room).
+	const inDeploy = deployMode || deploySpectating;
+	const newGame = !!message.d.gs
+		|| (!!gid && !!currentGameID && gid !== currentGameID)
+		|| (!!gid && inDeploy && gid !== deployStartGameID);
 
 	// while arranging or spectating the blind deploy phase, ignore stale pre-deploy
 	// board states (r.game is still the previous position server-side); only a
 	// new game's board state (the reveal, or any later snapshot of it if the
-	// reveal was missed) ends the phase and renders pieces
-	if ((deployMode || deploySpectating) && !newGame) {
+	// reveal was missed) ends the phase and renders pieces. The id is NOT
+	// adopted on this drop: adopting it would make every later snapshot of the
+	// deployed game read as the same game and never as new, permanently
+	// wedging the client in deploy mode.
+	if (inDeploy && !newGame) {
 		return;
 	}
 
@@ -877,6 +927,10 @@ const handleMove = (message) => {
 	// forward (a 'd' deploy message is routed elsewhere).
 	if (rematchRequested && !newGame) {
 		return;
+	}
+
+	if (gid) {
+		currentGameID = gid;
 	}
 
 	const ofenParts = message.d.o.split(' ');
@@ -1099,9 +1153,10 @@ const handleGameOver = (message) => {
 
 	// if room over, decide whether to keep the player here or send them home
 	if (message.d.o === true) {
-		// no next game is coming; stop any post-rematch resync poll so it can't
-		// outlive the room
+		// no next game is coming; stop any post-rematch or deploy resync poll so
+		// neither can outlive the room
 		stopRematchResync();
+		stopDeployResync();
 
 		// A spectator always stays on the final position: the full move history
 		// is client-held, so review keeps working after the room is gone. Stop
@@ -1772,6 +1827,10 @@ const enterDeployMode = (seconds, payload) => {
 	deployConfirmed = false;
 	deployLockWhite = false;
 	deployLockBlack = false;
+	// baseline for reveal recognition: any board state carrying a different id
+	// than the game we knew entering the phase is the deployed game (null when
+	// no id-carrying state ever arrived — see handleMove's newGame test)
+	deployStartGameID = currentGameID;
 
 	// a deploy phase begins a new game, so clear any lingering game-over /
 	// rematch overlay from the previous game
@@ -1846,6 +1905,8 @@ const enterDeploySpectatorMode = (payload) => {
 	deploySpectating = true;
 	deployLockWhite = false;
 	deployLockBlack = false;
+	// same reveal-recognition baseline as the player path (see enterDeployMode)
+	deployStartGameID = currentGameID;
 	hideResult();
 
 	// blank the board; both home ranks sit behind the "?" overlay
@@ -1872,6 +1933,10 @@ const enterDeploySpectatorMode = (payload) => {
 	if (d.lw) { updateDeployLock('white'); }
 	if (d.lb) { updateDeployLock('black'); }
 	renderDeployLock();
+
+	// a spectator is also waiting on the single reveal broadcast, with no
+	// confirm of their own to hang the poll off — start it on phase entry
+	startDeployResync();
 };
 
 /**
@@ -1982,6 +2047,10 @@ const confirmDeploy = () => {
 	document.getElementById('deploy-confirm').classList.add('hidden');
 	document.getElementById('deploy-waiting').classList.remove('hidden');
 	renderDeployLock();
+	// guard against missing the single reveal broadcast (and against this
+	// confirm itself being lost in transit): poll for authoritative state until
+	// the deployed game begins (see startDeployResync)
+	startDeployResync();
 };
 
 /**
@@ -2118,6 +2187,7 @@ const exitDeployMode = () => {
 	deployConfirmed = false;
 	clearDeployCountdown();
 	clearDeployDraft();
+	stopDeployResync();
 
 	const dq = document.getElementById('deploy-questions');
 	const dqb = document.getElementById('deploy-questions-btm');
