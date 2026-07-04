@@ -60,7 +60,9 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 					message, so reconnects rebuild it for free. On desktop it's a flex
 					sibling of the board (fixed slight gap beneath it); on mobile the
 					.ga-board wrapper dissolves (display: contents) and the timeline
-					places itself into the "tline" grid row beneath the bottom clock.
+					places itself into the "tline" grid row beneath the bottom clock —
+					or, once the game is over (.analyzing on the grid), beneath the
+					move list so the review nav sits directly under the board.
 				-->
 				<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline">
 					<div class="tl-row" id="tl-row-opponent">

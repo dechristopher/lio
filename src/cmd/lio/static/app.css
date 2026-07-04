@@ -935,6 +935,42 @@
       width: 100%;
     }
   }
+  @media (max-width: 899px) {
+    .game-grid.analyzing {
+      grid-template-areas: "opp"	"board"	"you"	"rail"	"tline"	"ctrl"	"info"	"foot";
+    }
+    .analyzing .ga-rail,	.analyzing .rail-stack {
+      display: contents;
+    }
+    .analyzing .moves-panel {
+      grid-area: rail;
+    }
+    .analyzing .controls {
+      grid-area: ctrl;
+      margin-top: 0;
+    }
+    .analyzing .clock-body {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.3rem 0.6rem;
+    }
+    .analyzing .clockTime {
+      flex: none;
+      font-size: 1.15rem;
+    }
+    .analyzing .rail-title {
+      order: -2;
+    }
+    .analyzing .move-nav {
+      order: -1;
+      margin-top: 0.4rem;
+    }
+    .analyzing .move-list {
+      margin-top: 0.4rem;
+    }
+  }
   .board-shell {
     --bs: min(100%, 78vh, 34rem);
     grid-area: board;

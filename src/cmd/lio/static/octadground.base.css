@@ -254,13 +254,24 @@ piece.fading {
 }
 
 .og-wrap coords.files {
+  /* File letters sit 33px right of each square's center. The shift lives in
+     text-indent (a 66px start inset on a centered line moves the glyph +33px),
+     not in an offset of the strip itself: a width:100% box with left:33px
+     extends 33px past the board's right edge, and once the viewport is narrow
+     enough for that to pass the page edge, mobile browsers grow the layout
+     viewport to fit it — a horizontally pannable page with everything
+     off-center. */
   bottom: 0;
-  left: 33px;
+  left: 0;
   flex-flow: row;
   width: 100%;
   height: 16px;
   text-transform: uppercase;
   text-align: center;
+}
+
+.og-wrap coords.files coord {
+  text-indent: 66px;
 }
 
 .og-wrap coords.files.black {

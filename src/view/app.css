@@ -177,9 +177,10 @@
 
 /* ============================================================================
    Game room (Phase 2). The state classes .active / .low / .thinking-on /
-   .result-show / .playerWhite / .playerBlack are toggled by lio-game.js on the
-   existing hook elements (#clockPlayer, #clockOpponent, #result-overlay, the
-   .clock* / .result* / .thinking nodes) — keep these names in sync with the JS.
+   .result-show / .playerWhite / .playerBlack / .analyzing are toggled by
+   lio-game.js on the existing hook elements (#clockPlayer, #clockOpponent,
+   #result-overlay, .game-grid, the .clock* / .result* / .thinking nodes) —
+   keep these names in sync with the JS.
 ============================================================================ */
 @layer components {
 	/* ---- layout: board hero + side rail, stacking on mobile ---- */
@@ -248,6 +249,49 @@
 			top: 1rem;
 		}
 		.ga-timeline { width: 100%; }
+	}
+
+	/* ---- analysis mode, single-column layout only ----
+	   .analyzing is toggled on .game-grid by lio-game.js (setControlsMode) the
+	   moment the game is over, and cleared when a new game starts. On mobile the
+	   live-play stack buries the move list and review nav below the fold (two
+	   tall clocks + a ~96vw board + the timeline all come first), so a reviewing
+	   player scrolls for every interaction. This block compacts the clocks to a
+	   single line, floats the review nav to the top of the moves panel (right
+	   under the board), and reorders the stack to moves → timeline → controls.
+	   Desktop is untouched: the rail already shows everything at once. */
+	@media (max-width: 899px) {
+		.game-grid.analyzing {
+			grid-template-areas:
+				"opp"
+				"board"
+				"you"
+				"rail"
+				"tline"
+				"ctrl"
+				"info"
+				"foot";
+		}
+		/* dissolve the rail so the moves panel and the game controls become
+		   their own grid rows, letting the timeline slot in between them */
+		.analyzing .ga-rail,
+		.analyzing .rail-stack { display: contents; }
+		.analyzing .moves-panel { grid-area: rail; }
+		.analyzing .controls { grid-area: ctrl; margin-top: 0; }
+		/* thin one-line clock: identity row left, time right */
+		.analyzing .clock-body {
+			flex-direction: row;
+			align-items: center;
+			justify-content: space-between;
+			gap: 0.5rem;
+			padding: 0.3rem 0.6rem;
+		}
+		.analyzing .clockTime { flex: none; font-size: 1.15rem; }
+		/* review nav between the panel title and the move list, minimizing thumb
+		   travel from the board (orders: title -2, nav -1, list 0) */
+		.analyzing .rail-title { order: -2; }
+		.analyzing .move-nav { order: -1; margin-top: 0.4rem; }
+		.analyzing .move-list { margin-top: 0.4rem; }
 	}
 
 	/* board: a square sized off --bs, capped to the column / viewport. The

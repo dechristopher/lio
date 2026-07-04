@@ -391,6 +391,9 @@ let opponentLeft = false;     // the opponent disconnected during the window
 // the overlay's #result-rematch (both listed in rematchButtons) and its
 // data-rematch-url bot fallback, so the two stay in lockstep.
 const gameControlsEl = document.getElementById('game-controls');
+// the room grid also carries an .analyzing class while the game is over, which
+// drives the compact mobile analysis layout (see app.css "analysis mode")
+const gameGridEl = document.querySelector('.game-grid');
 const resignBtn = document.getElementById('btn-resign');
 const drawBtn = document.getElementById('btn-draw');
 const railRematchBtn = document.getElementById('btn-rematch');
@@ -434,11 +437,16 @@ const clearRematchButtonsWants = () => rematchButtons.forEach((b) => {
  * setControlsMode swaps the rail control set between live play (Resign / Draw)
  * and game-over (Rematch). Toggling .controls-over does the visual swap; the
  * play-control state is reset either way so a stale confirm/offer never lingers.
+ * The same over/live signal drives .analyzing on the game grid, which switches
+ * the single-column (mobile) layout into its compact analysis arrangement.
  * @param over - true once the game is over (show Rematch), false during play
  */
 const setControlsMode = (over) => {
 	if (gameControlsEl) {
 		gameControlsEl.classList.toggle('controls-over', over);
+	}
+	if (gameGridEl) {
+		gameGridEl.classList.toggle('analyzing', over);
 	}
 	resetResignButton();
 	clearDrawOfferUI();
