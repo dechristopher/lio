@@ -17,7 +17,7 @@ import (
 
 const logFormatProd = "[${cookie:uid}] ${ip} ${reqHeader:x-forwarded-for} ${reqHeader:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
-	"${status} ${latency} \"${referrer}\" \"${ua}\"\n"
+	"${status} ${latency} \"${referer}\" \"${ua}\"\n"
 
 const logFormatDev = "[${cookie:uid}] ${ip} [${time}] \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency}\n"
