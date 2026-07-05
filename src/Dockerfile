@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.25.11-alpine3.24 AS build
+FROM golang:1.26.4-alpine3.24 AS build
 
 # short git commit hash of the source being built, injected into config.Revision
 # so the running binary reports its exact build in the footer. The build context
@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 go build -v -trimpath \
     -o lio
 
 # final packaging
-FROM golang:1.25.11-alpine3.24
+FROM golang:1.26.4-alpine3.24
 
 # Run this here to ensure we always get up to date root certs
 RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
