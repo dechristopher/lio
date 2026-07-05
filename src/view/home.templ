@@ -62,7 +62,12 @@ templ openChallenges(challenges []message.OpenChallenge) {
 								@colorDot(c.Color)
 								<span class="flex flex-col leading-tight">
 									<span class="text-sm font-semibold text-fg">{ c.Variant.Name }</span>
-									<span class="text-[11px] uppercase tracking-wide text-fg-subtle">{ c.Variant.Group.String() }</span>
+									<span class="text-[11px] uppercase tracking-wide text-fg-subtle">
+										{ c.Variant.Group.String() }
+										if c.RaceTo > 0 {
+											· race to { strconv.Itoa(c.RaceTo) }
+										}
+									</span>
 								</span>
 							</span>
 							<span class="btn btn-primary px-3 py-1.5 text-xs">Join</span>

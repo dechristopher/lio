@@ -22,7 +22,14 @@ type newRoomPayload struct {
 	selectedColor octad.Color
 	vsBot         bool
 	public        bool
+	// raceTo makes the room a race-to match (see room.Params.RaceTo); zero is
+	// the classic single-game-with-rematches experience.
+	raceTo int
 }
+
+// raceToChoices is the allowlist of race-to targets offered by the create-game
+// modal; anything else in the form is rejected as a tampered payload.
+var raceToChoices = map[int]bool{0: true, 3: true, 5: true, 7: true}
 
 // redirect issues a client redirect that works for both normal and htmx
 // requests. htmx form posts get an HX-Redirect header — a real browser
@@ -172,6 +179,9 @@ func NewCustomRoom(c *fiber.Ctx) error {
 		// Public is the create-game "list publicly" toggle. The checkbox submits
 		// "true" only when checked, so it defaults to false (private) when absent.
 		Public bool `form:"public"`
+		// RaceTo is the match-length choice: 0 for a single game (the default),
+		// or a race to N points. Validated against raceToChoices below.
+		RaceTo int `form:"race-to"`
 	}{}
 
 	if err := c.BodyParser(&payload); err != nil {
@@ -200,6 +210,16 @@ func NewCustomRoom(c *fiber.Ctx) error {
 
 	vsBot := payload.Opponent == "computer"
 
+	if !raceToChoices[payload.RaceTo] {
+		util.Error(str.CRoom, "failed to create custom room: invalid race-to %d", payload.RaceTo)
+		return redirect(c, "/")
+	}
+	raceTo := payload.RaceTo
+	if vsBot {
+		// matches are human-vs-human only for now; force bot games single-game
+		raceTo = 0
+	}
+
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       selectedVariant,
@@ -207,6 +227,7 @@ func NewCustomRoom(c *fiber.Ctx) error {
 		vsBot:         vsBot,
 		// bot games are never public open challenges
 		public: payload.Public && !vsBot,
+		raceTo: raceTo,
 	})
 }
 
@@ -252,6 +273,7 @@ func newRoom(payload newRoomPayload) error {
 	// establish room parameters
 	params := room.NewParams(uid, payload.variant)
 	params.Public = payload.public
+	params.RaceTo = payload.raceTo
 
 	// set creating player ID in players map
 	params.Players[payload.selectedColor] = &player.Player{

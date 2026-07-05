@@ -215,6 +215,18 @@ type GameOverPayload struct {
 	// of DeployPayload.Confirmed (see arch/DEPLOY_REMATCH_RACES.md, F4).
 	RematchWhite bool `json:"rqw,omitempty"`
 	RematchBlack bool `json:"rqb,omitempty"`
+	// RaceTo is the match target for a race-to room (Params.RaceTo): the points
+	// (draws count ½) a player needs, with a strict lead, to win the match.
+	// Present on every game-over payload of a match room; zero otherwise.
+	RaceTo int `json:"rt,omitempty"`
+	// MatchOver reports the race is decided (a player reached RaceTo points with
+	// a lead — the winner is the seat with the higher Score). The room then holds
+	// the usual rematch window, in which agreement starts a fresh match.
+	MatchOver bool `json:"mo,omitempty"`
+	// NextGameIn, when > 0, is the number of seconds until the next game of an
+	// undecided match auto-starts (the mid-match interlude). Mutually exclusive
+	// with RematchWindow: mid-match game-overs carry no rematch affordance.
+	NextGameIn int `json:"ng,omitempty"`
 }
 
 // RematchUpdatePayload retimes the human rematch-window countdown mid-window

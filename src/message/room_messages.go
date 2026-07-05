@@ -28,7 +28,12 @@ type RoomTemplatePayload struct {
 	IsJoining   bool
 	// Public reports whether the challenge is listed in the home-page Open
 	// Challenges feed (vs a private, link-only challenge).
-	Public      bool
+	Public bool
+	// RaceTo is the room's match length (room.Params.RaceTo): the points target
+	// of a race-to match, or zero for a classic single game with rematches. The
+	// room views label the match with it ("Race to 3") on both the pre-game and
+	// in-game pages.
+	RaceTo      int
 	CancelToken string
 	JoinToken   string
 }

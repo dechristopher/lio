@@ -29,6 +29,10 @@ func (r *Instance) handleRoomOver() {
 		// Human players stay on the page to analyze, so the status must not
 		// promise a redirect.
 		status = "No rematch. Room closed."
+		if decided, _ := r.MatchDecided(); decided {
+			// a decided race-to match whose "new match" window lapsed
+			status = "Match complete. Room closed."
+		}
 	default:
 		// abandoned after a game finished: the game-over broadcast already
 		// carried RoomOver=true, so clients are already leaving

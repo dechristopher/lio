@@ -51,7 +51,7 @@ templ createGameModal() {
 									<span class="seg-tag">blind</span>
 								</label>
 							</div>
-							<span id="cg-mode-desc" class="cg-hint">Classic: the standard Octad opening position — play begins the moment your opponent joins.</span>
+							<span id="cg-mode-desc" class="cg-hint"><strong>Classic:</strong> the standard Octad opening position — play begins the moment your opponent joins.</span>
 						</div>
 						<label class="cg-public">
 							<input type="checkbox" class="cg-public-box" name="public" value="true"/>
@@ -63,6 +63,28 @@ templ createGameModal() {
 						</label>
 					</div>
 					<div class="cg-panel cg-panel-hero">
+						<div class="cg-field cg-race">
+							<span class="cg-label">Race to</span>
+							<div class="seg" role="radiogroup" aria-label="Race to (match length)">
+								<input id="race-0" class="seg-input" type="radio" name="race-to" value="0" checked/>
+								<label class="seg-btn" for="race-0">
+									<span>Off</span>
+								</label>
+								<input id="race-3" class="seg-input" type="radio" name="race-to" value="3"/>
+								<label class="seg-btn" for="race-3">
+									<span>3</span>
+								</label>
+								<input id="race-5" class="seg-input" type="radio" name="race-to" value="5"/>
+								<label class="seg-btn" for="race-5">
+									<span>5</span>
+								</label>
+								<input id="race-7" class="seg-input" type="radio" name="race-to" value="7"/>
+								<label class="seg-btn" for="race-7">
+									<span>7</span>
+								</label>
+							</div>
+							<span class="cg-hint"><strong>Race:</strong> games run back-to-back until a player reaches the target score — draws count ½. Human opponents only.</span>
+						</div>
 						<div class="cg-field">
 							<span class="cg-label">Time control</span>
 							<div class="tc-select">
@@ -152,11 +174,11 @@ templ createGameModal() {
 			// the choice instead of only ever explaining Deploy.
 			const modeDesc = modal.querySelector("#cg-mode-desc");
 			const modeDescriptions = {
-				classic: "Classic: the standard Octad opening position. Play begins the moment your opponent joins.",
-				deploy: "Deploy: privately arrange your home rank before play begins, then the position is revealed.",
+				classic: "<strong>Classic:</strong> the standard Octad opening position. Play begins the moment your opponent joins.",
+				deploy: "<strong>Deploy:</strong> privately arrange your home rank before play begins, then the position is revealed.",
 			};
 			const syncModeDesc = () => {
-				if (modeDesc) modeDesc.textContent = modeDescriptions[modeOf()] || "";
+				if (modeDesc) modeDesc.innerHTML = modeDescriptions[modeOf()] || "";
 			};
 			// syncMode keeps both the hidden variant field and the description in step.
 			const syncMode = () => { syncVariant(); syncModeDesc(); };
@@ -165,12 +187,16 @@ templ createGameModal() {
 			modal.querySelectorAll("input[name=mode]").forEach((el) => el.addEventListener("change", syncMode));
 			syncModeDesc();
 
-			// Bot games are never public open challenges: clear the toggle when the
-			// computer is chosen (the toggle is also faded + disabled via CSS, and the
-			// server forces bot games private regardless).
+			// Bot games are never public open challenges nor race-to matches: clear
+			// both when the computer is chosen (each control is also faded + disabled
+			// via CSS, and the server forces bot games private / single-game
+			// regardless).
 			modal.querySelectorAll("input[name=opponent]").forEach((el) =>
 				el.addEventListener("change", () => {
-					if (modal.querySelector("#opp-computer").checked && publicBox) publicBox.checked = false;
+					if (!modal.querySelector("#opp-computer").checked) return;
+					if (publicBox) publicBox.checked = false;
+					const raceOff = modal.querySelector("#race-0");
+					if (raceOff) raceOff.checked = true;
 				}));
 		})();
 	</script>

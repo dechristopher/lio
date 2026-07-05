@@ -32,6 +32,14 @@ func (p *Player) Results() []GameResult {
 	return p.results
 }
 
+// resetScore clears the player's accumulated score and per-game history, for
+// when a decided race-to match restarts as a fresh match in the same room.
+func (p *Player) resetScore() {
+	p.scorePoints = 0
+	p.scoreHalf = 0
+	p.results = nil
+}
+
 // ToJoin is a sample Player used to configure a room in which
 // the opponent joins via URL and is then configured
 var ToJoin = Player{

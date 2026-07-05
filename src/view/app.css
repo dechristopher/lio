@@ -1132,6 +1132,16 @@
 	.tc-input:checked + .tc-label .tc-pool { color: color-mix(in srgb, #fff 78%, transparent); }
 	.tc-input:focus-visible + .tc-label .tc-box { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
+	/* race-to (match length) picker: like the open-challenge switch, matches are
+	   human-vs-human only — fade + disable in place for a bot game (no layout
+	   shift); the modal script resets the choice to Off when computer is chosen,
+	   and the server forces bot games single-game regardless. */
+	.cg:has(#opp-computer:checked) .cg-race {
+		opacity: 0.4;
+		filter: grayscale(0.5);
+		pointer-events: none;
+	}
+
 	/* open-challenge switch: private by default, hidden entirely for a bot game */
 	.cg-public {
 		display: flex;

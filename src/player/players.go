@@ -75,6 +75,16 @@ func (p Players) ScoreDraw(reason string) {
 	})
 }
 
+// ResetScores clears both seats' accumulated scores and per-game histories at
+// a new-match boundary (a decided race-to match restarting in the same room).
+func (p Players) ResetScores() {
+	util.DoBothColors(func(c octad.Color) {
+		if p[c] != nil {
+			p[c].resetScore()
+		}
+	})
+}
+
 // ScoreMap returns a compatible ScorePayload map of the current player scores
 func (p Players) ScoreMap() proto.ScorePayload {
 	return proto.ScorePayload{

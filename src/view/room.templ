@@ -87,7 +87,13 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 			<aside class="ga-rail">
 				<div class="rail-stack">
 					<div class="rail-card moves-panel flex flex-col">
-						<span class="rail-title">{ payload.VariantName } · Casual</span>
+						<span class="rail-title">
+						{ payload.VariantName }
+						if payload.RaceTo > 0 {
+							· Race to { strconv.Itoa(payload.RaceTo) }
+						}
+						· Casual
+					</span>
 						<div id="moveList" class="move-list" role="list" aria-label="Move history"></div>
 						<div class="move-nav">
 							<button type="button" id="nav-first" class="nav-btn" title="Jump to start (↑)" aria-label="Jump to start">⏮</button>

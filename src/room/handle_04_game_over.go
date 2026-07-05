@@ -35,18 +35,37 @@ const botAnalysisWindow = 2 * time.Minute
 // remaining rematch window once an opponent leaves (a rematch needs both players
 // present); in a bot game it shortens the analysis window once the player leaves
 // (no point holding the room for someone who is gone). The client is told via
-// RematchUpdatePayload (human games) so its countdown retimes.
-const rematchDisconnectGrace = 8 * time.Second
+// RematchUpdatePayload (human games) so its countdown retimes. A var only so
+// tests can shorten it (like deployTimeout).
+var rematchDisconnectGrace = 8 * time.Second
+
+// matchInterludeWindow is the pause between games of an undecided race-to
+// match: long enough to read the result overlay, short enough to keep the race
+// moving. The next game starts automatically when it lapses — no rematch
+// agreement. It is sent to clients (GameOverPayload.NextGameIn) to drive the
+// visible countdown, so it must remain the single source of truth. A var only
+// so tests can shorten it (like deployTimeout).
+var matchInterludeWindow = 5 * time.Second
 
 // handleGameOver handles game finalization and rematch prompts.
 //
-// A human-vs-human game holds rematchWindow for both players to agree a rematch,
-// shortened the moment an opponent leaves, and closes if it lapses. A bot game
-// is not auto-rematched and its rematch is a fresh room (not this one), so this
-// room simply stays open for botAnalysisWindow — long enough to review the game
-// and survive a reconnect — with no countdown, shortened to the disconnect grace
-// once the player leaves, then closes.
+// An undecided race-to match holds no rematch negotiation at all: the next game
+// auto-starts after a short interlude (handleMatchInterlude). Otherwise — a
+// classic room, or a match whose race was just decided — a human-vs-human game
+// holds rematchWindow for both players to agree a rematch (a fresh match, with
+// scores reset, when the race was decided), shortened the moment an opponent
+// leaves, and closes if it lapses. A bot game is not auto-rematched and its
+// rematch is a fresh room (not this one), so this room simply stays open for
+// botAnalysisWindow — long enough to review the game and survive a reconnect —
+// with no countdown, shortened to the disconnect grace once the player leaves,
+// then closes.
 func (r *Instance) handleGameOver() {
+	// an undecided race-to match auto-advances instead of negotiating a rematch
+	if decided, _ := r.MatchDecided(); r.params.RaceTo > 0 && !decided {
+		r.handleMatchInterlude()
+		return
+	}
+
 	isBot := r.HasBot()
 
 	// the open window: a manual rematch window for humans, an analysis grace for
@@ -208,21 +227,11 @@ func (r *Instance) handleGameOver() {
 			}
 
 			// flip the board and reset the game for the rematch, under the lock
-			// so readers never see a half-swapped game pointer
+			// so readers never see a half-swapped game pointer. In a race-to
+			// room this window only ever runs with the race decided, so the
+			// agreement starts a fresh match: scores and history reset too.
 			r.stateMu.Lock()
-			r.flipBoardLocked()
-			newGame, err := game.NewOctadGame(r.params.GameConfig)
-			if err == nil {
-				r.game = newGame
-				// reset rematch flags for the next game over
-				r.rematch = player.NewAgreement()
-				// clear any draw-offer state so it can't carry into the next game
-				r.draw = player.NewAgreement()
-				r.drawOffer = octad.NoColor
-				// the new game has no human move yet; reset engagement so the
-				// next game-over re-evaluates idle-abandon fresh
-				r.humanMoved = false
-			}
+			err := r.resetForNextGameLocked(r.params.RaceTo > 0)
 			r.stateMu.Unlock()
 			if err != nil {
 				panic(err)
@@ -234,6 +243,143 @@ func (r *Instance) handleGameOver() {
 			r.drainControlChannel()
 
 			return
+		}
+	}
+}
+
+// resetForNextGameLocked flips the board and swaps in a fresh game for the
+// next game of the room's series, resetting all per-game state: the rematch
+// and draw agreements, the engagement flag, and the published game-over
+// deadlines. resetScore additionally clears both players' accumulated match
+// score and per-game history — used when a decided race-to match restarts as
+// a fresh match. The caller must hold stateMu and, on error, must not assume
+// any state was reset (the game pointer is only swapped on success).
+func (r *Instance) resetForNextGameLocked(resetScore bool) error {
+	r.flipBoardLocked()
+	newGame, err := game.NewOctadGame(r.params.GameConfig)
+	if err != nil {
+		return err
+	}
+
+	r.game = newGame
+	// reset rematch flags for the next game over
+	r.rematch = player.NewAgreement()
+	// clear any draw-offer state so it can't carry into the next game
+	r.draw = player.NewAgreement()
+	r.drawOffer = octad.NoColor
+	// the new game has no human move yet; reset engagement so the
+	// next game-over re-evaluates idle-abandon fresh
+	r.humanMoved = false
+	// the finished game's published countdowns are void with it
+	r.rematchDeadline = time.Time{}
+	r.nextGameDeadline = time.Time{}
+
+	if resetScore {
+		r.players.ResetScores()
+	}
+
+	return nil
+}
+
+// handleMatchInterlude waits out the short pause between games of an undecided
+// race-to match, then auto-advances to the next game — no rematch agreement is
+// involved and no control traffic is honored (stray clicks accepted by
+// RequestRematch's decided-outcome window are drained at the boundary). The
+// interlude deadline was published (nextGameDeadline) by tryGameOver, so the
+// game-over broadcast and any reconnect state carry the same countdown this
+// handler waits on.
+//
+// Presence: the interlude does not chase every connection flap — the deadline
+// simply checks that both players are present when it lapses. A missing player
+// gets one rematchDisconnectGrace to return (a reconnect inside it advances
+// immediately); still absent after the grace forfeits the match and the room
+// is abandoned, with an explicit room-over notice since the mid-match game-over
+// broadcast did not carry RoomOver.
+func (r *Instance) handleMatchInterlude() {
+	r.stateMu.Lock()
+	deadline := r.nextGameDeadline
+	if deadline.IsZero() {
+		// defensive: tryGameOver publishes the deadline before transitioning
+		// here; if it somehow didn't, fall back to a full interlude from now
+		deadline = time.Now().Add(matchInterludeWindow)
+		r.nextGameDeadline = deadline
+	}
+	r.stateMu.Unlock()
+
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+
+	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
+	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
+
+	// advance flips the board into the next game of the match and hands the
+	// routine to handleGameReady (which sweeps the deploy channel and re-enters
+	// the deploy/first-move flow).
+	advance := func() {
+		util.DebugFlag("room", str.CRoom, "[%s] match continues, starting next game", r.ID)
+
+		r.stateMu.Lock()
+		err := r.resetForNextGameLocked(false)
+		r.stateMu.Unlock()
+		if err != nil {
+			panic(err)
+		}
+
+		// discard any stray rematch click buffered during the finished game so
+		// it can't be misread as agreement in a later game-over window
+		r.drainControlChannel()
+
+		if err := r.event(EventNextGame); err != nil {
+			panic(err)
+		}
+	}
+
+	graceArmed := false
+	for {
+		select {
+		case <-timer.C:
+			if r.bothPlayersConnected() {
+				advance()
+				return
+			}
+			if !graceArmed {
+				// a player is missing at the deadline: hold the advance for one
+				// grace so a momentary drop doesn't forfeit the match
+				graceArmed = true
+				util.DebugFlag("room", str.CRoom, "[%s] player missing at match interlude end, holding for grace", r.ID)
+				timer.Reset(rematchDisconnectGrace)
+				continue
+			}
+
+			// still missing after the grace: the match is forfeited. The
+			// mid-match game-over broadcast carried no RoomOver, so tell the
+			// clients the room is closing before the abandon transition (whose
+			// handleRoomOver path is silent once a game has finished).
+			util.DebugFlag("room", str.CRoom, "[%s] player left mid-match, room over", r.ID)
+			payload := proto.GameOverPayload{
+				Status:   "PLAYER LEFT THE MATCH - MATCH OVER",
+				RoomOver: true,
+			}
+			channel.Broadcast(payload.Marshal(), channel.SocketContext{
+				Channel: r.ID,
+				MT:      1,
+			})
+
+			r.abandoned = true
+			if err := r.event(EventPlayerAbandons); err != nil {
+				panic(err)
+			}
+			return
+		case <-connectionListener:
+			// presence changed: a return during the held grace advances right
+			// away rather than waiting the grace out
+			if graceArmed && r.bothPlayersConnected() {
+				advance()
+				return
+			}
+		case <-r.controlChannel:
+			// no rematch negotiation happens mid-match; swallow stray controls
+			// so the buffer can't fill with clicks meant for a decided game
 		}
 	}
 }

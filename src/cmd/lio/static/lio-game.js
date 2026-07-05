@@ -432,6 +432,17 @@ const setRematchButtonsWants = () => rematchButtons.forEach((b) => {
 const clearRematchButtonsWants = () => rematchButtons.forEach((b) => {
 	b.classList.remove('wants-rematch');
 });
+// Once a race-to match is decided the same agreement flow starts a fresh match,
+// so the action reads "New match" while that result is showing. Swapping the
+// captured default label (rather than the live innerHTML) keeps every later
+// state restore (default / disabled) consistent; showResult sets the mode for
+// each result, so a following classic game-over reads "Rematch" again.
+const setRematchButtonsNewMatch = (newMatch) => rematchButtons.forEach((b) => {
+	if (!b.dataset.rematchLabel) { b.dataset.rematchLabel = b.dataset.defaultLabel; }
+	b.dataset.defaultLabel = newMatch
+		? b.dataset.rematchLabel.replace('Rematch', 'New match')
+		: b.dataset.rematchLabel;
+});
 
 /**
  * setControlsMode swaps the rail control set between live play (Resign / Draw)
@@ -610,6 +621,17 @@ const rematchWindowLabel = (remaining) => {
 	return `Rematch &middot; ${remaining}s`;
 };
 
+/**
+ * Countdown label for an undecided race-to match's interlude: the next game
+ * starts automatically when it lapses, no action needed from either player.
+ */
+const nextGameLabel = (remaining) => {
+	if (remaining <= 0) {
+		return 'Starting&hellip;';
+	}
+	return `Next game in ${remaining}s`;
+};
+
 // Post-rematch resync safety net. The start of the next game is announced by a
 // single server broadcast — the blind-deploy 'd' message in deploy variants, or
 // the gs=true board reset otherwise. If this client misses that one message
@@ -732,10 +754,12 @@ const showResult = (message) => {
 	}
 
 	// a fresh game-over: clear any human rematch-window state carried over from
-	// a previous game in this room, and re-enable the rematch action
+	// a previous game in this room, and re-enable the rematch action (labeled
+	// "New match" when this result decided a race-to match)
 	rematchRequested = false;
 	opponentLeft = false;
 	hideOpponentRematchRequest();
+	setRematchButtonsNewMatch(!!message.d.mo);
 	setRematchButtonsDefault();
 
 	const winner = message.d.w; // "w", "b", or "d"
@@ -745,6 +769,21 @@ const showResult = (message) => {
 		// abandonment closes the room; report it neutrally rather than as a draw
 		outcome = 'draw';
 		headline = 'Match over';
+	} else if (message.d.mo && message.d.sc) {
+		// the race is decided: headline the match, not the final game — which
+		// may itself have been a draw that lifted the leader to the target. The
+		// winner is the score leader (a decided match can't be tied); the method
+		// subtitle below still describes the deciding game.
+		const w = message.d.sc.w, b = message.d.sc.b;
+		if (isSpec) {
+			outcome = 'draw';
+			headline = w > b ? 'White wins the match' : 'Black wins the match';
+		} else {
+			const mine = playerWhite ? w : b;
+			const theirs = playerWhite ? b : w;
+			outcome = mine > theirs ? 'win' : 'loss';
+			headline = outcome === 'win' ? 'You win the match' : 'You lose the match';
+		}
 	} else if (winner === 'd') {
 		outcome = 'draw';
 		headline = 'Draw';
@@ -761,13 +800,15 @@ const showResult = (message) => {
 		headline = 'You lose';
 	}
 
-	// a rematch is impossible once the whole room is over (abandon / match end):
-	// hide the overlay's button and disable the rail's
+	// a rematch is impossible once the whole room is over (abandon / match end),
+	// and there is nothing to click between games of an undecided race-to match
+	// (they auto-advance): hide the overlay's button and disable the rail's
 	const roomOver = !!message.d.o;
+	const midMatch = !!message.d.rt && !message.d.mo && !roomOver;
 	if (rematchBtn) {
-		rematchBtn.style.display = roomOver ? 'none' : '';
+		rematchBtn.style.display = (roomOver || midMatch) ? 'none' : '';
 	}
-	if (railRematchBtn && roomOver) {
+	if (railRematchBtn && (roomOver || midMatch)) {
 		railRematchBtn.disabled = true;
 	}
 
@@ -787,10 +828,18 @@ const showResult = (message) => {
 		resultScoreEl.innerHTML = '';
 	}
 
-	// human games tick the manual-rematch window (rw) down to the room closing;
-	// bot games are not time-boxed and carry no countdown (the finished room stays
-	// open for review + manual rematch), so a missing rw just clears the countdown.
-	if (message.d.rw) {
+	// mid-match the next game auto-starts: count the interlude down (ng) and
+	// start the resync poll unconditionally — the next game is announced by the
+	// same single-shot broadcasts as a rematch, and no click arms the poll here.
+	// It stops the moment the next game arrives (hideResult / enterDeployMode).
+	// Otherwise human games tick the manual-rematch window (rw) down to the
+	// room closing; bot games are not time-boxed and carry no countdown (the
+	// finished room stays open for review + manual rematch), so a missing
+	// ng/rw just clears the countdown.
+	if (message.d.ng) {
+		startCountdown(message.d.ng, nextGameLabel);
+		startRematchResync();
+	} else if (message.d.rw) {
 		startCountdown(message.d.rw, rematchWindowLabel);
 	} else {
 		stopCountdown();
@@ -1254,11 +1303,17 @@ const handleGameOver = (message) => {
 		cancelAnimationFrame(frameId);
 		if (message.d.rw) {
 			startCountdown(message.d.rw, rematchWindowLabel);
+		} else if (message.d.ng) {
+			// a mid-match repeat (reconnect / poll): retime the auto-advance
+			startCountdown(message.d.ng, nextGameLabel);
 		}
 		updateScore(message);
 		// every repeat carries the server's recorded per-seat agreement; use it
-		// to resend a lost click or surface a missed opponent request
-		reconcileRematchAgreement(message.d);
+		// to resend a lost click or surface a missed opponent request. Between
+		// games of an undecided match there is no agreement to reconcile.
+		if (!message.d.ng) {
+			reconcileRematchAgreement(message.d);
+		}
 		return;
 	}
 
@@ -1310,8 +1365,8 @@ const handleGameOver = (message) => {
 	// sync rematch state with the server's recorded agreements — a reconnect's
 	// game-over state restores a pending request this client no longer
 	// remembers (page reload) and a standing opponent request whose one-shot
-	// 'ru' announcement was missed
-	if (message.d.o !== true) {
+	// 'ru' announcement was missed. Mid-match (ng) there is no agreement flow.
+	if (message.d.o !== true && !message.d.ng) {
 		reconcileRematchAgreement(message.d);
 	}
 
@@ -1638,6 +1693,41 @@ const updateUI = (message, ofenParts) => {
 			frameId = requestAnimFrame(clockFrame(opponentTimeRemaining, message.d.c.tc, oppTime, oppBar));
 		}
 	}
+};
+
+// the game's time control in centi-seconds, rendered into the board container
+// server-side so it is available even before the first board message. It is the
+// full clock both sides start every game with, so it drives the clock reset the
+// blind deploy phase needs (see resetClocksToFull): the deploy-start message
+// carries no clock, so without this the arrange phase would keep showing the
+// previous game's final times until the reveal.
+const timeControlCenti = parseInt(
+	(document.getElementById('gcon-xx') || {}).dataset?.tc || '0', 10);
+
+/**
+ * resetClocksToFull sets both clock displays back to the full time control —
+ * the state every game (and the blind deploy phase before it) begins from. The
+ * server has already swapped in a fresh full-time clock for the next game; this
+ * reflects that on the client while no board message is flowing (the deploy
+ * arrange phase). Cancels any running interpolator so a stale ticker can't fight
+ * the reset, and clears the low-time / active emphasis.
+ */
+const resetClocksToFull = () => {
+	if (!timeControlCenti) {
+		return;
+	}
+	cancelAnimationFrame(frameId);
+	const full = timeFormatter(timeControlCenti);
+	[clockPlayerEl, clockOpponentEl].forEach((clk) => {
+		if (!clk) {
+			return;
+		}
+		const t = clk.getElementsByClassName('clockTime')[0];
+		const bar = clk.getElementsByClassName('clockProgressBar')[0];
+		if (t) { t.innerHTML = full; }
+		if (bar) { bar.style.width = '100%'; }
+		clk.classList.remove('low', 'active');
+	});
 };
 
 /**
@@ -2033,6 +2123,12 @@ const enterDeployMode = (seconds, payload) => {
 	// rematch overlay from the previous game
 	hideResult();
 
+	// the next game starts both clocks at full time; show that now rather than
+	// leaving the previous game's final times up through the whole arrange phase
+	// (the deploy-start message carries no clock — the reveal is the next one that
+	// does)
+	resetClocksToFull();
+
 	const white = deployIsWhite;
 	const myColor = white ? 'white' : 'black';
 	// show only the player's own pieces in standard order; the opponent's rank is
@@ -2105,6 +2201,9 @@ const enterDeploySpectatorMode = (payload) => {
 	// same reveal-recognition baseline as the player path (see enterDeployMode)
 	deployPriorGameIDs = [d.i, currentGameID].filter(Boolean);
 	hideResult();
+
+	// the next game starts both clocks at full time (see enterDeployMode)
+	resetClocksToFull();
 
 	// blank the board; both home ranks sit behind the "?" overlay
 	og.set({

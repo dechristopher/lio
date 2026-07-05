@@ -129,6 +129,15 @@ var EventRematchAgreed = fsm.EventDesc{
 	Dst:  string(StateGameReady),
 }
 
+// EventNextGame advances an undecided race-to match to its next game: the
+// auto-advance analogue of EventRematchAgreed, fired by the match interlude
+// with no player agreement involved.
+var EventNextGame = fsm.EventDesc{
+	Name: "next_game",
+	Src:  []string{string(StateGameOver)},
+	Dst:  string(StateGameReady),
+}
+
 var EventNoRematch = fsm.EventDesc{
 	Name: "no_rematch",
 	Src:  []string{string(StateGameOver)},
@@ -171,6 +180,7 @@ func newStateMachine() *fsm.FSM {
 			EventDraw25MoveRule,
 			EventDrawAgreed,
 			EventRematchAgreed,
+			EventNextGame,
 			EventNoRematch,
 			EventPlayerAbandons,
 		},

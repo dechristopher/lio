@@ -42,6 +42,7 @@ func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge,
 					RoomID:  s.id,
 					Variant: s.variant,
 					Color:   s.creatorColor,
+					RaceTo:  s.raceTo,
 				})
 				stats.OpenChallenges++
 			}
@@ -75,6 +76,7 @@ type roomSnapshot struct {
 	openSeat     bool
 	public       bool
 	creatorColor string
+	raceTo       int
 }
 
 // snapshot reads the room's display-relevant state under stateMu so the home
@@ -90,6 +92,7 @@ func (r *Instance) snapshot() roomSnapshot {
 		vsBot:   r.players.HasBot(),
 		moves:   len(r.game.MoveHistory()),
 		public:  r.public,
+		raceTo:  r.params.RaceTo,
 	}
 
 	hasTwo, missing := r.players.HasTwoPlayers()

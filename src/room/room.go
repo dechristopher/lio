@@ -154,6 +154,14 @@ type Instance struct {
 	// which are not time-boxed (the finished room stays open). Guarded by stateMu.
 	rematchDeadline time.Time
 
+	// nextGameDeadline is when an undecided race-to match's interlude ends and
+	// the next game auto-starts. Set by tryGameOver as the mid-match game-over
+	// is built (so the initial broadcast and any reconnect state carry an
+	// accurate "next game in" countdown via NextGameIn) and consumed by
+	// handleMatchInterlude as its timer deadline. Zero outside the interlude.
+	// Guarded by stateMu.
+	nextGameDeadline time.Time
+
 	// deployed holds each side's committed blind arrangement during the deploy
 	// phase, so a (re)connecting client can be told its own confirmed order (and
 	// both sides' locked-in status) via DeployStateMessage. Written by the deploy
@@ -186,6 +194,13 @@ type Params struct {
 	// privately arrange their home rank, then normal play begins from the
 	// assembled position. Defaults to false (classic immediate start).
 	Deploy bool
+	// RaceTo makes the room a race-to match: games auto-advance after a short
+	// interlude (no rematch agreement) until one player's score reaches RaceTo
+	// points (draws count ½) with a strict lead over the opponent — a tied
+	// arrival at the target keeps the match going. Zero (the default) keeps the
+	// classic open-ended series with a per-game rematch window. Human-vs-human
+	// only: the challenge handler forces zero for bot games.
+	RaceTo int
 	// BotTimeReserve is the bot difficulty knob: the fraction of the initial
 	// clock the bot tries not to dip below when budgeting its searches. A low
 	// reserve lets the bot spend nearly its whole clock thinking (hardest); a
@@ -962,7 +977,18 @@ func (r *Instance) GameOverStateMessage() []byte {
 		}
 	}
 
-	return r.buildGameOverMessageLocked(false, rematchWin)
+	// remaining time in an undecided match's auto-advance interlude, likewise
+	// clamped; set only while nextGameDeadline is published (from tryGameOver
+	// until the interlude hands off to the next game)
+	nextGameIn := 0
+	if !r.nextGameDeadline.IsZero() {
+		nextGameIn = int(time.Until(r.nextGameDeadline).Round(time.Second).Seconds())
+		if nextGameIn < 0 {
+			nextGameIn = 0
+		}
+	}
+
+	return r.buildGameOverMessageLocked(false, rematchWin, nextGameIn)
 }
 
 // currentGameStateMessageLocked builds the current board-state payload. The
@@ -1318,6 +1344,16 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// at a consistent point. The score is updated first so the broadcast
 	// messages reflect the result of the game that just finished.
 	r.updateScoreLocked()
+
+	// an undecided race-to match auto-advances after the interlude: publish its
+	// deadline before the game-over message is built so the broadcast (and any
+	// reconnect state until the next game starts) carries an accurate "next
+	// game in" countdown. handleMatchInterlude consumes this same deadline as
+	// its timer, keeping the countdown and the actual advance in lockstep.
+	if decided, _ := r.matchDecidedLocked(); r.params.RaceTo > 0 && !decided && !abandoned {
+		r.nextGameDeadline = time.Now().Add(matchInterludeWindow)
+	}
+
 	stateMsg := r.currentGameStateMessageLocked(true, false)
 	overMsg := r.gameOverMessageLocked(abandoned)
 	event := r.gameOverEventLocked()
@@ -1348,6 +1384,40 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 
 	// return isOver=true with the game over event
 	return true, event
+}
+
+// matchDecidedLocked reports whether the room's race-to match is decided, and
+// by whom: a seat wins the match once its score reaches RaceTo points AND
+// strictly exceeds the opponent's. A tied arrival at the target decides
+// nothing — the match continues until someone leads (win-by-lead), so endless
+// mutual climbing via draws can never end the match on a tie. Always false for
+// a non-match room (RaceTo <= 0). The caller must hold stateMu (it reads
+// players).
+func (r *Instance) matchDecidedLocked() (bool, octad.Color) {
+	if r.params.RaceTo <= 0 {
+		return false, octad.NoColor
+	}
+
+	target := float64(r.params.RaceTo)
+	white := r.players[octad.White].Score()
+	black := r.players[octad.Black].Score()
+
+	if white >= target && white > black {
+		return true, octad.White
+	}
+	if black >= target && black > white {
+		return true, octad.Black
+	}
+	return false, octad.NoColor
+}
+
+// MatchDecided reports whether the room's race-to match is decided and the
+// winning color (NoColor while undecided or for a non-match room). Locks
+// stateMu; see matchDecidedLocked.
+func (r *Instance) MatchDecided() (bool, octad.Color) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	return r.matchDecidedLocked()
 }
 
 // updateScoreLocked increments score counters for the winner of a game and
@@ -1466,6 +1536,7 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
 		Variant:       r.game.Variant,
 		Public:        r.public,
+		RaceTo:        r.params.RaceTo,
 	}
 }
 
@@ -1604,26 +1675,35 @@ func genBlackWinState(g *game.OctadGame) (int, string) {
 
 // gameOverMessageLocked builds the live-finish game over payload. A
 // human-vs-human game holds a manual rematch window; send its full length so the
-// client can count down to the room closing. Bot games are neither
-// auto-rematched nor time-boxed (the finished room stays open for review and
-// manual rematch), so they carry no countdown. GameOverStateMessage builds the
-// equivalent payload with the remaining window for a (re)connecting client. The
-// caller must hold stateMu (it reads the game, clock, and players).
+// client can count down to the room closing. An undecided race-to match holds
+// no rematch window — the next game auto-starts when the interlude lapses, so
+// the payload carries the "next game in" countdown instead. Bot games are
+// neither auto-rematched nor time-boxed (the finished room stays open for
+// review and manual rematch), so they carry no countdown.
+// GameOverStateMessage builds the equivalent payload with the remaining
+// window for a (re)connecting client. The caller must hold stateMu (it reads
+// the game, clock, and players).
 func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 	rematchWin := 0
+	nextGameIn := 0
 	if !abandoned && !r.players.HasBot() {
-		rematchWin = int(rematchWindow.Seconds())
+		if decided, _ := r.matchDecidedLocked(); r.params.RaceTo > 0 && !decided {
+			nextGameIn = int(matchInterludeWindow.Seconds())
+		} else {
+			rematchWin = int(rematchWindow.Seconds())
+		}
 	}
 
-	return r.buildGameOverMessageLocked(abandoned, rematchWin)
+	return r.buildGameOverMessageLocked(abandoned, rematchWin, nextGameIn)
 }
 
 // buildGameOverMessageLocked assembles the game over payload with the human
 // rematch-window countdown (rematchWin; zero for bot games, which are neither
-// auto-rematched nor time-boxed). Callers set the full window on a live finish
-// and the remaining window for a (re)connecting client. The caller must hold
-// stateMu (it reads the game, clock, and players).
-func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int) []byte {
+// auto-rematched nor time-boxed) or, for an undecided race-to match, the
+// auto-advance countdown (nextGameIn) — never both. Callers set the full
+// window on a live finish and the remaining window for a (re)connecting
+// client. The caller must hold stateMu (it reads the game, clock, and players).
+func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int, nextGameIn int) []byte {
 	var id int
 	var status string
 
@@ -1633,6 +1713,8 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int) []
 	} else {
 		id, status = r.gameOverStateLocked()
 	}
+
+	matchOver, _ := r.matchDecidedLocked()
 
 	gameOver := proto.GameOverPayload{
 		Winner:        getWinnerString(id),
@@ -1649,6 +1731,12 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int) []
 		// current truth so it can reconcile a lost or reloaded-away click
 		RematchWhite: r.rematch.AgreedBy(octad.White),
 		RematchBlack: r.rematch.AgreedBy(octad.Black),
+		// race-to match context: the target on every match payload, plus whether
+		// this result decided the race (the winner is the seat with the higher
+		// score) and the auto-advance countdown while it is undecided
+		RaceTo:     r.params.RaceTo,
+		MatchOver:  matchOver,
+		NextGameIn: nextGameIn,
 	}
 
 	return gameOver.Marshal()
