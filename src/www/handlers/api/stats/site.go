@@ -6,7 +6,7 @@ import (
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/room"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/util"
 )
@@ -29,7 +29,7 @@ var statLock = sync.Mutex{}
 
 // SiteStatsHandler returns the number of players and
 // games active on the site
-func SiteStatsHandler(c *fiber.Ctx) error {
+func SiteStatsHandler(c fiber.Ctx) error {
 	if time.Since(lastStats) > (time.Second * time.Duration(memDur)) {
 		locked := statLock.TryLock()
 		if locked {

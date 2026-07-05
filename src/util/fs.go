@@ -3,7 +3,7 @@ package util
 import (
 	"embed"
 	"io/fs"
-	"net/http"
+	"os"
 	"strings"
 
 	"github.com/dechristopher/lio/str"
@@ -11,10 +11,10 @@ import (
 
 // PickFS returns either an embedded FS or an on-disk FS for the
 // given directory path
-func PickFS(useDisk bool, e embed.FS, dir string) http.FileSystem {
+func PickFS(useDisk bool, e embed.FS, dir string) fs.FS {
 	if useDisk {
 		Debug(str.CFS, str.DPickFSOS, dir)
-		return http.Dir(dir)
+		return os.DirFS(dir)
 	}
 
 	efs, err := fs.Sub(e, strings.Trim(dir, "./"))
@@ -23,5 +23,5 @@ func PickFS(useDisk bool, e embed.FS, dir string) http.FileSystem {
 	}
 
 	Debug(str.CFS, str.DPickFSEm, dir)
-	return http.FS(efs)
+	return efs
 }

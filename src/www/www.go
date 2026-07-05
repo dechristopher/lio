@@ -2,14 +2,15 @@ package www
 
 import (
 	"embed"
+	"io/fs"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/recover"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
@@ -22,7 +23,7 @@ import (
 	"github.com/dechristopher/lio/www/ws"
 )
 
-var staticFs http.FileSystem
+var staticFs fs.FS
 
 // Serve all public endpoints. Page rendering is handled by the typed templ
 // components in the view package (see view.Render), so no template engine is
@@ -34,10 +35,9 @@ func Serve(static embed.FS) {
 	staticFs = util.PickFS(env.IsLocal(), static, "./static")
 
 	r := fiber.New(fiber.Config{
-		ServerHeader:          "lioctad.org " + config.Version,
-		CaseSensitive:         true,
-		ErrorHandler:          nil,
-		DisableStartupMessage: true,
+		ServerHeader:  "lioctad.org " + config.Version,
+		CaseSensitive: true,
+		ErrorHandler:  nil,
 	})
 
 	// wire up all route handlers
@@ -57,7 +57,9 @@ func Serve(static embed.FS) {
 		env.GetEnv(), config.GetPort(), "none")
 
 	// listen for connections on primary listening port
-	if err := r.Listen(config.GetListenPort()); err != nil {
+	if err := r.Listen(config.GetListenPort(), fiber.ListenConfig{
+		DisableStartupMessage: true,
+	}); err != nil {
 		log.Println(err)
 	}
 
@@ -68,14 +70,14 @@ func Serve(static embed.FS) {
 
 // wireHandlers builds all the websocket and http routes
 // into the fiber app context
-func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
+func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// recover from panics
 	r.Use(recover.New())
 
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: config.CorsOrigins(),
-		AllowHeaders: "Origin, Content-Type, Accept",
+		AllowOrigins: corsOrigins(),
+		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
 	}))
 
 	// evaluate / set user context
@@ -138,4 +140,17 @@ func wireHandlers(r *fiber.App, staticFs http.FileSystem) {
 	// Custom 404 page
 	// TODO not needed once we default SPAHandler
 	middleware.NotFound(r)
+}
+
+// corsOrigins splits the comma-separated CORS origin list (config.CorsOrigins)
+// into the []string that fiber v3's cors middleware expects.
+func corsOrigins() []string {
+	parts := strings.Split(config.CorsOrigins(), ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if s := strings.TrimSpace(p); s != "" {
+			origins = append(origins, s)
+		}
+	}
+	return origins
 }

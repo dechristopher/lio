@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dechristopher/octad/v2"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
@@ -17,7 +17,7 @@ import (
 )
 
 type newRoomPayload struct {
-	c             *fiber.Ctx
+	c             fiber.Ctx
 	variant       variant.Variant
 	selectedColor octad.Color
 	vsBot         bool
@@ -35,17 +35,17 @@ var raceToChoices = map[int]bool{0: true, 3: true, 5: true, 7: true}
 // requests. htmx form posts get an HX-Redirect header — a real browser
 // navigation, so the destination (e.g. a room page) gets a true page load that
 // boots the websocket and board — while normal requests fall back to a 302.
-func redirect(c *fiber.Ctx, to string) error {
+func redirect(c fiber.Ctx, to string) error {
 	if c.Get("HX-Request") == "true" {
 		c.Set("HX-Redirect", to)
 		return c.SendStatus(fiber.StatusOK)
 	}
-	return c.Redirect(to)
+	return c.Redirect().To(to)
 }
 
 // getUserAndRoom returns the uid and room instance based on URL parameters
 // and will redirect the user home or 404 if there is no UID or room
-func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
+func getUserAndRoom(c fiber.Ctx) (string, *room.Instance, error, bool) {
 	uid := user.GetID(c)
 	// turn away players/scripts/bots with no uid set
 	if uid == "" {
@@ -63,7 +63,7 @@ func getUserAndRoom(c *fiber.Ctx) (string, *room.Instance, error, bool) {
 }
 
 // RoomHandler executes the room page template
-func RoomHandler(c *fiber.Ctx) error {
+func RoomHandler(c fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
 		return err
@@ -91,12 +91,12 @@ func RoomHandler(c *fiber.Ctx) error {
 		return view.Render(c, 200, view.Room(view.RoomMeta(payload), payload))
 	} else {
 		// no spectators allowed
-		return c.Redirect("/#noSpec")
+		return c.Redirect().To("/#noSpec")
 	}
 }
 
 // RoomJoinHandler joins the player to the room
-func RoomJoinHandler(c *fiber.Ctx) error {
+func RoomJoinHandler(c fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
 		return err
@@ -106,7 +106,7 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 		Token string `form:"join_token"`
 	}{}
 
-	err = c.BodyParser(&joinPayload)
+	err = c.Bind().Body(&joinPayload)
 	if err != nil {
 		return redirect(c, "/#errJoin")
 	}
@@ -124,7 +124,7 @@ func RoomJoinHandler(c *fiber.Ctx) error {
 }
 
 // RoomCancelHandler cancels the room immediately
-func RoomCancelHandler(c *fiber.Ctx) error {
+func RoomCancelHandler(c fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
 		return err
@@ -134,18 +134,18 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 		Token string `form:"cancel_token"`
 	}{}
 
-	err = c.BodyParser(&cancelPayload)
+	err = c.Bind().Body(&cancelPayload)
 	if err != nil {
 		return redirect(c, "/#errCancel")
 	}
 
 	if !roomInstance.IsCreator(uid) || cancelPayload.Token != roomInstance.CancelToken() {
-		return c.Redirect("/", fiber.StatusForbidden)
+		return c.Redirect().Status(fiber.StatusForbidden).To("/")
 	}
 
 	// cancel the game if we're allowed to
 	if !roomInstance.Cancel() {
-		return c.Redirect("/", fiber.StatusBadRequest)
+		return c.Redirect().Status(fiber.StatusBadRequest).To("/")
 	}
 
 	// redirect home after room cancellation
@@ -155,7 +155,7 @@ func RoomCancelHandler(c *fiber.Ctx) error {
 // NewQuickRoomVsHuman creates a game against a human player with the default
 // time control and randomized color. Quick games are a public seek by nature —
 // there is no link to share with a specific opponent — so they are always listed.
-func NewQuickRoomVsHuman(c *fiber.Ctx) error {
+func NewQuickRoomVsHuman(c fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       variant.HalfOneBlitz,
@@ -169,7 +169,7 @@ func NewQuickRoomVsHuman(c *fiber.Ctx) error {
 // resolved variant (classic or its blind-deploy twin) arrives in the
 // time-control field; the modal's Classic/Deploy toggle picks which. A human
 // game may be listed as a public open challenge; a bot game never is.
-func NewCustomRoom(c *fiber.Ctx) error {
+func NewCustomRoom(c fiber.Ctx) error {
 	payload := struct {
 		TimeControl string `form:"time-control"`
 		Color       string `form:"color"`
@@ -184,7 +184,7 @@ func NewCustomRoom(c *fiber.Ctx) error {
 		RaceTo int `form:"race-to"`
 	}{}
 
-	if err := c.BodyParser(&payload); err != nil {
+	if err := c.Bind().Body(&payload); err != nil {
 		util.Error(str.CRoom, "failed to create custom room: bad payload provided")
 		return redirect(c, "/#error")
 	}
@@ -237,7 +237,7 @@ func NewCustomRoom(c *fiber.Ctx) error {
 // (w/b/r) query params let a finished game's client spin up a "same settings"
 // rematch into a fresh room — a bot game's rematch does not reuse its (possibly
 // already torn-down) room, so it navigates here instead.
-func NewRoomVsComputer(c *fiber.Ctx) error {
+func NewRoomVsComputer(c fiber.Ctx) error {
 	selectedVariant := variant.HalfOneBlitz
 	if tc := c.Query("tc"); tc != "" {
 		if v, ok := pools.Map[tc]; ok {

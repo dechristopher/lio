@@ -3,7 +3,7 @@
 github.com/a-h/templ
 github.com/a-h/templ/runtime
 github.com/a-h/templ/safehtml
-# github.com/andybalholm/brotli v1.2.1
+# github.com/andybalholm/brotli v1.2.2
 ## explicit; go 1.22
 github.com/andybalholm/brotli
 github.com/andybalholm/brotli/flate
@@ -14,9 +14,6 @@ github.com/asaskevich/EventBus
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/clipperhouse/uax29/v2 v2.7.0
-## explicit; go 1.18
-github.com/clipperhouse/uax29/v2/graphemes
 # github.com/dechristopher/octad/v2 v2.1.0
 ## explicit; go 1.19
 github.com/dechristopher/octad/v2
@@ -26,29 +23,43 @@ github.com/dustin/go-humanize
 # github.com/fasthttp/websocket v1.5.12
 ## explicit; go 1.21
 github.com/fasthttp/websocket
-# github.com/gofiber/fiber/v2 v2.52.13
-## explicit; go 1.20
-github.com/gofiber/fiber/v2
-github.com/gofiber/fiber/v2/internal/schema
-github.com/gofiber/fiber/v2/log
-github.com/gofiber/fiber/v2/middleware/compress
-github.com/gofiber/fiber/v2/middleware/cors
-github.com/gofiber/fiber/v2/middleware/favicon
-github.com/gofiber/fiber/v2/middleware/filesystem
-github.com/gofiber/fiber/v2/middleware/logger
-github.com/gofiber/fiber/v2/middleware/recover
-github.com/gofiber/fiber/v2/middleware/requestid
-github.com/gofiber/fiber/v2/utils
-# github.com/gofiber/websocket/v2 v2.2.1
-## explicit; go 1.17
-github.com/gofiber/websocket/v2
+# github.com/gofiber/contrib/v3/websocket v1.2.1
+## explicit; go 1.25.0
+github.com/gofiber/contrib/v3/websocket
+# github.com/gofiber/fiber/v3 v3.4.0
+## explicit; go 1.25.0
+github.com/gofiber/fiber/v3
+github.com/gofiber/fiber/v3/binder
+github.com/gofiber/fiber/v3/internal/contextvalue
+github.com/gofiber/fiber/v3/internal/logtemplate
+github.com/gofiber/fiber/v3/internal/nilerror
+github.com/gofiber/fiber/v3/internal/schemehost
+github.com/gofiber/fiber/v3/log
+github.com/gofiber/fiber/v3/middleware/compress
+github.com/gofiber/fiber/v3/middleware/cors
+github.com/gofiber/fiber/v3/middleware/etag
+github.com/gofiber/fiber/v3/middleware/favicon
+github.com/gofiber/fiber/v3/middleware/logger
+github.com/gofiber/fiber/v3/middleware/recover
+github.com/gofiber/fiber/v3/middleware/requestid
+github.com/gofiber/fiber/v3/middleware/static
+# github.com/gofiber/schema v1.8.0
+## explicit; go 1.25.0
+github.com/gofiber/schema
+# github.com/gofiber/utils/v2 v2.1.1
+## explicit; go 1.25.0
+github.com/gofiber/utils/v2
+github.com/gofiber/utils/v2/bytes
+github.com/gofiber/utils/v2/internal/caseconv
+github.com/gofiber/utils/v2/internal/unsafeconv
+github.com/gofiber/utils/v2/strings
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
 # github.com/joho/godotenv v1.5.1
 ## explicit; go 1.12
 github.com/joho/godotenv
-# github.com/klauspost/compress v1.18.6
+# github.com/klauspost/compress v1.19.0
 ## explicit; go 1.24
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -63,12 +74,14 @@ github.com/klauspost/compress/s2
 github.com/klauspost/compress/zlib
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/klauspost/cpuid/v2 v2.3.0
-## explicit; go 1.22
+# github.com/klauspost/cpuid/v2 v2.4.0
+## explicit; go 1.24.0
 github.com/klauspost/cpuid/v2
 # github.com/klauspost/crc32 v1.3.0
 ## explicit; go 1.23.0
 github.com/klauspost/crc32
+# github.com/kr/text v0.2.0
+## explicit
 # github.com/looplab/fsm v1.0.3
 ## explicit; go 1.16
 github.com/looplab/fsm
@@ -78,9 +91,6 @@ github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.22
 ## explicit; go 1.21
 github.com/mattn/go-isatty
-# github.com/mattn/go-runewidth v0.0.24
-## explicit; go 1.20
-github.com/mattn/go-runewidth
 # github.com/minio/crc64nvme v1.1.1
 ## explicit; go 1.22
 github.com/minio/crc64nvme
@@ -106,9 +116,6 @@ github.com/minio/minio-go/v7/pkg/tags
 # github.com/philhofer/fwd v1.2.0
 ## explicit; go 1.20
 github.com/philhofer/fwd
-# github.com/pkg/errors v0.9.1
-## explicit
-github.com/pkg/errors
 # github.com/rs/xid v1.6.0
 ## explicit; go 1.16
 github.com/rs/xid
@@ -127,10 +134,12 @@ github.com/tinylib/msgp/msgp/setof
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.71.0
-## explicit; go 1.24.0
+# github.com/valyala/fasthttp v1.72.0
+## explicit; go 1.25.0
 github.com/valyala/fasthttp
+github.com/valyala/fasthttp/fasthttpadaptor
 github.com/valyala/fasthttp/fasthttputil
+github.com/valyala/fasthttp/prefork
 github.com/valyala/fasthttp/reuseport
 github.com/valyala/fasthttp/stackless
 github.com/valyala/fasthttp/tcplisten
@@ -146,6 +155,8 @@ github.com/zeebo/xxh3
 go.yaml.in/yaml/v3
 # golang.org/x/crypto v0.53.0
 ## explicit; go 1.25.0
+golang.org/x/crypto/acme
+golang.org/x/crypto/acme/autocert
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
 # golang.org/x/net v0.56.0

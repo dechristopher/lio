@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/util"
@@ -14,7 +14,7 @@ type status struct {
 }
 
 // StatusHandler returns a JSON object with status info
-func StatusHandler(c *fiber.Ctx) error {
+func StatusHandler(c fiber.Ctx) error {
 	return c.JSON(status{
 		Version:  config.Version,
 		Uptime:   util.TimeSinceBoot().Seconds(),

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/www/handlers/api/pools"
 	"github.com/dechristopher/lio/www/handlers/api/stats"

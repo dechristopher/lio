@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/a-h/templ"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
@@ -72,12 +72,12 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 // Render writes a templ component to the fiber response as UTF-8 HTML.
 // It is the templ replacement for the old util.HandleTemplate helper.
 //
-// We deliberately render with context.Background() rather than c.UserContext():
+// We deliberately render with context.Background() rather than c.Context():
 // user.ContextMiddleware overwrites the fiber user-context with a *user.Context
 // whose embedded context.Context is nil for returning users, so templ's
 // ctx.Err() check would nil-panic. The view components use no request-scoped
 // context values, so a background context is both correct and safe here.
-func Render(c *fiber.Ctx, status int, component templ.Component) error {
+func Render(c fiber.Ctx, status int, component templ.Component) error {
 	c.Status(status).Type("html", "utf-8")
 	return component.Render(context.Background(), c.Response().BodyWriter())
 }
@@ -87,7 +87,7 @@ func Render(c *fiber.Ctx, status int, component templ.Component) error {
 // except history-restore requests, which need the full document to rebuild the
 // page from a cache miss. Handlers use this to serve the same URL as either a
 // swap-in fragment or a directly-navigable full page.
-func IsHTMXFragment(c *fiber.Ctx) bool {
+func IsHTMXFragment(c fiber.Ctx) bool {
 	return c.Get("HX-Request") == "true" &&
 		c.Get("HX-History-Restore-Request") != "true"
 }

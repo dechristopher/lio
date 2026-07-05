@@ -1,10 +1,10 @@
 package engine
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/dechristopher/octad/v2"
-	"github.com/pkg/errors"
 
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
@@ -27,8 +27,7 @@ func searchNegamaxAB(situation *octad.Game, depth int) MoveEval {
 
 	for _, move := range situation.ValidMoves() {
 		if err := situation.Move(move); err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", situation, move))
+			panic(fmt.Errorf("pos: %+v, move: %+v: %w", situation, move, err))
 		}
 
 		// negamaxAB scores the child relative to its side to move (the
@@ -73,8 +72,7 @@ func negamaxAB(node *octad.Game, move *octad.Move, depth int, alpha, beta float6
 	value := math.Inf(-1)
 	for _, m := range moves {
 		if err := node.Move(m); err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", node, m))
+			panic(fmt.Errorf("pos: %+v, move: %+v: %w", node, m, err))
 		}
 		value = math.Max(value, -negamaxAB(node, m, depth-1, -beta, -alpha))
 		node.UndoMove()

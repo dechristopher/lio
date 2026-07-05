@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/dechristopher/octad/v2"
-	"github.com/pkg/errors"
 
 	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/rng"
@@ -284,8 +284,7 @@ func minimaxABAsync(params minimaxABParams) {
 
 	err := params.situation.Move(&params.move)
 	if err != nil {
-		panic(errors.WithMessagef(err,
-			"pos: %+v, move: %+v", params.situation, params.move))
+		panic(fmt.Errorf("pos: %+v, move: %+v: %w", params.situation, params.move, err))
 	}
 
 	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth, params.stop)
@@ -336,8 +335,7 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 	for _, move := range moves {
 		err := node.Move(move)
 		if err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", node, move))
+			panic(fmt.Errorf("pos: %+v, move: %+v: %w", node, move, err))
 		}
 
 		eval := mmABMin(node, move, depth-1, alpha, beta, stop)
@@ -380,8 +378,7 @@ func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 	for _, move := range moves {
 		err := node.Move(move)
 		if err != nil {
-			panic(errors.WithMessagef(err,
-				"pos: %+v, move: %+v", node, move))
+			panic(fmt.Errorf("pos: %+v, move: %+v: %w", node, move, err))
 		}
 
 		eval := mmABMax(node, move, depth-1, alpha, beta, stop)

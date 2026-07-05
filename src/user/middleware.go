@@ -3,7 +3,7 @@ package user
 import (
 	"encoding/json"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/crypt"
 	"github.com/dechristopher/lio/env"
@@ -16,7 +16,7 @@ const (
 
 // ContextMiddleware evaluates and/or sets the user
 // context for incoming requests
-func ContextMiddleware(c *fiber.Ctx) error {
+func ContextMiddleware(c fiber.Ctx) error {
 	var userContext = new(Context)
 	var err error
 
@@ -66,14 +66,14 @@ func ContextMiddleware(c *fiber.Ctx) error {
 	}
 
 	// set user context for later handlers
-	c.SetUserContext(userContext)
+	c.SetContext(userContext)
 
 	return c.Next()
 }
 
 // wipeContext clears the context cookies and redirects the user home
-func wipeContext(c *fiber.Ctx) error {
+func wipeContext(c fiber.Ctx) error {
 	c.ClearCookie(contextCookieName)
 	c.ClearCookie(uidCookieName)
-	return c.Redirect("/")
+	return c.Redirect().To("/")
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/crypt"
@@ -45,7 +45,7 @@ func (c *Context) MarshalJSON() ([]byte, error) {
 }
 
 // GetID is a helper to return the user ID from the request context
-func GetID(ctx *fiber.Ctx) string {
+func GetID(ctx fiber.Ctx) string {
 	c := GetContext(ctx)
 	if c == nil {
 		return ""
@@ -54,8 +54,8 @@ func GetID(ctx *fiber.Ctx) string {
 }
 
 // GetContext returns the decrypted Context from within the fiber.Context
-func GetContext(ctx *fiber.Ctx) *Context {
-	c, ok := ctx.UserContext().(*Context)
+func GetContext(ctx fiber.Ctx) *Context {
+	c, ok := ctx.Context().(*Context)
 	if ok {
 		return c
 	}

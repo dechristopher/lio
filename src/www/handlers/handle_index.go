@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"net/http"
+	"io/fs"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/message"
@@ -16,7 +16,7 @@ import (
 var cachedIndex []byte
 
 // IndexHandler renders the home page
-func IndexHandler(c *fiber.Ctx) error {
+func IndexHandler(c fiber.Ctx) error {
 	presence.Touch(user.GetID(c))
 	challenges, stats := homeActivity()
 	return view.Render(c, 200, view.Index(
@@ -26,7 +26,7 @@ func IndexHandler(c *fiber.Ctx) error {
 // HomeActivityHandler renders the live home-activity fragment (site stats, open
 // challenges) polled by htmx from the home page. The live-games grid is no
 // longer part of this fragment — it streams over /socket/tv (see tvWidget).
-func HomeActivityHandler(c *fiber.Ctx) error {
+func HomeActivityHandler(c fiber.Ctx) error {
 	presence.Touch(user.GetID(c))
 	challenges, stats := homeActivity()
 	return view.Render(c, 200, view.HomeActivity(challenges, stats))
@@ -45,8 +45,8 @@ func homeActivity() ([]message.OpenChallenge, message.SiteStats) {
 
 // SPAHandlerInit creates the SPA handler to serve index.html for all
 // requests that don't hit WS, API or static assets directly
-func SPAHandlerInit(staticFs http.FileSystem) func(c *fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SPAHandlerInit(staticFs fs.FS) func(c fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		if len(cachedIndex) == 0 || !env.IsProd() {
 			file, err := staticFs.Open("index.html")
 			if err != nil {

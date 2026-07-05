@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/websocket/v2"
+	"github.com/gofiber/contrib/v3/websocket"
+	"github.com/gofiber/fiber/v3"
 	"github.com/valyala/fastjson"
 
 	"github.com/dechristopher/lio/channel"
@@ -23,7 +23,7 @@ import (
 
 // UpgradeHandler catches anything under /ws/** and allows
 // the websocket connection through the "allowed" local
-func UpgradeHandler(c *fiber.Ctx) error {
+func UpgradeHandler(c fiber.Ctx) error {
 	uid := user.GetID(c)
 	if uid == "" {
 		c.Status(403)
@@ -43,7 +43,7 @@ func UpgradeHandler(c *fiber.Ctx) error {
 // ConnHandler returns a wrapped websocket connection handler
 // for various websocket use-cases across the site
 func ConnHandler() fiber.Handler {
-	return func(ctx *fiber.Ctx) error {
+	return func(ctx fiber.Ctx) error {
 		return websocket.New(connHandler(ctx), websocket.Config{
 			EnableCompression: true,
 		})(ctx)
@@ -51,7 +51,7 @@ func ConnHandler() fiber.Handler {
 }
 
 // connHandler returns the actual websocket handler implementation
-func connHandler(ctx *fiber.Ctx) func(*websocket.Conn) {
+func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	// get uid and channel from fiber context
 	uid := user.GetID(ctx)
 	roomId := ctx.Params("chan")
@@ -193,11 +193,11 @@ func validTag(tag string) bool {
 }
 
 // okOrigin approves a websocket connection if it comes from an origin we trust
-func okOrigin(c *fiber.Ctx) bool {
+func okOrigin(c fiber.Ctx) bool {
 	if env.IsLocal() {
 		return true
 	}
 
-	origin := c.Context().Request.Header.Peek("Origin")
+	origin := c.RequestCtx().Request.Header.Peek("Origin")
 	return strings.Contains(config.CorsOrigins(), string(origin))
 }
