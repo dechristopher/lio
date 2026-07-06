@@ -1,7 +1,9 @@
 /*!
  * lioctad app styles — TailwindCSS v4 (built with the standalone CLI, no Node).
- * Source of truth: this file. Build the embedded/served stylesheet with:
+ * Source of truth: this file. The output cmd/lio/static/app.css is a generated
+ * artifact (gitignored, embedded via //go:embed static/*); build it with:
  *   ../bin/tailwindcss -i view/app.css -o cmd/lio/static/app.css --minify
+ * deploy/deploy-fly.sh runs this at deploy time; run it locally before serving.
  * Design spec: arch/FRONTEND_DESIGN_OVERHAUL.md
  */
 @import "tailwindcss" source(none);
@@ -983,8 +985,6 @@
 		border: 1px solid var(--border);
 		background: var(--surface-2);
 		color: var(--text-muted);
-		font-size: 1.15rem;
-		line-height: 1;
 		cursor: pointer;
 		transition: all 150ms var(--ease-snappy);
 	}

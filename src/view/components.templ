@@ -129,7 +129,7 @@ templ prefStub(label string) {
 templ accountModal() {
 	<div id="modalAccount" class="modal-shade">
 		<div class="modal card">
-			<button type="button" class="modal-close" aria-label="Close">×</button>
+			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
 			<h2>Accounts are coming</h2>
 			<p class="prose text-center text-sm">
 				Octad is playable right now with no sign-up. Accounts, ratings
@@ -223,6 +223,15 @@ templ iconCopy() {
 templ iconCheck() {
 	<svg class="icon-check h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<path d="M20 6 9 17l-5-5"></path>
+	</svg>
+}
+
+// iconClose is the lucide "x" glyph backing the shared .modal-close button; an
+// SVG centers cleanly in the flex button, unlike the "×" text glyph which sits
+// on the font's math axis and renders optically off-center.
+templ iconClose() {
+	<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M18 6 6 18M6 6l12 12"></path>
 	</svg>
 }
 

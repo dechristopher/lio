@@ -16,5 +16,15 @@ GIT_REV="$(git rev-parse --short HEAD)"
 # fly.toml lives in src/; deploy from there regardless of the caller's cwd
 cd "$(dirname "$0")/../src"
 
+# Build the minified Tailwind stylesheet into the tree Fly uploads. app.css is a
+# generated artifact (gitignored); the Dockerfile only COPYs + embeds static/*,
+# so the file must exist and be current at deploy time or prod ships unstyled.
+if [ ! -x ../bin/tailwindcss ]; then
+  echo "error: ../bin/tailwindcss not found; download the standalone CLI" >&2
+  exit 1
+fi
+echo "Building minified app.css..."
+../bin/tailwindcss -i view/app.css -o cmd/lio/static/app.css --minify
+
 echo "Deploying lioctad @ ${GIT_REV} to Fly..."
 exec fly deploy --build-arg "GIT_REV=${GIT_REV}" "$@"

@@ -39,3 +39,8 @@ yarn-error.log
 **/.DS_Store
 # Tailwind standalone CLI binary (downloaded, ~80MB; not committed)
 bin/tailwindcss
+
+# Generated Tailwind stylesheet (built from src/view/app.css). Not committed:
+# built with --minify by deploy/deploy-fly.sh at deploy time and locally before
+# running. Embedded via //go:embed static/* in cmd/lio.
+src/cmd/lio/static/app.css
