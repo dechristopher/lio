@@ -7,12 +7,32 @@ templ scriptsBase(meta Meta) {
 	<script src={ asset("lio.js") }></script>
 }
 
+// themeStyles loads every board theme and piece set stylesheet. Themes are
+// selected by the [data-board]/[data-piece] attributes on <html> (set before
+// first paint by the no-flash script in layout.templ and toggled by the
+// preferences popover), so loading all of them up front makes switching instant
+// with no extra request. Piece-set art is fetched lazily by the browser — only
+// the background-images under the matched [data-piece] rule load — so listing
+// every set here is cheap.
+templ themeStyles() {
+	<link rel="stylesheet" href={ asset("res/themes/board/green.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/blue.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/brown.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/purple.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/red.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/orange.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/yellow.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/board/mono.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/piece/alpha.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/piece/cburnett.css") }/>
+	<link rel="stylesheet" href={ asset("res/themes/piece/merida.css") }/>
+}
+
 // scriptsRoom loads the octadground board renderer, its themes, and the
 // in-game client logic. Used on the playing-game room view.
 templ scriptsRoom(meta Meta) {
 	<link rel="stylesheet" href={ asset("octadground.base.css") }/>
-	<link rel="stylesheet" href={ asset("res/themes/board/green.css") }/>
-	<link rel="stylesheet" href={ asset("res/themes/piece/alpha.css") }/>
+	@themeStyles()
 	<script src={ asset("octadground.js") }></script>
 	<script src={ asset("lio-game.js") }></script>
 }
@@ -27,8 +47,7 @@ templ scriptsRoomCreator(meta Meta) {
 // WebSocket, so neither lio.js nor howler is needed here.
 templ scriptsTV(meta Meta) {
 	<link rel="stylesheet" href={ asset("octadground.base.css") }/>
-	<link rel="stylesheet" href={ asset("res/themes/board/green.css") }/>
-	<link rel="stylesheet" href={ asset("res/themes/piece/alpha.css") }/>
+	@themeStyles()
 	<script src={ asset("octadground.js") }></script>
 	<script src={ asset("lio-tv.js") }></script>
 }

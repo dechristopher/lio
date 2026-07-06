@@ -14,10 +14,14 @@ templ head(meta Meta) {
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5"/>
 		<script>
-			// Resolve and apply the color theme before first paint to avoid a
-			// flash of the wrong theme: persisted choice wins, else the OS
-			// preference. Also exposes __toggleTheme()/__setTheme() for the
-			// header toggle button.
+			// Resolve and apply the color theme, board theme, and piece set
+			// before first paint to avoid a flash of the wrong appearance:
+			// persisted choices win, else defaults (OS for light/dark; green +
+			// alpha for board/pieces). All three live as data-* attributes on
+			// <html> so board.css / piece.css (scoped [data-board]/[data-piece])
+			// and the per-board --accent overrides (app.css) apply with no FOUC.
+			// Exposes __toggleTheme/__setTheme/__useSystemTheme (color theme) and
+			// __setBoard/__setPiece for the preferences popover.
 			(function () {
 				var d = document.documentElement;
 				function resolve() {
@@ -41,6 +45,25 @@ templ head(meta Meta) {
 				window.__useSystemTheme = function () {
 					try { localStorage.removeItem("theme"); } catch (e) {}
 					d.dataset.theme = resolve();
+				};
+
+				// Board theme + piece set: a persisted choice, else the defaults.
+				function stored(key, fallback) {
+					try {
+						var v = localStorage.getItem(key);
+						if (v) return v;
+					} catch (e) {}
+					return fallback;
+				}
+				d.dataset.board = stored("board", "green");
+				d.dataset.piece = stored("piece", "alpha");
+				window.__setBoard = function (name) {
+					d.dataset.board = name;
+					try { localStorage.setItem("board", name); } catch (e) {}
+				};
+				window.__setPiece = function (name) {
+					d.dataset.piece = name;
+					try { localStorage.setItem("piece", name); } catch (e) {}
 				};
 			})();
 		</script>

@@ -1,0 +1,55 @@
+/* Board theme "mono" — selected via [data-board="mono"] on <html>. Square colors
+   live in /res/img/board/mono.svg; coords echo those two colors; interaction
+   overlays are shared across themes and track the theme's --accent. */
+[data-board="mono"] .og-wrap {
+	background-image: url('/res/img/board/mono.svg');
+}
+
+[data-board="mono"] .og-wrap coords.ranks > coord:nth-child(odd) { color: #e8e8e8; }
+[data-board="mono"] .og-wrap coords.ranks > coord:nth-child(even) { color: #7d7d7d; }
+[data-board="mono"] .og-wrap coords.files > coord:nth-child(odd) { color: #e8e8e8; }
+[data-board="mono"] .og-wrap coords.files > coord:nth-child(even) { color: #7d7d7d; }
+[data-board="mono"] .og-wrap coords.ranks.black > coord:nth-child(odd) { color: #7d7d7d; }
+[data-board="mono"] .og-wrap coords.ranks.black > coord:nth-child(even) { color: #e8e8e8; }
+[data-board="mono"] .og-wrap coords.files.black > coord:nth-child(odd) { color: #7d7d7d; }
+[data-board="mono"] .og-wrap coords.files.black > coord:nth-child(even) { color: #e8e8e8; }
+
+/* amber last-move (distinct from accent move targets), accent selection/targets,
+   indigo premoves, red check — color-mix keeps them tracking the accent. */
+[data-board="mono"] square.last-move {
+	background-color: color-mix(in srgb, var(--warn, #f59e0b) 38%, transparent);
+}
+[data-board="mono"] square.move-dest {
+	background: radial-gradient(color-mix(in srgb, var(--accent, #10b981) 50%, transparent) 19%, rgba(0, 0, 0, 0) 20%);
+	pointer-events: auto;
+}
+[data-board="mono"] square.premove-dest {
+	background: radial-gradient(rgba(20, 30, 85, 0.5) 22%, #203085 0, rgba(0, 0, 0, 0.3) 0, rgba(0, 0, 0, 0) 0);
+}
+[data-board="mono"] square.oc.move-dest {
+	background: radial-gradient(transparent 0%, transparent 80%, color-mix(in srgb, var(--accent, #10b981) 45%, transparent) 80%);
+}
+[data-board="mono"] square.oc.premove-dest {
+	background: radial-gradient(transparent 0%, transparent 80%, rgba(20, 30, 85, 0.2) 80%);
+}
+[data-board="mono"] square.move-dest:hover {
+	background: color-mix(in srgb, var(--accent, #10b981) 32%, transparent);
+}
+[data-board="mono"] square.premove-dest:hover {
+	background: rgba(20, 30, 85, 0.2);
+}
+[data-board="mono"] square.selected {
+	background-color: color-mix(in srgb, var(--accent, #10b981) 48%, transparent);
+}
+[data-board="mono"] square.check {
+	background: radial-gradient(
+			ellipse at center,
+			rgba(255, 0, 0, 1) 0%,
+			rgba(231, 0, 0, 1) 25%,
+			rgba(169, 0, 0, 0) 89%,
+			rgba(158, 0, 0, 0) 100%
+	);
+}
+[data-board="mono"] square.current-premove {
+	background-color: rgba(20, 30, 85, 0.5);
+}

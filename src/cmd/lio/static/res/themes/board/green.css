@@ -1,77 +1,47 @@
-.green .og-wrap {
-	background-image: url('/res/img/board.svg');
+/* Board theme "green" — selected via [data-board="green"] on <html>. Square colors
+   live in /res/img/board/green.svg; coords echo those two colors; interaction
+   overlays are shared across themes and track the theme's --accent. */
+[data-board="green"] .og-wrap {
+	background-image: url('/res/img/board/green.svg');
 }
 
-.green .og-wrap coords.ranks > coord:nth-child(odd) {
-	color: #FFFFDF;
-}
+[data-board="green"] .og-wrap coords.ranks > coord:nth-child(odd) { color: #FFFFDF; }
+[data-board="green"] .og-wrap coords.ranks > coord:nth-child(even) { color: #93AF6C; }
+[data-board="green"] .og-wrap coords.files > coord:nth-child(odd) { color: #FFFFDF; }
+[data-board="green"] .og-wrap coords.files > coord:nth-child(even) { color: #93AF6C; }
+[data-board="green"] .og-wrap coords.ranks.black > coord:nth-child(odd) { color: #93AF6C; }
+[data-board="green"] .og-wrap coords.ranks.black > coord:nth-child(even) { color: #FFFFDF; }
+[data-board="green"] .og-wrap coords.files.black > coord:nth-child(odd) { color: #93AF6C; }
+[data-board="green"] .og-wrap coords.files.black > coord:nth-child(even) { color: #FFFFDF; }
 
-.green .og-wrap coords.ranks > coord:nth-child(even) {
-	color: #93AF6C;
-}
-
-.green .og-wrap coords.files > coord:nth-child(odd) {
-	color: #FFFFDF;
-}
-
-.green .og-wrap coords.files > coord:nth-child(even) {
-	color: #93AF6C;
-}
-
-.green .og-wrap coords.ranks.black > coord:nth-child(odd) {
-	color: #93AF6C;
-}
-
-.green .og-wrap coords.ranks.black > coord:nth-child(even) {
-	color: #FFFFDF;
-}
-
-.green .og-wrap coords.files.black > coord:nth-child(odd) {
-	color: #93AF6C;
-}
-
-.green .og-wrap coords.files.black > coord:nth-child(even) {
-	color: #FFFFDF;
-}
-
-/* Interaction overlays re-tinted to the design tokens: amber last-move (so it
-   reads distinctly from the emerald move targets), emerald selection/targets,
-   indigo premoves (kept), red check (kept). color-mix keeps them tracking the
-   light/dark accent. */
-.green square.last-move {
+/* amber last-move (distinct from accent move targets), accent selection/targets,
+   indigo premoves, red check — color-mix keeps them tracking the accent. */
+[data-board="green"] square.last-move {
 	background-color: color-mix(in srgb, var(--warn, #f59e0b) 38%, transparent);
 }
-
-.green square.move-dest {
+[data-board="green"] square.move-dest {
 	background: radial-gradient(color-mix(in srgb, var(--accent, #10b981) 50%, transparent) 19%, rgba(0, 0, 0, 0) 20%);
 	pointer-events: auto;
 }
-
-.green square.premove-dest {
+[data-board="green"] square.premove-dest {
 	background: radial-gradient(rgba(20, 30, 85, 0.5) 22%, #203085 0, rgba(0, 0, 0, 0.3) 0, rgba(0, 0, 0, 0) 0);
 }
-
-.green square.oc.move-dest {
+[data-board="green"] square.oc.move-dest {
 	background: radial-gradient(transparent 0%, transparent 80%, color-mix(in srgb, var(--accent, #10b981) 45%, transparent) 80%);
 }
-
-.green square.oc.premove-dest {
+[data-board="green"] square.oc.premove-dest {
 	background: radial-gradient(transparent 0%, transparent 80%, rgba(20, 30, 85, 0.2) 80%);
 }
-
-.green square.move-dest:hover {
+[data-board="green"] square.move-dest:hover {
 	background: color-mix(in srgb, var(--accent, #10b981) 32%, transparent);
 }
-
-.green square.premove-dest:hover {
+[data-board="green"] square.premove-dest:hover {
 	background: rgba(20, 30, 85, 0.2);
 }
-
-.green square.selected {
+[data-board="green"] square.selected {
 	background-color: color-mix(in srgb, var(--accent, #10b981) 48%, transparent);
 }
-
-.green square.check {
+[data-board="green"] square.check {
 	background: radial-gradient(
 			ellipse at center,
 			rgba(255, 0, 0, 1) 0%,
@@ -80,7 +50,6 @@
 			rgba(158, 0, 0, 0) 100%
 	);
 }
-
-.green square.current-premove {
+[data-board="green"] square.current-premove {
 	background-color: rgba(20, 30, 85, 0.5);
 }

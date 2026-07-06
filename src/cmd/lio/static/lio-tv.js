@@ -222,7 +222,9 @@
 		const board = document.createElement('div');
 		board.className = 'tv-board gcon';
 		const gwrap = document.createElement('div');
-		gwrap.className = 'gwrap green alpha';
+		// board theme + piece set come from the [data-board]/[data-piece]
+		// attributes on <html> (set by the no-flash script + preferences popover)
+		gwrap.className = 'gwrap';
 		const ogWrap = document.createElement('div');
 		ogWrap.className = 'og-wrap';
 		gwrap.appendChild(ogWrap);

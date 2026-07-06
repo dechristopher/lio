@@ -108,16 +108,12 @@
 		--text-subtle: #a8a29e;
 
 		--accent: #10b981;
-		--accent-hover: #059669;
-		--accent-press: #047857;
 		--accent-contrast: #ffffff;
 
 		--win: #10b981;
 		--loss: #ef4444;
 		--draw: #a8a29e;
 		--warn: #f59e0b;
-
-		--focus-ring: rgba(16, 185, 129, 0.45);
 	}
 
 	[data-theme="dark"] {
@@ -132,17 +128,50 @@
 		--text-subtle: #78716c;
 
 		--accent: #34d399;
-		--accent-hover: #10b981;
-		--accent-press: #059669;
 		--accent-contrast: #06251c;
 
 		--win: #34d399;
 		--loss: #f87171;
 		--draw: #a8a29e;
 		--warn: #fbbf24;
-
-		--focus-ring: rgba(52, 211, 153, 0.45);
 	}
+
+	/* --accent-hover / --accent-press / --focus-ring are derived from whatever
+	   --accent currently resolves to (light default, the dark override above, or
+	   a per-board override below). Defining them once here — instead of per
+	   mode/board — means a board theme only needs to set --accent (and
+	   --accent-contrast when the hue needs dark text, e.g. yellow). Semantic
+	   colors (--win/--loss/--draw/--warn) intentionally do NOT track the accent:
+	   a win stays green on a red board. */
+	:root {
+		--accent-hover: color-mix(in srgb, var(--accent) 84%, #000);
+		--accent-press: color-mix(in srgb, var(--accent) 68%, #000);
+		--focus-ring: color-mix(in srgb, var(--accent) 45%, transparent);
+	}
+
+	/* ------------------------------------------------------------------------
+	   Board-theme accent retint. Picking a board theme (data-board on <html>,
+	   set by the no-flash script) also retints the whole-site accent to that
+	   theme's hue; the board's own square colors live in res/img/board/*.svg and
+	   the overlays/coords in res/themes/board/*.css. Light hue first, then the
+	   dark-mode (brighter) variant. green is the default (:root above) so it
+	   needs no override.
+	------------------------------------------------------------------------ */
+	[data-board="blue"]   { --accent: #3b82f6; }
+	[data-board="brown"]  { --accent: #b45309; }
+	[data-board="purple"] { --accent: #8b5cf6; }
+	[data-board="red"]    { --accent: #ef4444; }
+	[data-board="orange"] { --accent: #f97316; }
+	[data-board="yellow"] { --accent: #eab308; --accent-contrast: #422006; }
+	[data-board="mono"]   { --accent: #64748b; }
+
+	[data-theme="dark"][data-board="blue"]   { --accent: #60a5fa; }
+	[data-theme="dark"][data-board="brown"]  { --accent: #d97706; }
+	[data-theme="dark"][data-board="purple"] { --accent: #a78bfa; }
+	[data-theme="dark"][data-board="red"]    { --accent: #f87171; }
+	[data-theme="dark"][data-board="orange"] { --accent: #fb923c; }
+	[data-theme="dark"][data-board="yellow"] { --accent: #facc15; --accent-contrast: #422006; }
+	[data-theme="dark"][data-board="mono"]   { --accent: #94a3b8; }
 
 	body {
 		background-color: var(--surface);
@@ -1569,6 +1598,68 @@
 	@media (max-width: 480px) {
 		.conn-label { display: none; }
 	}
+
+	/* ---- preferences popover: board-theme swatches + piece-set pills ---- */
+	.swatch-btn {
+		display: grid;
+		place-items: center;
+		padding: 2px;
+		border: 2px solid transparent;
+		border-radius: 7px;
+		background: transparent;
+		cursor: pointer;
+		transition: border-color 0.15s var(--ease-snappy);
+	}
+	.swatch-btn:hover { border-color: var(--border-strong); }
+	.swatch-btn.is-active { border-color: var(--accent); }
+	/* a 2x2 checker preview built from the theme's two square colors (--l/--d
+	   set inline per swatch) */
+	.swatch {
+		display: block;
+		width: 100%;
+		aspect-ratio: 1;
+		border-radius: 4px;
+		background: conic-gradient(var(--l) 0 25%, var(--d) 0 50%, var(--l) 0 75%, var(--d) 0);
+		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+	}
+	/* piece-set card: a row of preview glyphs (king/knight/pawn) over the label */
+	.piece-btn {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 5px;
+		padding: 8px 4px 7px;
+		border: 1.5px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		cursor: pointer;
+		transition: border-color 0.15s var(--ease-snappy), background 0.15s var(--ease-snappy), transform 0.15s var(--ease-snappy);
+	}
+	.piece-btn:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+	.piece-btn.is-active {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+	}
+	/* the glyphs sit on a subtle inset so the light (white) pieces read against
+	   both the light and dark popover surfaces */
+	.piece-preview {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1px;
+		padding: 3px 5px;
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--text) 8%, transparent);
+	}
+	.piece-preview img { display: block; width: 32px; height: 32px; }
+	.piece-label {
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		text-transform: capitalize;
+	}
+	.piece-btn:hover .piece-label { color: var(--text); }
+	.piece-btn.is-active .piece-label { color: var(--accent); }
 }
 
 @keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }
