@@ -1,0 +1,8 @@
+# Generated frontend assets — fetched/rebuilt inside the image (see Dockerfile),
+# so keep any stale local copies out of the build context.
+cmd/lio/static/app.css
+cmd/lio/static/octadground.js
+cmd/lio/static/octadground.base.css
+
+# Local cruft
+**/.DS_Store

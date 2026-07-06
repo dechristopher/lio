@@ -40,7 +40,9 @@ yarn-error.log
 # Tailwind standalone CLI binary (downloaded, ~80MB; not committed)
 bin/tailwindcss
 
-# Generated Tailwind stylesheet (built from src/view/app.css). Not committed:
-# built with --minify by deploy/deploy-fly.sh at deploy time and locally before
-# running. Embedded via //go:embed static/* in cmd/lio.
+# Generated frontend assets — not committed. Fetched from pinned sources and
+# (re)built inside the Docker image at deploy time (see src/Dockerfile), or by
+# bin/build-assets.sh for local dev. Embedded via //go:embed static/* in cmd/lio.
+# (octadground.js is already matched by the octadground.js rules above.)
 src/cmd/lio/static/app.css
+src/cmd/lio/static/octadground.base.css
