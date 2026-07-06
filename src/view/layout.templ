@@ -61,7 +61,7 @@ templ head(meta Meta) {
 		<meta name="description" content={ meta.Description }/>
 		<meta property="og:description" content={ meta.Description }/>
 		// app.css is the Tailwind build (source of truth: view/app.css).
-		<link rel="stylesheet" href={ "/app" + meta.CacheKey + ".css" }/>
-		<script src={ "/htmx" + meta.CacheKey + ".min.js" }></script>
+		<link rel="stylesheet" href={ asset("app.css") }/>
+		<script src={ asset("htmx.min.js") }></script>
 	</head>
 }

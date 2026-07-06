@@ -22,30 +22,45 @@ RUN git clone --depth 1 --branch "${OCTADGROUND_REF}" \
     && yarn install --frozen-lockfile \
     && yarn dist
 
-# ---- css: build the minified Tailwind stylesheet with the standalone CLI (no npm)
-FROM debian:bookworm-slim AS assets-css
+# ---- web assets: minified Tailwind CSS (standalone CLI) + minified JS (esbuild),
+#      both from pinned single binaries — no npm client involved
+FROM debian:bookworm-slim AS assets-web
 # renovate: datasource=github-releases depName=tailwindlabs/tailwindcss
 ARG TAILWIND_VERSION=v4.3.1
+# renovate: datasource=npm depName=esbuild
+ARG ESBUILD_VERSION=0.24.0
 ARG TARGETARCH
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-# The standalone binary is glibc (hence the debian base, not alpine). Map the
-# docker arch to Tailwind's release asset name.
-RUN case "${TARGETARCH}" in \
-      amd64) tw_arch=x64 ;; \
-      arm64) tw_arch=arm64 ;; \
+# The Tailwind standalone binary is glibc (hence the debian base, not alpine).
+# esbuild ships its platform binary as an npm tarball we extract with plain curl
+# + tar (no npm client). Map the docker arch to each project's asset name.
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      amd64) tw_arch=x64;  es_arch=x64  ;; \
+      arm64) tw_arch=arm64; es_arch=arm64 ;; \
       *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
     curl -fsSL -o /usr/local/bin/tailwindcss \
-      "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-${tw_arch}" \
-    && chmod +x /usr/local/bin/tailwindcss
+      "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-${tw_arch}"; \
+    chmod +x /usr/local/bin/tailwindcss; \
+    curl -fsSL "https://registry.npmjs.org/@esbuild/linux-${es_arch}/-/linux-${es_arch}-${ESBUILD_VERSION}.tgz" \
+      | tar -xzO package/bin/esbuild > /usr/local/bin/esbuild; \
+    chmod +x /usr/local/bin/esbuild
 WORKDIR /lio
 # app.css @source globs scan view/**/*.templ and ../cmd/lio/static/*.js, so both
 # trees must be present when the CLI tree-shakes to the used utility classes.
 COPY view ./view
 COPY cmd/lio/static ./cmd/lio/static
-RUN tailwindcss -i view/app.css -o /app.css --minify
+# Build app.css, then minify our hand-authored classic scripts in place (esbuild
+# without --bundle preserves global/top-level names, so the window.* interface
+# between files is unchanged). htmx.min.js / octadground.js are already minified.
+RUN mkdir -p /out \
+    && tailwindcss -i view/app.css -o /out/app.css --minify \
+    && for f in lio lio-game lio-tv lio-room-create; do \
+         esbuild "cmd/lio/static/$f.js" --minify --outfile="/out/$f.js"; \
+       done
 
 # ---- build: compile the Go binary, embedding the freshly built assets
 FROM golang:1.26.4-alpine3.24 AS build
@@ -61,7 +76,8 @@ COPY . .
 # octadground.min.js is served as octadground.js (see view/scripts.templ).
 COPY --from=assets-octadground /og/dist/octadground.min.js cmd/lio/static/octadground.js
 COPY --from=assets-octadground /og/assets/octadground.base.css cmd/lio/static/octadground.base.css
-COPY --from=assets-css /app.css cmd/lio/static/app.css
+# /out holds app.css + the minified lio*.js; overlay them onto the static dir.
+COPY --from=assets-web /out/ cmd/lio/static/
 
 WORKDIR cmd/lio
 RUN CGO_ENABLED=0 go build -v -trimpath \

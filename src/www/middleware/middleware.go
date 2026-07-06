@@ -46,10 +46,18 @@ func Wire(r fiber.Router, staticFS fs.FS) {
 		FileSystem: staticFS,
 	}))
 
-	// Serve static files from /static preventing directory listings
+	// Serve static files from /static preventing directory listings. Assets are
+	// content-hashed (see the assets package), so a changed file gets a new URL —
+	// making a 1-year cache safe in prod. In dev/local the hash is stable across
+	// restarts, so send no Cache-Control (MaxAge 0 => no header) to avoid the
+	// browser holding a stale asset while iterating.
+	staticMaxAge := 0
+	if env.IsProd() {
+		staticMaxAge = 86400 * 365
+	}
 	r.Use(static.New("", static.Config{
 		FS:     strictFs{staticFS},
-		MaxAge: 86400 * 30,
+		MaxAge: staticMaxAge,
 	}))
 }
 

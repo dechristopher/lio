@@ -140,9 +140,9 @@ func head(meta Meta) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 templ.SafeURL
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs("/app" + meta.CacheKey + ".css")
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(asset("app.css"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 64, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 64, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -153,9 +153,9 @@ func head(meta Meta) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("/htmx" + meta.CacheKey + ".min.js")
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("htmx.min.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 65, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 65, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {

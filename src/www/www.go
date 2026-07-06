@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
+	"github.com/dechristopher/lio/assets"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
@@ -33,6 +34,12 @@ func Serve(static embed.FS) {
 
 	// make filesystem location decision based on environment
 	staticFs = util.PickFS(env.IsLocal(), static, "./static")
+
+	// content-hash the static assets so their URLs bust the cache exactly when
+	// their bytes change; stable across instances (see the assets package).
+	if err := assets.Build(staticFs); err != nil {
+		util.Error(str.CMain, "asset manifest build failed: %s", err.Error())
+	}
 
 	r := fiber.New(fiber.Config{
 		ServerHeader:  "lioctad.org " + config.Version,

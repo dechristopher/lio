@@ -35,12 +35,6 @@ var (
 	// BootTime is set the instant everything comes online
 	BootTime time.Time
 
-	// CacheKey that is injected into static asset URLs to bust
-	// the cache between deploys of the site
-	// TODO: fix this with a proper cache busting system...
-	CacheKey = fmt.Sprintf(".%s",
-		GenerateCode(7, Base58))
-
 	// CryptoKey for use with cryptographic operations in lio
 	CryptoKey = ReadSecretFallback("crypto_key")
 

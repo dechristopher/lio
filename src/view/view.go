@@ -12,10 +12,19 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
+	"github.com/dechristopher/lio/assets"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/variant"
 )
+
+// asset returns the content-hashed public URL for an embedded static asset,
+// named by its slash-relative path under static/ (e.g. asset("lio-game.js") ->
+// "/lio-game.<hash>.js"). templ components use it for every script/link href so
+// the browser cache busts exactly when a file changes. See the assets package.
+func asset(name string) string {
+	return assets.URL(name)
+}
 
 // Meta carries the per-page metadata needed to render the document <head>.
 // It replaces the old untyped pageModel: the room-vs-default branching that
@@ -23,7 +32,6 @@ import (
 // PageMeta / RoomMeta constructors into explicit fields.
 type Meta struct {
 	Version     string // build version, shown in the footer
-	CacheKey    string // static-asset cache-buster (already includes leading '.')
 	SiteURL     string // absolute site URL (already includes trailing '/')
 	Title       string // full <title> contents
 	OGURL       string // og:url
@@ -43,7 +51,6 @@ const (
 func PageMeta(name string) Meta {
 	return Meta{
 		Version:     config.VersionString(),
-		CacheKey:    config.CacheKey,
 		SiteURL:     config.SiteURL(),
 		Title:       "lioctad.org • " + name,
 		OGURL:       "https://lioctad.org",
@@ -60,7 +67,6 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 		") casual octad • Challenge from anonymous player"
 	return Meta{
 		Version:     config.VersionString(),
-		CacheKey:    config.CacheKey,
 		SiteURL:     config.SiteURL(),
 		Title:       challenge + " • lioctad.org",
 		OGURL:       "https://lioctad.org/" + payload.RoomID,
