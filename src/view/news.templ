@@ -1,0 +1,64 @@
+package view
+
+import (
+	"strconv"
+
+	"github.com/dechristopher/lio/news"
+)
+
+// News renders the dedicated, paginated news page. Like the about page, the
+// paged list lives in a swappable #news-content region: the pager links are
+// htmx swaps that replace only that region and push the URL, with href kept as
+// a no-JS / new-tab fallback.
+templ News(meta Meta, page int) {
+	@base(meta) {
+		<body>
+			<div class="page">
+				@header("max-w-[34rem]")
+				<main class="card mb-4 w-[92vw] max-w-[34rem] text-left">
+					<h1 class="font-display text-xl font-bold">
+						<a class="text-fg no-underline transition-colors duration-150 hover:text-accent" href="/news" hx-get="/news" hx-target="#news-content" hx-swap="innerHTML" hx-push-url="true">News</a>
+					</h1>
+					<div id="news-content" class="mt-3">
+						@NewsContent(page)
+					</div>
+				</main>
+				@footer(meta, "max-w-[34rem]")
+			</div>
+		</body>
+	}
+}
+
+// NewsContent is the paged list plus pager for the news page. It is rendered
+// inside #news-content on a full page load and returned on its own as the htmx
+// swap fragment when a pager link is clicked.
+templ NewsContent(page int) {
+	{{ p := news.Paginate(page) }}
+	<ul class="flex flex-col divide-y divide-line">
+		for _, item := range p.Items {
+			@newsItem(item)
+		}
+	</ul>
+	@newsPager(p)
+}
+
+// newsPager renders the newer/older controls and the page indicator, shown only
+// when the feed spans more than one page. Disabled ends render as inert spans so
+// the control keeps its position at the first/last page.
+templ newsPager(p news.Page) {
+	if p.Total > 1 {
+		<div class="mt-4 flex items-center justify-between gap-2">
+			if p.HasPrev {
+				<a href={ templ.SafeURL("/news?page=" + strconv.Itoa(p.Prev)) } hx-get={ "/news?page=" + strconv.Itoa(p.Prev) } hx-target="#news-content" hx-swap="innerHTML" hx-push-url="true" class="btn btn-ghost no-underline text-sm">← Newer</a>
+			} else {
+				<span class="btn btn-ghost pointer-events-none text-sm opacity-40">← Newer</span>
+			}
+			<span class="text-xs font-semibold uppercase tracking-wider text-fg-subtle">Page { strconv.Itoa(p.Number) } of { strconv.Itoa(p.Total) }</span>
+			if p.HasNext {
+				<a href={ templ.SafeURL("/news?page=" + strconv.Itoa(p.Next)) } hx-get={ "/news?page=" + strconv.Itoa(p.Next) } hx-target="#news-content" hx-swap="innerHTML" hx-push-url="true" class="btn btn-ghost no-underline text-sm">Older →</a>
+			} else {
+				<span class="btn btn-ghost pointer-events-none text-sm opacity-40">Older →</span>
+			}
+		</div>
+	}
+}

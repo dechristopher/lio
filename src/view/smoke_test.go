@@ -2,12 +2,14 @@ package view
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/a-h/templ"
 
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/news"
 	"github.com/dechristopher/lio/variant"
 )
 
@@ -52,6 +54,12 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "What is Octad?")          // explainer
 	mustContain(t, out, "Accounts are coming")     // login stub modal
 	mustContain(t, out, ">Log in<")                // nav stub
+
+	// news block: the three newest feed entries plus the link to the full page,
+	// and no lingering "alpha" tag in the box (titles are html-escaped in output)
+	mustContain(t, out, templ.EscapeString(news.Items[0].Title))    // newest entry rendered
+	mustContain(t, out, "All news →")                               // link out to /news
+	mustNotContain(t, out, templ.EscapeString(news.Items[3].Title)) // only the top three, not the fourth
 
 	// live-games TV widget: static shell + streaming client (boards stream in)
 	mustContain(t, out, `id="tv-widget"`)       // TV card
@@ -187,6 +195,28 @@ func TestRenderRoomJoiner(t *testing.T) {
 	mustContain(t, out, `name="join_token"`)
 	mustContain(t, out, "You've been challenged")
 	mustContain(t, out, "Black") // open-seat color shown in the summary
+}
+
+// TestRenderNews locks the paginated news page: the full page shell, the first
+// page of entries, the htmx pager when the feed spans multiple pages, and the
+// oldest entry landing on the last page.
+func TestRenderNews(t *testing.T) {
+	out := renderSmoke(t, News(PageMeta("News"), 1))
+	mustContain(t, out, "<title>lioctad.org • News</title>")
+	mustContain(t, out, `id="news-content"`)                     // htmx swap region
+	mustContain(t, out, templ.EscapeString(news.Items[0].Title)) // newest entry on page 1
+
+	if len(news.Items) > news.PerPage {
+		// more than one page: the older-page pager link is present and points on
+		mustContain(t, out, "Older →")
+		mustContain(t, out, `hx-get="/news?page=2"`)
+
+		// the last page carries the oldest entry and offers no further "older"
+		last := news.Paginate(len(news.Items)) // any over-range page clamps to last
+		outLast := renderSmoke(t, NewsContent(last.Number))
+		mustContain(t, outLast, templ.EscapeString(news.Items[len(news.Items)-1].Title))
+		mustNotContain(t, outLast, `hx-get="/news?page=`+strconv.Itoa(last.Number+1)+`"`)
+	}
 }
 
 func TestRenderAboutAndNotFound(t *testing.T) {

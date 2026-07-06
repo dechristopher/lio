@@ -603,14 +603,14 @@ func footerContent(meta Meta) templ.Component {
 			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<nav class=\"flex items-center gap-2.5 font-medium\"><a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"/about\">About</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"/db\">DB</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"https://status.lioctad.org\" target=\"_blank\" rel=\"noopener\">Status</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"https://github.com/dechristopher/lio\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<nav class=\"flex items-center gap-2.5 font-medium\"><a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"/about\">About</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"/news\">News</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"/db\">DB</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"https://status.lioctad.org\" target=\"_blank\" rel=\"noopener\">Status</a> <span aria-hidden=\"true\">·</span> <a class=\"text-fg-muted no-underline transition-colors duration-150 hover:text-accent\" href=\"https://github.com/dechristopher/lio\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Version)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 239, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 241, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -856,7 +856,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.IsSpectator))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 295, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 297, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -869,7 +869,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 295, Col: 194}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 297, Col: 194}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -882,7 +882,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Play again"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 341, Col: 126}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 343, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 		if templ_7745c5c3_Err != nil {
@@ -895,7 +895,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 341, Col: 170}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 343, Col: 170}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
@@ -965,7 +965,7 @@ func clock(name string) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 380, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 382, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {

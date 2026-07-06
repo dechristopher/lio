@@ -120,6 +120,9 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	r.Get("/about/rules", handlers.AboutRulesHandler)
 	r.Get("/about/misc", handlers.AboutMiscHandler)
 
+	// paginated news feed page
+	r.Get("/news", handlers.NewsHandler)
+
 	// game database page handler
 	r.Get("/db", handlers.DBHandler)
 

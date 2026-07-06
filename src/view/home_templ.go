@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/news"
 )
 
 // HomeActivity is the live, self-refreshing region of the home page: the site
@@ -136,7 +137,7 @@ func statTile(n int, label string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(n))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 41, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 42, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -149,7 +150,7 @@ func statTile(n int, label string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 42, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 43, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -208,7 +209,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 				var templ_7745c5c3_Var7 templ.SafeURL
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/" + c.RoomID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 60, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 61, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -229,7 +230,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(c.Variant.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 64, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 65, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -242,7 +243,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(c.Variant.Group.String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 66, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 67, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -260,7 +261,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(c.RaceTo))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 68, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 69, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -359,8 +360,8 @@ func octadAbout() templ.Component {
 	})
 }
 
-// homeNews is a static news/blog block. Entries are hand-authored for now; a
-// content-backed feed can replace this list later without touching the layout.
+// homeNews is the home-page news block: the three most-recent entries from the
+// shared news feed, with a link out to the full paginated /news page.
 func homeNews() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -382,21 +383,15 @@ func homeNews() templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">News</h2><span class=\"text-[11px] font-semibold uppercase tracking-wider text-fg-subtle\">alpha</span></div><ul class=\"mt-3 flex flex-col divide-y divide-line\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">News</h2><a href=\"/news\" class=\"text-xs font-semibold text-accent no-underline hover:underline\">All news →</a></div><ul class=\"mt-3 flex flex-col divide-y divide-line\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = newsItem("New look & live homepage", "Jun 2026", "Fresh UI language plus a live view of games and open challenges right on the home page.").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = newsItem("Realtime stability", "Jun 2026", "WebSocket reconnection and engine-move dispatch were hardened for smoother games.").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = newsItem("Play the engine", "2026", "Test your ideas against the built-in Octad engine any time: pick \"vs Computer\" above.").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		for _, item := range news.Latest(3) {
+			templ_7745c5c3_Err = newsItem(item).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</ul><p class=\"prose mt-3 text-sm\">lioctad is free and <a href=\"https://github.com/dechristopher/lio\">open source</a>.</p></div>")
 		if templ_7745c5c3_Err != nil {
@@ -406,7 +401,9 @@ func homeNews() templ.Component {
 	})
 }
 
-func newsItem(title, date, body string) templ.Component {
+// newsItem renders one feed entry; shared by the home-page block and the /news
+// page list.
+func newsItem(item news.Item) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -432,9 +429,9 @@ func newsItem(title, date, body string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
-		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(title)
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 139, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 142, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -445,9 +442,9 @@ func newsItem(title, date, body string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
-		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(date)
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(item.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 140, Col: 83}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 143, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -458,9 +455,9 @@ func newsItem(title, date, body string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(body)
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 142, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 145, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
