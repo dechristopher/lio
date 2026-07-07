@@ -28,7 +28,7 @@ FROM debian:bookworm-slim AS assets-web
 # renovate: datasource=github-releases depName=tailwindlabs/tailwindcss
 ARG TAILWIND_VERSION=v4.3.1
 # renovate: datasource=npm depName=esbuild
-ARG ESBUILD_VERSION=0.24.0
+ARG ESBUILD_VERSION=0.28.1
 ARG TARGETARCH
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
