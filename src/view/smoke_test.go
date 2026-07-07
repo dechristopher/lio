@@ -55,6 +55,15 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "Accounts are coming")     // login stub modal
 	mustContain(t, out, ">Log in<")                // nav stub
 
+	// "What is Octad?" self-playing demo board: the octadground mount + result
+	// pill and its animator script, replacing the old static diagram SVGs
+	mustContain(t, out, `id="home-demo-board"`)   // demo board mount
+	mustContain(t, out, `id="home-demo-overlay"`) // result pill (reuses .end-annotation)
+	mustContain(t, out, "lio-home-demo")          // demo animator script
+	mustContain(t, out, "/about/rules")           // learn-more buttons kept
+	mustNotContain(t, out, "octad2.svg")          // static diagrams removed
+	mustNotContain(t, out, "far-castle.svg")
+
 	// news block: the three newest feed entries plus the link to the full page,
 	// and no lingering "alpha" tag in the box (titles are html-escaped in output)
 	mustContain(t, out, templ.EscapeString(news.Items[0].Title))    // newest entry rendered

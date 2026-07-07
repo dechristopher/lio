@@ -14,6 +14,7 @@ import (
 
 	"github.com/dechristopher/lio/assets"
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/demo"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
@@ -120,6 +121,12 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 
 	// live home-activity fragment polled by htmx (stats / challenges / live games)
 	r.Get("/home/activity", handlers.HomeActivityHandler)
+
+	// random demo games for the home-page "What is Octad?" self-playing board.
+	// Warm the game pool off the request path so the first visitor doesn't pay
+	// the one-time build (Batch also builds lazily as a fallback).
+	r.Get("/home/demo", handlers.HomeDemoHandler)
+	go demo.WarmPool()
 
 	// other pages
 	r.Get("/about", handlers.AboutHandler)

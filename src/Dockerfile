@@ -58,7 +58,7 @@ COPY cmd/lio/static ./cmd/lio/static
 # between files is unchanged). htmx.min.js / octadground.js are already minified.
 RUN mkdir -p /out \
     && tailwindcss -i view/app.css -o /out/app.css --minify \
-    && for f in lio lio-game lio-tv lio-room-create; do \
+    && for f in lio lio-game lio-tv lio-room-create lio-home-demo; do \
          esbuild "cmd/lio/static/$f.js" --minify --outfile="/out/$f.js"; \
        done
 

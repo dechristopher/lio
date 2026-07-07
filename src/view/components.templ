@@ -12,13 +12,17 @@ import (
 // and stubs the rest.
 templ header(width string) {
 	<header class={ "flex w-[92vw] items-center justify-between gap-4 pt-1 pb-3 " + width }>
-		<a href="/" class="inline-flex flex-col items-start leading-none no-underline">
-			<span class="font-display text-2xl font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
-			<span style="top: 56px" class="absolute text-[10px] font-semibold uppercase tracking-widest text-warn">alpha</span>
-		</a>
+		<div class="flex flex-col items-start leading-none">
+			<a href="/" class="no-underline">
+				<span class="font-display text-2xl font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
+			</a>
+			<div class="mt-0.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none">
+				<span class="text-warn">alpha</span>
+				@connIndicator()
+			</div>
+		</div>
 		<div class="relative flex items-center gap-2">
-			@connIndicator()
-			<button type="button" id="loginButton" class="btn btn-ghost px-3 py-1.5 text-sm">Log in</button>
+			<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm">Log in</button>
 			<button
 				type="button"
 				id="prefsButton"

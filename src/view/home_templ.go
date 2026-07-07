@@ -89,15 +89,15 @@ func siteStats(stats message.SiteStats) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = statTile(stats.Playing, "Online now").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = statTile(stats.Playing, "Online").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = statTile(stats.LiveGames, "Live games").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = statTile(stats.LiveGames, "Live").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = statTile(stats.OpenChallenges, "Open seeks").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = statTile(stats.OpenChallenges, "Seeking").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -329,8 +329,13 @@ func colorDot(color string) templ.Component {
 	})
 }
 
-// octadAbout is the static "What is Octad?" explainer on the home page, linking
-// out to the fuller /about content. The diagrams reuse the about-page SVGs.
+// octadAbout is the "What is Octad?" explainer in the home page's right column:
+// the copy, then a self-playing demo board (lio-home-demo.js animates random
+// games fetched from /home/demo), then the learn-more buttons. The column is too
+// narrow for a side-by-side copy/board split, so it stacks. The board mount
+// (#home-demo-board) reuses the octadground gcon/gwrap/og-wrap structure so all
+// board/piece theme CSS applies unchanged, and the overlay (#home-demo-overlay)
+// reuses the in-game .end-annotation result pill.
 func octadAbout() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -352,7 +357,7 @@ func octadAbout() templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"card\"><h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king  can castle with <em>any</em> of its starting pieces.</p><div class=\"mt-3 grid grid-cols-3 gap-2\"><img src=\"/res/img/octad2.svg\" alt=\"octad starting board\" class=\"w-full rounded-md border border-line\"> <img src=\"/res/img/octad3.svg\" alt=\"octad after 1. c2 b3\" class=\"w-full rounded-md border border-line\"> <img src=\"/res/img/far-castle.svg\" alt=\"white far castle\" class=\"w-full rounded-md border border-line\"></div><div class=\"mt-3 flex flex-wrap gap-2\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-sm\">Learn more</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"card\"><h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know — check, checkmate, promotion, en passant — but with a twist: the king can castle with <em>any</em> of its starting pieces.</p><div class=\"home-demo mt-3\"><div class=\"gcon\"><div class=\"gwrap\"><div id=\"home-demo-board\" class=\"og-wrap\"></div><div id=\"home-demo-overlay\" class=\"end-annotation\" aria-hidden=\"true\"></div></div></div></div><div class=\"mt-3 flex flex-wrap gap-2\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-sm\">Learn more</a></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -431,7 +436,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 142, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 150, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -444,7 +449,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(item.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 143, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 151, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -457,7 +462,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 145, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 153, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {

@@ -1449,6 +1449,20 @@
 		shape-rendering: crispEdges;
 	}
 
+	/* ---- home-page "What is Octad?" self-playing demo board ----
+	   lio-home-demo.js mounts an octadground board on #home-demo-board, reusing
+	   the room's .gcon/.gwrap/.og-wrap structure (so all board/piece theme CSS
+	   applies unchanged); #home-demo-overlay reuses the in-game .end-annotation
+	   result pill. --bs (inherited into .gcon) caps the board to a tasteful size
+	   and mx centers it in its column — it fills the card when stacked under the
+	   copy on mobile and sits beside it on wider screens. */
+	.home-demo {
+		--bs: min(100%, 22rem);
+		width: 100%;
+		max-width: 22rem;
+		margin-inline: auto;
+	}
+
 	/* ---- home-page TV (live games) grid ----
 	   The cards are created at runtime by lio-tv.js, so every class here is a
 	   plain component class (Tailwind tree-shakes JS-concatenated class names).
@@ -1572,30 +1586,30 @@
 	.clockScore.score-win, .tv-side-score.score-win { animation: scoreFlashWin 1.1s var(--ease-snappy); }
 	.clockScore.score-draw, .tv-side-score.score-draw { animation: scoreFlashDraw 1.1s var(--ease-snappy); }
 
-	/* omnibus connection indicator in the header, fed by window.lioConn. Starts
-	   hidden (Tailwind .hidden wins until the first report removes it). */
+	/* omnibus connection indicator, fed by window.lioConn. Lives in the header
+	   sub-row beside the ALPHA tag, so it's bubble-less and inherits that row's
+	   micro-label type (10px uppercase tracking-widest); a thin divider sets it
+	   off from ALPHA. Starts hidden (Tailwind .hidden wins until the first
+	   report removes it). */
 	.conn-indicator {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
-		padding: 0.2rem 0.5rem;
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		background: var(--surface-2);
-		font-size: 0.7rem;
-		font-weight: 600;
+		padding-left: 0.5rem;
+		border-left: 1px solid var(--border);
 		color: var(--text-muted);
+		line-height: 1;
 		white-space: nowrap;
 		user-select: none;
 	}
-	.conn-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--text-subtle); flex: none; }
+	.conn-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--text-subtle); flex: none; }
 	.conn-online .conn-dot { background: var(--win); }
 	.conn-reconnecting .conn-dot { background: var(--warn); animation: connPulse 1s ease-in-out infinite; }
 	.conn-offline .conn-dot { background: var(--loss); }
 	.conn-reconnecting .conn-label { color: var(--warn); }
 	.conn-offline .conn-label { color: var(--loss); }
-	/* on narrow headers, drop the label and keep the color dot as the signal */
-	@media (max-width: 480px) {
+	/* on very narrow headers, drop the label and keep the color dot as the signal */
+	@media (max-width: 360px) {
 		.conn-label { display: none; }
 	}
 
