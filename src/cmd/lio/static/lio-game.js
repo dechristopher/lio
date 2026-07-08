@@ -31,6 +31,10 @@ let lastLiveMessage = null;
 // tip after review never re-enables dragging on a finished game (a resignation
 // or timeout can leave a position that still has legal moves).
 let gameOver = false;
+// gameResult is the PGN result token for the current game, set by the game-over
+// message and reset on each new game. Read by the analysis-mode copy-PGN button
+// (which is only visible once the game is over, so it's always final when read).
+let gameResult = '*';
 // currentGameID tracks which game the board state we've applied belongs to
 // (MovePayload.i). Game-boundary transitions (rematch reset, deploy reveal) are
 // announced by single-shot broadcasts; if one is missed, the id changing on any
@@ -1187,6 +1191,7 @@ const handleMove = (message) => {
 	playerWhite = isPlayerWhite(message);
 	if (newGame) {
 		gameOver = false;
+		gameResult = '*';
 		// a new game always returns us to the live board
 		followingLive = true;
 		hideResult();
@@ -1354,6 +1359,12 @@ const handleGameOver = (message) => {
 	// carries an actual result; bare room-closing notices (no winner) just
 	// trigger the redirect below and leave any existing result card in place
 	if (message.d.w) {
+		// record the PGN result token for the copy-PGN button; an abandonment
+		// closes the room without a decided result, so it stays "*"
+		if (message.d.r !== 'abandoned') {
+			gameResult = message.d.w === 'w' ? '1-0'
+				: message.d.w === 'b' ? '0-1' : '1/2-1/2';
+		}
 		showResult(message);
 		// remember the result line for the mid-board analysis annotation (hidden
 		// for now behind the result card; dismissing it hands over)
@@ -2756,6 +2767,115 @@ if (moveListEl) {
 		if (!isNaN(ply)) {
 			goToPly(ply);
 		}
+	});
+}
+
+// ---- copy PGN (analysis mode) ----
+
+// the standard octad starting position; a game that began anywhere else (a
+// blind-deploy game) gets SetUp/FEN tags so the movetext replays correctly
+const standardStartOFEN = 'ppkn/4/4/NKPP w NCFncf - 0 1';
+
+/** Escape a PGN tag value (backslashes and double quotes). */
+const pgnEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+/**
+ * buildPGN assembles the finished game's PGN from the server-sent per-ply
+ * history, mirroring the server's archival buildArchivePGN: a tag roster, a
+ * SetUp/FEN pair when the game began off the standard start, and numbered SAN
+ * movetext ending in the result token. Player names come from the match
+ * timeline rows, mapped to colors via the bottom-is-white/player convention
+ * that orients the whole page (see isPlayerWhite).
+ * @returns {string} the PGN text
+ */
+const buildPGN = () => {
+	const sans = history.sans || [];
+	const startOFEN = (history.ofens && history.ofens[0]) || standardStartOFEN;
+
+	const nameOf = (sel) => {
+		const el = document.querySelector(sel);
+		return el ? el.textContent.trim() : '';
+	};
+	const bottomName = nameOf('#tl-row-player .tl-name') || 'Anonymous';
+	const topName = nameOf('#tl-row-opponent .tl-name') || 'Anonymous';
+	const whiteName = playerWhite ? bottomName : topName;
+	const blackName = playerWhite ? topName : bottomName;
+
+	const now = new Date();
+	const pad = (n) => String(n).padStart(2, '0');
+	const tags = [
+		['Event', 'Lioctad Casual Game'],
+		['Site', window.location.origin],
+		['Date', now.getFullYear() + '.' + pad(now.getMonth() + 1) + '.' + pad(now.getDate())],
+		['White', whiteName],
+		['Black', blackName],
+		['Result', gameResult],
+	];
+	const copyBtn = document.getElementById('btn-copy-pgn');
+	if (copyBtn && copyBtn.dataset.variant) {
+		tags.splice(2, 0, ['Variant', copyBtn.dataset.variant]);
+	}
+	if (startOFEN !== standardStartOFEN) {
+		tags.push(['SetUp', '1'], ['FEN', startOFEN]);
+	}
+
+	// movetext numbering seeded from the start position's side-to-move and
+	// fullmove fields, so deploy starts number correctly too
+	const fields = startOFEN.split(' ');
+	let moveNum = parseInt(fields[5], 10) || 1;
+	let whiteToPlay = fields[1] !== 'b';
+	const tokens = [];
+	sans.forEach((san, i) => {
+		if (whiteToPlay) {
+			tokens.push(moveNum + '. ' + san);
+		} else {
+			tokens.push(i === 0 ? moveNum + '... ' + san : san);
+			moveNum++;
+		}
+		whiteToPlay = !whiteToPlay;
+	});
+	tokens.push(gameResult);
+
+	return tags.map(([k, v]) => '[' + k + ' "' + pgnEscape(v) + '"]').join('\n')
+		+ '\n\n' + tokens.join(' ') + '\n';
+};
+
+// clipboard write with a hidden-textarea fallback for insecure contexts (e.g.
+// LAN-IP dev on a phone, where navigator.clipboard is unavailable)
+const copyTextToClipboard = (text, done) => {
+	const fallback = () => {
+		const ta = document.createElement('textarea');
+		ta.value = text;
+		ta.setAttribute('readonly', '');
+		ta.style.position = 'fixed';
+		ta.style.opacity = '0';
+		document.body.appendChild(ta);
+		ta.select();
+		try {
+			if (document.execCommand('copy')) {
+				done();
+			}
+		} finally {
+			document.body.removeChild(ta);
+		}
+	};
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(text).then(done).catch(fallback);
+	} else {
+		fallback();
+	}
+};
+
+const copyPgnBtn = document.getElementById('btn-copy-pgn');
+let copyPgnTimer = null;
+if (copyPgnBtn) {
+	copyPgnBtn.addEventListener('click', () => {
+		copyTextToClipboard(buildPGN(), () => {
+			// flash the check icon as copy confirmation
+			copyPgnBtn.classList.add('copied');
+			clearTimeout(copyPgnTimer);
+			copyPgnTimer = setTimeout(() => copyPgnBtn.classList.remove('copied'), 1500);
+		});
 	});
 }
 

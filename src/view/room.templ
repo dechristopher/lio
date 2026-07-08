@@ -88,12 +88,24 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 				<div class="rail-stack">
 					<div class="rail-card moves-panel flex flex-col">
 						<span class="rail-title">
-						{ payload.VariantName }
-						if payload.RaceTo > 0 {
-							· Race to { strconv.Itoa(payload.RaceTo) }
-						}
-						· Casual
-					</span>
+							<span class="rail-title-text">
+								{ payload.VariantName }
+								if payload.RaceTo > 0 {
+									· Race to { strconv.Itoa(payload.RaceTo) }
+								}
+								· Casual
+							</span>
+							<!--
+								Copy-PGN button: hidden during play, revealed by the grid's
+								.analyzing state once the game is over. lio-game.js assembles
+								the PGN from the server-sent per-ply history and copies it to
+								the clipboard, swapping the copy icon for the check briefly.
+							-->
+							<button type="button" id="btn-copy-pgn" class="copy-pgn" title="Copy PGN to clipboard" aria-label="Copy game PGN to clipboard" data-variant={ payload.VariantName }>
+								<svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+								<svg class="icon-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+							</button>
+						</span>
 						<div id="moveList" class="move-list" role="list" aria-label="Move history"></div>
 						<div class="move-nav">
 							<button type="button" id="nav-first" class="nav-btn" title="Jump to start (↑)" aria-label="Jump to start">⏮</button>
