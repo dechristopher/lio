@@ -24,27 +24,40 @@ import (
 // UpgradeHandler catches anything under /ws/** and allows
 // the websocket connection through the "allowed" local
 func UpgradeHandler(c fiber.Ctx) error {
-	uid := user.GetID(c)
-	if uid == "" {
-		c.Status(403)
-		util.Error(str.CWS, str.EWSNoUid, c.String())
-		return nil
-	}
-
 	// IsWebSocketUpgrade returns true if the client
 	// requested upgrade to the WebSocket protocol and
 	// originates from a trusted origin.
+	//
+	// An upgrade with no identity (the context middleware never mints one for
+	// socket paths — iOS Safari intermittently omits cookies from WS upgrade
+	// requests) is allowed through to connHandler, which completes the
+	// handshake and immediately closes with closeNoIdentity — a machine-readable
+	// "re-authenticate" signal the client recovers from with a page reload. A
+	// 403 here would surface client-side as an opaque handshake failure
+	// indistinguishable from any other outage.
 	if websocket.IsWebSocketUpgrade(c) && okOrigin(c) {
 		return c.Next()
 	}
 	return fiber.ErrUpgradeRequired
 }
 
+// closeNoIdentity is the WebSocket close code sent when an upgrade carried no
+// usable identity cookies. Client code (lio.js onclose) treats it as a signal
+// to re-authenticate via one guarded page reload — a full navigation reliably
+// carries (or re-mints) the identity cookies that the WS upgrade lost.
+const closeNoIdentity = 4001
+
 // ConnHandler returns a wrapped websocket connection handler
 // for various websocket use-cases across the site
 func ConnHandler() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		return websocket.New(connHandler(ctx), websocket.Config{
+			// NOTE: leaving compression ON. Flipping it OFF correlated with iOS
+			// Safari falling into a permanent "RECONNECTING" loop on a local build,
+			// and the deploy-sync bug this was meant to test occurs with it on
+			// anyway (the submit is recorded correctly — see ios-deploy-confirm-bug),
+			// so permessage-deflate is not the deploy cause. Do not disable without
+			// verifying iOS handshake behavior against fasthttp/websocket first.
 			EnableCompression: true,
 		})(ctx)
 	}
@@ -52,12 +65,39 @@ func ConnHandler() fiber.Handler {
 
 // connHandler returns the actual websocket handler implementation
 func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
-	// get uid and channel from fiber context
-	uid := user.GetID(ctx)
-	roomId := ctx.Params("chan")
+	// Deep-copy every string taken from the fiber ctx. The ctx — and the pooled
+	// fasthttp buffers backing its strings — is recycled for other requests the
+	// moment this builder returns, while the returned handler runs for the
+	// socket's whole life. A captured view mutates in place when the buffer is
+	// reused (any concurrent page/asset/join request can trigger it), after
+	// which room.Get(roomId) fails for every subsequent frame on this socket:
+	// inbound moves and deploy submissions silently die while pings and
+	// broadcasts keep flowing — the "confirm/move does nothing until refresh"
+	// wedge. The contrib websocket wrapper CopyStrings its own params for
+	// exactly this reason; these captures bypassed it.
+	uid := strings.Clone(user.GetID(ctx))
+
+	// no usable identity on the upgrade (missing/mismatched cookies — an iOS
+	// Safari hazard): complete the handshake, then close with the dedicated
+	// code so the client re-authenticates instead of being silently seated as
+	// a spectator whose game frames the handlers would drop.
+	if uid == "" {
+		util.Error(str.CWS, str.EWSNoUid, ctx.IP())
+		return func(c *websocket.Conn) {
+			_ = c.SetWriteDeadline(time.Now().Add(channel.WriteWait))
+			_ = c.WriteMessage(websocket.CloseMessage,
+				websocket.FormatCloseMessage(closeNoIdentity, "identity required"))
+			_ = c.Close()
+		}
+	}
+
+	// cloned for the same buffer-reuse reason as uid above: roomId is the string
+	// every inbound frame resolves the room with, for the socket's whole life
+	roomId := strings.Clone(ctx.Params("chan"))
 	thisChannel := roomId
 
-	// prepend channel type to channel name if it exists
+	// prepend channel type to channel name if it exists (Sprintf allocates, so
+	// this branch is safe without an explicit clone)
 	if channelType := ctx.Params("type"); channelType != "" {
 		thisChannel = fmt.Sprintf("%s/%s", channelType, thisChannel)
 	}
@@ -83,7 +123,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		isSpectator = !thisRoom.IsPlayer(uid)
 	}
 
-	util.Info(str.CWS, str.MWSConn, uid, thisChannel, ctx.IP())
+	util.Info(str.CWS, str.MWSConn, uid, thisChannel, ctx.IP(), isSpectator)
 
 	// return websocket handler injected with values from request context
 	return func(c *websocket.Conn) {
@@ -108,6 +148,12 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// the writer goroutine owns all writes to this connection and emits
 		// periodic protocol-level pings for liveness
 		go socket.WritePump()
+
+		// one-shot identity echo: tell the client who this socket authenticated
+		// as and how it was seated. A player page bound to a spectator socket
+		// (stale/partial cookies on the upgrade) detects the desync from this
+		// frame and re-authenticates instead of playing into the void.
+		socket.Enqueue(proto.IdentityMessage(uid, isSpectator))
 
 		// the global TV channel pushes a one-shot grid snapshot on connect so a
 		// new viewer immediately sees the current featured games, then receives

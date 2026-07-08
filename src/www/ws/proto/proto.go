@@ -34,6 +34,8 @@ const (
 	TVTag PayloadTag = "tv"
 	// DeployTag is the message type tag for the DeployPayload (blind deploy phase)
 	DeployTag PayloadTag = "d"
+	// IdentityTag is the message type tag for the IdentityPayload (socket hello)
+	IdentityTag PayloadTag = "id"
 )
 
 // Message represents our websocket protocol messages container
@@ -42,6 +44,28 @@ type Message struct {
 	Data         interface{} `json:"d"`            // data payload
 	Version      int         `json:"v,omitempty"`  // data payload version for series
 	ProtoVersion int         `json:"pv,omitempty"` // protocol version for data type
+}
+
+// IdentityPayload is the one-shot hello sent to every connection the moment it
+// is tracked: the uid the socket authenticated as and whether it was seated as
+// a spectator. A page rendered for a seated player whose socket lands as a
+// spectator is an identity desync — iOS Safari intermittently omits cookies
+// from WS upgrade requests — and every game frame that socket sends would be
+// silently dropped; the client compares this echo against its own rendering
+// and re-authenticates (one guarded reload) on mismatch instead of playing
+// into the void.
+type IdentityPayload struct {
+	UID  string `json:"u"` // uid this socket authenticated as
+	Spec bool   `json:"s"` // seated as spectator
+}
+
+// IdentityMessage builds the socket-identity hello frame.
+func IdentityMessage(uid string, spectator bool) []byte {
+	msg := Message{
+		Tag:  string(IdentityTag),
+		Data: IdentityPayload{UID: uid, Spec: spectator},
+	}
+	return msg.Please()
 }
 
 // PingMessage is used to determine socket latency to server

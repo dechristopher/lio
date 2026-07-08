@@ -83,6 +83,12 @@ func (r *Instance) handleDeploy() {
 			}
 			got[color] = d
 			r.recordAndLock(color, d)
+			// unicast an immediate receipt to the submitter (cf=true) so a client
+			// retrying a submission it couldn't confirm landed stops as soon as the
+			// round-trip completes — without waiting on the lock broadcast (which a
+			// full send buffer can drop) or the next 2s announce. Harmless if the
+			// client already saw its lock via the broadcast; both are idempotent.
+			channel.Unicast(r.DeployStateMessage(sub.Player), sub.Ctx)
 			util.DebugFlag("room", str.CRoom, "[%s] %s deployed", r.ID, color)
 		case bot := <-botDeployCh:
 			d := deploymentFromPlacement(bot.Color, bot.Placement)

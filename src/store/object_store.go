@@ -3,12 +3,14 @@ package store
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
@@ -32,6 +34,15 @@ func Up() {
 	objectStoreEndpoint = config.ReadSecretFallback("lio_obj_endpoint")
 
 	PGNBucket = Bucket(config.ReadSecretFallback("lio_obj_bucket_pgn"))
+
+	// a local dev boot without an object store configured is fine: warn and
+	// skip. Game archival (the only consumer) degrades to a logged error per
+	// finished game (Put/GetObject return an error while C is nil) instead of
+	// refusing to boot the whole server.
+	if env.IsLocal() && objectStoreEndpoint == "" {
+		util.Info(str.CStor, "no object store configured; game archival disabled (local)")
+		return
+	}
 
 	var err error
 
@@ -59,6 +70,10 @@ func Up() {
 
 // GetObject pulls an object from storage as a byte array
 func (b Bucket) GetObject(key string) ([]byte, error) {
+	if C == nil {
+		return nil, errors.New("store: no object store configured")
+	}
+
 	// pull object from store
 	obj, err := C.GetObject(context.Background(), string(b),
 		key, minio.GetObjectOptions{})
@@ -83,6 +98,10 @@ func (b Bucket) GetObject(key string) ([]byte, error) {
 
 // PutObject inserts an object into storage under the specified key
 func (b Bucket) PutObject(key string, value []byte) error {
+	if C == nil {
+		return errors.New("store: no object store configured")
+	}
+
 	reader := bytes.NewReader(value)
 	_, err := C.PutObject(context.Background(), string(b), key,
 		reader, int64(len(value)), minio.PutObjectOptions{

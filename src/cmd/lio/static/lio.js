@@ -15,6 +15,33 @@ const maxMissedPongs = 3;
 const reconnectBaseMs = 1000;
 const reconnectCapMs = 30000;
 
+// Identity re-authentication. iOS Safari intermittently omits the identity
+// cookies from WebSocket upgrade requests, so a socket can authenticate as
+// nobody (the server closes it with code 4001) or as a fresh anonymous user
+// seated as a spectator on a page rendered for a player (detected via the
+// server's identity echo, see handleIdentity in lio-game.js). Both are fixed
+// by a full navigation — which reliably carries/re-mints the cookies — so we
+// reload once. The sessionStorage guard stops a reload loop if the reload
+// doesn't help; connected() clears it after any healthy connection.
+const wsCloseNoIdentity = 4001;
+const identityReloadKey = 'lio-id-reload:' + window.location.pathname;
+
+const forceIdentityReload = (why) => {
+	console.warn(`identity desync (${why}); re-authenticating via reload`);
+	try {
+		if (sessionStorage.getItem(identityReloadKey)) {
+			// already tried once this session; let the normal reconnect path
+			// surface the failure visibly instead of reload-looping
+			return false;
+		}
+		sessionStorage.setItem(identityReloadKey, '1');
+	} catch (e) {
+		return false;
+	}
+	window.location.reload();
+	return true;
+};
+
 // ws handlers map
 window.handlers = new Map();
 
@@ -32,7 +59,7 @@ window.notification = new Howl({
 
 const crowdTag = "c";
 
-const logMe = () => console.log(`© 2024 lioctad.org`);
+const logMe = () => console.log(`© 2021-2026 lioctad.org`);
 
 // requestAnimFrame polyfill
 window.requestAnimFrame = (function () {
@@ -65,7 +92,7 @@ const connect = (prefix) => {
 		connected();
 	};
 
-	window.ws.onclose = () => {
+	window.ws.onclose = (evt) => {
 		window.ws = null;
 		clearTimeout(pingRunner);
 		pingsSincePong = 0;
@@ -74,6 +101,16 @@ const connect = (prefix) => {
 		// or not — presence is unknowable without a socket either way
 		if (typeof disableBoard !== 'undefined') {
 			disableBoard();
+		}
+
+		// the server rejected the upgrade for lack of identity cookies (an iOS
+		// Safari hazard): reconnecting would just repeat the rejection with the
+		// same cookie-less upgrade, so re-authenticate with a reload instead.
+		// If the one-shot reload was already spent, fall through to the normal
+		// reconnect loop so the failure stays visible.
+		if (evt && evt.code === wsCloseNoIdentity && !disconnected
+			&& forceIdentityReload('socket closed ' + wsCloseNoIdentity)) {
+			return;
 		}
 
 		if (!disconnected) {
@@ -285,3 +322,12 @@ const handleCrowd = (message) => {
 
 // Set handlers
 window.handlers.set(crowdTag, handleCrowd);
+
+// Default identity-echo handler: receiving the echo means the socket
+// authenticated as someone, so the one-shot identity-reload recovery can be
+// re-armed. Game pages (lio-game.js, loaded after this file) override this
+// with a seat-aware version that also detects a player page bound to a
+// spectator socket and re-authenticates.
+window.handlers.set("id", () => {
+	try { sessionStorage.removeItem(identityReloadKey); } catch (e) { /* noop */ }
+});

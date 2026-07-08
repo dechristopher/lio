@@ -57,6 +57,11 @@ let deployArrangement = null; // Map<square, piece> tracking our home-rank layou
 let deployIsWhite = false;    // our side this game, from the deploy message ids
 let deployLockWhite = false;  // white has committed its arrangement
 let deployLockBlack = false;  // black has committed its arrangement
+// deploySubmitAcked: the server confirmed receipt of OUR arrangement. Until it
+// does, sendDeploySubmit keeps resending on deploySubmitRetryTimer so a confirm
+// lost to a connectivity blip recovers on its own (a move's pending/ack analogue).
+let deploySubmitAcked = false;
+let deploySubmitRetryTimer = null;
 // deployPriorGameIDs holds every game id known to predate the current deploy
 // phase, captured at phase entry: the pre-deploy game the server names in the
 // deploy message itself (d.i — during a rematch this is the fresh placeholder
@@ -84,7 +89,11 @@ window.addEventListener('load', () => {
 window.moveSound = new Howl({
 	src: ["/res/sfx/move.ogg"],
 	preload: true,
-	autoplay: true,
+	// no autoplay: attempting to play at page-parse, before any user gesture,
+	// trips browser autoplay policy ("AudioContext was prevented from
+	// starting") and, with html5 streaming, checks out audio-pool objects that
+	// come back locked ("HTML5 Audio pool exhausted"). The sound belongs to
+	// moves, not page load.
 	html5: true,
 	volume: 0.75
 });
@@ -2092,23 +2101,24 @@ const enterDeployMode = (seconds, payload) => {
 		// already arranging (a reconnect's deploy-state response, or the
 		// server's periodic re-announce): refresh lock indicators and reconcile
 		// confirmation. If we believe we confirmed but the server has no
-		// arrangement for us — no cf (unicast deploy-state) AND our own color
-		// not locked (the broadcast announce carries no per-recipient cf, but
-		// its lw/lb are truthful) — the submission was lost in transit: clear
-		// the latch and resend the current arrangement, otherwise we'd sit on
-		// "waiting" until the server's deploy-timeout autofill while the
-		// opponent waits out the full window.
+		// arrangement for us — no cf (unicast deploy-state) AND our own color not
+		// locked (the broadcast announce carries no per-recipient cf, but its
+		// lw/lb are truthful) — the submission was lost in transit, so make sure
+		// the resend loop is running rather than sitting on "waiting" until the
+		// server's deploy-timeout autofill while the opponent waits out the window.
 		if (d.lw) { updateDeployLock('white'); }
 		if (d.lb) { updateDeployLock('black'); }
-		const selfLocked = deployIsWhite ? !!d.lw : !!d.lb;
-		if (deployConfirmed && !d.cf && !selfLocked) {
-			deployConfirmed = false;
-			confirmDeploy();
+		if (d.cf) { markDeploySubmitAcked(); }
+		if (deployConfirmed && !deploySubmitAcked) {
+			sendDeploySubmit();
 		}
 		return;
 	}
 	deployMode = true;
 	deployConfirmed = false;
+	deploySubmitAcked = false;
+	clearTimeout(deploySubmitRetryTimer);
+	deploySubmitRetryTimer = null;
 	deployLockWhite = false;
 	deployLockBlack = false;
 	// baseline for reveal recognition: every id known to predate this phase.
@@ -2178,6 +2188,9 @@ const enterDeployMode = (seconds, payload) => {
 	if (d.cf || (draft && draft.cf)) {
 		confirmDeploy();
 	}
+	// a server-known confirm (d.cf) means our arrangement is already recorded — ack
+	// it so the resend loop confirmDeploy just started stops right away
+	if (d.cf) { markDeploySubmitAcked(); }
 	// reflect any side already locked in (reconnect)
 	if (d.lw) { updateDeployLock('white'); }
 	if (d.lb) { updateDeployLock('black'); }
@@ -2316,18 +2329,55 @@ const playSwapSound = () => {
 	}
 };
 
+// deploySubmitRetryMs paces the resend loop below — fast enough to recover a lost
+// confirm within a second, slow enough not to spam the socket.
+const deploySubmitRetryMs = 1000;
+
 /**
- * readDeployOrder reads the player's home-rank arrangement into the 4-char
- * order string (k/n/p) the server expects, in the player's display order.
+ * sendDeploySubmit transmits our committed arrangement and schedules a resend, so
+ * a submit lost to a connectivity blip (a half-open socket, a dropped frame) is
+ * retried until the server acknowledges it — the deploy analogue of a move's
+ * pending/ack resend. The server acks by locking our color (the broadcast lock, an
+ * announce's lw/lb, or the unicast deploy-state cf), which markDeploySubmitAcked
+ * observes to stop the loop; exitDeployMode stops it when the phase ends. Retries
+ * also cease once the deploy deadline has passed (the server has autofilled by
+ * then), so a permanently dead socket can't spin the timer forever.
+ *
+ * The order is read from our authoritative model (readDeployOrderFromModel), not
+ * the live og.state.pieces: onDeploySwap defers the board re-render by one
+ * setTimeout(0) tick, during which the live board holds only three pieces (the
+ * destination piece was overwritten by octadground's move). A submit landing in
+ * that window would read a 3-char order the server rejects; the model is updated
+ * synchronously in onDeploySwap, so it is always complete (what saveDeployDraft
+ * already trusts).
  */
-const readDeployOrder = () => {
-	const roleToLetter = { king: 'k', knight: 'n', pawn: 'p' };
-	let order = '';
-	for (const sq of homeRankSquares(deployIsWhite)) {
-		const piece = og.state.pieces.get(sq);
-		order += piece ? (roleToLetter[piece.role] || '') : '';
+const sendDeploySubmit = () => {
+	clearTimeout(deploySubmitRetryTimer);
+	deploySubmitRetryTimer = null;
+	if (!deployMode || !deployConfirmed || deploySubmitAcked) {
+		return;
 	}
-	return order;
+	send(buildCommand(deployTag, { o: readDeployOrderFromModel() }));
+	// past the deadline the arrangement is the server's autofill to make; there is
+	// nothing to gain from resending, so let the loop end.
+	if (deployDeadline && Date.now() > deployDeadline + 2000) {
+		return;
+	}
+	deploySubmitRetryTimer = setTimeout(sendDeploySubmit, deploySubmitRetryMs);
+};
+
+/**
+ * markDeploySubmitAcked records that the server confirmed receipt of our
+ * arrangement (our color is locked, or a unicast deploy-state carried cf) and
+ * stops the resend loop.
+ */
+const markDeploySubmitAcked = () => {
+	if (deploySubmitAcked) {
+		return;
+	}
+	deploySubmitAcked = true;
+	clearTimeout(deploySubmitRetryTimer);
+	deploySubmitRetryTimer = null;
 };
 
 const confirmDeploy = () => {
@@ -2335,9 +2385,11 @@ const confirmDeploy = () => {
 		return;
 	}
 	deployConfirmed = true;
+	deploySubmitAcked = false;
 	// persist the confirmed state so a refresh re-enters locked, not unconfirmed
 	saveDeployDraft(true);
-	send(buildCommand(deployTag, { o: readDeployOrder() }));
+	// submit the arrangement and keep resending until the server acks it
+	sendDeploySubmit();
 	// lock the board and switch the controls to the waiting state
 	og.set({ draggable: { enabled: false }, selectable: { enabled: false }, movable: { free: false, color: undefined, dests: new Map() } });
 	document.getElementById('deploy-confirm').classList.add('hidden');
@@ -2407,6 +2459,11 @@ const clearDeployDraft = () => {
 const updateDeployLock = (color) => {
 	if (color === 'white') { deployLockWhite = true; }
 	else if (color === 'black') { deployLockBlack = true; }
+	// our own color locking is the server's acknowledgement that it recorded our
+	// submission — stop the resend loop
+	if (deployConfirmed && color === (deployIsWhite ? 'white' : 'black')) {
+		markDeploySubmitAcked();
+	}
 	renderDeployLock();
 };
 
@@ -2481,6 +2538,9 @@ const exitDeployMode = () => {
 	deployMode = false;
 	deploySpectating = false;
 	deployConfirmed = false;
+	deploySubmitAcked = false;
+	clearTimeout(deploySubmitRetryTimer);
+	deploySubmitRetryTimer = null;
 	clearDeployCountdown();
 	clearDeployDraft();
 	stopDeployResync();
@@ -2745,8 +2805,31 @@ window.handlers.set(crowdTag, (message) => {
 	updatePresence(!!message.d.w, !!message.d.b);
 });
 
+/**
+ * handleIdentity processes the server's one-shot socket identity echo: the uid
+ * this connection authenticated as and whether it was seated as a spectator
+ * (seat membership is fixed at upgrade time). A page rendered for a seated
+ * player whose socket lands as a spectator is an identity desync — iOS Safari
+ * intermittently omits the identity cookies from WS upgrade requests — and
+ * every game frame this socket sends (moves, deploy submissions, rematch
+ * clicks) would be silently dropped server-side while broadcasts still arrive,
+ * making the game look almost-alive. Re-authenticate with one guarded reload
+ * (a full navigation reliably carries/re-mints the cookies); a consistent echo
+ * re-arms the one-shot recovery. Overrides the base handler in lio.js.
+ */
+const handleIdentity = (message) => {
+	const seatedSpectator = !!(message.d && message.d.s);
+	if (!isSpec && seatedSpectator) {
+		forceIdentityReload('player page on spectator socket');
+		return;
+	}
+	// identity is consistent with the page; re-arm the one-shot reload recovery
+	try { sessionStorage.removeItem(identityReloadKey); } catch (e) { /* noop */ }
+};
+
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
 window.handlers.set(rematchUpdateTag, handleRematchUpdate);
 window.handlers.set(drawOfferTag, handleDrawOffer);
 window.handlers.set(deployTag, handleDeploy);
+window.handlers.set("id", handleIdentity);

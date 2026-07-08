@@ -59,7 +59,7 @@ const (
 	MStarted  = "started in %s [env: %s][http: %s][health: %s]"
 	MShutdown = "shutting down"
 	MExit     = "exit"
-	MWSConn   = "[%s @ %s] ws: new conn from %s"
+	MWSConn   = "[%s @ %s] ws: new conn from %s (spectator=%t)"
 	MWSDisc   = "[%s @ %s] ws: disconnected %s"
 )
 
