@@ -18,7 +18,7 @@ const (
 	Base58
 
 	// Version of lio
-	Version = "v0.9.9"
+	Version = "v0.9.10"
 
 	charsetHex    = "abcdef01234567890"
 	charsetBase58 = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"
