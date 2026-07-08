@@ -1,0 +1,112 @@
+# docker-compose deployment for lioctad.org — replaces Fly.io (src/fly.toml).
+#
+# Ingress is a Cloudflare Access tunnel, so no load balancer / TLS termination
+# here: the app port is published on loopback only and cloudflared (running on
+# the host) points its origin at http://localhost:4444. If you instead run
+# cloudflared as a container on this compose network, drop the `ports` mapping
+# and set the tunnel origin to http://lioctad:4444.
+#
+# Deploy/update the stack with deploy/deploy-compose.sh (resolves GIT_REV,
+# builds, and rolls the service). Manual equivalent:
+#   GIT_REV=$(git rev-parse --short HEAD) docker compose -f deploy/docker-compose.yaml up -d --build
+#
+# Secrets are plain files under deploy/secrets/ (gitignored), mounted by
+# compose at /run/secrets/<name> — exactly where config.ReadSecret looks in
+# prod. All five are required: crypto_key for the session/identity crypto, and
+# the four lio_obj_* values for the MinIO/S3 game-archive store (the app exits
+# at boot in prod if the object store is unreachable or misconfigured).
+
+name: lioctad
+
+services:
+  lioctad:
+    build:
+      # relative to this file (deploy/), so ../src is the Go module root
+      context: ../src
+      args:
+        # injected into config.Revision via ldflags; empty = no +hash suffix
+        GIT_REV: ${GIT_REV:-}
+    image: lioctad:latest
+    restart: unless-stopped
+    # mirror fly.toml: SIGINT with a short grace period for in-flight games
+    stop_signal: SIGINT
+    stop_grace_period: 5s
+    environment:
+      DEPLOY: "prod"
+      PORT: "4444"
+    ports:
+      # loopback only — the Cloudflare tunnel is the sole public ingress
+      - "127.0.0.1:4444:4444"
+    secrets:
+      - crypto_key
+      - lio_obj_endpoint
+      - lio_obj_bucket_pgn
+      - lio_obj_access
+      - lio_obj_secret
+    healthcheck:
+      # `/lio --health` is currently a no-op stub, so probe HTTP directly
+      # (busybox wget ships in the alpine runtime image)
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4444/"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Future integrations — carveouts, intentionally disabled. Uncomment the
+  # service (and its volume below) when the app grows a real dependency on it.
+  # Both stay off the host network; the app reaches them by service name
+  # (redis:6379 / postgres:5432) on the default compose network.
+  # ---------------------------------------------------------------------------
+
+  # redis:
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #   command: ["redis-server", "--appendonly", "yes"]
+  #   volumes:
+  #     - redis-data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 15s
+  #     timeout: 3s
+  #     retries: 3
+
+  # postgres:
+  #   image: postgres:17-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: lio
+  #     POSTGRES_USER: lio
+  #     POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+  #   secrets:
+  #     - postgres_password
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U lio -d lio"]
+  #     interval: 15s
+  #     timeout: 3s
+  #     retries: 3
+
+secrets:
+  crypto_key:
+    file: ./secrets/crypto_key
+  lio_obj_endpoint:
+    file: ./secrets/lio_obj_endpoint
+  lio_obj_bucket_pgn:
+    file: ./secrets/lio_obj_bucket_pgn
+  lio_obj_access:
+    file: ./secrets/lio_obj_access
+  lio_obj_secret:
+    file: ./secrets/lio_obj_secret
+  # postgres_password:
+  #   file: ./secrets/postgres_password
+
+# volumes:
+#   redis-data:
+#   postgres-data:

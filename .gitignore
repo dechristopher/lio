@@ -40,6 +40,9 @@ yarn-error.log
 # Tailwind standalone CLI binary (downloaded, ~80MB; not committed)
 bin/tailwindcss
 
+# docker-compose secret files (see docker-compose.yaml)
+deploy/secrets/
+
 # Generated frontend assets — not committed. Fetched from pinned sources and
 # (re)built inside the Docker image at deploy time (see src/Dockerfile), or by
 # bin/build-assets.sh for local dev. Embedded via //go:embed static/* in cmd/lio.
