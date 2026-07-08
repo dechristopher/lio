@@ -122,7 +122,7 @@ func TestMinimaxMatchesReference(t *testing.T) {
 
 		o2, _ := octad.OFEN(ofen)
 		g2, _ := octad.NewGame(o2)
-		got := minimaxABRoot(g2, diagDepth)
+		got := minimaxABRoot(g2, diagDepth, nil)
 
 		evalOK := got.Eval == wantBest
 		moveOK := bestMoves[got.Move.String()]
@@ -182,7 +182,7 @@ func TestMinimaxDeterminism(t *testing.T) {
 		for i := 0; i < trials; i++ {
 			o2, _ := octad.OFEN(ofen)
 			g2, _ := octad.NewGame(o2)
-			got := minimaxABRoot(g2, diagDepth)
+			got := minimaxABRoot(g2, diagDepth, nil)
 			evals[got.Eval]++
 			if !bestMoves[got.Move.String()] {
 				badMove++
@@ -207,7 +207,7 @@ func TestDeepeningRootMatchesFixedDepth(t *testing.T) {
 
 		o2, _ := octad.OFEN(ofen)
 		g2, _ := octad.NewGame(o2)
-		got, results := deepeningRoot(g2, diagDepth, time.Now().Add(time.Minute))
+		got, results := deepeningRoot(g2, diagDepth, time.Now().Add(time.Minute), nil)
 
 		if got.Eval != wantBest || !bestMoves[got.Move.String()] {
 			t.Errorf("OFEN %s\n  deepening: move=%s eval=%.1f\n  ref:       best=%.1f optimalMoves=%v",
@@ -229,7 +229,7 @@ func TestDeepeningRootDeadline(t *testing.T) {
 		g, _ := octad.NewGame(o)
 
 		start := time.Now()
-		got, _ := deepeningRoot(g, 20, time.Now().Add(budget))
+		got, _ := deepeningRoot(g, 20, time.Now().Add(budget), nil)
 		elapsed := time.Since(start)
 
 		// generous slack over the budget: the abort must unwind promptly, but
@@ -251,7 +251,7 @@ func TestDeepeningRootExpiredDeadline(t *testing.T) {
 		o, _ := octad.OFEN(ofen)
 		g, _ := octad.NewGame(o)
 
-		got, _ := deepeningRoot(g, 7, time.Now().Add(-time.Second))
+		got, _ := deepeningRoot(g, 7, time.Now().Add(-time.Second), nil)
 		if !legalMove(g, got.Move.String()) {
 			t.Errorf("OFEN %s: returned illegal move %s", ofen, got.Move.String())
 		}

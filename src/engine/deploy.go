@@ -121,11 +121,12 @@ func positionValue(node *octad.Game, depth int) float64 {
 	}
 
 	// moves[0] is only used by mmABMax/mmABMin for debug logging of the last
-	// move; a real move keeps their depth-0 String() call safe.
+	// move; a real move keeps their depth-0 String() call safe. Deploy scoring
+	// starts from a fresh game, so there is no repetition history to track.
 	if node.Position().Turn() == octad.White {
-		return mmABMax(node, moves[0], depth, -WinVal, WinVal, noStop)
+		return mmABMax(node, moves[0], depth, -WinVal, WinVal, noStop, nil)
 	}
-	return mmABMin(node, moves[0], depth, -WinVal, WinVal, noStop)
+	return mmABMin(node, moves[0], depth, -WinVal, WinVal, noStop, nil)
 }
 
 // scoredPlacement pairs one of a color's candidate placements with its expected

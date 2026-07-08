@@ -1189,8 +1189,11 @@ func (r *Instance) requestEngineMove() {
 		// staleness guard in makeMove instead of being applied to a new game
 		GameID: r.game.ID,
 		OFEN:   r.game.OFEN(),
-		Depth:  depth,
-		Budget: budget,
+		// full position history so the search can see repetition draws coming
+		// and convert won endgames instead of shuffling into a threefold
+		History: r.game.OFENHistory(),
+		Depth:   depth,
+		Budget:  budget,
 	}
 	r.stateMu.Unlock()
 

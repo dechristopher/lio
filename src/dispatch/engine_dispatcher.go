@@ -18,7 +18,12 @@ import (
 type EngineRequest struct {
 	GameID string
 	OFEN   string
-	Depth  int
+	// History is the game's position history (OFENs oldest-first, including
+	// the current position). The engine uses it to see draws by repetition
+	// coming — without it the search reconstructs the game from the bare OFEN
+	// and would shuffle won endgames into threefold draws.
+	History []string
+	Depth   int
 	// Budget bounds how long the search may run (0 = unbounded): the engine
 	// iteratively deepens toward Depth and returns the best move found when
 	// the budget expires, so the bot answers in time instead of flagging.
@@ -40,7 +45,10 @@ type EngineRequest struct {
 type DrawRequest struct {
 	GameID string
 	OFEN   string
-	Depth  int
+	// History mirrors EngineRequest.History so the draw-verdict search is
+	// repetition-aware too.
+	History []string
+	Depth   int
 	// Budget bounds the verdict search like EngineRequest.Budget (0 = unbounded)
 	Budget          time.Duration
 	ResponseChannel chan *message.RoomDrawEval
@@ -123,7 +131,7 @@ func (d *EngineDispatcher) run() {
 // returned on the request's response channel, buffered by the caller so this
 // send never blocks even if the game already ended and no one is reading.
 func (d *EngineDispatcher) drawWorker(r DrawRequest) {
-	eval := engine.Search(r.OFEN, r.Depth, r.Budget, engine.MinimaxAB)
+	eval := engine.Search(r.OFEN, r.History, r.Depth, r.Budget, engine.MinimaxAB)
 	accept := math.Abs(eval.Eval) < engine.DrawEvalMargin
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] draw eval %.1f -> accept=%t", r.OFEN, eval.Eval, accept)
@@ -172,7 +180,7 @@ func (d *EngineDispatcher) worker(r EngineRequest) {
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] request received, searching(%d)..", r.OFEN, r.Depth)
 
-	move := engine.Search(r.OFEN, r.Depth, r.Budget, engine.MinimaxAB)
+	move := engine.Search(r.OFEN, r.History, r.Depth, r.Budget, engine.MinimaxAB)
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] found move %s", r.OFEN, move.Move.String())
 

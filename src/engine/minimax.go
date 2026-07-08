@@ -38,6 +38,10 @@ type minimaxABParams struct {
 	// stop aborts the search when set: every node returns immediately and the
 	// iteration's results are discarded by the caller (see deepeningRoot)
 	stop *atomic.Bool
+	// repHist is the real game's position occurrence counts (see
+	// RepetitionHistory); nil disables repetition scoring. It is shared
+	// read-only across the root goroutines — each builds its own repTracker.
+	repHist map[string]int
 }
 
 // noStop is a shared, never-set stop flag for searches without a deadline.
@@ -47,8 +51,9 @@ var noStop = new(atomic.Bool)
 // searchMinimaxAB is the root for minimax with alpha-beta pruning. A non-zero
 // deadline bounds the search: it runs iterative deepening up to depth and
 // returns the best move of the last fully completed depth, so the engine
-// always answers in time instead of flagging on deep searches.
-func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time) MoveEval {
+// always answers in time instead of flagging on deep searches. repHist is the
+// real game's position occurrence counts (nil = repetition-blind).
+func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time, repHist map[string]int) MoveEval {
 	// sleep for a random amount of time to make the engine easier to beat,
 	// anywhere from a fraction of a second to 1.25 seconds — but never more
 	// than a quarter of the remaining budget, so the handicap can't eat the
@@ -69,12 +74,12 @@ func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time) MoveE
 	// opening moves instead. Later moves always take the single best move.
 	if deadline.IsZero() {
 		if isOpeningPosition(situation) {
-			return pickOpeningMove(situation, depth)
+			return pickOpeningMove(situation, depth, repHist)
 		}
-		return minimaxABRoot(situation, depth)
+		return minimaxABRoot(situation, depth, repHist)
 	}
 
-	best, results := deepeningRoot(situation, depth, deadline)
+	best, results := deepeningRoot(situation, depth, deadline, repHist)
 	if isOpeningPosition(situation) && len(results) > 0 {
 		return pickVariety(situation, results)
 	}
@@ -88,7 +93,7 @@ func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time) MoveE
 // bounds, so partial results can't be trusted. Depth 1 on a 4x4 board takes
 // microseconds, so a move is effectively always found in budget; if even that
 // is interrupted, a final depth-1 pass without a deadline guarantees one.
-func deepeningRoot(situation *octad.Game, maxDepth int, deadline time.Time) (MoveEval, []MoveEval) {
+func deepeningRoot(situation *octad.Game, maxDepth int, deadline time.Time, repHist map[string]int) (MoveEval, []MoveEval) {
 	isWhite := situation.Position().Turn() == octad.White
 	moves := orderMoves(situation)
 
@@ -104,7 +109,7 @@ func deepeningRoot(situation *octad.Game, maxDepth int, deadline time.Time) (Mov
 		stop := new(atomic.Bool)
 		timer := time.AfterFunc(remaining, func() { stop.Store(true) })
 		iterStart := time.Now()
-		iterResults := evaluateRootMoves(situation, moves, depth, stop)
+		iterResults := evaluateRootMoves(situation, moves, depth, stop, repHist)
 		timer.Stop()
 
 		if stop.Load() {
@@ -127,7 +132,7 @@ func deepeningRoot(situation *octad.Game, maxDepth int, deadline time.Time) (Mov
 	}
 
 	if len(results) == 0 {
-		results = evaluateRootMoves(situation, moves, 1, noStop)
+		results = evaluateRootMoves(situation, moves, 1, noStop, repHist)
 		best = bestOf(results, moves, isWhite)
 	}
 
@@ -136,10 +141,11 @@ func deepeningRoot(situation *octad.Game, maxDepth int, deadline time.Time) (Mov
 
 // minimaxABRoot runs the parallel alpha-beta root search and returns the single
 // best move. It is the pure, side-effect-free core of searchMinimaxAB (no
-// handicap sleep) so it can be exercised directly by tests.
-func minimaxABRoot(situation *octad.Game, depth int) MoveEval {
+// handicap sleep) so it can be exercised directly by tests. repHist carries the
+// real game's position occurrence counts for repetition scoring (nil disables).
+func minimaxABRoot(situation *octad.Game, depth int, repHist map[string]int) MoveEval {
 	moves := orderMoves(situation)
-	results := evaluateRootMoves(situation, moves, depth, noStop)
+	results := evaluateRootMoves(situation, moves, depth, noStop, repHist)
 	bestMove := bestOf(results, moves, situation.Position().Turn() == octad.White)
 
 	util.DebugFlag("engine", str.CEval, "chose best move: %s (%2f) for OFEN: %s",
@@ -182,7 +188,9 @@ func bestOf(results []MoveEval, moves []octad.Move, isWhite bool) MoveEval {
 // the per-goroutine value-copies fan out (see the concurrency note in CLAUDE.md).
 // Setting stop aborts the in-flight search; the returned results are then
 // partial/unreliable and must be discarded (pass noStop for an unbounded search).
-func evaluateRootMoves(situation *octad.Game, moves []octad.Move, depth int, stop *atomic.Bool) []MoveEval {
+// repHist enables repetition scoring against the real game's positions (nil
+// disables); it is read-only here and in every goroutine it fans out to.
+func evaluateRootMoves(situation *octad.Game, moves []octad.Move, depth int, stop *atomic.Bool, repHist map[string]int) []MoveEval {
 	isWhite := situation.Position().Turn() == octad.White
 
 	evaluations := make(chan MoveEval, len(moves))
@@ -199,6 +207,7 @@ func evaluateRootMoves(situation *octad.Game, moves []octad.Move, depth int, sto
 			evalChan:  evaluations,
 			wg:        wg,
 			stop:      stop,
+			repHist:   repHist,
 		})
 	}
 
@@ -228,13 +237,13 @@ func isOpeningPosition(situation *octad.Game) bool {
 // top OpeningVarietyMoves, dropping any that trail the best move by more than
 // OpeningVarietyMargin. The best move always qualifies, so a candidate is
 // always returned; positions with a single sensible move simply play it.
-func pickOpeningMove(situation *octad.Game, depth int) MoveEval {
+func pickOpeningMove(situation *octad.Game, depth int, repHist map[string]int) MoveEval {
 	moves := orderMoves(situation)
-	results := evaluateRootMoves(situation, moves, depth, noStop)
+	results := evaluateRootMoves(situation, moves, depth, noStop, repHist)
 	if len(results) == 0 {
 		// no moves searched (shouldn't happen for a live position); defer to
 		// the standard best-move logic and its losing-position fallback
-		return minimaxABRoot(situation, depth)
+		return minimaxABRoot(situation, depth, repHist)
 	}
 
 	return pickVariety(situation, results)
@@ -287,7 +296,9 @@ func minimaxABAsync(params minimaxABParams) {
 		panic(fmt.Errorf("pos: %+v, move: %+v: %w", params.situation, params.move, err))
 	}
 
-	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth, params.stop)
+	// each root goroutine gets its own path tracker over the shared history
+	eval := minimaxAB(&params.situation, &params.move, !params.isWhite, params.depth,
+		params.stop, newRepTracker(params.repHist))
 
 	util.DebugFlag("engine", str.CEval, "root eval: %s (%2f)",
 		params.move.String(), eval)
@@ -308,18 +319,31 @@ func minimaxAB(
 	isMaxi bool,
 	depth int,
 	stop *atomic.Bool,
+	rep *repTracker,
 ) float64 {
 	if isMaxi {
-		return mmABMax(node, move, depth, -WinVal, WinVal, stop)
+		return mmABMax(node, move, depth, -WinVal, WinVal, stop, rep)
 	}
-	return mmABMin(node, move, depth, -WinVal, WinVal, stop)
+	return mmABMin(node, move, depth, -WinVal, WinVal, stop, rep)
 }
 
 // mmABMax is the maximizing routine for minimax with alpha-beta pruning
-func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64, stop *atomic.Bool) float64 {
+func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64, stop *atomic.Bool, rep *repTracker) float64 {
 	// search aborted: unwind immediately; the caller discards the result
 	if stop.Load() {
 		return alpha
+	}
+
+	// a node that revisits a real-game position (or completes a threefold
+	// within this line) scores as the draw octad will eventually rule it:
+	// 0 in the search's absolute white-positive space
+	if rep != nil {
+		key := repetitionKey(node.Position().String())
+		if rep.isDrawnRepetition(key) {
+			return 0
+		}
+		rep.enter(key)
+		defer rep.leave(key)
 	}
 
 	moves := node.ValidMoves()
@@ -338,7 +362,7 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 			panic(fmt.Errorf("pos: %+v, move: %+v: %w", node, move, err))
 		}
 
-		eval := mmABMin(node, move, depth-1, alpha, beta, stop)
+		eval := mmABMin(node, move, depth-1, alpha, beta, stop, rep)
 		node.UndoMove()
 
 		util.DebugFlag("eng-v", str.CEval, "minimax: d%d: MAX move=%s eval=%2f",
@@ -359,10 +383,21 @@ func mmABMax(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 }
 
 // mmABMin is the minimizing routine for minimax with alpha-beta pruning
-func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64, stop *atomic.Bool) float64 {
+func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta float64, stop *atomic.Bool, rep *repTracker) float64 {
 	// search aborted: unwind immediately; the caller discards the result
 	if stop.Load() {
 		return beta
+	}
+
+	// repetition draw: see the matching check in mmABMax (0 is a draw in both
+	// the relative and absolute conventions, so no sign flip is needed here)
+	if rep != nil {
+		key := repetitionKey(node.Position().String())
+		if rep.isDrawnRepetition(key) {
+			return 0
+		}
+		rep.enter(key)
+		defer rep.leave(key)
 	}
 
 	moves := node.ValidMoves()
@@ -381,7 +416,7 @@ func mmABMin(node *octad.Game, lastMove *octad.Move, depth int, alpha, beta floa
 			panic(fmt.Errorf("pos: %+v, move: %+v: %w", node, move, err))
 		}
 
-		eval := mmABMax(node, move, depth-1, alpha, beta, stop)
+		eval := mmABMax(node, move, depth-1, alpha, beta, stop, rep)
 		node.UndoMove()
 
 		util.DebugFlag("eng-v", str.CEval, "minimax: d%d: MIN move=%s eval=%2f",

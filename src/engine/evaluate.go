@@ -64,6 +64,13 @@ const (
 	ConnectivityWeight float64 = 2
 	// KingSafetyWeight rewards each safe square the king can flee to.
 	KingSafetyWeight float64 = 3
+	// MopUpCenterWeight rewards, per square of center distance, having pushed
+	// a bare enemy king toward the board edge/corner where it can be mated
+	// (see mopUpTerm). Only active when the opponent has just a king left.
+	MopUpCenterWeight float64 = 6
+	// MopUpProximityWeight rewards the winning king closing the Manhattan
+	// distance to the bare enemy king; mates need the kings near each other.
+	MopUpProximityWeight float64 = 2
 )
 
 // castleSides enumerates octad's three castling options.
@@ -174,6 +181,11 @@ func staticEval(situation *octad.Game, color octad.Color) float64 {
 
 	// pawn structure, connectivity, and king safety (all differential)
 	eval += positionalFeatures(squareMap, color)
+
+	// mop-up: with a bare enemy king, reward driving it to the edge and
+	// closing in with our own king, so a won endgame has a progress gradient
+	// instead of an eval-flat shuffle into the threefold-repetition draw
+	eval += mopUpTerm(squareMap, color)
 
 	return eval
 }

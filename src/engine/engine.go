@@ -46,7 +46,14 @@ var pub = bus.NewPublisher("engine", Channel)
 // best move found when the budget expires, so the caller can size the budget
 // off the bot's clock and never flag. A zero budget searches the full depth
 // unconditionally.
-func Search(ofen string, depth int, budget time.Duration, alg SearchAlg) MoveEval {
+//
+// history is the game's position history as OFENs (oldest first, including
+// the current position — game.OctadGame.OFENHistory's shape). Search rebuilds
+// the game from the bare OFEN, so without it the search cannot see draws by
+// repetition coming and will happily shuffle a won endgame into a threefold;
+// with it, MinimaxAB scores any revisited position as the draw it leads to.
+// nil/empty history disables repetition scoring (Negamax and Random ignore it).
+func Search(ofen string, history []string, depth int, budget time.Duration, alg SearchAlg) MoveEval {
 	// establish the deadline before any parsing/setup so all engine-side
 	// overhead counts against the caller's budget
 	var deadline time.Time
@@ -74,7 +81,7 @@ func Search(ofen string, depth int, budget time.Duration, alg SearchAlg) MoveEva
 
 	// run selected search algorithm
 	if alg == MinimaxAB {
-		eval = searchMinimaxAB(situation, depth, deadline)
+		eval = searchMinimaxAB(situation, depth, deadline, RepetitionHistory(history))
 	} else if alg == NegamaxAB {
 		eval = searchNegamaxAB(situation, depth)
 	} else if alg == Random {

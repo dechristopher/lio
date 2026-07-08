@@ -175,6 +175,7 @@ func (r *Instance) requestEngineDraw() {
 	req := dispatch.DrawRequest{
 		GameID:          r.game.ID,
 		OFEN:            r.game.OFEN(),
+		History:         r.game.OFENHistory(),
 		Depth:           depth,
 		Budget:          budget,
 		ResponseChannel: r.drawEvalChannel,

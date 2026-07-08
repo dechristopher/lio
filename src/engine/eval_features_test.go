@@ -108,3 +108,66 @@ func TestPositionalFeaturesAntisymmetric(t *testing.T) {
 		}
 	}
 }
+
+// TestMopUpTerm verifies the hand-worked mop-up scores: active only against a
+// bare king, rewarding its distance from center and the winning king's
+// proximity.
+func TestMopUpTerm(t *testing.T) {
+	cases := []struct {
+		name string
+		ofen string
+		want float64 // relative to white
+	}{
+		{
+			// black king cornered on d4 (center distance 2 -> 12); white king
+			// a1 at maximum Manhattan distance 6 (proximity 0)
+			name: "cornered, distant king",
+			ofen: "3k/4/1Q2/K3 w - - 0 1",
+			want: MopUpCenterWeight * 2,
+		},
+		{
+			// same corner (12), white king closed to b2: distance 4 ->
+			// proximity 2 * (6-4) = 4
+			name: "cornered, king closing in",
+			ofen: "3k/4/1KQ1/4 w - - 0 1",
+			want: MopUpCenterWeight*2 + MopUpProximityWeight*2,
+		},
+		{
+			// both sides still armed: term inactive
+			name: "normal position",
+			ofen: "ppkn/4/4/NKPP w NCFncf - 0 1",
+			want: 0,
+		},
+		{
+			// both kings bare: no winner, term inactive
+			name: "bare kings",
+			ofen: "3k/4/4/K3 w - - 0 1",
+			want: 0,
+		},
+	}
+	for _, c := range cases {
+		squares := squaresFromOFEN(t, c.ofen)
+		if got := mopUpTerm(squares, octad.White); got != c.want {
+			t.Errorf("%s (%s): mopUpTerm(white) = %.1f, want %.1f", c.name, c.ofen, got, c.want)
+		}
+	}
+}
+
+// TestMopUpAntisymmetric verifies mop-up is a pure differential like the other
+// positional features, over both mop-up positions and normal ones (where it is
+// zero for both sides).
+func TestMopUpAntisymmetric(t *testing.T) {
+	ofens := append(randomPositions(t, 30, 8),
+		"3k/4/1Q2/K3 w - - 0 1", // white mops up black
+		"3k/4/1Q2/K3 b - - 0 1", // same board, black to move
+		"q2k/4/4/K3 w - - 0 1",  // black mops up white
+	)
+	for _, ofen := range ofens {
+		squares := squaresFromOFEN(t, ofen)
+		w := mopUpTerm(squares, octad.White)
+		b := mopUpTerm(squares, octad.Black)
+		if w != -b {
+			t.Errorf("OFEN %s: mopUpTerm white=%.1f black=%.1f (not antisymmetric)", ofen, w, b)
+		}
+	}
+}

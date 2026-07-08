@@ -201,6 +201,76 @@ func defendedCount(squares map[octad.Square]octad.Piece, color octad.Color, frie
 	return n
 }
 
+// mopUpTerm returns the side-to-move-relative mop-up score for won endgames.
+// It activates only when exactly one side has nothing but its king left: the
+// armed side is rewarded for the bare king's distance from the board center
+// (mates against a lone king happen on the edge, ideally in a corner) and for
+// closing its own king in (checkmate needs the kings near each other). This
+// gives a decisive material advantage a progress gradient — without it, every
+// safe queen shuffle evaluates alike and the engine repeats moves instead of
+// converting. Like positionalFeatures, the term is antisymmetric: computed for
+// the winning color and negated when the side to move is the bare king.
+func mopUpTerm(squares map[octad.Square]octad.Piece, color octad.Color) float64 {
+	kings := map[octad.Color]octad.Square{}
+	armed := map[octad.Color]bool{}
+	for sq, p := range squares {
+		if p.Type() == octad.King {
+			kings[p.Color()] = sq
+		} else {
+			armed[p.Color()] = true
+		}
+	}
+
+	var winner octad.Color
+	switch {
+	case armed[octad.White] && !armed[octad.Black]:
+		winner = octad.White
+	case armed[octad.Black] && !armed[octad.White]:
+		winner = octad.Black
+	default:
+		// both sides still armed (normal play) or both bare (dead draw)
+		return 0
+	}
+
+	wk, haveWinner := kings[winner]
+	lk, haveLoser := kings[winner.Other()]
+	if !haveWinner || !haveLoser {
+		return 0
+	}
+
+	lf, lr := int(lk.File()), int(lk.Rank())
+	wf, wr := int(wk.File()), int(wk.Rank())
+
+	// drive the bare king out of the center: 0 (center) to 2 (corner) on 4x4
+	score := MopUpCenterWeight * float64(centerDistance(lf)+centerDistance(lr))
+
+	// close in with the winning king: Manhattan distance 2 (as near as legal)
+	// through 2*(boardDim-1) (opposite corners)
+	dist := intAbs(wf-lf) + intAbs(wr-lr)
+	score += MopUpProximityWeight * float64(2*(boardDim-1)-dist)
+
+	if winner == color {
+		return score
+	}
+	return -score
+}
+
+// centerDistance is the distance of a file or rank index from the board's
+// central pair: 0 for the two middle indices, 1 for the edges on a 4x4 board.
+func centerDistance(i int) int {
+	if i < boardDim/2 {
+		return boardDim/2 - 1 - i
+	}
+	return i - boardDim/2
+}
+
+func intAbs(i int) int {
+	if i < 0 {
+		return -i
+	}
+	return i
+}
+
 // kingEscapes counts the squares adjacent to color's king that it could legally
 // flee to: on the board, not occupied by a friendly piece, and not attacked by
 // the enemy.
