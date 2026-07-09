@@ -122,11 +122,20 @@ window.checkSound = new Howl({
 // flag is presentation-only: forging it can't affect the real match.
 const isSpec = document.getElementById('gcon-xx').dataset.spectator === 'true';
 
-// create game board. Spectators view from white's side with all interaction
-// off (mirrors enterDeploySpectatorMode's config; drawable shapes stay usable).
+// The anchored player's id (spectators only; see RoomTemplatePayload.AnchorID).
+// The spectator view pins this player to the bottom of the board and the bottom
+// scoreboard/timeline row across the color swaps between games of a match — the
+// board flips instead (the same anchoring the TV grid uses). The server renders
+// the initial orientation class from the anchor's current color.
+const anchorId = document.getElementById('gcon-xx').dataset.anchor || '';
+
+// create game board, oriented by the server-rendered class: the player's own
+// color, or the anchored player's current color for a spectator (whose
+// interaction is all off — mirrors enterDeploySpectatorMode's config; drawable
+// shapes stay usable).
 let og = Octadground(document.getElementById('game'), {
 	ofen: 'ppkn/4/4/NKPP', // set initial board state to prevent brief period of missing pieces
-	orientation: !isSpec && document.getElementById('gcon-xx').classList.contains('b') ? 'black' : 'white',
+	orientation: document.getElementById('gcon-xx').classList.contains('b') ? 'black' : 'white',
 	highlight: {
 		lastMove: true,
 		check: true,
@@ -260,15 +269,23 @@ window.onSocketReconnect = () => {
 };
 
 /**
- * Returns true if the player is playing white. Spectators view from white's
- * side, so they read as "white" here — this one convention orients everything
- * downstream of it (clock mapping, active-clock highlight, score chips, the
- * match timeline rows, and review orientation) to bottom = the white seat.
+ * Returns true if the bottom-of-board player is playing white. For a player
+ * that is themselves; for a spectator it is the anchored player (data-anchor),
+ * whose id substitutes for the viewer's own uid — so the anchored player keeps
+ * the bottom while the board flips across between-game color swaps. This one
+ * convention orients everything downstream of it (clock mapping, active-clock
+ * highlight, score chips, the match timeline rows, and review orientation) to
+ * bottom = the anchored seat. A bot seat has no id, so in a bot game the
+ * anchored human reads correctly from d.w matching (bot as white sends no w).
  * @param message - move message
  * @returns {boolean} is white
  */
 const isPlayerWhite = (message) => {
-	return isSpec || message.d.w === getCookie('uid');
+	if (isSpec) {
+		// no anchor (degenerate un-started room): fall back to white-on-bottom
+		return anchorId === '' || message.d.w === anchorId;
+	}
+	return message.d.w === getCookie('uid');
 };
 
 /**
@@ -293,9 +310,10 @@ const whiteToMove = (ofenParts) => {
 
 // whether the opponent in this game is the engine/bot (only meaningful for a
 // player — the bot always sits on the opponent clock for them), plus the clock
-// element carrying the bot seat, wherever it is: a spectator's clocks are by
-// color, so either the top (black) or bottom (white) clock may be the engine.
-// The "thinking" indicator lives on whichever clock that is.
+// element carrying the bot seat. Spectator clocks are anchored by player with
+// the human pinned to the bottom, so for them too a bot only ever sits on the
+// top clock; the general two-element query stays as belt and braces. The
+// "thinking" indicator lives on whichever clock that is.
 const clockOpponentEl = document.getElementById('clockOpponent');
 const clockPlayerEl = document.getElementById('clockPlayer');
 const opponentIsBot = !!clockOpponentEl && clockOpponentEl.dataset.bot === 'true';
@@ -305,9 +323,10 @@ const thinkingEl = botClockEl ? botClockEl.querySelector('.thinking') : null;
 
 // ---- seat presence indicators (the dot / tinted CPU glyph in each clock) ----
 // Crowd messages report presence by color; the bottom clock is the local
-// player's seat (white for spectators), so the server-rendered orientation
-// class on the board container maps colors to clocks statically.
-const bottomClockIsWhite = isSpec || !document.getElementById('gcon-xx').classList.contains('b');
+// player's (or, spectating, the anchored player's) seat. Colors swap between
+// games of a match, so the mapping follows the live playerWhite cache rather
+// than the server-rendered orientation class, which goes stale after a swap.
+const bottomClockIsWhite = () => playerWhite;
 
 const setPresence = (el, on) => {
 	if (el) {
@@ -325,8 +344,8 @@ const setPresence = (el, on) => {
  * @param blackConnected - black seat holds a connected socket
  */
 const updatePresence = (whiteConnected, blackConnected) => {
-	const bottomOn = bottomClockIsWhite ? whiteConnected : blackConnected;
-	const topOn = bottomClockIsWhite ? blackConnected : whiteConnected;
+	const bottomOn = bottomClockIsWhite() ? whiteConnected : blackConnected;
+	const topOn = bottomClockIsWhite() ? blackConnected : whiteConnected;
 	setPresence(clockPlayerEl, (clockPlayerEl && clockPlayerEl.dataset.bot === 'true') || bottomOn);
 	setPresence(clockOpponentEl, (clockOpponentEl && clockOpponentEl.dataset.bot === 'true') || topOn);
 };
@@ -355,7 +374,8 @@ const setThinking = (on) => {
 /**
  * Update the thinking indicator from a board-state message: the engine is
  * thinking whenever the game is still ongoing and it is the bot's turn. The
- * bottom clock is "the player" in isPlayerTurn terms (white, for a spectator),
+ * bottom clock is "the player" in isPlayerTurn terms (the anchored player, for
+ * a spectator),
  * so the bot's turn is the bottom clock's turn when the bot sits there.
  * @param message - move message
  * @param ofenParts - OFEN parts array
@@ -419,7 +439,11 @@ const snapViewToBoard = () => {
 // while its final position is on the board (see updateEndAnnotation)
 const endAnnotationEl = document.getElementById('end-annotation');
 let endAnnotationText = '';
-let playerWhite = false;
+// whether the bottom-of-board seat currently holds white (see isPlayerWhite).
+// Seeded from the server-rendered orientation class so presence/clock mapping
+// is right before the first board message, then re-cached from every board
+// message (colors swap between games of a match).
+let playerWhite = !document.getElementById('gcon-xx').classList.contains('b');
 let countdownInterval = null;
 // live countdown state, shared so the rematch click and the 'ru' update can
 // relabel/retime the running countdown without losing the remaining seconds
@@ -1624,14 +1648,31 @@ const playSounds = (message, ofenParts, newGame) => {
 
 // ---- match score timeline ----
 // One column per game of the room's match, one row per player, with the local
-// player always on the bottom row (their bottom-of-board point of view — the
-// rows do NOT swap when the colors do between games). Rebuilt in full from the
+// player — or, spectating, the anchored player — always on the bottom row
+// (their bottom-of-board point of view — the rows do NOT swap when the colors
+// do between games; cell tints carry the color). Rebuilt in full from the
 // history payload (d.h) of every score-bearing message via updateScore, so
 // moves, game overs, and reconnect snapshots all refresh it and missed game
 // boundaries self-heal. Markup shell lives in view/room.templ (#match-timeline).
 const timelineEl = document.getElementById('match-timeline');
 const tlOpp = timelineEl ? timelineEl.querySelector('#tl-row-opponent') : null;
 const tlPly = timelineEl ? timelineEl.querySelector('#tl-row-player') : null;
+
+// the two rows' game strips are separate overflow scrollers (the grid keeps
+// their columns aligned), so mirror scrollLeft between them — a swipe on either
+// row carries the other with it instead of shearing the columns apart. Writing
+// an equal scrollLeft doesn't re-fire the scroll event, so this can't loop.
+const tlStrips = timelineEl
+	? Array.from(timelineEl.querySelectorAll('.tl-games')) : [];
+tlStrips.forEach((strip) => {
+	strip.addEventListener('scroll', () => {
+		tlStrips.forEach((other) => {
+			if (other !== strip && other.scrollLeft !== strip.scrollLeft) {
+				other.scrollLeft = strip.scrollLeft;
+			}
+		});
+	}, { passive: true });
+});
 
 // backend reason codes -> timeline win-method glyphs. Draw methods all render
 // as '=' on both rows (the cell's ½ already says it was a draw); decisive
@@ -2747,8 +2788,8 @@ const navNextBtn = document.getElementById('nav-next');
 const navLastBtn = document.getElementById('nav-last');
 
 /**
- * playerColor returns the viewer's board orientation color, defaulting to white
- * for spectators (who match neither player id).
+ * playerColor returns the viewer's board orientation color — the local
+ * player's, or the anchored player's current color for a spectator.
  */
 const playerColor = () => (playerWhite ? 'white' : 'black');
 

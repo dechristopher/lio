@@ -134,32 +134,38 @@ func TestRenderRoomGame(t *testing.T) {
 }
 
 // TestRenderRoomSpectator locks the watch-only room page: the spectator flag
-// lio-game.js keys off, the White-oriented board, seat-labeled clocks and
-// timeline rows, and every game control rendered permanently disabled.
+// lio-game.js keys off, the anchored board orientation and anchor id, identity-
+// labeled (BOT/PLAYER) clocks and timeline rows, and every game control
+// rendered permanently disabled.
 func TestRenderRoomSpectator(t *testing.T) {
 	p := message.RoomTemplatePayload{
 		RoomID:      "abc",
 		PlayerColor: "-", // Lookup returns NoColor for a non-player
 		IsSpectator: true,
 		WhiteIsBot:  true, // bot seat may be either color for a spectator
+		AnchorColor: "b",  // the human anchors the bottom, currently black
+		AnchorID:    "human-uid",
 		VariantName: "Half One blitz",
 		Variant:     variant.HalfOneBlitz,
 	}
 	out := renderSmoke(t, Room(RoomMeta(p), p))
 
-	// the flag the client reads once at init to enter watch-only mode
+	// the flags the client reads once at init: watch-only mode and the anchored
+	// player whose seat stays on the bottom across between-game color swaps
 	mustContain(t, out, `data-spectator="true"`)
-	// spectators always view from White's side, whatever PlayerColor says
-	mustContain(t, out, `class="gcon w"`)
+	mustContain(t, out, `data-anchor="human-uid"`)
+	// the board is oriented to the anchored player's current color
+	mustContain(t, out, `class="gcon b"`)
 	mustNotContain(t, out, `class="gcon -"`)
 
-	// clocks and timeline rows are labeled by seat, not You/Opponent, and the
-	// bot marker follows the bot's color (white here, so the bottom clock)
-	mustContain(t, out, ">White</span>")
-	mustContain(t, out, ">Black</span>")
+	// clocks and timeline rows are labeled by identity, not You/Opponent or
+	// color; the anchor pins the human to the bottom, so the bot marker is
+	// always on the top clock whatever color the bot holds
+	mustContain(t, out, ">BOT</span>")
+	mustContain(t, out, ">PLAYER</span>")
 	mustNotContain(t, out, ">You</span>")
-	mustContain(t, out, `id="clockPlayer" class="clockPlayer ga-you" data-bot="true"`)
-	mustContain(t, out, `id="clockOpponent" class="clockOpponent ga-opp" data-bot="false"`)
+	mustContain(t, out, `id="clockPlayer" class="clockPlayer ga-you" data-bot="false"`)
+	mustContain(t, out, `id="clockOpponent" class="clockOpponent ga-opp" data-bot="true"`)
 
 	// every game control renders, permanently disabled, with the watching tooltip
 	mustContain(t, out, `id="btn-resign" class="ctrl-btn play-ctrl" title="Watching as a spectator" disabled>`)

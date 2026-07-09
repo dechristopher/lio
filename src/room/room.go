@@ -1533,6 +1533,14 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		blackIsBot = p.IsBot
 	}
 
+	// spectator anchor: the stable player pinned to the bottom of the board
+	// and scoreboard across between-game color swaps (same anchoring as TV)
+	anchorColor := r.players.AnchorColor()
+	anchorID := ""
+	if p := r.players[anchorColor]; p != nil {
+		anchorID = p.ID
+	}
+
 	return message.RoomTemplatePayload{
 		RoomID:        r.ID,
 		PlayerColor:   playerColor.String(),
@@ -1540,6 +1548,8 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		OpponentIsBot: opponentIsBot,
 		WhiteIsBot:    whiteIsBot,
 		BlackIsBot:    blackIsBot,
+		AnchorColor:   anchorColor.String(),
+		AnchorID:      anchorID,
 		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
 		Variant:       r.game.Variant,
 		Public:        r.public,

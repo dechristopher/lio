@@ -115,19 +115,25 @@ func opponentName(payload message.RoomTemplatePayload) string {
 }
 
 // topClockName / bottomClockName label the two clocks (and the matching match-
-// timeline rows). Players see the relative You/Opponent labels; spectators
-// view from White's side, so their labels are the current seats by color —
-// White on the bottom, Black on top.
+// timeline rows). Players see the relative You/Opponent labels; spectators see
+// seats by identity — "BOT" for the engine, "PLAYER" for a human (no usernames
+// yet) — because the rows are anchored to the *players*, not to the colors,
+// which swap between games of a match. The anchored player (the human in a bot
+// game) always holds the bottom row; each clock's left-edge stripe (app.css)
+// shows the color that seat currently holds.
 func topClockName(payload message.RoomTemplatePayload) string {
 	if payload.IsSpectator {
-		return "Black"
+		if payload.WhiteIsBot || payload.BlackIsBot {
+			return "BOT"
+		}
+		return "PLAYER"
 	}
 	return opponentName(payload)
 }
 
 func bottomClockName(payload message.RoomTemplatePayload) string {
 	if payload.IsSpectator {
-		return "White"
+		return "PLAYER"
 	}
 	return "You"
 }
@@ -135,16 +141,16 @@ func bottomClockName(payload message.RoomTemplatePayload) string {
 // topClockIsBot / bottomClockIsBot drive the data-bot attribute that the
 // client's engine "thinking" indicator keys off. For a player the top clock is
 // the opponent and the bottom (their own) is never a bot; for a spectator the
-// clocks are by color — White bottom, Black top.
+// anchor pins the human to the bottom, so a bot seat is always the top clock.
 func topClockIsBot(payload message.RoomTemplatePayload) bool {
 	if payload.IsSpectator {
-		return payload.BlackIsBot
+		return payload.WhiteIsBot || payload.BlackIsBot
 	}
 	return payload.OpponentIsBot
 }
 
-func bottomClockIsBot(payload message.RoomTemplatePayload) bool {
-	return payload.IsSpectator && payload.WhiteIsBot
+func bottomClockIsBot(message.RoomTemplatePayload) bool {
+	return false
 }
 
 // controlTitle returns a game-control button's tooltip: the action for a
@@ -158,9 +164,13 @@ func controlTitle(payload message.RoomTemplatePayload, action string) string {
 }
 
 // boardOrientation returns the #gcon-xx orientation class: the player's own
-// color, or white for spectators (whose PlayerColor is NoColor / "-").
+// color, or the anchored player's current color for spectators (whose
+// PlayerColor is NoColor / "-") — see RoomTemplatePayload.AnchorColor.
 func boardOrientation(payload message.RoomTemplatePayload) string {
 	if payload.IsSpectator {
+		if payload.AnchorColor == "b" {
+			return "b"
+		}
 		return "w"
 	}
 	return payload.PlayerColor

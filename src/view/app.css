@@ -408,6 +408,20 @@
 	}
 	.clockRating { flex: none; font-size: 0.7rem; color: var(--text-subtle); }
 	.clockRatingNumber { font-weight: 600; }
+	/* each clock's left edge is striped with the color that seat holds in the
+	   current game — the seats are labeled by identity (You/Opponent, or
+	   BOT/PLAYER for spectators), so the stripe is what shows who has which
+	   color. Inset shadows (stripe + a hairline --border seam that keeps it
+	   visible against either theme's surface) avoid layout shift and follow the
+	   border radius. Keys off the .playerWhite/.playerBlack state classes
+	   lio-game.js maintains on the clock wrappers, so it follows the
+	   between-game color swaps of a match. */
+	.playerWhite .clock {
+		box-shadow: inset 4px 0 0 #fff, inset 5px 0 0 var(--border);
+	}
+	.playerBlack .clock {
+		box-shadow: inset 4px 0 0 #000, inset 5px 0 0 var(--border);
+	}
 	/* bot marker in the clock meta, revealed only on a bot-played side: the
 	   wrapping clock element carries data-bot="true" (set in room.templ) */
 	.clockBot { display: none; flex: none; align-items: center; color: var(--text-subtle); transition: color 150ms var(--ease-snappy); }

@@ -14,14 +14,23 @@ type RoomTemplatePayload struct {
 	OpponentColor string
 	OpponentIsBot bool
 	// IsSpectator marks a viewer with no seat in the room: the room page
-	// renders watch-only (no game controls, White-oriented board) and the
-	// client JS suppresses all move input.
+	// renders watch-only (no game controls, board oriented to the anchored
+	// player — see AnchorColor) and the client JS suppresses all move input.
 	IsSpectator bool
 	// WhiteIsBot / BlackIsBot report each seat's bot status by color — the
-	// spectator view labels clocks by color rather than You/Opponent, so the
+	// spectator view labels seats by identity rather than You/Opponent, so the
 	// relative OpponentIsBot (meaningless for a non-player) doesn't apply.
-	WhiteIsBot  bool
-	BlackIsBot  bool
+	WhiteIsBot bool
+	BlackIsBot bool
+	// AnchorColor / AnchorID pin the spectator view to a stable player (see
+	// player.Players.AnchorColor): the anchored player keeps the bottom of the
+	// board and the bottom scoreboard/timeline row across the color flips that
+	// happen between games of a match — the board flips instead. AnchorColor is
+	// the color that player currently holds (the initial board orientation);
+	// AnchorID is their player id, which the client compares against each move
+	// message's white player id to re-derive the orientation after a swap.
+	AnchorColor string
+	AnchorID    string
 	VariantName string
 	Variant     variant.Variant
 	IsCreator   bool
