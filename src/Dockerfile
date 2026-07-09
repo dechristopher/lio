@@ -10,7 +10,7 @@
 # ---- octadground: fetch the pinned source and build the minified board bundle
 FROM node:22-bookworm-slim AS assets-octadground
 # renovate: datasource=github-tags depName=dechristopher/octadground
-ARG OCTADGROUND_REF=v7.12.0
+ARG OCTADGROUND_REF=v7.12.2
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
