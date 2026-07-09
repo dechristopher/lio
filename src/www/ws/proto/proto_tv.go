@@ -7,7 +7,9 @@ package proto
 type TVGame struct {
 	RoomID   string       `json:"r"`            // slot key + watch-link target
 	GameID   string       `json:"i"`            // changes on rematch → client resets that board
-	Variant  string       `json:"vn"`           // variant display name
+	Variant  string       `json:"vn"`           // variant display name (the time control, e.g. "½ + 1")
+	Deploy   bool         `json:"dp,omitempty"` // blind-deploy game mode (false = classic)
+	Watchers int          `json:"sp,omitempty"` // connected spectators (seated players excluded)
 	VsBot    bool         `json:"vb,omitempty"` // human-vs-computer game
 	BotColor string       `json:"bc,omitempty"` // side the bot plays: "w"/"b" ("" = no bot)
 	Orient   string       `json:"or,omitempty"` // color anchored to the board's bottom: "w"/"b"
@@ -21,17 +23,27 @@ type TVGame struct {
 	Over     bool         `json:"x,omitempty"`  // final position (freeze/dim the board)
 }
 
+// TVCrowd is a count-only delta: the spectator count of a featured room
+// changed between moves. It deliberately carries no game state so applying it
+// never disturbs the client's board or clock-tick baseline.
+type TVCrowd struct {
+	RoomID   string `json:"r"`
+	Watchers int    `json:"n"`
+}
+
 // TVPayload is the union message streamed over the /socket/tv channel. Exactly
-// one of Snapshot / Add / Move / Remove is populated per message; the client
-// dispatches on whichever field is present:
+// one of Snapshot / Add / Move / Crowd / Remove is populated per message; the
+// client dispatches on whichever field is present:
 //   - Snapshot: the full featured set, sent once when a viewer connects.
 //   - Add:      a game entered a (newly free or newly filled) grid slot.
 //   - Move:     a featured game advanced or ended (Over set on the final state).
+//   - Crowd:    a featured room's spectator count changed (count-only patch).
 //   - Remove:   the room id whose slot was freed (its game ended without rematch).
 type TVPayload struct {
 	Snapshot []TVGame `json:"s,omitempty"`
 	Add      *TVGame  `json:"a,omitempty"`
 	Move     *TVGame  `json:"m,omitempty"`
+	Crowd    *TVCrowd `json:"w,omitempty"`
 	Remove   string   `json:"d,omitempty"`
 }
 

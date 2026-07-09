@@ -307,8 +307,12 @@ func Create(params Params) (*Instance, error) {
 	// handle crowd messages for primary room channel. The seat closure keeps
 	// the channel handler room-agnostic (room imports channel/handlers, not
 	// the reverse); players are populated before Create runs, so the primed
-	// first wakeup reads valid seats.
-	go handlers.HandleCrowd(r.ID, r.PlayerIDs)
+	// first wakeup reads valid seats. The spectator-count callback keeps the
+	// home-page TV grid's watcher count live between moves (the hub drops
+	// counts for rooms whose game it isn't tracking yet).
+	go handlers.HandleCrowd(r.ID, r.PlayerIDs, func(spec int) {
+		tv.Publish(tv.Event{Kind: tv.Crowd, RoomID: r.ID, Watchers: spec})
+	})
 
 	// populate the game config and create the initial game. No concurrency
 	// exists yet (the routine has not started and the room is not yet in the

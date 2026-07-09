@@ -11,8 +11,10 @@ import (
 // to everyone in the channel: per-seat presence for the two players plus the
 // count of connected spectators (seated players excluded). seats supplies the
 // current white/black uids — a closure provided by the room so this package
-// never has to import it (room already imports this package).
-func HandleCrowd(thisChannel string, seats func() (white, black string)) {
+// never has to import it (room already imports this package). onSpec, if
+// non-nil, is invoked with the spectator count on every wakeup; the room uses
+// it to keep the home-page TV grid's watcher count live between moves.
+func HandleCrowd(thisChannel string, seats func() (white, black string), onSpec func(spec int)) {
 	meta := channel.SocketContext{
 		Channel: thisChannel,
 		MT:      1,
@@ -26,6 +28,9 @@ func HandleCrowd(thisChannel string, seats func() (white, black string)) {
 		util.DebugFlag("crowd", str.CChan, "w: %t b: %t spec: %d",
 			payload.White, payload.Black, payload.Spec)
 		payload.Broadcast(meta)
+		if onSpec != nil {
+			onSpec(payload.Spec)
+		}
 	}
 
 	util.DebugFlag("crowd", str.CChan, "cleanup: %s", thisChannel)

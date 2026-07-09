@@ -15,11 +15,11 @@ templ header(width string) {
 		<div class="flex flex-col items-start leading-none">
 			<a href="/" class="no-underline">
 				// wordmark: text-2xl (1.5rem) capped, but fluid below ~328px viewports so
-// the header's login/prefs/theme buttons keep their room on very narrow
-// screens. The button cluster is a fixed width, so the logo absorbs the
-// whole shortfall: 17vw - 32px ≈ 1.5rem at 328px and tracks the remaining
-// space below that, floored at 0.9rem.
-<span class="font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
+				// the header's login/prefs/theme buttons keep their room on very narrow
+				// screens. The button cluster is a fixed width, so the logo absorbs the
+				// whole shortfall: 17vw - 32px ≈ 1.5rem at 328px and tracks the remaining
+				// space below that, floored at 0.9rem.
+				<span class="font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
 			</a>
 			<div class="mt-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none">
 				<span class="text-warn">alpha</span>

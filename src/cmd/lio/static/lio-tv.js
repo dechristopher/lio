@@ -16,8 +16,8 @@
 	}
 
 	// roomID -> slot { card, og, top, bottom, whiteEl, blackEl, variantEl,
-	//                  control, wt, bt, toMove, at, over, running, orient,
-	//                  gameId, sw, sb }
+	//                  watch, watchCount, control, wt, bt, toMove, at, over,
+	//                  running, orient, gameId, sw, sb }
 	const slots = new Map();
 
 	// ---- connection: jittered backoff + stale-socket watchdog (cf. lio.js) ----
@@ -134,6 +134,12 @@
 		if (d.m) {        // move: a featured game advanced or ended
 			upsert(d.m);
 		}
+		if (d.w) {        // crowd: a featured room's spectator count changed
+			const slot = slots.get(d.w.r);
+			if (slot) {
+				setWatchers(slot, d.w.n);
+			}
+		}
 		if (d.d) {        // remove: a room's slot was freed
 			removeSlot(d.d);
 		}
@@ -173,6 +179,13 @@
 	};
 
 	// ---- DOM + board construction ----
+	// eye glyph for the spectator count at the caption row's end; same stroke
+	// style as the cpu glyph below
+	const EYE_ICON =
+		'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+		'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>' +
+		'<circle cx="12" cy="12" r="3"></circle></svg>';
+
 	// small cpu glyph (mirrors view.iconCpu) marking a bot-played side; shown only
 	// when the clock's .tv-clock root carries .is-bot
 	const CPU_ICON =
@@ -230,12 +243,20 @@
 		gwrap.appendChild(ogWrap);
 		board.appendChild(gwrap);
 
-		// per-side score now lives on each clock row, so the caption is variant-only
+		// per-side score lives on each clock row, so the caption is the variant
+		// (time control + game mode) plus the spectator count at the row's end
 		const info = document.createElement('div');
 		info.className = 'tv-info';
 		const variantEl = document.createElement('span');
 		variantEl.className = 'tv-variant';
 		info.appendChild(variantEl);
+		const watch = document.createElement('span');
+		watch.className = 'tv-watch hidden';
+		watch.title = 'Spectators watching';
+		watch.innerHTML = EYE_ICON;
+		const watchCount = document.createElement('span');
+		watch.appendChild(watchCount);
+		info.appendChild(watch);
 
 		card.appendChild(top.root);
 		card.appendChild(board);
@@ -255,7 +276,7 @@
 		});
 
 		return {
-			card, og, top, bottom, variantEl,
+			card, og, top, bottom, variantEl, watch, watchCount,
 			// whiteEl/blackEl: which fixed row currently holds each color; remapped
 			// by updateSlot as the anchored side flips between games
 			whiteEl: orient === 'w' ? bottom : top,
@@ -303,8 +324,11 @@
 			orientation: slot.orient === 'w' ? 'white' : 'black'
 		});
 
-		slot.variantEl.textContent = g.vn || 'Octad';
-		slot.card.title = (g.vb ? 'vs Computer · ' : '') + (g.vn || 'Octad');
+		// caption: time control + game mode (the CSS uppercases it)
+		const caption = (g.vn || 'Octad') + ' · ' + (g.dp ? 'Deploy' : 'Classic');
+		slot.variantEl.textContent = caption;
+		slot.card.title = (g.vb ? 'vs Computer · ' : '') + caption;
+		setWatchers(slot, g.sp || 0);
 
 		// mark the bot's side by color → whichever row currently holds it; both
 		// rows are set every update so a flip never leaves a stale icon
@@ -325,6 +349,13 @@
 
 		paintClock(slot.whiteEl, slot.control, slot.wt, !slot.over && slot.toMove === 'w');
 		paintClock(slot.blackEl, slot.control, slot.bt, !slot.over && slot.toMove === 'b');
+	};
+
+	// setWatchers writes the spectator count; the indicator only renders while
+	// someone is actually watching (zero hides it entirely)
+	const setWatchers = (slot, n) => {
+		slot.watchCount.textContent = n;
+		slot.watch.classList.toggle('hidden', n <= 0);
 	};
 
 	// applyScore writes a side's score and, on an increase, pulses it (green for a

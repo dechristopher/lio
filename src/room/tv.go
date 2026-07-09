@@ -3,6 +3,7 @@ package room
 import (
 	"github.com/dechristopher/octad/v2"
 
+	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/tv"
 )
 
@@ -38,6 +39,8 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		RoomID:   r.ID,
 		GameID:   r.game.ID,
 		Variant:  r.game.Variant.Name,
+		Deploy:   r.game.Variant.Deploy,
+		Watchers: r.watchersLocked(),
 		VsBot:    r.players.HasBot(),
 		BotColor: botColor,
 		// anchor the board's bottom to a stable player so each side keeps its
@@ -53,4 +56,25 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		// grid should show full, static clocks rather than ticking them down
 		Running: !clockState.IsPaused,
 	}
+}
+
+// watchersLocked counts the spectators connected to this room: distinct uids
+// on the room channel minus the connected seats (the same derivation as the
+// crowd broadcast, see handlers.HandleCrowd). The caller must hold stateMu
+// (it reads the seats). Peek never creates a SockMap, and a nil SockMap
+// counts as zero.
+func (r *Instance) watchersLocked() int {
+	sockMap := channel.Map.Peek(r.ID)
+	if sockMap == nil {
+		return 0
+	}
+	white, black := r.playerIDsLocked()
+	watchers := sockMap.Length()
+	if sockMap.Connected(white) {
+		watchers--
+	}
+	if sockMap.Connected(black) {
+		watchers--
+	}
+	return watchers
 }

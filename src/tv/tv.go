@@ -48,6 +48,9 @@ const (
 	Move
 	// End: a game reached a terminal outcome (the position freezes).
 	End
+	// Crowd: a room's spectator count changed (someone opened or left the game
+	// page between moves). Only Kind/RoomID/Watchers are meaningful.
+	Crowd
 	// RoomClosed: the room was torn down (no rematch / abandon / cancel); its
 	// slot is freed and backfilled.
 	RoomClosed
@@ -60,6 +63,8 @@ type Event struct {
 	RoomID   string
 	GameID   string
 	Variant  string
+	Deploy   bool
+	Watchers int
 	VsBot    bool
 	BotColor string
 	Orient   string
@@ -186,6 +191,23 @@ func (h *hub) handle(ev Event) []proto.TVPayload {
 		}
 		return nil
 
+	case Crowd:
+		// count-only patch for a room we already track; a Crowd event for an
+		// unknown room (e.g. still waiting for players) is dropped — the Start
+		// event carries a fresh count when the game goes live
+		g, known := h.games[ev.RoomID]
+		if !known || g.Watchers == ev.Watchers {
+			return nil
+		}
+		g.Watchers = ev.Watchers
+		if h.featuredIndex(ev.RoomID) >= 0 {
+			return []proto.TVPayload{{Crowd: &proto.TVCrowd{
+				RoomID:   ev.RoomID,
+				Watchers: ev.Watchers,
+			}}}
+		}
+		return nil
+
 	case RoomClosed:
 		delete(h.games, ev.RoomID)
 		i := h.featuredIndex(ev.RoomID)
@@ -243,6 +265,8 @@ func tvGameFrom(ev Event, over bool) proto.TVGame {
 		RoomID:   ev.RoomID,
 		GameID:   ev.GameID,
 		Variant:  ev.Variant,
+		Deploy:   ev.Deploy,
+		Watchers: ev.Watchers,
 		VsBot:    ev.VsBot,
 		BotColor: ev.BotColor,
 		Orient:   ev.Orient,

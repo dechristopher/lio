@@ -1677,6 +1677,7 @@
 		gap: 0.25rem;
 	}
 	.tv-variant {
+		min-width: 0; /* let the caption ellipsize instead of pushing the watcher count out */
 		font-size: 0.58rem;
 		font-weight: 600;
 		letter-spacing: 0.02em;
@@ -1686,6 +1687,21 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	/* spectator count at the caption row's end; lio-tv.js toggles .hidden so it
+	   only renders while someone is actually watching */
+	.tv-watch {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		flex: none;
+		margin-left: auto;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.58rem;
+		font-weight: 600;
+		color: var(--text-subtle);
+	}
+	.tv-watch > svg { width: 0.7rem; height: 0.7rem; }
 
 	/* end-of-game score flash, shared by the room clock + TV cards: green for a
 	   win (+1), grey for a draw (+½). Applied by lio-game.js / lio-tv.js. */

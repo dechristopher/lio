@@ -142,6 +142,49 @@ func TestMoveAndEndDeltasOnlyForFeatured(t *testing.T) {
 	}
 }
 
+func TestCrowdPatchesCountAndDeltasOnlyForFeatured(t *testing.T) {
+	h := newTestHub()
+	for i := 0; i < Cap; i++ {
+		h.handle(start(fmt.Sprintf("r%d", i), "g"))
+	}
+	h.handle(start("rPool", "gPool"))
+
+	// a count change on a featured room emits a count-only Crowd delta and
+	// patches the registry (so reconnect snapshots carry the fresh count)
+	out := h.handle(Event{Kind: Crowd, RoomID: "r0", Watchers: 3})
+	if len(out) != 1 || out[0].Crowd == nil ||
+		out[0].Crowd.RoomID != "r0" || out[0].Crowd.Watchers != 3 {
+		t.Fatalf("featured crowd change should emit a Crowd delta, got %#v", out)
+	}
+	if g := h.games["r0"]; g == nil || g.Watchers != 3 {
+		t.Fatalf("registry should hold the new count, got %#v", h.games["r0"])
+	}
+
+	// an unchanged count is coalesced away
+	out = h.handle(Event{Kind: Crowd, RoomID: "r0", Watchers: 3})
+	if len(out) != 0 {
+		t.Fatalf("unchanged count should emit no delta, got %#v", out)
+	}
+
+	// a pooled room's count updates silently
+	out = h.handle(Event{Kind: Crowd, RoomID: "rPool", Watchers: 2})
+	if len(out) != 0 {
+		t.Fatalf("pooled crowd change should emit no delta, got %#v", out)
+	}
+	if g := h.games["rPool"]; g == nil || g.Watchers != 2 {
+		t.Fatalf("pooled room count should still update, got %#v", h.games["rPool"])
+	}
+
+	// a crowd event for an unknown room (e.g. still waiting for players) drops
+	out = h.handle(Event{Kind: Crowd, RoomID: "rUnknown", Watchers: 5})
+	if len(out) != 0 {
+		t.Fatalf("unknown-room crowd change should emit no delta, got %#v", out)
+	}
+	if _, ok := h.games["rUnknown"]; ok {
+		t.Fatalf("crowd event must not create a registry entry")
+	}
+}
+
 func TestSnapshotReflectsFeaturedSet(t *testing.T) {
 	h := newTestHub()
 	h.handle(start("a", "g1"))
