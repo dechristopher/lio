@@ -8,6 +8,8 @@ import (
 
 	"github.com/dechristopher/lio/crypt"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/util"
 )
 
 const (
@@ -50,6 +52,10 @@ func ContextMiddleware(c fiber.Ctx) error {
 		// marshal anonymous context to encrypted JSON
 		contextCookie, err := userContext.MarshalJSON()
 		if err != nil {
+			// an unresolvable crypto key lands here: every visitor stays
+			// cookie-less and every WS upgrade is identity-less (a 4001
+			// close loop), so scream instead of failing silently
+			util.Error(str.CUser, str.EIdentityMint, err.Error())
 			return c.Next()
 		}
 

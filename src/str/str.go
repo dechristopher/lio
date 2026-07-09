@@ -31,6 +31,7 @@ const (
 	CRoom  = "Room"
 	CChan  = "Chan"
 	CCrypt = "Cryp"
+	CUser  = "User"
 )
 
 // (E) Error messages
@@ -44,6 +45,8 @@ const (
 	EWSRead              = "read err: %s"
 	EWSWrite             = "write err: meta=%+v error=%s"
 	EWSNoUid             = "no uid: %s"
+	EWSBadOrigin         = "rejected upgrade from untrusted origin: origin=%s path=%s"
+	EIdentityMint        = "failed to mint identity cookies error=%s"
 	EMoveUnmarshal       = "failed to parse move: move=%+v error=%s"
 	ERecord              = "failed to record game error=%s"
 	EProtoMarshal        = "failed to marshal protocol message error=%s"

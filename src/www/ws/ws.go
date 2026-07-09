@@ -238,12 +238,30 @@ func validTag(tag string) bool {
 	return ok
 }
 
-// okOrigin approves a websocket connection if it comes from an origin we trust
+// okOrigin approves a websocket connection if it comes from an origin we
+// trust. The Origin header must exactly match an entry in the configured
+// origin list — the old substring check would have admitted registerable
+// near-miss domains (e.g. an Origin of https://lioctad.or is a substring of
+// https://lioctad.org). An absent Origin is allowed through: only non-browser
+// clients omit it, and the check exists to stop cross-site browser pages, not
+// curl. Rejections are logged because they surface client-side as an opaque
+// handshake failure indistinguishable from an outage (LAN-device testing
+// against a non-local env died silently here).
 func okOrigin(c fiber.Ctx) bool {
 	if env.IsLocal() {
 		return true
 	}
 
-	origin := c.RequestCtx().Request.Header.Peek("Origin")
-	return strings.Contains(config.CorsOrigins(), string(origin))
+	origin := string(c.RequestCtx().Request.Header.Peek("Origin"))
+	if origin == "" {
+		return true
+	}
+	for _, allowed := range strings.Split(config.CorsOrigins(), ",") {
+		if origin == strings.TrimSpace(allowed) {
+			return true
+		}
+	}
+
+	util.Error(str.CWS, str.EWSBadOrigin, origin, c.Path())
+	return false
 }
