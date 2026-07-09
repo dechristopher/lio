@@ -14,10 +14,11 @@
 [data-board="brown"] .og-wrap coords.files.black > coord:nth-child(odd) { color: #b58863; }
 [data-board="brown"] .og-wrap coords.files.black > coord:nth-child(even) { color: #f0d9b5; }
 
-/* amber last-move (distinct from accent move targets), accent selection/targets,
-   indigo premoves, red check — color-mix keeps them tracking the accent. */
+/* green-yellow last-move (the classic tan-board highlight — amber blends into
+   these warm squares), accent selection/targets, indigo premoves, red check —
+   color-mix keeps them tracking the accent. */
 [data-board="brown"] square.last-move {
-	background-color: color-mix(in srgb, var(--warn, #f59e0b) 38%, transparent);
+	background-color: color-mix(in srgb, #9bc700 41%, transparent);
 }
 [data-board="brown"] square.move-dest {
 	background: radial-gradient(color-mix(in srgb, var(--accent, #10b981) 50%, transparent) 19%, rgba(0, 0, 0, 0) 20%);

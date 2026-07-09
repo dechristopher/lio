@@ -55,7 +55,9 @@ templ head(meta Meta) {
 					} catch (e) {}
 					return fallback;
 				}
-				d.dataset.board = stored("board", "green");
+				// The orange board was replaced by pink; remap persisted choices.
+				var b = stored("board", "green");
+				d.dataset.board = b === "orange" ? "pink" : b;
 				d.dataset.piece = stored("piece", "alpha");
 				window.__setBoard = function (name) {
 					d.dataset.board = name;

@@ -216,11 +216,11 @@ func prefsPopover() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = boardSwatch("brown", "Brown", "#f0d9b5", "#b58863").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = boardSwatch("purple", "Purple", "#e9e0f0", "#8f7fb5").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = boardSwatch("purple", "Purple", "#e9e0f0", "#8f7fb5").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = boardSwatch("pink", "Pink", "#f5dbe5", "#c27b9e").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -228,7 +228,7 @@ func prefsPopover() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = boardSwatch("orange", "Orange", "#fce2c7", "#d08b45").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = boardSwatch("brown", "Brown", "#f0d9b5", "#b58863").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -158,18 +158,18 @@
 	   needs no override.
 	------------------------------------------------------------------------ */
 	[data-board="blue"]   { --accent: #3b82f6; }
-	[data-board="brown"]  { --accent: #b45309; }
 	[data-board="purple"] { --accent: #8b5cf6; }
+	[data-board="pink"]   { --accent: #ec4899; }
 	[data-board="red"]    { --accent: #ef4444; }
-	[data-board="orange"] { --accent: #f97316; }
+	[data-board="brown"]  { --accent: #b45309; }
 	[data-board="yellow"] { --accent: #eab308; --accent-contrast: #422006; }
 	[data-board="mono"]   { --accent: #64748b; }
 
 	[data-theme="dark"][data-board="blue"]   { --accent: #60a5fa; }
-	[data-theme="dark"][data-board="brown"]  { --accent: #d97706; }
 	[data-theme="dark"][data-board="purple"] { --accent: #a78bfa; }
+	[data-theme="dark"][data-board="pink"]   { --accent: #f472b6; }
 	[data-theme="dark"][data-board="red"]    { --accent: #f87171; }
-	[data-theme="dark"][data-board="orange"] { --accent: #fb923c; }
+	[data-theme="dark"][data-board="brown"]  { --accent: #d97706; }
 	[data-theme="dark"][data-board="yellow"] { --accent: #facc15; --accent-contrast: #422006; }
 	[data-theme="dark"][data-board="mono"]   { --accent: #94a3b8; }
 

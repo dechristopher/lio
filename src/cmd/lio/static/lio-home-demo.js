@@ -37,7 +37,7 @@
 		ofen: 'ppkn/4/4/NKPP',
 		orientation: 'white',
 		viewOnly: true,
-		coordinates: false,
+		coordinates: true,
 		highlight: {lastMove: true, check: true},
 		drawable: {enabled: false},
 	});
