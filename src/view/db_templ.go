@@ -8,7 +8,8 @@ package view
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// DB renders the game-database placeholder page.
+// DB renders the game-database page: what the planned database is, why open
+// game data matters for Octad, and the current (not yet live) status.
 func DB(meta Meta) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -50,7 +51,7 @@ func DB(meta Meta) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card mb-4 w-[92vw] max-w-[26rem] text-left\"><h1 class=\"font-display text-xl font-bold text-fg\">Game Database</h1><p class=\"prose mt-2\">Eventually, all games played will be made available here for download. They will be combined into large monthly dump files of all raw PGNs in chronological order.</p><p class=\"prose mt-3\">Until that day we will continue to build the site.</p></main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<main class=\"card mb-4 w-[92vw] max-w-[30rem] text-left\"><h1 class=\"font-display text-xl font-bold text-fg\">Game Database</h1><p class=\"prose mt-2\">Every game played on lioctad will eventually be published here as free, downloadable monthly dumps: the raw PGN of every finished game, in chronological order.</p><p class=\"prose mt-3\">Octad PGNs read just like chess PGNs — standard algebraic notation plus Octad's own castle symbols (<span class=\"font-mono\">O</span>, <span class=\"font-mono\">O-O</span>, <span class=\"font-mono\">O-O-O</span>) — so existing tooling can parse them with little effort. A finished game looks like this:</p><pre class=\"code\">1. c2 b3  2. Kb2 O-O-O  3. cxb3 cxb3 4. d2 Nc2  5. d3 Nxa1  6. d4=Q#  1-0</pre><p class=\"prose mt-3\">Open game data is the point of collecting it: opening research, engine tuning, and statistics for the community — and since Octad is believed to be a solved game that has never been formally verified, a public archive of real games is raw material for anyone working toward that proof.</p><p class=\"prose mt-3\">The DB is not live yet. Until that day, we will continue to build the site and collect game data.</p></main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

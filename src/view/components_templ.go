@@ -57,7 +57,7 @@ func header(width string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"flex flex-col items-start leading-none\"><a href=\"/\" class=\"no-underline\"><span class=\"font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg\">li<span class=\"text-accent\">octad</span>.org</span></a><div class=\"mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none\"><span class=\"text-warn\">alpha</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"flex flex-col items-start leading-none\"><a href=\"/\" class=\"no-underline\"><span class=\"font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg\">li<span class=\"text-accent\">octad</span>.org</span></a><div class=\"mt-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none\"><span class=\"text-warn\">alpha</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

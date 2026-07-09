@@ -30,7 +30,13 @@ func AboutRulesHandler(c fiber.Ctx) error {
 	return renderAbout(c, "rules")
 }
 
-// AboutMiscHandler renders the about-misc page
+// AboutNotationHandler renders the about-notation page
+func AboutNotationHandler(c fiber.Ctx) error {
+	return renderAbout(c, "notation")
+}
+
+// AboutMiscHandler permanently redirects the retired misc section to its
+// replacement, the notation page, so old links keep working.
 func AboutMiscHandler(c fiber.Ctx) error {
-	return renderAbout(c, "misc")
+	return c.Redirect().Status(fiber.StatusMovedPermanently).To("/about/notation")
 }

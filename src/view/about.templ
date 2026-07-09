@@ -3,7 +3,10 @@ package view
 // About renders the about page shell: title, the swappable content region
 // (#about-content), and the tab buttons. The tabs are htmx swaps that replace
 // only #about-content and push the URL, with href kept as a no-JS / new-tab
-// fallback. section selects which content to show ("main"/"board"/"rules"/"misc").
+// fallback; show:window:top scrolls the viewport back up on swap (the tab
+// buttons sit below the content, so on mobile the swap would otherwise leave
+// the reader at the bottom of the new section). section selects which content
+// to show ("main"/"board"/"rules"/"notation").
 templ About(meta Meta, section string) {
 	@base(meta) {
 		<body>
@@ -11,20 +14,21 @@ templ About(meta Meta, section string) {
 				@header("max-w-[34rem]")
 				<main class="card mb-4 w-[92vw] max-w-[34rem] text-left">
 					<h1 class="font-display text-xl font-bold">
-						<a class="text-fg no-underline transition-colors duration-150 hover:text-accent" href="/about" hx-get="/about" hx-target="#about-content" hx-swap="innerHTML" hx-push-url="true">About lioctad.org</a>
+						<a class="text-fg no-underline transition-colors duration-150 hover:text-accent" href="/about" hx-get="/about" hx-target="#about-content" hx-swap="innerHTML show:window:top" hx-push-url="true">About lioctad.org</a>
 					</h1>
 					<div id="about-content" class="mt-3">
 						@AboutContent(section)
 					</div>
 					<div class="mt-4 flex flex-wrap gap-2">
-						<a href="/about/board" aria-label="board layout page" class="btn btn-ghost no-underline" hx-get="/about/board" hx-target="#about-content" hx-swap="innerHTML" hx-push-url="true">Board</a>
-						<a href="/about/rules" aria-label="rules page" class="btn btn-ghost no-underline" hx-get="/about/rules" hx-target="#about-content" hx-swap="innerHTML" hx-push-url="true">Rules</a>
-						<a href="/about/misc" aria-label="misc page" class="btn btn-ghost no-underline" hx-get="/about/misc" hx-target="#about-content" hx-swap="innerHTML" hx-push-url="true">Misc.</a>
+						<a href="/about/board" aria-label="board and pieces page" class="btn btn-ghost no-underline" hx-get="/about/board" hx-target="#about-content" hx-swap="innerHTML show:window:top" hx-push-url="true">Board</a>
+						<a href="/about/rules" aria-label="rules page" class="btn btn-ghost no-underline" hx-get="/about/rules" hx-target="#about-content" hx-swap="innerHTML show:window:top" hx-push-url="true">Rules</a>
+						<a href="/about/notation" aria-label="notation page" class="btn btn-ghost no-underline" hx-get="/about/notation" hx-target="#about-content" hx-swap="innerHTML show:window:top" hx-push-url="true">Notation</a>
 					</div>
 				</main>
 				@footer(meta, "max-w-[34rem]")
 			</div>
 		</body>
+		@scriptsAbout(meta)
 	}
 }
 
@@ -34,18 +38,77 @@ templ About(meta Meta, section string) {
 templ AboutContent(section string) {
 	if section == "main" {
 		<p class="prose">
-			Lioctad (li[bre] octad) is a free octad game server focused on realtime gameplay and ease of use.
+			Lioctad (li[bre] octad) is a free place to play Octad: chess, shrunk down to a tiny
+			4×4 board. Games take minutes, not hours. Challenge a stranger, invite a friend with a
+			private link, or play the computer — no account required!
+		</p>
+		<h2 class="mt-4 font-display text-lg font-bold text-fg">The game</h2>
+		<p class="prose mt-2">
+			Octad was created by Andrew DeChristopher in 2018. It keeps everything that makes chess
+			exciting — checks, checkmates, promotions, and a castling twist all its own — and fits
+			it onto just sixteen squares. Each side starts with four pieces: a king, a knight, and
+			two pawns. With so little room, every move counts, and one slip usually decides the game.
 		</p>
 		<p class="prose mt-3">
-			Octad is a chess variant that was conceived by Andrew DeChristopher in 2018. Rules and information about
-			the game can be found below. Octad is thought to be a solved, deterministic game, but needs formal verification
-			to prove that.
+			Nobody starts with a queen, rook, or bishop. The only way to get one is to march a pawn
+			all the way across the board and promote it, and that fight to push a pawn through is
+			the heart of the game.
+		</p>
+		<p class="prose mt-3">
+			Octad is small enough that a computer might one day work out the perfect game: who wins
+			when neither player ever makes a mistake. We certainly haven't cracked it yet. The open-source
+			<a href="https://github.com/dechristopher/octad">octad library</a> behind this site is,
+			in part, an attempt to find out.
+		</p>
+		<h2 class="mt-4 font-display text-lg font-bold text-fg">The site</h2>
+		<p class="prose mt-2">
+			Here you can play live against people anywhere in the world or against the built-in
+			computer at whatever difficulty suits you. Pick a time control from lightning-fast to
+			leisurely, post a challenge for anyone to accept, share a private room link with a
+			friend, or play a match where the first to a set number of points wins. You can also
+			just watch: live games stream right on the <a href="/">home page</a>.
+		</p>
+		<p class="prose mt-3">
+			Everything here is free and open source under the AGPL: the server
+			(<a href="https://github.com/dechristopher/lio">lio</a>), the game logic
+			(<a href="https://github.com/dechristopher/octad">octad</a>), and the board
+			(<a href="https://github.com/dechristopher/octadground">octadground</a>). New to the
+			game? Start with the buttons below: the board, the rules, and how moves are written
+			down.
 		</p>
 	} else if section == "board" {
-		<h2 class="font-display text-lg font-bold text-fg">Board Layout</h2>
+		<h2 class="font-display text-lg font-bold text-fg">The Board</h2>
 		<p class="prose mt-2">
-			Each player begins with four pieces: a knight, their king, and two pawns placed in that order from left to
-			right relative to them. An example of this can be seen in the board diagrams below:
+			Octad is played on a 4×4 board — sixteen squares in all. Every square has a name, just
+			like in chess: the columns are lettered a to d and the rows are numbered 1 to 4, so the
+			bottom-left square is a1. You start with four pieces lined up on your back row: a
+			knight, your king, and two pawns, in that order from your left.
+		</p>
+		<img src="/res/img/octad1.svg" alt="the octad starting position" class="mx-auto mt-3 w-44 max-w-full rounded-sm"/>
+		<p class="prose mt-3">
+			That lineup is just the standard one. In the Deploy game mode, both players secretly
+			arrange their four pieces however they like before the game starts — then the setups
+			are revealed and the battle begins. Every rule, castling included, adapts to wherever
+			the pieces actually stand.
+		</p>
+		<h2 class="mt-4 font-display text-lg font-bold text-fg">Piece Movement</h2>
+		<p class="prose mt-2">
+			Every piece moves exactly the way it does in chess. Never played chess either? You only
+			need three moves to start: the king steps one square in any direction, the knight jumps
+			in an L shape — two squares one way, then one square sideways — and pawns march straight
+			forward one square at a time (or two on their very first move), capturing diagonally.
+		</p>
+		<p class="prose mt-3">
+			The magic happens when a pawn reaches the far side of the board: it promotes, instantly
+			turning into a queen, rook, bishop, or knight — your choice. Promotion is the only way
+			those powerful pieces ever appear, so pawns matter far more here than in chess. Sneak
+			one pawn across and you will usually win the game.
+		</p>
+		<h2 class="mt-4 font-display text-lg font-bold text-fg">An Opening</h2>
+		<p class="prose mt-2">
+			On a board this small, the armies are already staring each other down. Here is a common
+			start: White pushes a pawn forward with 1. c2, Black attacks it with 1... b3, and White
+			captures with 2. cxb3 — three moves in and the game is already heating up:
 		</p>
 		<table class="about-table">
 			<thead>
@@ -58,13 +121,13 @@ templ AboutContent(section string) {
 			<tbody>
 				<tr>
 					<td>
-						<img src="/res/img/octad2.svg" alt="octad board layout 2"/>
+						<img src="/res/img/octad2.svg" alt="the position after 1. c2"/>
 					</td>
 					<td>
-						<img src="/res/img/octad3.svg" alt="octad board layout 3"/>
+						<img src="/res/img/octad3.svg" alt="the position after 1. c2 b3"/>
 					</td>
 					<td>
-						<img src="/res/img/octad4.svg" alt="octad board layout 4"/>
+						<img src="/res/img/octad4.svg" alt="the position after 2. cxb3"/>
 					</td>
 				</tr>
 			</tbody>
@@ -72,59 +135,167 @@ templ AboutContent(section string) {
 	} else if section == "rules" {
 		<h2 class="font-display text-lg font-bold text-fg">Rules</h2>
 		<p class="prose mt-2">
-			All standard chess rules apply: en passant is allowed, pawns promote to any piece, and stalemates
-			are a draw.
+			Already know chess? Then you already know Octad. Checkmate wins. A king can never move
+			into check. Pawns promote when they reach the far side, stalemate is a draw, and even
+			the sneaky en passant capture works here. The one big twist is castling.
 		</p>
-		<p class="prose mt-3">
-			The only catch, however, is that castling is possible between the king and any of its pieces on the starting
-			rank before movement. The king will simply switch spaces with the castling piece in all cases except the far
-			piece, in which case the king will travel one space toward it, and that piece will lie where the king was
-			before.
-		</p>
-		<p class="prose mt-3">
-			An example of white performing a far castle can be expressed as [ 1. c2 b3 2. O-O-O ... ] with the
-			resulting structure leaving the knight on a1, a pawn on b1, the king on c1, and the other pawn on c2. Here is
-			what that would look like on the board:
-		</p>
-		<table class="about-table">
-			<thead>
-				<tr>
-					<th>1. c2</th>
-					<th>1. c2 b3</th>
-					<th>2. O-O-O</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td>
-						<img src="/res/img/octad2.svg" alt="octad board layout 2"/>
-					</td>
-					<td>
-						<img src="/res/img/octad3.svg" alt="octad board layout 3"/>
-					</td>
-					<td>
-						<img src="/res/img/far-castle.svg" alt="white performs a far castle"/>
-					</td>
-				</tr>
-			</tbody>
-		</table>
-	} else if section == "misc" {
-		<h2 class="font-display text-lg font-bold text-fg">Octad Forsyth-Edwards Notation (OFEN)</h2>
+		<h3 class="mt-4 font-display text-base font-bold text-fg">Castling</h3>
 		<p class="prose mt-2">
-			Forsyth–Edwards Notation (FEN) is a standard notation for describing a particular board position
-			of a chess game. The purpose of FEN is to provide all the necessary information to restart a game from a
-			particular position.
+			Castling is a special move that lets your king trade places with a teammate. In chess
+			the king can only castle with a rook — in Octad it can castle with <em>any</em> of its
+			back-row pieces, as long as neither one has moved yet. The three castles are named for
+			how far away the partner piece sits: <strong>near</strong> (the closest),
+			<strong>center</strong>, and <strong>far</strong> (the farthest).
 		</p>
-		<p class="prose mt-3 underline">OFEN is a derivation of FEN to support the features of Octad.</p>
 		<p class="prose mt-3">
-			Read more about the OFEN structure
-			<a href="https://github.com/dechristopher/octad/blob/master/doc/OFEN.md">
-				here.
-			</a>
+			The move itself is simple. A partner standing right next to the king just swaps squares
+			with it. A partner farther away crosses paths with the king instead: the king slides
+			toward the partner and stops one square short, while the partner hops to the square
+			just past where the king landed. Every square between the two must be empty, and — as
+			always — the king can never castle out of, through, or into check.
 		</p>
-		<p class="prose mt-3">Here is the OFEN for the starting position:</p>
+		<p class="prose mt-3">
+			You start every game with all three castles available. Moving a partner piece uses up
+			its castle, and moving your king uses up all three at once. Castling counts as a king
+			move, so each player can castle at most once per game.
+		</p>
+		<p class="prose mt-3">
+			The near, center, and far labels follow your king wherever it happens to start, so
+			castling works from any setup — including whatever arrangement you dream up in the
+			Deploy game mode.
+		</p>
+		<p class="prose mt-3">
+			Castles are written <span class="font-mono">O</span> (near),
+			<span class="font-mono">O-O</span> (center), and <span class="font-mono">O-O-O</span>
+			(far). From the standard starting position, White can castle near or center on the very
+			first move; the far castle needs the square in between cleared out first. Watch each
+			one play out below:
+		</p>
+		<div class="castle-demos">
+			<figure>
+				<div class="gcon">
+					<div class="gwrap">
+						<div class="og-wrap" data-castle-demo="near"></div>
+					</div>
+				</div>
+				<figcaption>1. O (near)</figcaption>
+			</figure>
+			<figure>
+				<div class="gcon">
+					<div class="gwrap">
+						<div class="og-wrap" data-castle-demo="center"></div>
+					</div>
+				</div>
+				<figcaption>1. O-O (center)</figcaption>
+			</figure>
+			<figure>
+				<div class="gcon">
+					<div class="gwrap">
+						<div class="og-wrap" data-castle-demo="far"></div>
+					</div>
+				</div>
+				<figcaption>2. O-O-O (far)</figcaption>
+			</figure>
+		</div>
+		<h3 class="mt-4 font-display text-base font-bold text-fg">How Games End</h3>
+		<p class="prose mt-2">
+			You win by checkmating your opponent — or when they resign or run out of time.
+			Everything else is a draw, and the site calls most draws automatically the moment they
+			happen:
+		</p>
+		<ul class="prose mt-2 list-disc pl-5">
+			<li class="mt-1">
+				<strong>Stalemate</strong> — the player whose turn it is has no legal moves, but
+				is not in check.
+			</li>
+			<li class="mt-1">
+				<strong>Threefold repetition</strong> — the exact same position shows up for the
+				third time.
+			</li>
+			<li class="mt-1">
+				<strong>The 25-move rule</strong> — 25 full moves go by with no capture, no pawn
+				move, and no castle given up. Nothing is happening, so the game is called.
+			</li>
+			<li class="mt-1">
+				<strong>Insufficient material</strong> — neither side has enough pieces left to
+				ever deliver checkmate.
+			</li>
+			<li class="mt-1">
+				<strong>Agreement</strong> — both players agree to call it a draw.
+			</li>
+		</ul>
+	} else if section == "notation" {
+		<h2 class="font-display text-lg font-bold text-fg">Recording Moves</h2>
+		<p class="prose mt-2">
+			Every game here is recorded move by move, so you can replay it, study it, or share it.
+			Moves are written in the same shorthand chess players use. Each square has a name — its
+			column letter plus its row number, like <span class="font-mono">c2</span> — and each
+			move simply names where a piece went. A few symbols fill in the rest of the story:
+			<span class="font-mono">x</span> means a capture, <span class="font-mono">+</span> a
+			check, <span class="font-mono">#</span> a checkmate, and
+			<span class="font-mono">=Q</span> a pawn promoting to a queen. The three castles get
+			their own symbols: near is <span class="font-mono">O</span>, center is
+			<span class="font-mono">O-O</span>, and far is <span class="font-mono">O-O-O</span>.
+		</p>
+		<h2 class="mt-4 font-display text-lg font-bold text-fg">Describing a Position (OFEN)</h2>
+		<p class="prose mt-2">
+			Single positions get a shorthand of their own. Chess describes a position in one line
+			of text called FEN; Octad's version is called OFEN. One line captures everything needed
+			to pick a game back up from that exact moment, in six parts:
+		</p>
+		<ol class="prose mt-2 list-decimal pl-5">
+			<li class="mt-1">
+				<strong>Where the pieces are</strong> — each row of the board from Black's side
+				down to White's, separated by <span class="font-mono">/</span>. Capital letters are
+				White's pieces, lowercase are Black's, and numbers count empty squares in a row.
+			</li>
+			<li class="mt-1">
+				<strong>Whose turn it is</strong> — <span class="font-mono">w</span> means White
+				moves next, <span class="font-mono">b</span> means Black.
+			</li>
+			<li class="mt-1">
+				<strong>Who can still castle</strong> — White's near, center, and far castles as
+				<span class="font-mono">N</span>, <span class="font-mono">C</span>, and
+				<span class="font-mono">F</span>, Black's in lowercase, or a
+				<span class="font-mono">-</span> when nobody can.
+			</li>
+			<li class="mt-1">
+				<strong>En passant square</strong> — the square behind a pawn that just moved two
+				squares, or <span class="font-mono">-</span>.
+			</li>
+			<li class="mt-1">
+				<strong>The draw countdown</strong> — how many half-moves have passed since the
+				last capture, pawn move, or lost castle. This is what powers the 25-move rule.
+			</li>
+			<li class="mt-1">
+				<strong>The move number</strong> — starts at 1 and ticks up after each of Black's
+				moves.
+			</li>
+		</ol>
+		<p class="prose mt-3">Here is the starting position's OFEN:</p>
 		<pre class="code">ppkn/4/4/NKPP w NCFncf - 0 1</pre>
-		<p class="prose mt-3">Here is the OFEN after the move 1. c2:</p>
+		<p class="prose mt-3">And after the move 1. c2:</p>
 		<pre class="code">ppkn/4/2P1/NK1P b NCFncf - 0 1</pre>
+		<p class="prose mt-3">
+			Curious about every last detail? The full specification lives in the octad repository:
+			<a href="https://github.com/dechristopher/octad/blob/master/doc/OFEN.md">OFEN.md</a>.
+		</p>
+		<h2 class="mt-4 font-display text-lg font-bold text-fg">Sample Games</h2>
+		<p class="prose mt-2">
+			A lightning-quick game — White pushes a pawn through, promotes a brand-new queen, and
+			delivers checkmate on move six:
+		</p>
+		<pre class="code">1. c2 b3  2. Kb2 O-O-O  3. cxb3 cxb3
+4. d2 Nc2  5. d3 Nxa1  6. d4=Q#  1-0</pre>
+		<p class="prose mt-3">
+			And a longer battle where both sides promote queens, ending in a draw with too few
+			pieces left on the board to mate:
+		</p>
+		<pre class="code">1. O-O a3  2. Nc2 a2
+3. b3+ Nxb3+  4. Kb2 a1=Q+
+5. Nxa1 Nxa1  6. Kxa1 Kc3
+7. Ka2 b3+  8. Ka1 b2+
+9. Kb1 Kb3  10. d3 Kc3
+11. d4=Q+ Kxd4  12. Kxb2  1/2-1/2</pre>
 	}
 }

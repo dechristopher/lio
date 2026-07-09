@@ -229,8 +229,9 @@ func TestRenderNews(t *testing.T) {
 }
 
 func TestRenderAboutAndNotFound(t *testing.T) {
-	mustContain(t, renderSmoke(t, About(PageMeta("About"), "board")), "Board Layout")
-	mustContain(t, renderSmoke(t, About(PageMeta("About"), "misc")), "ppkn/4/4/NKPP w NCFncf - 0 1")
+	mustContain(t, renderSmoke(t, About(PageMeta("About"), "board")), "The Board")
+	mustContain(t, renderSmoke(t, About(PageMeta("About"), "rules")), `data-castle-demo="far"`)
+	mustContain(t, renderSmoke(t, About(PageMeta("About"), "notation")), "ppkn/4/4/NKPP w NCFncf - 0 1")
 	mustContain(t, renderSmoke(t, NotFound(PageMeta("404"))), "404")
 	mustContain(t, renderSmoke(t, DB(PageMeta("Game Database"))), "Game Database")
 }

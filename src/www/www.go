@@ -132,6 +132,7 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	r.Get("/about", handlers.AboutHandler)
 	r.Get("/about/board", handlers.AboutBoardHandler)
 	r.Get("/about/rules", handlers.AboutRulesHandler)
+	r.Get("/about/notation", handlers.AboutNotationHandler)
 	r.Get("/about/misc", handlers.AboutMiscHandler)
 
 	// paginated news feed page

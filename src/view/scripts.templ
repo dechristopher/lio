@@ -42,6 +42,17 @@ templ scriptsRoomCreator(meta Meta) {
 	<script src={ asset("lio-room-create.js") }></script>
 }
 
+// scriptsAbout loads the board renderer + themes and the castle-demo loops for
+// the about pages: lio-about.js drives the [data-castle-demo] mounts on the
+// rules section (and self-guards, so the other sections stay inert). Loaded on
+// the shell rather than per-fragment so htmx section swaps only remount boards.
+templ scriptsAbout(meta Meta) {
+	<link rel="stylesheet" href={ asset("octadground.base.css") }/>
+	@themeStyles()
+	<script src={ asset("octadground.js") }></script>
+	<script src={ asset("lio-about.js") }></script>
+}
+
 // scriptsTV loads the board renderer + themes and the self-contained clients for
 // the home page: the live-games TV widget (lio-tv.js) and the "What is Octad?"
 // self-playing demo board (lio-home-demo.js). Both own their own data (a
