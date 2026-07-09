@@ -17,6 +17,28 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Spectating, straightened out",
+		Date:  "Jul 9, 2026",
+		Body: "Watching a match no longer plays musical chairs: each player keeps their side " +
+			"of the board and scoreboard for the whole match while the colors swap between " +
+			"games, and every clock now wears a stripe showing who has white and black — " +
+			"for players too. The score timeline also scrolls as one.",
+	},
+	{
+		Title: "Live boards with more context",
+		Date:  "Jul 9, 2026",
+		Body: "The home page's live mini-boards now name each game's time control and mode " +
+			"and show how many people are watching, so you can pick the best action before " +
+			"clicking in.",
+	},
+	{
+		Title: "Castling, demonstrated",
+		Date:  "Jul 9, 2026",
+		Body: "The about page got an overhaul: octad's three castle types now play out on " +
+			"looping demo boards, so the swap-and-cross mechanics can be watched instead " +
+			"of deciphered from notation.",
+	},
+	{
 		Title: "Polish across the board",
 		Date:  "Jul 8, 2026",
 		Body: "Game results now land with an animated result card, the move list keeps the " +
