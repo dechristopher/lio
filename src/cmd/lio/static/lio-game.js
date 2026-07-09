@@ -376,12 +376,45 @@ const updateThinking = (message, ofenParts) => {
 // messages (the game-over message reuses the `w` key for the winner, so the
 // player's color can't be derived from it)
 const resultOverlayEl = document.getElementById('result-overlay');
+const resultCardEl = resultOverlayEl
+	? resultOverlayEl.querySelector('.result-card') : null;
 const resultHeadlineEl = document.getElementById('result-headline');
 const resultReasonEl = document.getElementById('result-reason');
 const resultScoreEl = document.getElementById('result-score');
 const resultCountdownEl = document.getElementById('result-countdown');
 const rematchBtn = document.getElementById('result-rematch');
 const homeBtn = document.getElementById('result-home');
+// beat between the final position rendering and the result card fading in, so
+// the deciding move registers on the board before the card covers it
+const resultShowDelayMs = 1000;
+// must outlast the .result-closing exit animations in app.css (160ms)
+const resultCloseMs = 180;
+// timer id while the result card's delayed fade-in is pending, else null; a
+// pending show is treated everywhere like a showing card (see
+// resultShowingOrPending), and every teardown/dismiss path cancels it
+let resultShowTimer = null;
+
+// beat between an opponent's move landing and the view snapping back up to the
+// board on mobile (see snapViewToBoard)
+const boardSnapDelayMs = 1000;
+// timer id while an opponent-move snap is pending, else null; a game-over
+// supersedes it (the result card's fade-in snaps instead)
+let boardSnapTimer = null;
+
+/**
+ * snapViewToBoard smooth-scrolls the page back to the top so the board is
+ * fully in view. Only meaningful on the single-column (mobile) layout, where
+ * the moves panel and controls can pull the board off-screen — a no-op on the
+ * two-column desktop layout (the 899px test mirrors the CSS breakpoint) and
+ * for users preferring reduced motion the scroll is instant.
+ */
+const snapViewToBoard = () => {
+	if (!window.matchMedia('(max-width: 899px)').matches) {
+		return;
+	}
+	const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+};
 // endgame annotation: the mid-board pill naming the finished game's result
 // while its final position is on the board (see updateEndAnnotation)
 const endAnnotationEl = document.getElementById('end-annotation');
@@ -541,6 +574,17 @@ const resultSummary = (d) => {
 };
 
 /**
+ * resultShowingOrPending reports whether the result overlay is up OR its
+ * delayed fade-in is armed — states that everything asking "is the result
+ * card telling the story?" must treat identically, or a game-over repeat /
+ * rematch update / annotation toggle landing inside the one-beat delay
+ * misbehaves.
+ */
+const resultShowingOrPending = () => !!resultOverlayEl
+	&& (resultOverlayEl.classList.contains('result-show')
+		|| resultShowTimer !== null);
+
+/**
  * updateEndAnnotation shows/hides the mid-board result pill: visible only when
  * the game is over, the board is showing its final position (the live tip),
  * and the result card isn't already telling the story (never shown, or
@@ -551,8 +595,7 @@ const updateEndAnnotation = () => {
 	if (!endAnnotationEl) {
 		return;
 	}
-	const cardShowing = !!resultOverlayEl
-		&& resultOverlayEl.classList.contains('result-show')
+	const cardShowing = resultShowingOrPending()
 		&& !resultOverlayEl.classList.contains('result-dismissed');
 	const show = gameOver && !!endAnnotationText
 		&& viewPly === currentPly && !cardShowing;
@@ -709,10 +752,18 @@ const stopDeployResync = () => {
  * Hide the game-end result overlay and reset its rematch button and countdown.
  */
 const hideResult = () => {
+	// cancel a fade-in still waiting out its one-beat delay
+	if (resultShowTimer !== null) {
+		clearTimeout(resultShowTimer);
+		resultShowTimer = null;
+	}
 	if (resultOverlayEl) {
 		resultOverlayEl.classList.remove('result-show');
-		// clear any "dismissed for analysis" state so the next game's overlay is clean
+		// clear any "dismissed for analysis" state so the next game's overlay is
+		// clean, and any in-flight dismiss fade-out (its timeout checks
+		// result-closing and stands down)
 		resultOverlayEl.classList.remove('result-dismissed');
+		resultOverlayEl.classList.remove('result-closing');
 	}
 	const restoreBtn = document.getElementById('result-restore');
 	if (restoreBtn) {
@@ -858,7 +909,59 @@ const showResult = (message) => {
 		stopCountdown();
 	}
 
-	resultOverlayEl.classList.add('result-show');
+	// one beat after the final position lands, fade the card in from the
+	// direction of the deciding move. hideResult cancels this on teardown;
+	// dismissResultForAnalysis converts a pending show straight into the
+	// dismissed state so review navigation is never interrupted.
+	setResultEntryVector();
+	if (resultShowTimer !== null) {
+		clearTimeout(resultShowTimer);
+	}
+	// a mating/flagging final move may have armed its own snap a moment ago;
+	// the card's appearance takes over the scroll so they can't double-fire
+	if (boardSnapTimer !== null) {
+		clearTimeout(boardSnapTimer);
+		boardSnapTimer = null;
+	}
+	resultShowTimer = setTimeout(() => {
+		resultShowTimer = null;
+		resultOverlayEl.classList.add('result-show');
+		// the card is only useful on screen: on mobile the player may be
+		// scrolled down at the moves panel when the game ends
+		snapViewToBoard();
+	}, resultShowDelayMs);
+};
+
+/**
+ * setResultEntryVector aims the result card's pop-in (and dismiss fade-out)
+ * along the vector from the board center to the final move's destination
+ * square, in the player's orientation, so the card reads as emanating from
+ * the square that decided the game. Endings with no move on record (e.g. an
+ * abandoned game before the first move) get a random diagonal instead. The
+ * offsets feed the resultPop/resultPopOut keyframes via CSS custom properties.
+ */
+const setResultEntryVector = () => {
+	if (!resultCardEl) {
+		return;
+	}
+	let dx, dy;
+	const uoi = history.uois[history.uois.length - 1];
+	if (uoi && uoi.length >= 4) {
+		// destination square's offset from the board center, in board halves:
+		// files a–d run left to right and ranks 1–4 bottom to top for white;
+		// both axes invert for a black-oriented board
+		dx = (uoi.charCodeAt(2) - 97 - 1.5) / 1.5;
+		dy = (1.5 - (uoi.charCodeAt(3) - 49)) / 1.5;
+		if (!playerWhite) {
+			dx = -dx;
+			dy = -dy;
+		}
+	} else {
+		dx = Math.random() < 0.5 ? -1 : 1;
+		dy = Math.random() < 0.5 ? -1 : 1;
+	}
+	resultCardEl.style.setProperty('--result-dx', `${(dx * 22).toFixed(1)}px`);
+	resultCardEl.style.setProperty('--result-dy', `${(dy * 22).toFixed(1)}px`);
 };
 
 /**
@@ -1055,16 +1158,45 @@ const restoreResultBtn = document.getElementById('result-restore');
  * modal never blocks stepping through the finished game.
  */
 const dismissResultForAnalysis = () => {
-	if (!resultOverlayEl || !resultOverlayEl.classList.contains('result-show')
-		|| resultOverlayEl.classList.contains('result-dismissed')) {
+	if (!resultOverlayEl
+		|| resultOverlayEl.classList.contains('result-dismissed')
+		|| resultOverlayEl.classList.contains('result-closing')) {
 		return;
 	}
-	resultOverlayEl.classList.add('result-dismissed');
-	if (restoreResultBtn) {
-		restoreResultBtn.classList.remove('hidden');
+	if (resultShowTimer !== null) {
+		// the card's delayed fade-in hasn't fired yet: cancel it and land
+		// straight in the dismissed state so it never pops up over the review
+		clearTimeout(resultShowTimer);
+		resultShowTimer = null;
+		resultOverlayEl.classList.add('result-show');
+		resultOverlayEl.classList.add('result-dismissed');
+		if (restoreResultBtn) {
+			restoreResultBtn.classList.remove('hidden');
+		}
+		// the card never appeared; the board annotation takes over
+		updateEndAnnotation();
+		return;
 	}
-	// the card no longer names the result; the board annotation takes over
-	updateEndAnnotation();
+	if (!resultOverlayEl.classList.contains('result-show')) {
+		return;
+	}
+	// fade the card back out toward the deciding move, then swap to the
+	// click-through dismissed state once the exit animation has played
+	resultOverlayEl.classList.add('result-closing');
+	setTimeout(() => {
+		// a new-game teardown (hideResult) may have raced the fade and already
+		// cleared result-closing — stand down rather than resurrect state
+		if (!resultOverlayEl.classList.contains('result-closing')) {
+			return;
+		}
+		resultOverlayEl.classList.remove('result-closing');
+		resultOverlayEl.classList.add('result-dismissed');
+		if (restoreResultBtn) {
+			restoreResultBtn.classList.remove('hidden');
+		}
+		// the card no longer names the result; the board annotation takes over
+		updateEndAnnotation();
+	}, resultCloseMs);
 };
 
 if (analyzeBtn) {
@@ -1171,6 +1303,11 @@ const handleMove = (message) => {
 		}
 	}
 
+	// whether this message carries a genuinely new move (the ply advanced) —
+	// captured before lastPly is overwritten; repeats/resync snapshots of the
+	// same position never qualify
+	const plyAdvanced = !newGame && serverPly > lastPly;
+
 	lastPly = serverPly;
 	currentPly = serverPly;
 
@@ -1211,6 +1348,24 @@ const handleMove = (message) => {
 		// with that final state, which would repeatedly yank an analyzing player
 		// off the ply they're reviewing.
 		followingLive = true;
+	}
+
+	// an opponent's move just landed (the ply advanced and it's now our turn):
+	// on mobile, ease the view back up to the board a beat later, so a player
+	// who scrolled down to the moves panel isn't left below the fold while
+	// their clock runs. Own moves never snap (the player is at the board), and
+	// a game-ending move hands the scroll over to the result card (showResult
+	// cancels this timer). The reviewing-player case is covered too: the
+	// yank-back-to-live above runs first, and a non-participant never passes
+	// isPlayerTurn's uid test.
+	if (plyAdvanced && !gameOver && !isSpec && isPlayerTurn(message, ofenParts)) {
+		if (boardSnapTimer !== null) {
+			clearTimeout(boardSnapTimer);
+		}
+		boardSnapTimer = setTimeout(() => {
+			boardSnapTimer = null;
+			snapViewToBoard();
+		}, boardSnapDelayMs);
 	}
 
 	// always keep the latest authoritative live state so a return-to-live can
@@ -1310,8 +1465,7 @@ const handleGameOver = (message) => {
 	// guard — nor replay the notification sound every poll tick. Just retime
 	// the countdown to the server's authoritative remaining window. A room-over
 	// notice (o) is never a repeat; it always runs the full path below.
-	if (gameOver && message.d.o !== true
-		&& resultOverlayEl && resultOverlayEl.classList.contains('result-show')) {
+	if (gameOver && message.d.o !== true && resultShowingOrPending()) {
 		// defensively re-freeze the clocks: a repeat means the game is over, so
 		// no interpolator may be left running whatever path armed it
 		cancelAnimationFrame(frameId);
@@ -1992,8 +2146,9 @@ const getCookie = (cname) => {
  * @param message - rematch update message
  */
 const handleRematchUpdate = (message) => {
-	// only meaningful while the result overlay is showing a live window
-	if (!resultOverlayEl || !resultOverlayEl.classList.contains('result-show')) {
+	// only meaningful while the result overlay is showing (or about to show)
+	// a live window
+	if (!resultShowingOrPending()) {
 		return;
 	}
 

@@ -225,6 +225,7 @@
 			"board"
 			"you"
 			"tline"
+			"ctrl"
 			"rail"
 			"info"
 			"foot";
@@ -282,16 +283,27 @@
 		.ga-timeline { width: 100%; }
 	}
 
-	/* ---- analysis mode, single-column layout only ----
+	/* ---- single-column (mobile) rail dissolution + analysis mode ----
+	   On mobile the rail wrapper dissolves (display: contents) so the moves
+	   panel and the game controls place themselves as their own grid rows:
+	   during play the controls land in the "ctrl" row directly beneath the
+	   match timeline (resign/draw within thumb reach of the board instead of
+	   buried under the moves panel), with the moves panel below.
 	   .analyzing is toggled on .game-grid by lio-game.js (setControlsMode) the
 	   moment the game is over, and cleared when a new game starts. On mobile the
 	   live-play stack buries the move list and review nav below the fold (two
 	   tall clocks + a ~96vw board + the timeline all come first), so a reviewing
-	   player scrolls for every interaction. This block compacts the clocks to a
-	   single line, floats the review nav to the top of the moves panel (right
-	   under the board), and reorders the stack to moves → timeline → controls.
-	   Desktop is untouched: the rail already shows everything at once. */
+	   player scrolls for every interaction. The .analyzing rules compact the
+	   clocks to a single line, float the review nav to the top of the moves
+	   panel (right under the board), and reorder the stack to moves → timeline
+	   → controls. Desktop is untouched: the rail already shows everything. */
 	@media (max-width: 899px) {
+		/* the .game-grid prefix outweighs the later base .rail-stack (flex) and
+		   .controls (margin-top: auto) declarations */
+		.game-grid .ga-rail,
+		.game-grid .rail-stack { display: contents; }
+		.game-grid .moves-panel { grid-area: rail; }
+		.game-grid .controls { grid-area: ctrl; margin-top: 0; }
 		.game-grid.analyzing {
 			grid-template-areas:
 				"opp"
@@ -303,12 +315,6 @@
 				"info"
 				"foot";
 		}
-		/* dissolve the rail so the moves panel and the game controls become
-		   their own grid rows, letting the timeline slot in between them */
-		.analyzing .ga-rail,
-		.analyzing .rail-stack { display: contents; }
-		.analyzing .moves-panel { grid-area: rail; }
-		.analyzing .controls { grid-area: ctrl; margin-top: 0; }
 		/* thin one-line clock: identity row left, time right */
 		.analyzing .clock-body {
 			flex-direction: row;
@@ -908,6 +914,15 @@
 		text-decoration: underline;
 	}
 	.result-analyze:hover { color: var(--text); }
+	/* dismissing: fade the backdrop and slide the card back out the way it came
+	   in (resultPopOut reuses the entry vector) before result-dismissed takes
+	   over; `forwards` holds the faded-out frame across the class swap */
+	.result-overlay.result-closing {
+		animation: resultFadeOut 160ms var(--ease-snappy) forwards;
+	}
+	.result-overlay.result-closing .result-card {
+		animation: resultPopOut 160ms var(--ease-snappy) forwards;
+	}
 	.result-overlay.result-dismissed {
 		background-color: transparent;
 		-webkit-backdrop-filter: none;
@@ -1702,7 +1717,14 @@
 }
 
 @keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes resultPop { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+/* resultPop slides in along --result-dx/--result-dy — set by lio-game.js on the
+   result card to point at the game's deciding move (zero elsewhere, e.g. the
+   create-game modal, where it degrades to the plain scale pop) */
+@keyframes resultPop { from { opacity: 0; transform: translate(var(--result-dx, 0px), var(--result-dy, 0px)) scale(0.94); } to { opacity: 1; transform: translate(0, 0) scale(1); } }
+/* dismissal plays the entry in reverse; lio-game.js swaps .result-closing for
+   .result-dismissed once these land (see resultCloseMs) */
+@keyframes resultFadeOut { to { opacity: 0; } }
+@keyframes resultPopOut { to { opacity: 0; transform: translate(var(--result-dx, 0px), var(--result-dy, 0px)) scale(0.94); } }
 @keyframes clockLowPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes connPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes scoreFlashWin {
