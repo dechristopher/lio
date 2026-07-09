@@ -148,6 +148,84 @@ var Items = []Item{
 		Body: "Corrected the engine's position evaluation and negamax search, backed by a new " +
 			"regression test suite so bot play stays sound.",
 	},
+
+	// ---- the historical record: entries below were written retroactively from
+	// git history when the news feed was introduced in 2026 ----
+	{
+		Title: "A stir in hibernation",
+		Date:  "Feb 16, 2024",
+		Body: "A brief awakening between eras: fixed an engine bug that could skew its move " +
+			"selection, and brought the whole stack up to Go 1.22 before the long nap resumed.",
+	},
+	{
+		Title: "Sounds and small touches",
+		Date:  "Sep 17, 2022",
+		Body: "A check sound effect joins the move and capture sounds, and colorful pawn icons " +
+			"stand in as placeholder profile pictures.",
+	},
+	{
+		Title: "Proper waiting rooms",
+		Date:  "Sep 9, 2022",
+		Body: "Creating a challenge now opens a real waiting room with a cancel button, and " +
+			"shared game links unfurl into rich previews in chat apps.",
+	},
+	{
+		Title: "Custom challenges",
+		Date:  "Aug 20, 2022",
+		Body: "A new create-a-game dialog lets you set up the exact game you want: pick the " +
+			"time control and choose which color you'll play.",
+	},
+	{
+		Title: "Clocks worth trusting",
+		Date:  "Aug 18, 2022",
+		Body: "Rebuilt game clocks tick smoothly, compensate for network lag on every move, and " +
+			"carry the running match score. Rematches landed too — same room, same opponent, " +
+			"swapped colors.",
+	},
+	{
+		Title: "The multiplayer update",
+		Date:  "Aug 11, 2022",
+		Body: "The biggest release yet: create a room, share the link, and play a friend live. " +
+			"A new homepage, proper game rooms, and an asynchronous engine dispatcher came along " +
+			"with it.",
+	},
+	{
+		Title: "Back from a lull",
+		Date:  "Jul 6, 2022",
+		Body: "Development picks back up with a real server-side game clock implementation and " +
+			"an engine that sizes its search depth more intelligently.",
+	},
+	{
+		Title: "The engine gets serious",
+		Date:  "Nov 5, 2021",
+		Body: "The computer now searches all of its candidate moves in parallel, looks seven " +
+			"plies ahead, and factors checks into its evaluation — a meaningfully stronger " +
+			"opponent.",
+	},
+	{
+		Title: "The engine opens its eyes",
+		Date:  "Mar 11, 2021",
+		Body: "The computer stops playing randomly: a minimax search with alpha-beta pruning and " +
+			"hand-tuned piece-square tables now picks its moves.",
+	},
+	{
+		Title: "Every game on the record",
+		Date:  "Mar 7, 2021",
+		Body: "Finished games are now archived as PGNs in object storage, laying the groundwork " +
+			"for a public game database.",
+	},
+	{
+		Title: "First moves",
+		Date:  "Mar 1, 2021",
+		Body: "The first playable games: a live board over websockets against a random-moving " +
+			"opponent, complete with move and capture sounds and check highlighting.",
+	},
+	{
+		Title: "Hello, world",
+		Date:  "Feb 21, 2021",
+		Body: "lioctad.org is born: a fresh Go server, the first pages, and a mission: a free, " +
+			"libre home for octad, the 4x4 chess variant, in the spirit of lichess.",
+	},
 }
 
 // PerPage is the number of items shown per page on the /news page.
