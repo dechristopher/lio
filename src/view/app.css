@@ -1014,6 +1014,42 @@
 	.btn-block { width: 100%; }
 	.btn-lg { padding: 0.8rem 1.4rem; font-size: 1.05rem; }
 
+	/* joined three-button group: segments share borders and round only at the
+	   group's outer corners, centered as a unit. On screens too narrow for one
+	   row (breakpoint tuned to when the three labels overflow the card) the
+	   third segment drops to its own full-width row, still attached. Hover
+	   lift/shadow is suppressed — a segment popping out of the group reads as
+	   broken — and z-index keeps a hovered accent border on top of the
+	   overlapped shared edges. */
+	.btn-seg {
+		display: grid;
+		grid-template-columns: repeat(3, auto);
+		justify-content: center;
+	}
+	.btn-seg .btn {
+		position: relative;
+		border-radius: 0;
+	}
+	.btn-seg .btn:hover {
+		transform: none;
+		box-shadow: none;
+		z-index: 1;
+	}
+	.btn-seg .btn + .btn { margin-left: -1px; }
+	.btn-seg .btn:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+	.btn-seg .btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+	@media (max-width: 400px) {
+		.btn-seg { grid-template-columns: 1fr 1fr; }
+		.btn-seg .btn:first-child { border-radius: var(--radius-md) 0 0 0; }
+		.btn-seg .btn:nth-child(2) { border-radius: 0 var(--radius-md) 0 0; }
+		.btn-seg .btn:last-child {
+			grid-column: 1 / -1;
+			margin-left: 0;
+			margin-top: -1px;
+			border-radius: 0 0 var(--radius-md) var(--radius-md);
+		}
+	}
+
 	/* ---- create-game modal ---- */
 	.modal-shade {
 		display: none;
@@ -1493,14 +1529,19 @@
 	   lio-home-demo.js mounts an octadground board on #home-demo-board, reusing
 	   the room's .gcon/.gwrap/.og-wrap structure (so all board/piece theme CSS
 	   applies unchanged); #home-demo-overlay reuses the in-game .end-annotation
-	   result pill. --bs (inherited into .gcon) caps the board to a tasteful size
-	   and mx centers it in its column — it fills the card when stacked under the
-	   copy on mobile and sits beside it on wider screens. */
+	   result pill. In the single-column mobile layout (below md) the board fills
+	   the card edge-to-edge; in the two-column desktop layout --bs (inherited
+	   into .gcon) caps it to a tasteful size and mx centers it in its column. */
 	.home-demo {
-		--bs: min(100%, 22rem);
+		--bs: 100%;
 		width: 100%;
-		max-width: 22rem;
-		margin-inline: auto;
+	}
+	@media (min-width: 768px) {
+		.home-demo {
+			--bs: min(100%, 22rem);
+			max-width: 22rem;
+			margin-inline: auto;
+		}
 	}
 
 	/* ---- home-page TV (live games) grid ----
@@ -1628,15 +1669,13 @@
 
 	/* omnibus connection indicator, fed by window.lioConn. Lives in the header
 	   sub-row beside the ALPHA tag, so it's bubble-less and inherits that row's
-	   micro-label type (10px uppercase tracking-widest); a thin divider sets it
+	   micro-label type (10px uppercase tracking-widest); the row's gap sets it
 	   off from ALPHA. Starts hidden (Tailwind .hidden wins until the first
 	   report removes it). */
 	.conn-indicator {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
-		padding-left: 0.5rem;
-		border-left: 1px solid var(--border);
 		color: var(--text-muted);
 		line-height: 1;
 		white-space: nowrap;

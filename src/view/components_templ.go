@@ -57,7 +57,7 @@ func header(width string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"flex flex-col items-start leading-none\"><a href=\"/\" class=\"no-underline\"><span class=\"font-display text-2xl font-bold tracking-tight text-fg\">li<span class=\"text-accent\">octad</span>.org</span></a><div class=\"mt-0.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none\"><span class=\"text-warn\">alpha</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"flex flex-col items-start leading-none\"><a href=\"/\" class=\"no-underline\"><span class=\"font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg\">li<span class=\"text-accent\">octad</span>.org</span></a><div class=\"mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none\"><span class=\"text-warn\">alpha</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -304,7 +304,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 146, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 151, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -317,7 +317,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 146, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 151, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -330,7 +330,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 146, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 151, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -343,7 +343,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("--l:" + light + ";--d:" + dark)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 147, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 152, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -389,7 +389,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 156, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 161, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -402,7 +402,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 156, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 161, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -415,7 +415,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("/res/img/" + name + "/wK.svg")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 158, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 163, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -428,7 +428,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("/res/img/" + name + "/wP.svg")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 159, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 164, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -441,7 +441,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 161, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 166, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -483,7 +483,7 @@ func prefStub(label string) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 167, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 172, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -877,7 +877,7 @@ func footerContent(meta Meta) templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Version)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 318, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 323, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
@@ -1123,7 +1123,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.IsSpectator))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 374, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 379, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 		if templ_7745c5c3_Err != nil {
@@ -1136,7 +1136,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 374, Col: 194}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 379, Col: 194}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 		if templ_7745c5c3_Err != nil {
@@ -1149,7 +1149,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Play again"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 420, Col: 126}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 425, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -1162,7 +1162,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 420, Col: 170}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 425, Col: 170}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -1232,7 +1232,7 @@ func clock(name string) templ.Component {
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 459, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 464, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 		if templ_7745c5c3_Err != nil {

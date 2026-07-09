@@ -6,7 +6,7 @@ Lioctad (li[bre] octad) is a free online octad game server focused on
 
 **Octad** is a 4x4 chess variant: the same pieces and rules as chess (check,
 checkmate, promotion, en passant) with variant-specific castling, played on a
-4x4 board. The starting position in OFEN (Octad's FEN) is
+4x4 board. The default starting position in OFEN (Octad's FEN) is
 `ppkn/4/4/NKPP w NCFncf - 0 1`.
 
 ## Stack

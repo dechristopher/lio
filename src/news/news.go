@@ -17,6 +17,44 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Polish across the board",
+		Date:  "Jul 8, 2026",
+		Body: "Game results now land with an animated result card, the move list keeps the " +
+			"latest move in view, and the home page fits phones better with a full-width " +
+			"demo board.",
+	},
+	{
+		Title: "The engine finishes the job",
+		Date:  "Jul 8, 2026",
+		Body: "The engine now sees threefold repetition coming: it converts winning endgames " +
+			"instead of shuffling into a draw, and steers toward repetition when it's the " +
+			"one behind.",
+	},
+	{
+		Title: "Take your games with you",
+		Date:  "Jul 8, 2026",
+		Body: "A new copy button in analysis mode puts the full PGN of your game on the " +
+			"clipboard, ready to share or study elsewhere.",
+	},
+	{
+		Title: "Rock-solid connections",
+		Date:  "Jul 8, 2026",
+		Body: "Squashed a long-standing bug that could silently drop moves mid-game — most " +
+			"often on iPhones — alongside smoother reconnects and game-state re-sync.",
+	},
+	{
+		Title: "The board plays itself",
+		Date:  "Jul 7, 2026",
+		Body: "New to Octad? The home page now features a self-playing demo board that runs " +
+			"through full games so you can see the variant in motion.",
+	},
+	{
+		Title: "Make the board yours",
+		Date:  "Jul 6, 2026",
+		Body: "Pick from eight board themes and three piece sets in settings — and your board " +
+			"choice retints the whole site's accent color to match.",
+	},
+	{
 		Title: "Match play & race to a target",
 		Date:  "Jul 5, 2026",
 		Body: "Play a series instead of a single game: race to a set number of points and " +
