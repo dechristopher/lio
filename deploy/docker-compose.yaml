@@ -38,6 +38,12 @@ services:
     environment:
       DEPLOY: "prod"
       PORT: "4444"
+      # Host of the self-hosted Plausible analytics instance. Deliberately not
+      # a literal here (this file is in VCS): compose substitutes it from the
+      # deploy host's environment or the gitignored deploy/.env
+      # (PLAUSIBLE_DOMAIN=stats.example.com). Empty disables analytics — the
+      # tracker <script> isn't rendered and the CSP stays same-origin only.
+      PLAUSIBLE_DOMAIN: ${PLAUSIBLE_DOMAIN:-}
     ports:
       # loopback only — the Cloudflare tunnel is the sole public ingress
       - "127.0.0.1:4444:4444"
