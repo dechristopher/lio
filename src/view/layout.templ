@@ -85,6 +85,15 @@ templ head(meta Meta) {
 		<meta property="og:title" content={ meta.OGTitle }/>
 		<meta name="description" content={ meta.Description }/>
 		<meta property="og:description" content={ meta.Description }/>
+		// Preload only the two above-the-fold fonts — Inter (body text everywhere)
+		// and Poppins 700 (the brand + card headings) — so first paint doesn't
+		// wait on app.css parsing to discover them (kills the common-case FOUT).
+		// Literal URLs (not asset()) to match the @font-face refs in app.css, and
+		// crossorigin is required so the preload matches the CORS-mode font fetch
+		// rather than double-downloading. JetBrains Mono / Poppins 600 are left to
+		// load on demand.
+		<link rel="preload" as="font" type="font/woff2" href="/res/fonts/inter-var.woff2" crossorigin/>
+		<link rel="preload" as="font" type="font/woff2" href="/res/fonts/poppins-700.woff2" crossorigin/>
 		// app.css is the Tailwind build (source of truth: view/app.css).
 		<link rel="stylesheet" href={ asset("app.css") }/>
 		// defer: htmx self-initializes on DOMContentLoaded, so it need not block
