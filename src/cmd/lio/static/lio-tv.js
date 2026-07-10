@@ -442,3 +442,20 @@
 
 	connect();
 })();
+
+// Pause the home-activity poll while the tab is backgrounded. htmx keeps its
+// `every 5s` timer running in hidden tabs (browsers only throttle it), so a
+// backgrounded home tab would keep hitting /home/activity indefinitely. htmx's
+// own trigger filter (`every 5s [expr]`) can't be used: compiling it needs eval,
+// which the site CSP forbids — so gate it here at request time instead. Only
+// unattended polling fires while hidden (a user can't click a hidden tab), so
+// cancelling any htmx request from #home-activity on document.hidden is safe;
+// htmx reschedules the next tick, so polling resumes when the tab is visible.
+(function () {
+	document.addEventListener('htmx:beforeRequest', function (evt) {
+		var elt = evt.detail && evt.detail.elt;
+		if (document.hidden && elt && elt.id === 'home-activity') {
+			evt.preventDefault();
+		}
+	});
+})();
