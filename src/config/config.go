@@ -126,6 +126,14 @@ func GetPort() string {
 	return os.Getenv("PORT")
 }
 
+// PlausibleDomain returns the host of the self-hosted Plausible analytics
+// instance (PLAUSIBLE_DOMAIN env var, e.g. "plausible.example.com"). Kept out
+// of VCS deliberately; empty means analytics is disabled — the tracker script
+// is not rendered and the CSP stays same-origin only.
+func PlausibleDomain() string {
+	return os.Getenv("PLAUSIBLE_DOMAIN")
+}
+
 // GetListenPort returns the colon-formatted listen port
 func GetListenPort() string {
 	return fmt.Sprintf(":%s", GetPort())

@@ -1,5 +1,10 @@
 package view
 
+import (
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
+)
+
 templ base(meta Meta) {
 	<!DOCTYPE html>
 	<html lang="en" aria-label="lioctad.org">
@@ -99,6 +104,13 @@ templ head(meta Meta) {
 		// defer: htmx self-initializes on DOMContentLoaded, so it need not block
 		// first paint. defer preserves execution order and runs after parse.
 		<script defer src={ asset("htmx.min.js") }></script>
+		// Plausible analytics (self-hosted), prod only. The instance host comes
+		// from PLAUSIBLE_DOMAIN (kept out of VCS; unset disables analytics), and
+		// the CSP allows it in script-src and connect-src
+		// (www/middleware/security.go).
+		if env.IsProd() && config.PlausibleDomain() != "" {
+			<script defer data-domain="lioctad.org" src={ "https://" + config.PlausibleDomain() + "/js/script.hash.outbound-links.pageview-props.tagged-events.js" }></script>
+		}
 		// warm howler + the sound effects into cache so audio is ready the moment
 		// a visitor reaches a game (see soundPrefetch).
 		@soundPrefetch()
