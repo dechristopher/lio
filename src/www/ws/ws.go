@@ -47,6 +47,13 @@ func UpgradeHandler(c fiber.Ctx) error {
 // carries (or re-mints) the identity cookies that the WS upgrade lost.
 const closeNoIdentity = 4001
 
+// maxInboundMessage caps a single inbound websocket frame. Every legitimate
+// client message is tiny JSON (moves, deploys, pings), so a small ceiling
+// bounds memory per socket and, with permessage-deflate on, defuses a
+// compressed-frame decompression bomb. A frame over the limit makes ReadMessage
+// return an error, which unwinds the read loop and tears the socket down.
+const maxInboundMessage = 4096
+
 // ConnHandler returns a wrapped websocket connection handler
 // for various websocket use-cases across the site
 func ConnHandler() fiber.Handler {
@@ -164,6 +171,9 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 
 		// UnTrack this socket and stop its writer when the read loop exits
 		defer killSocket(socket, thisChannel)
+
+		// Bound the size of any single inbound frame (see maxInboundMessage).
+		c.SetReadLimit(maxInboundMessage)
 
 		// Server-driven liveness: a vanished client (no TCP FIN) stops
 		// answering pings, so the read deadline fires and unwinds this loop.
