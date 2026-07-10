@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -43,9 +44,22 @@ func Serve(static embed.FS) {
 	}
 
 	r := fiber.New(fiber.Config{
-		ServerHeader:  "lioctad.org " + config.Version,
+		// bare product name — no version. The version is still available where it's
+		// useful (the /lio status JSON and the site footer); keeping it out of the
+		// Server header on every response denies casual version fingerprinting.
+		ServerHeader:  "lioctad.org",
 		CaseSensitive: true,
 		ErrorHandler:  nil,
+		// Connection hygiene against slow-loris style hoarding. ReadTimeout bounds
+		// how long a client may take to send its request; IdleTimeout bounds a
+		// kept-alive connection between requests. No WriteTimeout — it would cut
+		// long responses, and the realtime path is WebSocket anyway (hijacked, so
+		// these HTTP timeouts don't apply to it; the socket sets its own deadlines).
+		ReadTimeout: 10 * time.Second,
+		IdleTimeout: 65 * time.Second,
+		// The largest legitimate body is a small create-game form; 64KiB is a
+		// generous ceiling that caps oversized/abusive POSTs (default is 4MiB).
+		BodyLimit: 64 * 1024,
 	})
 
 	// wire up all route handlers
