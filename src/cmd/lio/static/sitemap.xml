@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Stable, crawlable public pages. Ephemeral game rooms (/<id>) are omitted:
+     they are transient and have no lasting SEO value. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://lioctad.org/</loc></url>
+  <url><loc>https://lioctad.org/about</loc></url>
+  <url><loc>https://lioctad.org/about/board</loc></url>
+  <url><loc>https://lioctad.org/about/rules</loc></url>
+  <url><loc>https://lioctad.org/about/notation</loc></url>
+  <url><loc>https://lioctad.org/about/misc</loc></url>
+  <url><loc>https://lioctad.org/news</loc></url>
+  <url><loc>https://lioctad.org/db</loc></url>
+</urlset>
