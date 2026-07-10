@@ -73,6 +73,16 @@ func Wire(r fiber.Router, staticFS fs.FS) {
 		FS:             strictFs{staticFS},
 		MaxAge:         staticMaxAge,
 		ModifyResponse: immutableIfHashed,
+		// Skip the bare root "/": it is never a static asset (it is the home page),
+		// and letting the fasthttp fileserver handle it as a directory request
+		// clobbers the response headers/cookies that the upstream middleware
+		// (security headers, CORS, user identity) already set — leaving the home
+		// page with no CSP and, worse, no minted identity cookie. Every real static
+		// path has a longer prefix and is unaffected; missing page paths (/about,
+		// …) 404 cleanly through to their handlers.
+		Next: func(c fiber.Ctx) bool {
+			return c.Path() == "/"
+		},
 	}))
 }
 
