@@ -1028,13 +1028,16 @@
 	.btn-block { width: 100%; }
 	.btn-lg { padding: 0.8rem 1.4rem; font-size: 1.05rem; }
 
-	/* joined three-button group: segments share borders and round only at the
-	   group's outer corners, centered as a unit. On screens too narrow for one
-	   row (breakpoint tuned to when the three labels overflow the card) the
-	   third segment drops to its own full-width row, still attached. Hover
-	   lift/shadow is suppressed — a segment popping out of the group reads as
-	   broken — and z-index keeps a hovered accent border on top of the
-	   overlapped shared edges. */
+	/* joined three-button group under the home demo board: segments share borders
+	   and round only at the group's outer corners. On desktop (the narrow secondary
+	   column) it stays a centered, auto-width unit. On mobile — where the card spans
+	   the full page width — it stretches to fill that width as three equal segments,
+	   pairing with the slightly larger labels set in home.templ so the bar matches
+	   the board above it and the tap targets are comfortable. Below the width where
+	   three larger labels fit in one row, the third segment drops to its own
+	   full-width row, still attached. Hover lift/shadow is suppressed — a segment
+	   popping out of the group reads as broken — and z-index keeps a hovered accent
+	   border on top of the overlapped shared edges. */
 	.btn-seg {
 		display: grid;
 		grid-template-columns: repeat(3, auto);
@@ -1052,7 +1055,15 @@
 	.btn-seg .btn + .btn { margin-left: -1px; }
 	.btn-seg .btn:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
 	.btn-seg .btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
-	@media (max-width: 400px) {
+	/* mobile (below md, where the card is full page-width): fill it with three equal
+	   segments; trimmed side padding + no wrapping keep the larger labels on one line. */
+	@media (max-width: 767px) {
+		.btn-seg { grid-template-columns: repeat(3, 1fr); }
+		.btn-seg .btn { padding-inline: 0.5rem; white-space: nowrap; }
+	}
+	/* very narrow: three larger labels no longer fit in one row, so drop the third
+	   segment to its own full-width row, still attached. */
+	@media (max-width: 440px) {
 		.btn-seg { grid-template-columns: 1fr 1fr; }
 		.btn-seg .btn:first-child { border-radius: var(--radius-md) 0 0 0; }
 		.btn-seg .btn:nth-child(2) { border-radius: 0 var(--radius-md) 0 0; }
