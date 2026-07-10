@@ -70,6 +70,11 @@ FROM golang:1.26.4-alpine3.24 AS build
 # is src/ (no .git), so the deploy tooling passes this in — see deploy/deploy-fly.sh.
 ARG GIT_REV=""
 
+# ca-certificates is installed here purely so the scratch runtime stage can copy
+# the CA bundle for the app's outbound TLS (object store). Modules are vendored,
+# so the build itself needs no network.
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /build
 COPY . .
 # Overlay the generated assets (gitignored, so absent from the build context).
@@ -84,14 +89,31 @@ RUN CGO_ENABLED=0 go build -v -trimpath \
     -ldflags "-X github.com/dechristopher/lio/config.Revision=${GIT_REV}" \
     -o lio
 
-# ---- final packaging
-FROM golang:1.26.4-alpine3.24
+# ---- final packaging: scratch (no OS), non-root, self-checking
+# The binary is CGO_ENABLED=0 (fully static), so it runs on an empty image with
+# nothing but the CA bundle it needs for outbound TLS to the object store. No
+# shell, no package manager, no libc, no busybox — the smallest possible runtime
+# and attack surface. This is safe here because the app was verified to do no
+# user lookups (so a numeric uid needs no /etc/passwd), touch no /tmp, and report
+# its own health (so no wget is needed — see the HEALTHCHECK below). Debug flags
+# are set per-deploy (compose `command:`), never baked in.
+FROM scratch
 
-# Run this here to ensure we always get up to date root certs
-RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
+# CA roots for outbound TLS (object store). Go's crypto/x509 reads this path.
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-WORKDIR /
-COPY --from=build /build/cmd/lio/lio lio
+COPY --from=build /build/cmd/lio/lio /lio
+
+# run unprivileged. A bare numeric uid:gid needs no /etc/passwd entry because the
+# app never resolves its own user by name.
+USER 10001:10001
 
 EXPOSE 4444
-ENTRYPOINT ["/lio", "--debug", "room,dispatch,clock"]
+
+# In-binary healthcheck: scratch has no shell/wget, so probe via `/lio --health`
+# (loopback GET to /lio; see cmd/lio/main.go). Compose overrides this with its
+# own healthcheck of the same command; this covers standalone `docker run`.
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+    CMD ["/lio", "--health"]
+
+ENTRYPOINT ["/lio"]

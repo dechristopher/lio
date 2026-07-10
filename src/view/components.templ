@@ -345,20 +345,27 @@ templ homeFooter(meta Meta) {
 
 // quickGameButtons renders the quick vs-human / vs-computer buttons. The icons
 // are flat/outline SVGs (matching the header controls) tinted with the accent.
+// Each is a POST form (not a GET link): creating a room is a state change, so a
+// GET would be CSRF-able. The form is display:contents so its submit button is
+// the grid item directly, preserving the two-column layout.
 templ quickGameButtons() {
 	<div class="mt-3 grid grid-cols-2 gap-2.5">
-		<a href="/new/human/quick" aria-label="Quick game versus human" title="Quick game vs human" class="btn btn-ghost flex-col gap-1.5 py-3">
-			<span class="text-accent">
-				@iconUsers("h-7 w-7")
-			</span>
-			<span class="text-sm font-semibold text-fg">vs Human</span>
-		</a>
-		<a href="/new/computer" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="btn btn-ghost flex-col gap-1.5 py-3">
-			<span class="text-accent">
-				@iconCpu("h-7 w-7")
-			</span>
-			<span class="text-sm font-semibold text-fg">vs Computer</span>
-		</a>
+		<form action="/new/human/quick" method="POST" class="contents">
+			<button type="submit" aria-label="Quick game versus human" title="Quick game vs human" class="btn btn-ghost flex-col gap-1.5 py-3">
+				<span class="text-accent">
+					@iconUsers("h-7 w-7")
+				</span>
+				<span class="text-sm font-semibold text-fg">vs Human</span>
+			</button>
+		</form>
+		<form action="/new/computer" method="POST" class="contents">
+			<button type="submit" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="btn btn-ghost flex-col gap-1.5 py-3">
+				<span class="text-accent">
+					@iconCpu("h-7 w-7")
+				</span>
+				<span class="text-sm font-semibold text-fg">vs Computer</span>
+			</button>
+		</form>
 	</div>
 }
 

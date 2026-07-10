@@ -989,6 +989,23 @@ const setResultEntryVector = () => {
 };
 
 /**
+ * postNavigate performs a full-page POST to url by submitting a transient form,
+ * then follows the server's redirect. Used for state-changing navigations (e.g.
+ * bot-rematch room creation) that must be POSTs, not GETs — a plain
+ * location.href would be a GET the server's CSRF guard rejects. Query params in
+ * url are preserved in the form action (read server-side via c.Query); the form
+ * carries no body.
+ * @param url - the POST target, may include a query string
+ */
+const postNavigate = (url) => {
+	const form = document.createElement('form');
+	form.method = 'POST';
+	form.action = url;
+	document.body.appendChild(form);
+	form.submit();
+};
+
+/**
  * requestRematch drives a rematch from either the result-overlay or the rail
  * Rematch button. Bot rematch reuses this finished room via the in-room
  * agreement flow: the server auto-agrees on the bot's behalf
@@ -1009,7 +1026,11 @@ const requestRematch = (btn) => {
 	const socketDead = !window.ws || window.ws.readyState !== WebSocket.OPEN;
 	const fallbackUrl = btn && btn.dataset.rematchUrl;
 	if (socketDead && fallbackUrl) {
-		window.location.href = fallbackUrl;
+		// POST, not a GET navigation: /new/computer creates a room, so it is a
+		// mutation the server's CSRF guard requires be a POST. The tc/color query
+		// params in fallbackUrl are preserved (the server reads them via c.Query);
+		// the server 302s to the fresh room.
+		postNavigate(fallbackUrl);
 		return;
 	}
 	// in-room agreement flow (humans always; bots while the room is alive)

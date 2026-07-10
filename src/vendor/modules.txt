@@ -32,6 +32,7 @@ github.com/gofiber/fiber/v3
 github.com/gofiber/fiber/v3/binder
 github.com/gofiber/fiber/v3/internal/contextvalue
 github.com/gofiber/fiber/v3/internal/logtemplate
+github.com/gofiber/fiber/v3/internal/memory
 github.com/gofiber/fiber/v3/internal/nilerror
 github.com/gofiber/fiber/v3/internal/schemehost
 github.com/gofiber/fiber/v3/log
@@ -39,6 +40,7 @@ github.com/gofiber/fiber/v3/middleware/compress
 github.com/gofiber/fiber/v3/middleware/cors
 github.com/gofiber/fiber/v3/middleware/etag
 github.com/gofiber/fiber/v3/middleware/favicon
+github.com/gofiber/fiber/v3/middleware/limiter
 github.com/gofiber/fiber/v3/middleware/logger
 github.com/gofiber/fiber/v3/middleware/recover
 github.com/gofiber/fiber/v3/middleware/requestid

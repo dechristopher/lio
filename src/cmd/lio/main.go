@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"flag"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -37,9 +39,9 @@ func init() {
 		config.DebugFlags[debugFlag] = true
 	}
 
-	// run health check if told
+	// run health check if told (this exits the process; the server never starts)
 	if *isHealthCheck {
-		//executeHealthCheck()
+		executeHealthCheck()
 		return
 	}
 
@@ -50,6 +52,29 @@ func init() {
 
 	// test that crypto system is operational
 	_, _ = crypt.Encrypt([]byte("lio"))
+}
+
+// executeHealthCheck probes the running server's lightweight status endpoint
+// over loopback and exits the process 0 (healthy) or non-zero (unhealthy). It is
+// the container HEALTHCHECK: the scratch runtime image has no shell or wget, so
+// the binary must check itself. It hits /lio (JSON status, no side effects, no
+// object-store dependency) and never starts the server or its subsystems.
+func executeHealthCheck() {
+	client := http.Client{Timeout: 3 * time.Second}
+
+	resp, err := client.Get("http://127.0.0.1:" + config.GetPort() + "/lio")
+	if err != nil {
+		util.Error(str.CMain, "health check failed: %s", err.Error())
+		os.Exit(1)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		util.Error(str.CMain, "health check failed: status %d", resp.StatusCode)
+		os.Exit(1)
+	}
+
+	os.Exit(0)
 }
 
 // main does the things

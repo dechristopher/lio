@@ -28,6 +28,10 @@ services:
         GIT_REV: ${GIT_REV:-}
     image: lioctad:latest
     restart: unless-stopped
+    # Scoped debug logging. The image ENTRYPOINT is bare /lio (no baked-in flags),
+    # so this deploy-side override is where prod log verbosity is chosen. Trim or
+    # drop it to quiet the logs further.
+    command: ["--debug", "room,dispatch,clock"]
     # mirror fly.toml: SIGINT with a short grace period for in-flight games
     stop_signal: SIGINT
     stop_grace_period: 5s
@@ -44,9 +48,9 @@ services:
       - lio_obj_access
       - lio_obj_secret
     healthcheck:
-      # `/lio --health` is currently a no-op stub, so probe HTTP directly
-      # (busybox wget ships in the alpine runtime image)
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4444/"]
+      # The runtime image is scratch (no shell/wget), so probe via the binary's
+      # own health check (`/lio --health` → loopback GET /lio, see cmd/lio/main.go).
+      test: ["CMD", "/lio", "--health"]
       interval: 15s
       timeout: 3s
       retries: 3

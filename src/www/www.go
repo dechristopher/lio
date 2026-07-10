@@ -87,6 +87,10 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// can short-circuit so nothing escapes without them
 	r.Use(middleware.SecurityHeaders())
 
+	// stateless CSRF defense: reject cross-site POST/PUT/PATCH/DELETE. No-ops on
+	// safe methods (the WS upgrade + all page/asset GETs pass through).
+	r.Use(middleware.MutationGuard())
+
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: corsOrigins(),
@@ -146,10 +150,14 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// game database page handler
 	r.Get("/db", handlers.DBHandler)
 
-	// new room creation routes
-	r.Post("/new/game", handlers.NewCustomRoom)
-	r.Get("/new/human/quick", handlers.NewQuickRoomVsHuman)
-	r.Get("/new/computer", handlers.NewRoomVsComputer)
+	// new room creation routes. All POST (never GET): creating a room is a
+	// state change, and a GET would be CSRF-able via a top-level cross-site
+	// navigation (SameSite=Lax attaches cookies to those). The group is
+	// rate-limited per client IP so a script can't spin up unbounded rooms.
+	newRoom := r.Group("/new", middleware.RoomCreateLimiter())
+	newRoom.Post("/game", handlers.NewCustomRoom)
+	newRoom.Post("/human/quick", handlers.NewQuickRoomVsHuman)
+	newRoom.Post("/computer", handlers.NewRoomVsComputer)
 
 	// room handlers
 	r.Get("/:id", handlers.RoomHandler)
