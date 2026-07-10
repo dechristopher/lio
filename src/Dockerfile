@@ -53,11 +53,15 @@ WORKDIR /lio
 # trees must be present when the CLI tree-shakes to the used utility classes.
 COPY view ./view
 COPY cmd/lio/static ./cmd/lio/static
-# Build app.css, then minify our hand-authored classic scripts in place (esbuild
-# without --bundle preserves global/top-level names, so the window.* interface
-# between files is unchanged). htmx.min.js / octadground.js are already minified.
+# Build app.css, concatenate the board+piece theme stylesheets into a single
+# themes.css (8 board + 3 piece source files → 1 request; see themeStyles in
+# view/scripts.templ), then minify our hand-authored classic scripts in place
+# (esbuild without --bundle preserves global/top-level names, so the window.*
+# interface between files is unchanged). htmx.min.js / octadground.js are already
+# minified.
 RUN mkdir -p /out \
     && tailwindcss -i view/app.css -o /out/app.css --minify \
+    && cat cmd/lio/static/res/themes/board/*.css cmd/lio/static/res/themes/piece/*.css > /out/themes.css \
     && for f in lio lio-game lio-tv lio-room-create lio-home-demo lio-about; do \
          esbuild "cmd/lio/static/$f.js" --minify --outfile="/out/$f.js"; \
        done

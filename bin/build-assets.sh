@@ -23,6 +23,12 @@ fi
 echo "==> building app.css"
 "$tw" -i view/app.css -o "$static/app.css" --minify
 
+# 1b) themes.css — concatenate the board + piece theme stylesheets into one file
+#     (8 board + 3 piece → a single request; see themeStyles in view/scripts.templ),
+#     mirroring the same `cat` step in src/Dockerfile.
+echo "==> building themes.css"
+cat "$static"/res/themes/board/*.css "$static"/res/themes/piece/*.css > "$static/themes.css"
+
 # 2) octadground bundle — rebuilt only when missing or --force, from the same
 #    pinned ref the Dockerfile uses so local matches deploy.
 if [[ "${1:-}" == "--force" || ! -f "$static/octadground.js" ]]; then

@@ -48,4 +48,5 @@ deploy/secrets/
 # bin/build-assets.sh for local dev. Embedded via //go:embed static/* in cmd/lio.
 # (octadground.js is already matched by the octadground.js rules above.)
 src/cmd/lio/static/app.css
+src/cmd/lio/static/themes.css
 src/cmd/lio/static/octadground.base.css
