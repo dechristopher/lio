@@ -41,20 +41,44 @@ services:
     ports:
       # loopback only — the Cloudflare tunnel is the sole public ingress
       - "127.0.0.1:4444:4444"
+    # Secrets are mounted at /run/secrets/<name>. The container runs unprivileged
+    # (uid 10001, see src/Dockerfile), so each secret must be readable by that
+    # user or the app boots with a blank crypto key ("invalid key size 0").
+    # NOTE: `docker compose` (non-swarm) does NOT apply uid/gid/mode to file
+    # secrets — it bind-mounts them with their host permissions — so the deploy
+    # script (deploy/deploy-compose.sh) also makes the host files readable. These
+    # fields document intent and are honored under `docker stack deploy`.
     secrets:
-      - crypto_key
-      - lio_obj_endpoint
-      - lio_obj_bucket_pgn
-      - lio_obj_access
-      - lio_obj_secret
+      - source: crypto_key
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
+      - source: lio_obj_endpoint
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
+      - source: lio_obj_bucket_pgn
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
+      - source: lio_obj_access
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
+      - source: lio_obj_secret
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
     healthcheck:
       # The runtime image is scratch (no shell/wget), so probe via the binary's
       # own health check (`/lio --health` → loopback GET /lio, see cmd/lio/main.go).
+      # Tuned to report healthy quickly (the app boots in ms) so the deploy's
+      # health wait can be short — a slow start means a bad build, not a slow one.
       test: ["CMD", "/lio", "--health"]
-      interval: 15s
+      interval: 5s
       timeout: 3s
       retries: 3
-      start_period: 10s
+      start_period: 5s
     logging:
       driver: json-file
       options:
