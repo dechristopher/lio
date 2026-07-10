@@ -17,6 +17,27 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Snappier page loads",
+		Date:  "Jul 10, 2026",
+		Body: "Pages load quicker and lighter: scripts no longer hold up the first render, the " +
+			"site's fonts and all eight board themes now arrive in far fewer requests, and tabs " +
+			"left in the background stop refreshing on their own to spare your battery and data.",
+	},
+	{
+		Title: "Sound, ready the moment you need it",
+		Date:  "Jul 10, 2026",
+		Body: "Move, capture, and check sounds are now served straight from lioctad and loaded " +
+			"ahead of time, so audio is primed to play the instant it's needed — no waiting on an " +
+			"outside service.",
+	},
+	{
+		Title: "A more secure lioctad",
+		Date:  "Jul 10, 2026",
+		Body: "Under the hood, your session is now sealed with tamper-proof encryption, and the " +
+			"site gained browser-level protections against clickjacking and other cross-site " +
+			"tricks, plus rate limits that keep abuse in check.",
+	},
+	{
 		Title: "Spectating, straightened out",
 		Date:  "Jul 9, 2026",
 		Body: "Watching a match no longer plays musical chairs: each player keeps their side " +
