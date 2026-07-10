@@ -82,6 +82,11 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// recover from panics
 	r.Use(recover.New())
 
+	// defensive response headers (CSP, framing, nosniff, HSTS, …) on every
+	// response, error pages and redirects included — wired before anything that
+	// can short-circuit so nothing escapes without them
+	r.Use(middleware.SecurityHeaders())
+
 	// Configure CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: corsOrigins(),

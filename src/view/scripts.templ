@@ -2,9 +2,34 @@ package view
 
 // scriptsBase loads the shared client runtime (howler + lio core) on every
 // page. Asset URLs are content-hashed (see the assets package / view.asset).
+// howler is self-hosted (was cdnjs): same-origin removes a third-party origin
+// from the game path, drops the extra DNS/TLS handshake, and lets the CSP be a
+// pure 'self' script policy. Pinned to 2.2.3 — see static/howler.min.js. It
+// loads synchronously before lio.js because lio.js constructs Howl objects at
+// eval time.
 templ scriptsBase(meta Meta) {
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js" integrity="sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src={ asset("howler.min.js") }></script>
 	<script src={ asset("lio.js") }></script>
+}
+
+// soundPrefetch warms the audio assets into the browser cache on every page, so
+// that by the time a visitor reaches a game (a full navigation, since play is
+// not an SPA transition) howler and the sound effects are already cached and
+// playback is immediate. rel=prefetch (not preload) is deliberate: these assets
+// are for a *future* navigation, so the hint is low priority and — unlike
+// preload — emits no "unused" console warning on the pages that never play
+// sound (home, about). Browser autoplay policy still gates actual playback on a
+// user gesture (howler unlocks the audio context on first interaction); this
+// only guarantees the bytes are ready the instant that gesture arrives. The sfx
+// use literal URLs to match howler's own fetches in lio.js / lio-game.js; only
+// howler.js is content-hashed via asset().
+templ soundPrefetch() {
+	<link rel="prefetch" as="script" href={ asset("howler.min.js") }/>
+	<link rel="prefetch" as="audio" href="/res/sfx/move.ogg"/>
+	<link rel="prefetch" as="audio" href="/res/sfx/capture.ogg"/>
+	<link rel="prefetch" as="audio" href="/res/sfx/check.ogg"/>
+	<link rel="prefetch" as="audio" href="/res/sfx/confirmation.ogg"/>
+	<link rel="prefetch" as="audio" href="/res/sfx/end.ogg"/>
 }
 
 // themeStyles loads every board theme and piece set stylesheet. Themes are

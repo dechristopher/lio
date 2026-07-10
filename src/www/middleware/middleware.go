@@ -3,6 +3,7 @@ package middleware
 import (
 	"io/fs"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
@@ -11,9 +12,17 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/gofiber/fiber/v3/middleware/static"
 
+	"github.com/dechristopher/lio/assets"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/view"
 )
+
+// staticShortMaxAge (seconds) is the prod cache lifetime for static assets
+// referenced by a literal, non-content-hashed URL — fonts, sounds, piece/board
+// art, icons, manifest.json. Because their URL doesn't change when their bytes
+// do, they must be able to go stale in bounded time (one hour) rather than the
+// year that content-hashed assets safely get. See immutableIfHashed.
+const staticShortMaxAge = 3600
 
 const logFormatProd = "[${cookie:uid}] ${ip} ${reqHeader:x-forwarded-for} ${reqHeader:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
@@ -46,19 +55,43 @@ func Wire(r fiber.Router, staticFS fs.FS) {
 		FileSystem: staticFS,
 	}))
 
-	// Serve static files from /static preventing directory listings. Assets are
-	// content-hashed (see the assets package), so a changed file gets a new URL —
-	// making a 1-year cache safe in prod. In dev/local the hash is stable across
-	// restarts, so send no Cache-Control (MaxAge 0 => no header) to avoid the
-	// browser holding a stale asset while iterating.
+	// Serve static files from /static preventing directory listings. Assets get a
+	// split cache policy (see the assets package + immutableIfHashed):
+	//   - content-hashed URLs (app.<hash>.css and the hashed JS/CSS emitted by
+	//     view.asset): a changed file gets a new URL, so they are safely cached
+	//     for a year, immutable — upgraded in ModifyResponse.
+	//   - literal-URL assets (fonts, sounds, piece art, icons, manifest.json):
+	//     the base MaxAge below, a short window, since their URL is stable.
+	// In dev/local the hashes are stable across restarts, so send no Cache-Control
+	// (MaxAge 0 => no header, and immutableIfHashed no-ops) to avoid the browser
+	// holding a stale asset while iterating.
 	staticMaxAge := 0
 	if env.IsProd() {
-		staticMaxAge = 86400 * 365
+		staticMaxAge = staticShortMaxAge
 	}
 	r.Use(static.New("", static.Config{
-		FS:     strictFs{staticFS},
-		MaxAge: staticMaxAge,
+		FS:             strictFs{staticFS},
+		MaxAge:         staticMaxAge,
+		ModifyResponse: immutableIfHashed,
 	}))
+}
+
+// immutableIfHashed upgrades the Cache-Control of a content-hashed asset to a
+// one-year immutable cache. It runs (via the static middleware's ModifyResponse
+// hook) only for successfully served files, after the base short-lived
+// Cache-Control is set, and only rewrites it for manifest-known hashed URLs —
+// whose bytes cannot change without changing the URL. Literal-URL assets keep
+// the short window. No-op outside prod, where hashes are stable across restarts
+// and assets are deliberately served uncached for local iteration.
+func immutableIfHashed(c fiber.Ctx) error {
+	if !env.IsProd() {
+		return nil
+	}
+	name := strings.TrimPrefix(c.Path(), "/")
+	if _, ok := assets.Real(name); ok {
+		c.Set(fiber.HeaderCacheControl, "public, max-age=31536000, immutable")
+	}
+	return nil
 }
 
 // NotFound wires the final 404 handler after all other
