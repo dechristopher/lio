@@ -1,26 +1,28 @@
 package crypt
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
 	"io"
 )
 
-// Encrypt the given bytes using the secure token
+// Encrypt seals the given bytes with AES-GCM under the secure key and returns a
+// URL-safe base64 string. A fresh random nonce is generated per call and
+// prepended to the ciphertext (Seal appends to its dst), so Decrypt can recover
+// it; the authentication tag GCM appends lets Decrypt detect any tampering.
 func Encrypt(in []byte) ([]byte, error) {
-	block := gcm()
-	cipherText := make([]byte, aes.BlockSize+len(in))
-	iv := cipherText[:aes.BlockSize]
+	aead := gcm()
 
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+	// random nonce, prepended to the sealed output so it travels with it
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(cipherText[aes.BlockSize:], in)
+	// Seal(dst, nonce, plaintext, aad): with dst=nonce the result is
+	// nonce || ciphertext || tag
+	cipherText := aead.Seal(nonce, nonce, in, nil)
 
-	//returns to base64 encoded string
+	// return as a URL-safe base64 encoded string
 	return []byte(base64.URLEncoding.EncodeToString(cipherText)), nil
 }
