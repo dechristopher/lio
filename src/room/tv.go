@@ -51,7 +51,9 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		Control:  r.game.Variant.Control.Time.Centi(),
 		White:    clockState.WhiteTime.Centi(),
 		Black:    clockState.BlackTime.Centi(),
-		Score:    r.players.ScoreMap(),
+		// untimed casual game: the grid shows static ∞ clocks
+		Casual: r.game.Variant.Casual,
+		Score:  r.players.ScoreMap(),
 		// the clock is paused until the first move starts it; until then the TV
 		// grid should show full, static clocks rather than ticking them down
 		Running: !clockState.IsPaused,

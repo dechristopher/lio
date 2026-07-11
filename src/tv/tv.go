@@ -73,7 +73,10 @@ type Event struct {
 	Control  int64
 	White    int64
 	Black    int64
-	Score    proto.ScorePayload
+	// Casual marks an untimed game: the grid renders its clocks as a static ∞
+	// instead of ticking down the (effectively infinite) real values.
+	Casual bool
+	Score  proto.ScorePayload
 	// Running reports whether the game clock is live. It is false before the
 	// first move (the clock is paused until White moves), so the client can hold
 	// the clocks static instead of ticking them down on an unstarted game.
@@ -275,6 +278,7 @@ func tvGameFrom(ev Event, over bool) proto.TVGame {
 		Control:  ev.Control,
 		White:    ev.White,
 		Black:    ev.Black,
+		Casual:   ev.Casual,
 		Score:    ev.Score,
 		Running:  ev.Running && !over,
 		Over:     over,

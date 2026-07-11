@@ -13,8 +13,11 @@ require (
 	github.com/looplab/fsm v1.0.3
 	github.com/minio/minio-go/v7 v7.2.1
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
+	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/valyala/fastjson v1.6.10
-	golang.org/x/text v0.38.0
+	golang.org/x/image v0.44.0
+	golang.org/x/text v0.40.0
 )
 
 require (

@@ -9,9 +9,13 @@ import "github.com/dechristopher/lio/pools"
 // combined with the Classic/Deploy mode toggle resolves to a concrete variant —
 // each card carries both its classic and deploy HTMLName, and a small script
 // writes the resolved name into the hidden time-control field the form submits.
-// Choosing the computer as opponent hides (and clears) the open-challenge toggle,
-// since bot games are never public. Styling lives in app.css (.cg-* / .seg-* /
-// .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close chrome.
+// Choosing the computer as opponent fades + disables (never removes — settings
+// changes must not shift the layout) the open-challenge toggle and the race-to
+// picker; bot games are never public. The Casual (untimed) toggle sits under
+// the mode selection and applies to any opponent; turning it on fades the
+// then-moot time-control cards. Styling lives in app.css (.cg-* / .seg-* /
+// .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close
+// chrome.
 templ createGameModal() {
 	<div id="modalCreateGame" class="modal-shade">
 		<div class="modal cg-modal card">
@@ -51,13 +55,24 @@ templ createGameModal() {
 									<span class="seg-tag">blind</span>
 								</label>
 							</div>
-							<span id="cg-mode-desc" class="cg-hint"><strong>Classic:</strong> the standard Octad opening position — play begins the moment your opponent joins.</span>
+							<span class="cg-hint cg-mode-desc" aria-live="polite">
+								<span class="cg-mode-desc-opt" data-mode="classic"><strong>Classic:</strong> the standard Octad opening position — play begins the moment your opponent joins.</span>
+								<span class="cg-mode-desc-opt" data-mode="deploy"><strong>Deploy:</strong> privately arrange your home rank before play begins, then the position is revealed.</span>
+							</span>
 						</div>
-						<label class="cg-public">
-							<input type="checkbox" class="cg-public-box" name="public" value="true"/>
-							<span class="cg-public-text">
-								<span class="cg-public-title">Open challenge</span>
-								<span class="cg-public-hint">On = anyone can join the game<br/>Off = only your link works</span>
+						<label class="cg-toggle cg-casual">
+							<input type="checkbox" class="cg-toggle-box cg-casual-box" name="casual" value="true"/>
+							<span class="cg-toggle-text">
+								<span class="cg-toggle-title">Casual mode</span>
+								<span class="cg-toggle-hint">Infinite time — no clocks, no pressure<br/>Think as long as you like</span>
+							</span>
+							<span class="cg-switch" aria-hidden="true"></span>
+						</label>
+						<label class="cg-toggle cg-public">
+							<input type="checkbox" class="cg-toggle-box cg-public-box" name="public" value="true"/>
+							<span class="cg-toggle-text">
+								<span class="cg-toggle-title">Open challenge</span>
+								<span class="cg-toggle-hint">On = anyone can join the game<br/>Off = only your link works</span>
 							</span>
 							<span class="cg-switch" aria-hidden="true"></span>
 						</label>
@@ -85,7 +100,7 @@ templ createGameModal() {
 							</div>
 							<span class="cg-hint"><strong>Race:</strong> games run back-to-back until a player reaches the target score — draws count ½. Human opponents only.</span>
 						</div>
-						<div class="cg-field">
+						<div class="cg-field cg-tc">
 							<span class="cg-label">Time control</span>
 							<div class="tc-select">
 								for _, ctrl := range pools.CreateControls {
@@ -148,7 +163,6 @@ templ createGameModal() {
 				if (trigger.hasAttribute("data-prefill-public") && publicBox) {
 					if (humanOpp) humanOpp.checked = true;
 					publicBox.checked = true;
-					syncMode();
 				}
 				open();
 			});
@@ -164,33 +178,40 @@ templ createGameModal() {
 			const modeInput = () => modal.querySelector("input[name=mode]:checked");
 			const modeOf = () => modeInput().value;
 			const syncVariant = () => {
-				const tc = modal.querySelector(".tc-input:checked");
+				// :enabled — a card disabled by casual mode is not a choice, so
+				// the submitted field goes empty (the server ignores it anyway)
+				const tc = modal.querySelector(".tc-input:checked:enabled");
 				variantField.value = tc
 					? (modeOf() === "deploy" ? tc.dataset.deploy : tc.dataset.classic)
 					: "";
 			};
 
-			// Describe the selected mode under the mode toggle, so the copy tracks
-			// the choice instead of only ever explaining Deploy.
-			const modeDesc = modal.querySelector("#cg-mode-desc");
-			const modeDescriptions = {
-				classic: "<strong>Classic:</strong> the standard Octad opening position. Play begins the moment your opponent joins.",
-				deploy: "<strong>Deploy:</strong> privately arrange your home rank before play begins, then the position is revealed.",
-			};
-			const syncModeDesc = () => {
-				if (modeDesc) modeDesc.innerHTML = modeDescriptions[modeOf()] || "";
-			};
-			// syncMode keeps both the hidden variant field and the description in step.
-			const syncMode = () => { syncVariant(); syncModeDesc(); };
+			// The mode description under the toggle is pure CSS: both variants are
+			// stacked in one grid cell (.cg-mode-desc) and the checked mode's copy
+			// is made visible, so no JS swap — and no layout shift — is needed.
 
 			modal.querySelectorAll(".tc-input").forEach((el) => el.addEventListener("change", syncVariant));
-			modal.querySelectorAll("input[name=mode]").forEach((el) => el.addEventListener("change", syncMode));
-			syncModeDesc();
+			modal.querySelectorAll("input[name=mode]").forEach((el) => el.addEventListener("change", syncVariant));
+
+			// Casual (untimed, any opponent) makes the time-control choice moot:
+			// disable the cards while it is on so their `required` can't block
+			// submission with none picked (CSS fades the section and opens the
+			// color-submit gate). The server resolves the untimed casual variant
+			// from the mode toggle instead. Race To is unaffected — a casual
+			// human match can still race.
+			const casualBox = modal.querySelector(".cg-casual-box");
+			const syncCasual = () => {
+				const on = !!casualBox && casualBox.checked;
+				modal.querySelectorAll(".tc-input").forEach((el) => { el.disabled = on; });
+				syncVariant();
+			};
+			if (casualBox) casualBox.addEventListener("change", syncCasual);
 
 			// Bot games are never public open challenges nor race-to matches: clear
-			// both when the computer is chosen (each control is also faded + disabled
-			// via CSS, and the server forces bot games private / single-game
-			// regardless).
+			// both when the computer is chosen (each control is faded + disabled in
+			// place via CSS — nothing is removed, so switching opponents never
+			// shifts the layout — and the server forces bot games private /
+			// single-game regardless).
 			modal.querySelectorAll("input[name=opponent]").forEach((el) =>
 				el.addEventListener("change", () => {
 					if (!modal.querySelector("#opp-computer").checked) return;

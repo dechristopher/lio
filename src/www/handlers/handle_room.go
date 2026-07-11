@@ -27,6 +27,15 @@ type newRoomPayload struct {
 	raceTo int
 }
 
+// casualVariant resolves the untimed casual variant for the given create-game
+// mode: the classic untimed game, or its blind-deploy twin.
+func casualVariant(mode string) variant.Variant {
+	if mode == "deploy" {
+		return variant.UnlimitedCasualDeploy
+	}
+	return variant.UnlimitedCasual
+}
+
 // raceToChoices is the allowlist of race-to targets offered by the create-game
 // modal; anything else in the form is rejected as a tampered payload.
 var raceToChoices = map[int]bool{0: true, 3: true, 5: true, 7: true}
@@ -182,6 +191,14 @@ func NewCustomRoom(c fiber.Ctx) error {
 		// RaceTo is the match-length choice: 0 for a single game (the default),
 		// or a race to N points. Validated against raceToChoices below.
 		RaceTo int `form:"race-to"`
+		// Casual is the untimed toggle: an infinite-clock game that replaces
+		// the time-control choice entirely. Available against the computer and
+		// humans alike; timed games are "competitive" by contrast.
+		Casual bool `form:"casual"`
+		// Mode is the Classic/Deploy toggle. Normal games resolve it client-side
+		// into the time-control field; a casual game has no time-control
+		// choice, so the server resolves the casual variant from it instead.
+		Mode string `form:"mode"`
 	}{}
 
 	if err := c.Bind().Body(&payload); err != nil {
@@ -189,10 +206,27 @@ func NewCustomRoom(c fiber.Ctx) error {
 		return redirect(c, "/#error")
 	}
 
-	selectedVariant, ok := pools.Map[payload.TimeControl]
-	if !ok {
-		util.Error(str.CRoom, "failed to create custom room: invalid time control %q", payload.TimeControl)
-		return redirect(c, "/")
+	vsBot := payload.Opponent == "computer"
+
+	var selectedVariant variant.Variant
+	if payload.Casual {
+		// casual replaces the time-control choice: the client disables the
+		// cards and submits an empty time-control field
+		selectedVariant = casualVariant(payload.Mode)
+	} else {
+		var ok bool
+		selectedVariant, ok = pools.Map[payload.TimeControl]
+		if !ok {
+			util.Error(str.CRoom, "failed to create custom room: invalid time control %q", payload.TimeControl)
+			return redirect(c, "/")
+		}
+		// the casual variants live in pools.Map for the bot-game handlers, but
+		// are only reachable through the casual toggle (a tampered form should
+		// not smuggle an untimed variant in as a "time control")
+		if selectedVariant.Casual {
+			util.Error(str.CRoom, "failed to create custom room: casual time control without casual mode")
+			return redirect(c, "/")
+		}
 	}
 
 	var selectedColor octad.Color
@@ -207,8 +241,6 @@ func NewCustomRoom(c fiber.Ctx) error {
 		util.Error(str.CRoom, "failed to create custom room: invalid color selected")
 		return redirect(c, "/")
 	}
-
-	vsBot := payload.Opponent == "computer"
 
 	if !raceToChoices[payload.RaceTo] {
 		util.Error(str.CRoom, "failed to create custom room: invalid race-to %d", payload.RaceTo)

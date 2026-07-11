@@ -281,7 +281,7 @@
 			// by updateSlot as the anchored side flips between games
 			whiteEl: orient === 'w' ? bottom : top,
 			blackEl: orient === 'w' ? top : bottom,
-			control: g.tc, wt: g.w, bt: g.b, toMove: 'w', at: Date.now(),
+			control: g.tc, wt: g.w, bt: g.b, casual: !!g.ca, toMove: 'w', at: Date.now(),
 			over: false, running: false, orient: orient,
 			// gameId + last-seen scores drive the end-of-game score flash and its
 			// reset when a rematch backfills the same slot
@@ -309,6 +309,7 @@
 		slot.control = g.tc;
 		slot.wt = g.w;
 		slot.bt = g.b;
+		slot.casual = !!g.ca;
 		slot.toMove = sideToMove(g.o);
 		slot.at = Date.now();
 		slot.over = !!g.x;
@@ -347,8 +348,8 @@
 
 		slot.card.classList.toggle('over', slot.over);
 
-		paintClock(slot.whiteEl, slot.control, slot.wt, !slot.over && slot.toMove === 'w');
-		paintClock(slot.blackEl, slot.control, slot.bt, !slot.over && slot.toMove === 'b');
+		paintClock(slot.whiteEl, slot.control, slot.wt, !slot.over && slot.toMove === 'w', slot.casual);
+		paintClock(slot.blackEl, slot.control, slot.bt, !slot.over && slot.toMove === 'b', slot.casual);
 	};
 
 	// setWatchers writes the spectator count; the indicator only renders while
@@ -375,7 +376,15 @@
 
 	const clearScoreFlash = (c) => c.score.classList.remove('score-win', 'score-draw');
 
-	const paintClock = (c, control, centis, running) => {
+	const paintClock = (c, control, centis, running, casual) => {
+		if (casual) {
+			// untimed casual game: static ∞, full bar, never "low"
+			c.fill.style.width = '100%';
+			c.time.textContent = '∞';
+			c.root.classList.toggle('run', running);
+			c.root.classList.remove('low');
+			return;
+		}
 		centis = Math.max(centis, 0);
 		c.fill.style.width = barPct(control, centis);
 		c.time.textContent = fmtTime(centis);
@@ -388,9 +397,9 @@
 	setInterval(() => {
 		const now = Date.now();
 		slots.forEach((slot) => {
-			// don't tick a finished game, or one whose clock hasn't started yet
-			// (pre-first-move): both should hold their displayed time static
-			if (slot.over || !slot.running) {
+			// don't tick a finished game, one whose clock hasn't started yet
+			// (pre-first-move), or an untimed casual game (its ∞ is static)
+			if (slot.over || !slot.running || slot.casual) {
 				return;
 			}
 			const running = slot.toMove === 'w' ? slot.whiteEl : slot.blackEl;

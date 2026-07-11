@@ -17,6 +17,7 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/demo"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/og"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
@@ -41,6 +42,12 @@ func Serve(static embed.FS) {
 	// their bytes change; stable across instances (see the assets package).
 	if err := assets.Build(staticFs); err != nil {
 		util.Error(str.CMain, "asset manifest build failed: %s", err.Error())
+	}
+
+	// hand the OpenGraph card renderer the same static FS so link previews
+	// composite the exact board/piece art the game client serves
+	if err := og.LoadAssets(staticFs); err != nil {
+		util.Error(str.CMain, "og card asset load failed: %s", err.Error())
 	}
 
 	r := fiber.New(fiber.Config{
@@ -163,6 +170,12 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 
 	// game database page handler
 	r.Get("/db", handlers.DBHandler)
+
+	// OpenGraph preview cards (the og:image targets scrapers fetch when a
+	// lioctad link is shared): the site-wide default card and the per-room
+	// live-position card
+	r.Get("/og/default.png", handlers.OGDefaultHandler)
+	r.Get("/og/room/:id", handlers.OGRoomHandler)
 
 	// new room creation routes. All POST (never GET): creating a room is a
 	// state change, and a GET would be CSRF-able via a top-level cross-site

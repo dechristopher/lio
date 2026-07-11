@@ -1875,21 +1875,28 @@ const updateUI = (message, ofenParts) => {
 	let playerTimeRemaining = isPlayerWhite(message) ? wt : bt;
 	let opponentTimeRemaining = isPlayerWhite(message) ? bt : wt;
 
-	// set clock times
-	plyTime.innerHTML = timeFormatter(playerTimeRemaining);
-	oppTime.innerHTML = timeFormatter(opponentTimeRemaining);
-
-	// low-time emphasis (<10s = 1000 centiseconds): toggled on the clock wrapper
-	// so the time + progress bar shift to the loss color and pulse (app.css .low)
-	plyClock.classList.toggle('low', playerTimeRemaining < 1000);
-	oppClock.classList.toggle('low', opponentTimeRemaining < 1000);
-
 	const plyBar = plyClock.getElementsByClassName("clockProgressBar")[0];
 	const oppBar = oppClock.getElementsByClassName("clockProgressBar")[0];
 
-	// set time bar progress
-	plyBar.style.width = barWidth(message.d.c.tc, playerTimeRemaining);
-	oppBar.style.width = barWidth(message.d.c.tc, opponentTimeRemaining);
+	if (casualGame) {
+		// untimed casual game: static ∞ clocks — the active-turn and name-color
+		// styling below still applies, but nothing counts down
+		setClockInfinite(plyClock);
+		setClockInfinite(oppClock);
+	} else {
+		// set clock times
+		plyTime.innerHTML = timeFormatter(playerTimeRemaining);
+		oppTime.innerHTML = timeFormatter(opponentTimeRemaining);
+
+		// low-time emphasis (<10s = 1000 centiseconds): toggled on the clock wrapper
+		// so the time + progress bar shift to the loss color and pulse (app.css .low)
+		plyClock.classList.toggle('low', playerTimeRemaining < 1000);
+		oppClock.classList.toggle('low', opponentTimeRemaining < 1000);
+
+		// set time bar progress
+		plyBar.style.width = barWidth(message.d.c.tc, playerTimeRemaining);
+		oppBar.style.width = barWidth(message.d.c.tc, opponentTimeRemaining);
+	}
 
 	// set clock UI active state
 	if (isPlayerTurn(message, ofenParts)) {
@@ -1919,7 +1926,8 @@ const updateUI = (message, ofenParts) => {
 	// server re-answers board queries (reconnects, reconcile re-queries) with
 	// the finished game's state, whose moves would otherwise re-arm the ticker
 	// with no game-over message coming to cancel it (repeats return early).
-	if (message.d.m && !gameOver) {
+	// Casual games never tick — the ∞ display is static.
+	if (message.d.m && !gameOver && !casualGame) {
 		// set frame time to compare against
 		frameTime = performance.now();
 		// reset centi-second clock interpolator to decrement correct player
@@ -1940,6 +1948,27 @@ const updateUI = (message, ofenParts) => {
 const timeControlCenti = parseInt(
 	(document.getElementById('gcon-xx') || {}).dataset?.tc || '0', 10);
 
+// casual (untimed) game: the server clock is effectively infinite, so the
+// clocks render as a static ∞ — no ticker, no low-time emphasis, full bars.
+const casualGame =
+	(document.getElementById('gcon-xx') || {}).dataset?.casual === 'true';
+
+/**
+ * setClockInfinite renders one clock as the casual ∞ display: static glyph,
+ * full progress bar, and no low-time emphasis on the wrapper.
+ * @param clockEl - the #clockPlayer / #clockOpponent wrapper
+ */
+const setClockInfinite = (clockEl) => {
+	if (!clockEl) {
+		return;
+	}
+	const t = clockEl.getElementsByClassName('clockTime')[0];
+	const bar = clockEl.getElementsByClassName('clockProgressBar')[0];
+	if (t) { t.innerHTML = '&infin;'; }
+	if (bar) { bar.style.width = '100%'; }
+	clockEl.classList.remove('low');
+};
+
 /**
  * resetClocksToFull sets both clock displays back to the full time control —
  * the state every game (and the blind deploy phase before it) begins from. The
@@ -1953,6 +1982,14 @@ const resetClocksToFull = () => {
 		return;
 	}
 	cancelAnimationFrame(frameId);
+	if (casualGame) {
+		// full time in a casual game is the same static ∞
+		[clockPlayerEl, clockOpponentEl].forEach((clk) => {
+			setClockInfinite(clk);
+			if (clk) { clk.classList.remove('active'); }
+		});
+		return;
+	}
 	const full = timeFormatter(timeControlCenti);
 	[clockPlayerEl, clockOpponentEl].forEach((clk) => {
 		if (!clk) {

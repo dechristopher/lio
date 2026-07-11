@@ -29,3 +29,13 @@ var OneTwoRapidDeploy = Variant{
 	Control:  OneTwoRapidTC,
 	Deploy:   true,
 }
+
+// ThreeFiveRapidDeploy is the three minute, five second increment rapid variant
+// played with the blind deploy pre-game.
+var ThreeFiveRapidDeploy = Variant{
+	Name:     "3 + 5",
+	HTMLName: "three-five-rapid-deploy",
+	Group:    DeployGroup,
+	Control:  ThreeFiveRapidTC,
+	Deploy:   true,
+}

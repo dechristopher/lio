@@ -201,6 +201,15 @@ type Params struct {
 	// classic open-ended series with a per-game rematch window. Human-vs-human
 	// only: the challenge handler forces zero for bot games.
 	RaceTo int
+	// Casual marks an untimed game (a variant.Casual variant, mirrored here by
+	// NewParams like Deploy), against the computer or a human. The clock is
+	// effectively infinite, so connected players may think indefinitely: the
+	// first-move and idle-abandon timeouts are disabled. To keep such rooms
+	// from piling up, a casual game is instead abandoned on disconnect —
+	// after casualAbandonTimeout in a bot game (nobody else is waiting), or
+	// the normal abandonTimeout in a human game (the same reconnect tolerance
+	// every human game gets).
+	Casual bool
 	// BotTimeReserve is the bot difficulty knob: the fraction of the initial
 	// clock the bot tries not to dip below when budgeting its searches. A low
 	// reserve lets the bot spend nearly its whole clock thinking (hardest); a
@@ -224,8 +233,10 @@ func NewParams(creatorId string, variant variant.Variant) Params {
 		GameConfig: game.OctadGameConfig{
 			Variant: variant,
 		},
-		// the blind deploy pre-game is a property of the chosen variant
+		// the blind deploy pre-game and untimed casual mode are properties
+		// of the chosen variant
 		Deploy: variant.Deploy,
+		Casual: variant.Casual,
 	}
 }
 
@@ -674,6 +685,25 @@ func (r *Instance) Game() *game.OctadGame {
 	return r.game
 }
 
+// PositionSnapshot returns the current position's OFEN and the origin and
+// destination squares of the last move played (hasLast is false before the
+// first move), snapshotted under stateMu so it is safe to call from HTTP
+// handlers concurrently with the room routine. Used by the OpenGraph card
+// renderer (www handler /og/room/:id).
+func (r *Instance) PositionSnapshot() (ofen string, s1, s2 octad.Square, hasLast bool) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	if r.game == nil {
+		return "", octad.NoSquare, octad.NoSquare, false
+	}
+	ofen = r.game.OFEN()
+	if moves := r.game.Moves(); len(moves) > 0 {
+		last := moves[len(moves)-1]
+		return ofen, last.S1(), last.S2(), true
+	}
+	return ofen, octad.NoSquare, octad.NoSquare, false
+}
+
 // botColor returns the color the configured bot is playing (or NoColor). It is
 // safe to call from the room routine outside a locked section (e.g. when a Join
 // may still be populating the players map).
@@ -752,9 +782,16 @@ func (r *Instance) humanMovedThisGame() bool {
 // abandoned. It deliberately returns false while it is the bot's turn, so we
 // never abandon a game that is merely waiting on the engine, and false once the
 // human has moved, so a genuinely engaged player is never subject to it.
+// Casual games are always ineligible: thinking time is unbounded by design, the
+// infinite clock means there is no flag to play out to, and the room is instead
+// cleaned up when the player disconnects.
 func (r *Instance) humanIdleEligible() bool {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
+
+	if r.params.Casual {
+		return false
+	}
 
 	botColor := r.players.GetBotColor()
 	if botColor == octad.NoColor || r.humanMoved {
@@ -1267,6 +1304,11 @@ const (
 	// its reserve. Shallow depths complete in well under this on a 4x4 board,
 	// so the bot still moves nearly instantly when scrambling.
 	botMinBudget = 50 * time.Millisecond
+	// botCasualBudget is the fixed per-move budget for casual games. The
+	// infinite casual clock would otherwise pace out an absurd budget; a
+	// fixed cap keeps the bot's replies prompt while still letting the search
+	// reach its full depth ceiling (the casual bot plays at full strength).
+	botCasualBudget = 10 * time.Second
 )
 
 // calcSearchLocked returns the depth ceiling and time budget for an engine
@@ -1279,6 +1321,12 @@ func (r *Instance) calcSearchLocked(color octad.Color) (int, time.Duration) {
 	// depth 7 is about the best we can do in a reasonable timeframe
 	// on a good CPU, but it won't work well for bullet
 	var depth int
+
+	// casual games play at full strength with a fixed budget: the infinite
+	// clock makes the pacing arithmetic below meaningless
+	if r.params.Casual {
+		return 7, botCasualBudget
+	}
 
 	control := r.game.Variant.Control
 	switch tc := control.Time.Centi(); {
@@ -1541,6 +1589,15 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		anchorID = p.ID
 	}
 
+	// display name of the variant: time control + speed group for a timed
+	// game ("½ + 1 blitz"), just the ∞ for a casual one — the views append
+	// the Casual/Competitive mode label themselves, so "∞ unlimited" would
+	// read doubly redundant next to it
+	variantName := r.game.Variant.Name + " " + string(r.game.Variant.Group)
+	if r.game.Variant.Casual {
+		variantName = r.game.Variant.Name
+	}
+
 	return message.RoomTemplatePayload{
 		RoomID:        r.ID,
 		PlayerColor:   playerColor.String(),
@@ -1550,7 +1607,7 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		BlackIsBot:    blackIsBot,
 		AnchorColor:   anchorColor.String(),
 		AnchorID:      anchorID,
-		VariantName:   r.game.Variant.Name + " " + string(r.game.Variant.Group),
+		VariantName:   variantName,
 		Variant:       r.game.Variant,
 		Public:        r.public,
 		RaceTo:        r.params.RaceTo,

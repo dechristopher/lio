@@ -18,6 +18,7 @@ type TVGame struct {
 	Control  int64        `json:"tc"`           // total time control centis (bar denominator)
 	White    int64        `json:"w"`            // white clock centis
 	Black    int64        `json:"b"`            // black clock centis
+	Casual   bool         `json:"ca,omitempty"` // untimed game: render clocks as a static ∞
 	Score    ScorePayload `json:"sc,omitempty"` // match score, keyed "w"/"b"
 	Running  bool         `json:"rn,omitempty"` // clock is live (a move has started it); false pre-first-move
 	Over     bool         `json:"x,omitempty"`  // final position (freeze/dim the board)

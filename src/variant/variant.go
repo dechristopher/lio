@@ -11,6 +11,12 @@ type Variant struct {
 	// Deploy enables the blind deploy pre-game for this variant: players
 	// privately arrange their home rank before normal play begins.
 	Deploy bool `json:"deploy,omitempty"`
+	// Casual marks the untimed variants (see UnlimitedCasual): games with an
+	// effectively infinite clock, playable against the computer or a human.
+	// Casual rooms relax the idle/first-move timeouts while the players are
+	// connected and instead cancel on disconnect (room.Params.Casual). Timed
+	// variants are the "competitive" mode by contrast.
+	Casual bool `json:"casual,omitempty"`
 	// LockColors keeps each player on the same side across rematches. By default
 	// subsequent games swap sides; a variant sets this to opt out.
 	LockColors bool `json:"lock_colors,omitempty"`
@@ -33,4 +39,6 @@ const (
 	UltiGroup   Group = "ulti"
 	// DeployGroup collects variants played with the blind deploy pre-game.
 	DeployGroup Group = "deploy"
+	// UnlimitedGroup collects the untimed casual variants.
+	UnlimitedGroup Group = "unlimited"
 )

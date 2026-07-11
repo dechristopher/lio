@@ -90,6 +90,12 @@ templ head(meta Meta) {
 		<meta property="og:title" content={ meta.OGTitle }/>
 		<meta name="description" content={ meta.Description }/>
 		<meta property="og:description" content={ meta.Description }/>
+		<meta property="og:image" content={ meta.OGImage }/>
+		<meta property="og:image:type" content="image/png"/>
+		<meta property="og:image:width" content="1200"/>
+		<meta property="og:image:height" content="630"/>
+		<meta name="twitter:card" content="summary_large_image"/>
+		<meta name="twitter:image" content={ meta.OGImage }/>
 		// Preload only the two above-the-fold fonts — Inter (body text everywhere)
 		// and Poppins 700 (the brand + card headings) — so first paint doesn't
 		// wait on app.css parsing to discover them (kills the common-case FOUT).

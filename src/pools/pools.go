@@ -12,6 +12,13 @@ func init() {
 			Map[control.HTMLName] = control
 		}
 	}
+
+	// the untimed casual variants are resolvable by HTMLName (the bot-game
+	// handlers and "same settings" rematch links look variants up here) but are
+	// deliberately not rating pools: casual games are unrated and never pooled.
+	// NewCustomRoom only reaches them through the casual toggle.
+	Map[variant.UnlimitedCasual.HTMLName] = variant.UnlimitedCasual
+	Map[variant.UnlimitedCasualDeploy.HTMLName] = variant.UnlimitedCasualDeploy
 }
 
 // RatingPools is a map of all active competitive octad variants on the site
@@ -27,11 +34,13 @@ var RatingPools = map[variant.Group][]variant.Variant{
 	},
 	"2" + variant.RapidGroup: {
 		variant.OneTwoRapid,
+		variant.ThreeFiveRapid,
 	},
 	"3" + variant.DeployGroup: {
 		variant.QuarterZeroBulletDeploy,
 		variant.HalfOneBlitzDeploy,
 		variant.OneTwoRapidDeploy,
+		variant.ThreeFiveRapidDeploy,
 	},
 }
 
@@ -70,5 +79,11 @@ var CreateControls = []CreateControl{
 		Group:   variant.RapidGroup,
 		Classic: variant.OneTwoRapid,
 		Deploy:  variant.OneTwoRapidDeploy,
+	},
+	{
+		Label:   variant.ThreeFiveRapid.Name,
+		Group:   variant.RapidGroup,
+		Classic: variant.ThreeFiveRapid,
+		Deploy:  variant.ThreeFiveRapidDeploy,
 	},
 }

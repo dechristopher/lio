@@ -16,10 +16,11 @@ import (
 
 // gameSummary renders the at-a-glance match details shown on both pre-game
 // views: the time control + speed group, the color this viewer plays, and the
-// (currently always casual) rating mode. PlayerColor is the viewer's color for
-// the creator and the open-seat color for the joiner (set in HandlePreGame), so
-// "You play …" reads correctly for both. colorDot is reused from the home page.
-// It renders as borderless content within the waiting-room hero.
+// game mode — Casual for an untimed (infinite-clock) game, Competitive for any
+// timed one. PlayerColor is the viewer's color for the creator and the
+// open-seat color for the joiner (set in HandlePreGame), so "You play …" reads
+// correctly for both. colorDot is reused from the home page. It renders as
+// borderless content within the waiting-room hero.
 func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -48,7 +49,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(payload.Variant.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 18, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 19, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -61,7 +62,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(groupTitle(payload.Variant.Group))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 19, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 20, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -102,7 +103,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(payload.RaceTo))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 33, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/game_info.templ`, Line: 34, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +114,18 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span>Casual</span></div></div>")
+		if payload.Variant.Casual {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span>Casual</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span>Competitive</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -93,7 +93,11 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 								if payload.RaceTo > 0 {
 									· Race to { strconv.Itoa(payload.RaceTo) }
 								}
-								· Casual
+								if payload.Variant.Casual {
+									· Casual
+								} else {
+									· Competitive
+								}
 							</span>
 							<!--
 								Copy-PGN button: hidden during play, revealed by the grid's

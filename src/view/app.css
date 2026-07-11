@@ -1184,6 +1184,13 @@
 		color: var(--text-muted);
 	}
 	.cg-hint { font-size: 0.7rem; line-height: 1.35; color: var(--text-subtle); }
+	/* mode description: the Classic and Deploy copies are stacked in the same
+	   grid cell so the block always reserves the taller one's height — toggling
+	   the mode swaps visibility only and never shifts the layout below. */
+	.cg-mode-desc { display: grid; }
+	.cg-mode-desc-opt { grid-area: 1 / 1; visibility: hidden; }
+	.cg:has(#mode-classic:checked) .cg-mode-desc-opt[data-mode="classic"],
+	.cg:has(#mode-deploy:checked) .cg-mode-desc-opt[data-mode="deploy"] { visibility: visible; }
 
 	/* segmented controls (opponent / mode) */
 	.seg {
@@ -1233,7 +1240,7 @@
 	.seg-input:checked + .seg-btn .seg-tag { background: color-mix(in srgb, #fff 26%, transparent); color: var(--accent-contrast); }
 
 	/* time-control cards */
-	.tc-select { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+	.tc-select { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
 	.tc-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 	.tc-label { display: block; cursor: pointer; }
 	.tc-box {
@@ -1250,7 +1257,7 @@
 		transition: transform 150ms var(--ease-snappy), border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy), box-shadow 150ms var(--ease-snappy);
 	}
 	.tc-label:hover .tc-box { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: var(--shadow-md); }
-	.tc-name { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; line-height: 1; }
+	.tc-name { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; line-height: 1; }
 	.tc-pool { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-subtle); }
 	.tc-input:checked + .tc-label .tc-box {
 		transform: translateY(-2px);
@@ -1262,22 +1269,32 @@
 	.tc-input:checked + .tc-label .tc-pool { color: color-mix(in srgb, #fff 78%, transparent); }
 	.tc-input:focus-visible + .tc-label .tc-box { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-	/* race-to (match length) picker: like the open-challenge switch, matches are
-	   human-vs-human only — fade + disable in place for a bot game (no layout
-	   shift); the modal script resets the choice to Off when computer is chosen,
-	   and the server forces bot games single-game regardless. */
+	/* race-to (match length) picker: matches are human-vs-human only. It stays
+	   in the layout at all times and is faded + disabled in place for a bot
+	   game (no layout shift when switching opponent); the modal script resets
+	   the choice to Off and the server forces bot games single-game anyway.
+	   Casual mode does NOT fade it — a casual human match can still race. */
 	.cg:has(#opp-computer:checked) .cg-race {
 		opacity: 0.4;
 		filter: grayscale(0.5);
 		pointer-events: none;
 	}
 
-	/* open-challenge switch: private by default, hidden entirely for a bot game */
-	.cg-public {
+	/* casual = infinite time, so the time-control choice is moot: fade the
+	   cards (the modal script also disables the inputs so their `required`
+	   can't block submission). The color-submit gate below opens for either a
+	   chosen time control or casual. */
+	.cg:has(.cg-casual-box:checked) .cg-tc {
+		opacity: 0.4;
+		filter: grayscale(0.5);
+		pointer-events: none;
+	}
+
+	/* switch rows (the casual + open-challenge toggles share the chrome) */
+	.cg-toggle {
 		display: flex;
 		align-items: center;
 		gap: 0.7rem;
-		margin-top: auto;
 		padding: 0.7rem 0.8rem;
 		border-radius: var(--radius-md);
 		border: 1px solid var(--border);
@@ -1286,8 +1303,10 @@
 		text-align: left;
 		transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy), opacity 150ms var(--ease-snappy), filter 150ms var(--ease-snappy);
 	}
-	.cg-public:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
-	.cg-public:has(.cg-public-box:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+	.cg-toggle:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+	.cg-toggle:has(.cg-toggle-box:checked) { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+	/* the open-challenge switch keeps its bottom-anchored slot in the left panel */
+	.cg-public { margin-top: auto; }
 	/* bot games are never public: fade + disable the toggle in place (no layout
 	   shift) rather than removing it. pointer-events:none also blocks the label
 	   click, and the modal script clears the checkbox when computer is chosen. */
@@ -1296,10 +1315,10 @@
 		filter: grayscale(0.5);
 		pointer-events: none;
 	}
-	.cg-public-box { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-	.cg-public-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
-	.cg-public-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
-	.cg-public-hint { font-size: 0.68rem; opacity: 0.8; line-height: 1.3; }
+	.cg-toggle-box { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+	.cg-toggle-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
+	.cg-toggle-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+	.cg-toggle-hint { font-size: 0.68rem; opacity: 0.8; line-height: 1.3; }
 	.cg-switch {
 		position: relative;
 		flex-shrink: 0;
@@ -1321,9 +1340,9 @@
 		box-shadow: var(--shadow-sm);
 		transition: transform 150ms var(--ease-snappy);
 	}
-	.cg-public:has(.cg-public-box:checked) .cg-switch { background: var(--accent); }
-	.cg-public:has(.cg-public-box:checked) .cg-switch::after { transform: translateX(0.9rem); }
-	.cg-public:has(.cg-public-box:focus-visible) .cg-switch { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+	.cg-toggle:has(.cg-toggle-box:checked) .cg-switch { background: var(--accent); }
+	.cg-toggle:has(.cg-toggle-box:checked) .cg-switch::after { transform: translateX(0.9rem); }
+	.cg-toggle:has(.cg-toggle-box:focus-visible) .cg-switch { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 	/* play-as color submit */
 	.submit-row { display: flex; justify-content: center; align-items: center; gap: 0.6rem; }
@@ -1340,10 +1359,13 @@
 	}
 	.submit-btn:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow-md); }
 	.submit-btn.large { padding: 0.55rem; }
-	/* disable submit until a time control is chosen */
-	.cg:not(:has(.tc-input:checked)) .submit-btn { pointer-events: none; opacity: 0.4; }
+	/* disable submit until a time control is chosen — or casual is on, which
+	   needs none (an untimed game has no time control to pick) */
+	.cg:not(:has(.tc-input:checked)):not(:has(.cg-casual-box:checked)) .submit-btn { pointer-events: none; opacity: 0.4; }
 	.cg-gate-hint { font-size: 0.68rem; text-align: center; color: var(--text-subtle); }
-	.cg:has(.tc-input:checked) .cg-gate-hint { display: none; }
+	/* hide but keep the hint's line reserved once satisfied (no layout shift) */
+	.cg:has(.tc-input:checked) .cg-gate-hint,
+	.cg:has(.cg-casual-box:checked) .cg-gate-hint { visibility: hidden; }
 	.piece-button {
 		display: block;
 		width: 2.75rem;

@@ -36,6 +36,7 @@ type Meta struct {
 	Title       string // full <title> contents
 	OGURL       string // og:url
 	OGTitle     string // og:title
+	OGImage     string // og:image — absolute URL of the preview card PNG
 	Description string // description + og:description
 }
 
@@ -55,6 +56,7 @@ func PageMeta(name string) Meta {
 		Title:       "lioctad.org • " + name,
 		OGURL:       "https://lioctad.org",
 		OGTitle:     defaultOGTitle,
+		OGImage:     "https://lioctad.org/og/default.png",
 		Description: defaultDescription,
 	}
 }
@@ -63,14 +65,20 @@ func PageMeta(name string) Meta {
 // treatment the old room/doc_title partials produced.
 func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	group := cases.Title(language.English).String(payload.Variant.Group.String())
+	// untimed games are casual; anything with a real clock is competitive
+	mode := "competitive"
+	if payload.Variant.Casual {
+		mode = "casual"
+	}
 	challenge := group + " (" + payload.Variant.Name +
-		") casual octad • Challenge from anonymous player"
+		") " + mode + " octad • Challenge from anonymous player"
 	return Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
 		Title:       challenge + " • lioctad.org",
 		OGURL:       "https://lioctad.org/" + payload.RoomID,
 		OGTitle:     challenge,
+		OGImage:     "https://lioctad.org/og/room/" + payload.RoomID + ".png",
 		Description: roomDescription,
 	}
 }

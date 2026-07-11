@@ -22,7 +22,11 @@ func (r *Instance) handleGameOngoing() {
 	// via the helpers below. We reuse the single timer (draining a pending fire
 	// before each reset) instead of allocating new timers, which avoids the
 	// reset-without-drain hazard that could trigger spurious abandonment.
-	abandonTimer := time.NewTimer(abandonTimeout)
+	// A casual bot game gets the short disconnect timeout: its infinite clock
+	// and disabled idle timers mean this timer is the only cleanup it has.
+	// Human games (casual included) keep the standard reconnect tolerance.
+	disconnectTimeout := r.casualDisconnectTimeout()
+	abandonTimer := time.NewTimer(disconnectTimeout)
 	if !abandonTimer.Stop() {
 		<-abandonTimer.C
 	}
@@ -35,7 +39,7 @@ func (r *Instance) handleGameOngoing() {
 			default:
 			}
 		}
-		abandonTimer.Reset(abandonTimeout)
+		abandonTimer.Reset(disconnectTimeout)
 	}
 	stopAbandon := func() {
 		if !abandonTimer.Stop() {
@@ -75,6 +79,15 @@ func (r *Instance) handleGameOngoing() {
 	// arm on entry: a rematch in which the human plays Black reaches here with
 	// the bot's opening move already played and the no-show human on the clock
 	refreshIdle()
+
+	// arm the disconnect timer on entry if a player is already gone: a drop
+	// during the state transition lands before this handler's listener exists,
+	// so no connection event would ever arm it. A timed game would still end
+	// on the clock, but a casual game's infinite clock never flags — the
+	// room would outlive its players forever.
+	if !r.bothPlayersConnected() {
+		armAbandon()
+	}
 
 	for {
 		select {

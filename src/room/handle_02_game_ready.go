@@ -38,10 +38,48 @@ func (r *Instance) handleGameReady() {
 	cleanupTimer := time.NewTimer(time.Minute)
 	defer cleanupTimer.Stop()
 
+	// stop/reset helpers for the cleanup timer, draining any pending fire first
+	// (the reset-without-drain hazard). Only the casual logic below retimes
+	// the timer; classic games keep the single armed minute.
+	stopCleanup := func() {
+		if !cleanupTimer.Stop() {
+			select {
+			case <-cleanupTimer.C:
+			default:
+			}
+		}
+	}
+	resetCleanup := func(d time.Duration) {
+		stopCleanup()
+		cleanupTimer.Reset(d)
+	}
+
 	// listen for connection changes so we can defer the engine's first move
 	// until the human opponent is actually present (see maybeRequestFirstMove).
 	connectionListener := channel.Map.GetSockMap(r.ID).Listen()
 	defer channel.Map.GetSockMap(r.ID).UnListen(connectionListener)
+
+	// A casual game is not first-move time-boxed: its players may think over
+	// the opening indefinitely, so the fixed minute above would wrongly expire
+	// a connected session. Presence drives the timer instead — disarmed while
+	// everyone is connected, re-armed to the room's disconnect timeout the
+	// moment a seat drops (the disconnect cancel that keeps abandoned casual
+	// rooms from piling up; a casual bot game gets the short timeout, a human
+	// game the standard reconnect tolerance). The room only enters this state
+	// once players have connected (the waiting state gates on presence), so an
+	// on-entry vacancy is a real disconnect, not someone still loading.
+	casualTimeout := r.casualDisconnectTimeout()
+	syncCasualCleanup := func() {
+		if !r.params.Casual {
+			return
+		}
+		if r.bothPlayersConnected() {
+			stopCleanup()
+		} else {
+			resetCleanup(casualTimeout)
+		}
+	}
+	syncCasualCleanup()
 
 	// broadcast reset board state to all
 	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{
@@ -81,6 +119,8 @@ func (r *Instance) handleGameReady() {
 			// human (re)connected: dispatch the deferred first move if we held it
 			// TODO: guarantee this isn't a spectator
 			maybeRequestFirstMove()
+			// casual rooms retime the cleanup timer off presence
+			syncCasualCleanup()
 		case move := <-r.moveChannel:
 			util.DebugFlag("room", str.CRoom, "[%s] got move %s from %s (%s / %s)", r.ID, move.Move.UOI, move.Player, r.game.White, r.game.Black)
 
@@ -119,6 +159,12 @@ func (r *Instance) handleGameReady() {
 
 			return
 		case <-cleanupTimer.C:
+			// a reconnect can race the fire: don't expire a casual room whose
+			// players are present again (the pending listener event re-syncs the
+			// timer next loop). Timed games keep the hard first-move box.
+			if r.params.Casual && r.bothPlayersConnected() {
+				continue
+			}
 			r.abandoned = true
 			// game expired, white timed out making first move
 			util.DebugFlag("room", str.CRoom, "[%s] game expired, white timed out making first move, cleaning up", r.ID)
