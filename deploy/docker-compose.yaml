@@ -77,7 +77,9 @@ services:
         mode: 0440
     healthcheck:
       # The runtime image is scratch (no shell/wget), so probe via the binary's
-      # own health check (`/lio --health` → loopback GET /lio, see cmd/lio/main.go).
+      # own health check (`/lio --health` → GET /lio on the loopback-only
+      # internal health listener, 127.0.0.1:4445 — purely in-container, never
+      # published; see cmd/lio/main.go and src/www/health.go).
       # Tuned to report healthy quickly (the app boots in ms) so the deploy's
       # health wait can be short — a slow start means a bad build, not a slow one.
       test: ["CMD", "/lio", "--health"]

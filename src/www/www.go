@@ -52,8 +52,9 @@ func Serve(static embed.FS) {
 
 	r := fiber.New(fiber.Config{
 		// bare product name — no version. The version is still available where it's
-		// useful (the /lio status JSON and the site footer); keeping it out of the
-		// Server header on every response denies casual version fingerprinting.
+		// useful (the internal health listener's status JSON and the site footer);
+		// keeping it out of the Server header on every response denies casual
+		// version fingerprinting.
 		ServerHeader:  "lioctad.org",
 		CaseSensitive: true,
 		ErrorHandler:  nil,
@@ -83,7 +84,10 @@ func Serve(static embed.FS) {
 	}()
 
 	util.Info(str.CMain, str.MStarted, util.TimeSinceBoot(),
-		env.GetEnv(), config.GetPort(), "none")
+		env.GetEnv(), config.GetPort(), config.GetHealthAddr())
+
+	// loopback-only status listener for container health checks (see health.go)
+	go serveHealth()
 
 	// listen for connections on primary listening port
 	if err := r.Listen(config.GetListenPort(), fiber.ListenConfig{
@@ -135,9 +139,6 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 
 	// wire up all middleware components
 	middleware.Wire(sub, staticFs)
-
-	// JSON service health / status handler
-	r.Get("/lio", handlers.StatusHandler)
 
 	// group for /api routes
 	apiGroup := sub.Group("/api")

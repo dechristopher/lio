@@ -139,6 +139,23 @@ func GetListenPort() string {
 	return fmt.Sprintf(":%s", GetPort())
 }
 
+// GetHealthPort returns the port of the internal health listener
+// (HEALTH_PORT env var, defaulting to 4445)
+func GetHealthPort() string {
+	if port := os.Getenv("HEALTH_PORT"); port != "" {
+		return port
+	}
+	return "4445"
+}
+
+// GetHealthAddr returns the loopback-only listen address of the internal
+// health listener. Bound to 127.0.0.1 inside the container's network
+// namespace, it is unreachable from outside the container — health checks
+// (`lio --health`) are purely internal.
+func GetHealthAddr() string {
+	return "127.0.0.1:" + GetHealthPort()
+}
+
 // SiteURL returns the site URL based on environment configuration
 func SiteURL() string {
 	if !env.IsProd() {

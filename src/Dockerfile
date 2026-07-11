@@ -115,8 +115,10 @@ USER 10001:10001
 EXPOSE 4444
 
 # In-binary healthcheck: scratch has no shell/wget, so probe via `/lio --health`
-# (loopback GET to /lio; see cmd/lio/main.go). Compose overrides this with its
-# own healthcheck of the same command; this covers standalone `docker run`.
+# (GET /lio on the loopback-only internal health listener, 127.0.0.1:4445 by
+# default — never exposed outside the container; see cmd/lio/main.go and
+# www/health.go). Compose overrides this with its own healthcheck of the same
+# command; this covers standalone `docker run`.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
     CMD ["/lio", "--health"]
 

@@ -54,15 +54,17 @@ func init() {
 	_, _ = crypt.Encrypt([]byte("lio"))
 }
 
-// executeHealthCheck probes the running server's lightweight status endpoint
-// over loopback and exits the process 0 (healthy) or non-zero (unhealthy). It is
-// the container HEALTHCHECK: the scratch runtime image has no shell or wget, so
-// the binary must check itself. It hits /lio (JSON status, no side effects, no
-// object-store dependency) and never starts the server or its subsystems.
+// executeHealthCheck probes the running server's internal health listener and
+// exits the process 0 (healthy) or non-zero (unhealthy). It is the container
+// HEALTHCHECK: the scratch runtime image has no shell or wget, so the binary
+// must check itself. It hits /lio on the loopback-only health listener (see
+// www/health.go — JSON status, no side effects, no object-store dependency,
+// never exposed outside the container) and never starts the server or its
+// subsystems.
 func executeHealthCheck() {
 	client := http.Client{Timeout: 3 * time.Second}
 
-	resp, err := client.Get("http://127.0.0.1:" + config.GetPort() + "/lio")
+	resp, err := client.Get("http://" + config.GetHealthAddr() + "/lio")
 	if err != nil {
 		util.Error(str.CMain, "health check failed: %s", err.Error())
 		os.Exit(1)
