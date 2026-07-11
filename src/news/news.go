@@ -17,6 +17,26 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Who's ahead, at a glance",
+		Date:  "Jul 11, 2026",
+		Body: "Captured pieces now stack up beside each player's clock with a running point " +
+			"score. The icons follow the position you're viewing, so stepping back through " +
+			"the moves replays the material story too.",
+	},
+	{
+		Title: "Take all the time you want",
+		Date:  "Jul 11, 2026",
+		Body: "Casual mode now drops the clock entirely: play untimed games against the " +
+			"computer or a friend and think as long as you like. For those who do want a " +
+			"ticking clock, a 3+5 rapid control joins the lineup.",
+	},
+	{
+		Title: "Game links that show the game",
+		Date:  "Jul 11, 2026",
+		Body: "Share a lioctad.org link and it now unfurls (in most link previews) with a real " +
+			"picture of the board alongside game info.",
+	},
+	{
 		Title: "Snappier page loads",
 		Date:  "Jul 10, 2026",
 		Body: "Pages load quicker and lighter: scripts no longer hold up the first render, the " +
