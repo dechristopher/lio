@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/dechristopher/octad/v2"
 	"github.com/gofiber/fiber/v3"
@@ -34,7 +35,10 @@ func ogTestApp(t *testing.T) *fiber.App {
 func fetchCard(t *testing.T, app *fiber.App, path string) {
 	t.Helper()
 
-	resp, err := app.Test(httptest.NewRequest("GET", path, nil))
+	// a card render takes ~0.9s under -race even on a fast machine, so
+	// fiber's default 1s Test timeout flakes on slower CI runners
+	resp, err := app.Test(httptest.NewRequest("GET", path, nil),
+		fiber.TestConfig{Timeout: 30 * time.Second, FailOnTimeout: true})
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
