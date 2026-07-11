@@ -1220,7 +1220,8 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 // clock renders a single clock widget. The wrapping element in roomGame carries
 // the #clockPlayer/#clockOpponent id and the JS-toggled .active/.low/.playerWhite
 // state classes; lio-game.js reads the .clockScore/.clockTime/.clockProgressBar/
-// .thinking hooks inside. name is the static label ("You" / "BOT" / "Opponent").
+// .clockMaterial/.thinking hooks inside. name is the static label ("You" /
+// "BOT" / "Opponent").
 //
 // Layout is vertically stacked: an identity row (bot glyph, name, rating,
 // thinking dots on the left; match-score chip pushed to the right) sits above
@@ -1263,13 +1264,13 @@ func clock(name string) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 473, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 474, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</span> <span class=\"clockRating\"><span class=\"clockRatingNumber\">0</span></span> <span class=\"thinking\" aria-label=\"thinking\"><i></i><i></i><i></i></span> <span class=\"clockScore\">0</span></div><span class=\"clockTime\">0:00.0</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</span> <span class=\"clockRating\"><span class=\"clockRatingNumber\">0</span></span><!-- material-difference icons (lichess-style): lio-game.js fills this\n\t\t\t\t     with <piece> sprites for the piece types this seat is up, plus a\n\t\t\t\t     +N point score when this seat leads; empty (and collapsed via\n\t\t\t\t     :empty) while material is level --><span class=\"clockMaterial\" title=\"Material advantage\"></span> <span class=\"thinking\" aria-label=\"thinking\"><i></i><i></i><i></i></span> <span class=\"clockScore\">0</span></div><span class=\"clockTime\">0:00.0</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -359,6 +359,99 @@ const clearPresence = () => {
 	setPresence(clockOpponentEl, false);
 };
 
+// ---- material-difference icons (the piece stacks beside each clock name) ----
+// Computed from the *position* rather than capture events (lichess-style), so
+// promotions count correctly: per piece type, diff = white count - black count,
+// and each seat shows icons for the types it is up, rendered in the opponent's
+// color (the pieces it effectively captured), plus a +N point score on the
+// leading seat. Standard point values (the engine's material scale / 10).
+const materialRoles = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen' };
+const materialOrder = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
+const materialValues = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9 };
+
+const clockMaterialPlayerEl = clockPlayerEl ? clockPlayerEl.querySelector('.clockMaterial') : null;
+const clockMaterialOpponentEl = clockOpponentEl ? clockOpponentEl.querySelector('.clockMaterial') : null;
+
+/**
+ * materialHTML renders one seat's material advantage: a .mat-group of stacked
+ * <piece> sprites per piece type it is up (the sprite art comes from the active
+ * piece-set theme CSS), then the +N score when this seat leads on points.
+ * @param up - map of piece type -> count this seat is up
+ * @param iconColor - sprite color for the icons (the opponent's color)
+ * @param score - this seat's net point lead (rendered only when > 0)
+ * @returns {string} HTML for the seat's .clockMaterial span
+ */
+const materialHTML = (up, iconColor, score) => {
+	let html = '';
+	for (const role of materialOrder) {
+		const n = up[role] || 0;
+		if (n === 0) {
+			continue;
+		}
+		html += '<span class="mat-group">'
+			+ ('<piece class="' + role + ' ' + iconColor + '"></piece>').repeat(n)
+			+ '</span>';
+	}
+	if (score > 0) {
+		html += '<span class="mat-score">+' + score + '</span>';
+	}
+	return html;
+};
+
+/**
+ * updateMaterial rebuilds both clocks' material-difference indicators from a
+ * board position. Called with the *viewed* position (live tip or a reviewed
+ * ply), so navigating the move history updates the icons alongside the board.
+ * The bottom clock is the local (or anchored) player's seat; the playerWhite
+ * cache maps it to a color, following the between-game swaps of a match.
+ * @param boardOfen - board part of an OFEN (piece placement only)
+ */
+const updateMaterial = (boardOfen) => {
+	if (!clockMaterialPlayerEl || !clockMaterialOpponentEl) {
+		return;
+	}
+	const white = {};
+	const black = {};
+	for (const ch of boardOfen) {
+		const role = materialRoles[ch.toLowerCase()];
+		if (!role) {
+			continue; // kings, empty-square digits, rank separators
+		}
+		const counts = ch === ch.toLowerCase() ? black : white;
+		counts[role] = (counts[role] || 0) + 1;
+	}
+	const whiteUp = {};
+	const blackUp = {};
+	let score = 0; // white-positive net point lead
+	for (const role of materialOrder) {
+		const d = (white[role] || 0) - (black[role] || 0);
+		if (d > 0) {
+			whiteUp[role] = d;
+		} else if (d < 0) {
+			blackUp[role] = -d;
+		}
+		score += d * materialValues[role];
+	}
+	const whiteHTML = materialHTML(whiteUp, 'black', score);
+	const blackHTML = materialHTML(blackUp, 'white', -score);
+	clockMaterialPlayerEl.innerHTML = bottomClockIsWhite() ? whiteHTML : blackHTML;
+	clockMaterialOpponentEl.innerHTML = bottomClockIsWhite() ? blackHTML : whiteHTML;
+};
+
+/**
+ * clearMaterial empties both material indicators (the :empty CSS collapses
+ * them). Used entering the blind deploy phase: the previous game's diff is
+ * stale, and deploy-phase positions are hidden/partial by design.
+ */
+const clearMaterial = () => {
+	if (clockMaterialPlayerEl) {
+		clockMaterialPlayerEl.innerHTML = '';
+	}
+	if (clockMaterialOpponentEl) {
+		clockMaterialOpponentEl.innerHTML = '';
+	}
+};
+
 /**
  * Show or hide the engine "thinking" indicator. No-op unless a seat is the
  * engine, so it never appears in human-vs-human games.
@@ -1473,6 +1566,7 @@ const renderLivePosition = (message, ofenParts) => {
 			color: message.d.w === getCookie('uid') ? 'white' : 'black',
 		}
 	});
+	updateMaterial(ofenParts[0]);
 };
 
 /**
@@ -2403,6 +2497,9 @@ const enterDeployMode = (seconds, payload) => {
 	// (the deploy-start message carries no clock — the reveal is the next one that
 	// does)
 	resetClocksToFull();
+	// the previous game's material diff is stale for the same reason (the reveal
+	// re-renders it; deploy positions themselves are hidden/partial by design)
+	clearMaterial();
 
 	const white = deployIsWhite;
 	const myColor = white ? 'white' : 'black';
@@ -2480,8 +2577,10 @@ const enterDeploySpectatorMode = (payload) => {
 	deployPriorGameIDs = [d.i, currentGameID].filter(Boolean);
 	hideResult();
 
-	// the next game starts both clocks at full time (see enterDeployMode)
+	// the next game starts both clocks at full time (see enterDeployMode); the
+	// previous game's material diff is stale for the same reason
 	resetClocksToFull();
+	clearMaterial();
 
 	// blank the board; both home ranks sit behind the "?" overlay
 	og.set({
@@ -2903,6 +3002,7 @@ const renderReviewPosition = (ply) => {
 		check: checkAtPly(ply),
 		movable: { free: false, dests: new Map(), color: undefined },
 	});
+	updateMaterial(parts[0]);
 };
 
 /**

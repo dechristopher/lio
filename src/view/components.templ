@@ -448,7 +448,8 @@ templ board(payload message.RoomTemplatePayload) {
 // clock renders a single clock widget. The wrapping element in roomGame carries
 // the #clockPlayer/#clockOpponent id and the JS-toggled .active/.low/.playerWhite
 // state classes; lio-game.js reads the .clockScore/.clockTime/.clockProgressBar/
-// .thinking hooks inside. name is the static label ("You" / "BOT" / "Opponent").
+// .clockMaterial/.thinking hooks inside. name is the static label ("You" /
+// "BOT" / "Opponent").
 //
 // Layout is vertically stacked: an identity row (bot glyph, name, rating,
 // thinking dots on the left; match-score chip pushed to the right) sits above
@@ -472,6 +473,11 @@ templ clock(name string) {
 				</span>
 				<span class="clockName">{ name }</span>
 				<span class="clockRating"><span class="clockRatingNumber">0</span></span>
+				<!-- material-difference icons (lichess-style): lio-game.js fills this
+				     with <piece> sprites for the piece types this seat is up, plus a
+				     +N point score when this seat leads; empty (and collapsed via
+				     :empty) while material is level -->
+				<span class="clockMaterial" title="Material advantage"></span>
 				<span class="thinking" aria-label="thinking"><i></i><i></i><i></i></span>
 				<span class="clockScore">0</span>
 			</div>

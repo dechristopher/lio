@@ -408,6 +408,38 @@
 	}
 	.clockRating { flex: none; font-size: 0.7rem; color: var(--text-subtle); }
 	.clockRatingNumber { font-weight: 600; }
+	/* material-difference icons (lichess-style), filled by lio-game.js from the
+	   viewed position: one .mat-group per piece type this seat is up (same-type
+	   icons overlap like a fanned stack), then a +N point score when this seat
+	   leads. The <piece> elements pick their sprite up from the active piece-set
+	   theme CSS ([data-piece] piece.role.color), which isn't board-scoped; they
+	   only need sizing here. :empty collapses the span (and its flex gap) while
+	   material is level. */
+	.clockMaterial { flex: none; display: flex; align-items: center; gap: 0.15rem; }
+	.clockMaterial:empty { display: none; }
+	.mat-group { display: flex; }
+	.mat-group piece {
+		display: block;
+		width: 1.1rem;
+		height: 1.1rem;
+		background-size: cover;
+		/* legibility halo: sprite colors are semantic (the captured side's), so a
+		   dark-fill piece lands on the dark clock surface in dark mode (and the
+		   accent-tinted active clock). A soft alpha-following glow in the theme's
+		   opposite luminance keeps both piece colors readable on both themes. */
+		filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.45));
+	}
+	[data-theme="dark"] .mat-group piece {
+		filter: drop-shadow(0 0 1px rgb(255 255 255 / 0.6)) drop-shadow(0 0 1px rgb(255 255 255 / 0.35));
+	}
+	.mat-group piece + piece { margin-left: -0.55rem; }
+	.mat-score {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-subtle);
+	}
 	/* each clock's left edge is striped with the color that seat holds in the
 	   current game — the seats are labeled by identity (You/Opponent, or
 	   BOT/PLAYER for spectators), so the stripe is what shows who has which
