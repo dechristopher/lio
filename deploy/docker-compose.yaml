@@ -108,7 +108,7 @@ services:
   # snapshots with AOF-everysec durability. Off the host network; the app
   # reaches it at redis:6379 (the lio_redis_addr secret) on the compose network.
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
