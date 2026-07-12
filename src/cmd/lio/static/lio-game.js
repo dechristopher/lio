@@ -90,28 +90,54 @@ window.addEventListener('load', () => {
 });
 
 
+// Each sound is ogg-first, mp3-second so browsers without Ogg Vorbis (older iOS
+// Safari) fall back to the mp3 rather than staying silent — see the note in
+// lio.js where confirmation/notification are defined.
 window.moveSound = new Howl({
-	src: ["/res/sfx/move.ogg"],
+	src: ["/res/sfx/move.ogg", "/res/sfx/move.mp3"],
 	preload: true,
-	// no autoplay: attempting to play at page-parse, before any user gesture,
-	// trips browser autoplay policy ("AudioContext was prevented from
-	// starting") and, with html5 streaming, checks out audio-pool objects that
-	// come back locked ("HTML5 Audio pool exhausted"). The sound belongs to
-	// moves, not page load.
-	html5: true,
+	// Web Audio (Howler's default), NOT html5. This is the most-played sound
+	// (every non-capturing, non-checking move, plus deploy swaps), and it must
+	// ride the same single Web Audio unlock as capSound/checkSound/confirmation/
+	// notification: Howler resumes one AudioContext on the first user gesture and
+	// then every Web Audio sound plays reliably. html5:true instead routes this
+	// one sound through the pooled <audio> path, whose separate per-element
+	// unlock is unreliable on mobile (notably Android Firefox) — producing moves
+	// that render silently while captures/checks (Web Audio) still sound. The
+	// flag was a leftover from a since-removed autoplay:true; no autoplay means
+	// the pool-exhaustion concern it guarded against no longer applies.
 	volume: 0.75
 });
 
 window.capSound = new Howl({
-	src: ["/res/sfx/capture.ogg"],
+	src: ["/res/sfx/capture.ogg", "/res/sfx/capture.mp3"],
 	preload: true,
 	volume: 0.9
 });
 
 window.checkSound = new Howl({
-	src: ["/res/sfx/check.ogg"],
+	src: ["/res/sfx/check.ogg", "/res/sfx/check.mp3"],
 	preload: true,
 	volume: 0.9
+});
+
+// Notification cues for the opponent's non-move actions, kept deliberately
+// subtle (soft synthesized ticks) so they read as a nudge, not a board event.
+// drawSound is a bright double tick (a decision is being asked of you);
+// rematchSound is a single warm tick (a lighter "let's go again" prompt). Both
+// play only on the rising edge of the opponent's action — never on the resync
+// poll that re-delivers the standing offer/agreement (see handleDrawOffer and
+// showOpponentRematchRequest).
+window.drawSound = new Howl({
+	src: ["/res/sfx/tick-draw.ogg", "/res/sfx/tick-draw.mp3"],
+	preload: true,
+	volume: 0.6
+});
+
+window.rematchSound = new Howl({
+	src: ["/res/sfx/tick-rematch.ogg", "/res/sfx/tick-rematch.mp3"],
+	preload: true,
+	volume: 0.6
 });
 
 // Watch-only (spectator) mode, decided server-side (view/components.templ sets
@@ -568,6 +594,12 @@ let resignArmTimer = null;     // auto-disarm timeout for the confirm prompt
 let drawOfferedByMe = false;   // we have a standing draw offer out
 let drawOfferedByOpp = false;  // the opponent has offered us a draw to accept
 
+// tracks whether the "opponent wants a rematch" cue has already sounded for the
+// current standing request, so the resync poll (which re-invokes
+// showOpponentRematchRequest every tick) chimes only once. Reset when the
+// request note is hidden (new game / teardown / our own commit).
+let opponentRematchNotified = false;
+
 // the rematch buttons (overlay + rail) driven together as a set; capture each
 // one's idle label once so pending/disabled states can restore it. A spectator's
 // buttons render permanently disabled and are left out of the set entirely, so
@@ -914,6 +946,12 @@ const showOpponentRematchRequest = () => {
 	}
 	// draw the eye to the action unless we've already committed to it
 	setRematchButtonsWants();
+	// chime once per standing request: this runs on every resync poll tick via
+	// reconcileRematchAgreement, so gate playback on the not-yet-notified edge
+	if (!opponentRematchNotified) {
+		opponentRematchNotified = true;
+		window.rematchSound.play();
+	}
 };
 
 const hideOpponentRematchRequest = () => {
@@ -923,6 +961,8 @@ const hideOpponentRematchRequest = () => {
 		note.textContent = '';
 	}
 	clearRematchButtonsWants();
+	// the request is gone; re-arm the cue for the next standing request
+	opponentRematchNotified = false;
 };
 
 /**
@@ -1128,6 +1168,12 @@ const requestRematch = (btn) => {
 	}
 	// in-room agreement flow (humans always; bots while the room is alive)
 	send(buildCommand("r", {rm: true}));
+	// echo the cue the opponent hears when we're the one initiating; when we're
+	// instead accepting their standing request the next game starts immediately
+	// (its own start sound follows), so skip the tick then — mirrors the draw flow
+	if (!opponentRematchNotified) {
+		window.rematchSound.play();
+	}
 	// leave the overlay up until the rematch actually starts; mark the request
 	// sent and reflect it on both rematch buttons + the still-running countdown
 	// (human games relabel to "Waiting for opponent").
@@ -1224,7 +1270,9 @@ if (drawBtn && !isSpec) {
 			drawBtn.disabled = true;
 			drawBtn.classList.remove('wants-draw');
 		} else {
-			// we offered: reflect pending until it is answered / superseded
+			// we offered: echo the same cue the opponent hears on receipt, then
+			// reflect pending until it is answered / superseded
+			window.drawSound.play();
 			drawOfferedByMe = true;
 			drawBtn.disabled = true;
 			drawBtn.innerHTML = 'Offered&hellip;';
@@ -1272,7 +1320,12 @@ const handleDrawOffer = (message) => {
 			drawBtn.innerHTML = 'Offered&hellip;';
 		}
 	} else {
-		// the opponent offered a draw: turn Draw into an accept affordance
+		// the opponent offered a draw: turn Draw into an accept affordance.
+		// Cue the notification only on the rising edge — a reconnect/re-announce
+		// can re-deliver a still-standing offer, and it must not re-chime.
+		if (!drawOfferedByOpp) {
+			window.drawSound.play();
+		}
 		drawOfferedByOpp = true;
 		if (drawBtn) {
 			drawBtn.disabled = false;

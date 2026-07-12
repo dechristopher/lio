@@ -75,10 +75,10 @@ func ReadSecret(name string) (string, error) {
 // was injected at build time. Local/dev builds carry no Revision and show just
 // the base version.
 func VersionString() string {
-	if Revision != "" {
-		return Version + "+" + Revision
+	if Revision == "" {
+		Revision = "local"
 	}
-	return Version
+	return Version + "+" + Revision
 }
 
 // GenerateCode generates an N character sequence with naughty safety baked in

@@ -51,14 +51,18 @@ const forceIdentityReload = (why) => {
 // ws handlers map
 window.handlers = new Map();
 
+// Every sound is listed ogg-first, mp3-second: Howler probes codec support and
+// loads the first playable source, so modern browsers take the smaller ogg while
+// browsers without Ogg Vorbis (notably iOS Safari before 17) fall back to the
+// mp3 instead of playing nothing.
 window.confirmation = new Howl({
-	src: ["/res/sfx/confirmation.ogg"],
+	src: ["/res/sfx/confirmation.ogg", "/res/sfx/confirmation.mp3"],
 	preload: true,
 	volume: 0.99
 });
 
 window.notification = new Howl({
-	src: ["/res/sfx/end.ogg"],
+	src: ["/res/sfx/end.ogg", "/res/sfx/end.mp3"],
 	preload: true,
 	volume: 0.8
 });
