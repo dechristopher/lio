@@ -11,6 +11,11 @@ import (
 	"github.com/dechristopher/lio/str"
 )
 
+func init() {
+	// microsecond timestamps in local dev logs
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+}
+
 // LogMessage is a json struct used for non-stdout log messages
 type LogMessage struct {
 	Time     int64  `json:"time"`
