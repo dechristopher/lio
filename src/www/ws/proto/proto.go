@@ -36,6 +36,9 @@ const (
 	DeployTag PayloadTag = "d"
 	// IdentityTag is the message type tag for the IdentityPayload (socket hello)
 	IdentityTag PayloadTag = "id"
+	// ServerInfoTag is the message type tag for the ServerInfoPayload (build
+	// version hello — drives the client's "site updated, refresh" prompt)
+	ServerInfoTag PayloadTag = "si"
 )
 
 // Message represents our websocket protocol messages container
@@ -64,6 +67,23 @@ func IdentityMessage(uid string, spectator bool) []byte {
 	msg := Message{
 		Tag:  string(IdentityTag),
 		Data: IdentityPayload{UID: uid, Spec: spectator},
+	}
+	return msg.Please()
+}
+
+// ServerInfoPayload carries the running build's version on every socket
+// connect. The page embeds the version it was rendered by (a lio-version meta
+// tag); after a deploy, a reconnecting client sees the mismatch and shows a
+// passive "updated — refresh" prompt instead of running stale assets forever.
+type ServerInfoPayload struct {
+	Version string `json:"v"` // running build version (config.VersionString)
+}
+
+// ServerInfoMessage builds the server-version hello frame.
+func ServerInfoMessage(version string) []byte {
+	msg := Message{
+		Tag:  string(ServerInfoTag),
+		Data: ServerInfoPayload{Version: version},
 	}
 	return msg.Please()
 }

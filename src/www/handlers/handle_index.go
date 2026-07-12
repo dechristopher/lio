@@ -14,8 +14,17 @@ import (
 func IndexHandler(c fiber.Ctx) error {
 	presence.Touch(user.GetID(c))
 	challenges, stats := homeActivity()
-	return view.Render(c, 200, view.Index(
-		view.PageMeta("Free Online Octad"), challenges, stats))
+
+	meta := view.PageMeta("Free Online Octad")
+	// one-shot notice for clients redirected off a room that no longer exists
+	// (the ws layer sends them to /?notice=room-gone — typically an open
+	// challenge dropped by a server restart, which doesn't persist waiting rooms)
+	if c.Query("notice") == "room-gone" {
+		meta.Notice = "That room is gone — it was most likely cleared by a " +
+			"server update before the game started. Create a new game below."
+	}
+
+	return view.Render(c, 200, view.Index(meta, challenges, stats))
 }
 
 // HomeActivityHandler renders the live home-activity fragment (site stats, open

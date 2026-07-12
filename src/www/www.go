@@ -14,10 +14,12 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
 	"github.com/dechristopher/lio/assets"
+	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/demo"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/og"
+	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
@@ -80,6 +82,15 @@ func Serve(static embed.FS) {
 	go func() {
 		_ = <-c
 		util.Info(str.CMain, str.MShutdown)
+		// shutdown drain (arch/STATE_PERSISTENCE_SCALING.md): gate inbound
+		// mutations, freeze clocks, flush final room snapshots — then tell
+		// every client this is a restart (1012 Service Restart; the browser
+		// surfaces the code in onclose and lio.js reconnects promptly instead
+		// of treating it as a network failure). Fiber's Shutdown does not
+		// touch hijacked websocket connections, so the CloseAll sweep is what
+		// actually releases them.
+		room.Drain()
+		channel.CloseAll(1012, "server restarting")
 		_ = r.Shutdown()
 	}()
 

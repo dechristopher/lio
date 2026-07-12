@@ -75,142 +75,155 @@ func head(meta Meta) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=5\"><script>\n\t\t\t// Resolve and apply the color theme, board theme, and piece set\n\t\t\t// before first paint to avoid a flash of the wrong appearance:\n\t\t\t// persisted choices win, else defaults (OS for light/dark; green +\n\t\t\t// alpha for board/pieces). All three live as data-* attributes on\n\t\t\t// <html> so board.css / piece.css (scoped [data-board]/[data-piece])\n\t\t\t// and the per-board --accent overrides (app.css) apply with no FOUC.\n\t\t\t// Exposes __toggleTheme/__setTheme/__useSystemTheme (color theme) and\n\t\t\t// __setBoard/__setPiece for the preferences popover.\n\t\t\t(function () {\n\t\t\t\tvar d = document.documentElement;\n\t\t\t\tfunction resolve() {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\t\t\tif (t === \"light\" || t === \"dark\") return t;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\td.dataset.theme = resolve();\n\t\t\t\twindow.__setTheme = function (t) {\n\t\t\t\t\td.dataset.theme = t;\n\t\t\t\t\ttry { localStorage.setItem(\"theme\", t); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__toggleTheme = function () {\n\t\t\t\t\twindow.__setTheme(d.dataset.theme === \"dark\" ? \"light\" : \"dark\");\n\t\t\t\t};\n\t\t\t\twindow.__useSystemTheme = function () {\n\t\t\t\t\ttry { localStorage.removeItem(\"theme\"); } catch (e) {}\n\t\t\t\t\td.dataset.theme = resolve();\n\t\t\t\t};\n\n\t\t\t\t// Board theme + piece set: a persisted choice, else the defaults.\n\t\t\t\tfunction stored(key, fallback) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar v = localStorage.getItem(key);\n\t\t\t\t\t\tif (v) return v;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn fallback;\n\t\t\t\t}\n\t\t\t\t// The orange board was replaced by pink; remap persisted choices.\n\t\t\t\tvar b = stored(\"board\", \"green\");\n\t\t\t\td.dataset.board = b === \"orange\" ? \"pink\" : b;\n\t\t\t\td.dataset.piece = stored(\"piece\", \"alpha\");\n\t\t\t\twindow.__setBoard = function (name) {\n\t\t\t\t\td.dataset.board = name;\n\t\t\t\t\ttry { localStorage.setItem(\"board\", name); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__setPiece = function (name) {\n\t\t\t\t\td.dataset.piece = name;\n\t\t\t\t\ttry { localStorage.setItem(\"piece\", name); } catch (e) {}\n\t\t\t\t};\n\t\t\t})();\n\t\t</script><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=5\"><!-- build version this page was rendered by; compared against the\n\t\t     server's socket version hello to prompt a refresh after a deploy --><meta name=\"lio-version\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Title)
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(config.VersionString())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 77, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 23, Col: 59}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</title><link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/res/ico/apple-touch-icon.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/res/ico/favicon-32x32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/res/ico/favicon-16x16.png\"><link rel=\"manifest\" href=\"/manifest.json\"><meta name=\"apple-mobile-web-app-title\" content=\"lioctad.org\"><meta name=\"application-name\" content=\"lioctad.org\"><meta name=\"msapplication-TileColor\" content=\"#da532c\"><meta name=\"theme-color\" media=\"(prefers-color-scheme: light)\" content=\"#faf8f5\"><meta name=\"theme-color\" media=\"(prefers-color-scheme: dark)\" content=\"#1c1917\"><meta property=\"og:site_name\" content=\"lioctad.org\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:url\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"><script>\n\t\t\t// Resolve and apply the color theme, board theme, and piece set\n\t\t\t// before first paint to avoid a flash of the wrong appearance:\n\t\t\t// persisted choices win, else defaults (OS for light/dark; green +\n\t\t\t// alpha for board/pieces). All three live as data-* attributes on\n\t\t\t// <html> so board.css / piece.css (scoped [data-board]/[data-piece])\n\t\t\t// and the per-board --accent overrides (app.css) apply with no FOUC.\n\t\t\t// Exposes __toggleTheme/__setTheme/__useSystemTheme (color theme) and\n\t\t\t// __setBoard/__setPiece for the preferences popover.\n\t\t\t(function () {\n\t\t\t\tvar d = document.documentElement;\n\t\t\t\tfunction resolve() {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\t\t\tif (t === \"light\" || t === \"dark\") return t;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\td.dataset.theme = resolve();\n\t\t\t\twindow.__setTheme = function (t) {\n\t\t\t\t\td.dataset.theme = t;\n\t\t\t\t\ttry { localStorage.setItem(\"theme\", t); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__toggleTheme = function () {\n\t\t\t\t\twindow.__setTheme(d.dataset.theme === \"dark\" ? \"light\" : \"dark\");\n\t\t\t\t};\n\t\t\t\twindow.__useSystemTheme = function () {\n\t\t\t\t\ttry { localStorage.removeItem(\"theme\"); } catch (e) {}\n\t\t\t\t\td.dataset.theme = resolve();\n\t\t\t\t};\n\n\t\t\t\t// Board theme + piece set: a persisted choice, else the defaults.\n\t\t\t\tfunction stored(key, fallback) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar v = localStorage.getItem(key);\n\t\t\t\t\t\tif (v) return v;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn fallback;\n\t\t\t\t}\n\t\t\t\t// The orange board was replaced by pink; remap persisted choices.\n\t\t\t\tvar b = stored(\"board\", \"green\");\n\t\t\t\td.dataset.board = b === \"orange\" ? \"pink\" : b;\n\t\t\t\td.dataset.piece = stored(\"piece\", \"alpha\");\n\t\t\t\twindow.__setBoard = function (name) {\n\t\t\t\t\td.dataset.board = name;\n\t\t\t\t\ttry { localStorage.setItem(\"board\", name); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__setPiece = function (name) {\n\t\t\t\t\td.dataset.piece = name;\n\t\t\t\t\ttry { localStorage.setItem(\"piece\", name); } catch (e) {}\n\t\t\t\t};\n\t\t\t})();\n\t\t</script><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGURL)
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 89, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 80, Col: 21}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><meta property=\"og:title\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</title><link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/res/ico/apple-touch-icon.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"32x32\" href=\"/res/ico/favicon-32x32.png\"><link rel=\"icon\" type=\"image/png\" sizes=\"16x16\" href=\"/res/ico/favicon-16x16.png\"><link rel=\"manifest\" href=\"/manifest.json\"><meta name=\"apple-mobile-web-app-title\" content=\"lioctad.org\"><meta name=\"application-name\" content=\"lioctad.org\"><meta name=\"msapplication-TileColor\" content=\"#da532c\"><meta name=\"theme-color\" media=\"(prefers-color-scheme: light)\" content=\"#faf8f5\"><meta name=\"theme-color\" media=\"(prefers-color-scheme: dark)\" content=\"#1c1917\"><meta property=\"og:site_name\" content=\"lioctad.org\"><meta property=\"og:type\" content=\"website\"><meta property=\"og:url\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGTitle)
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 90, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 92, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><meta name=\"description\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><meta property=\"og:title\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 91, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 93, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><meta property=\"og:description\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><meta name=\"description\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 92, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 94, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><meta property=\"og:image\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"><meta property=\"og:description\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGImage)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 93, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 95, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><meta property=\"og:image:type\" content=\"image/png\"><meta property=\"og:image:width\" content=\"1200\"><meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:image\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><meta property=\"og:image\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGImage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 98, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 96, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"><link rel=\"preload\" as=\"font\" type=\"font/woff2\" href=\"/res/fonts/inter-var.woff2\" crossorigin><link rel=\"preload\" as=\"font\" type=\"font/woff2\" href=\"/res/fonts/poppins-700.woff2\" crossorigin><link rel=\"stylesheet\" href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"><meta property=\"og:image:type\" content=\"image/png\"><meta property=\"og:image:width\" content=\"1200\"><meta property=\"og:image:height\" content=\"630\"><meta name=\"twitter:card\" content=\"summary_large_image\"><meta name=\"twitter:image\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 templ.SafeURL
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(asset("app.css"))
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGImage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 109, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 101, Col: 51}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"><script defer src=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("htmx.min.js"))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 112, Col: 42}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"><link rel=\"preload\" as=\"font\" type=\"font/woff2\" href=\"/res/fonts/inter-var.woff2\" crossorigin><link rel=\"preload\" as=\"font\" type=\"font/woff2\" href=\"/res/fonts/poppins-700.woff2\" crossorigin><link rel=\"stylesheet\" href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"></script>")
+		var templ_7745c5c3_Var11 templ.SafeURL
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(asset("app.css"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 112, Col: 48}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"><script defer src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var12 string
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("htmx.min.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 115, Col: 42}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if env.IsProd() && config.PlausibleDomain() != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<script defer data-domain=\"lioctad.org\" src=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<script defer data-domain=\"lioctad.org\" src=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("https://" + config.PlausibleDomain() + "/js/script.hash.outbound-links.pageview-props.tagged-events.js")
+			var templ_7745c5c3_Var13 string
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("https://" + config.PlausibleDomain() + "/js/script.hash.outbound-links.pageview-props.tagged-events.js")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 118, Col: 153}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 121, Col: 153}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -219,7 +232,7 @@ func head(meta Meta) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</head>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</head>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

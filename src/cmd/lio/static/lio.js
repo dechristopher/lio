@@ -26,6 +26,12 @@ const reconnectCapMs = 30000;
 const wsCloseNoIdentity = 4001;
 const identityReloadKey = 'lio-id-reload:' + window.location.pathname;
 
+// The server closes every socket with 1012 (Service Restart) as it drains for
+// a deploy: live rooms are snapshotted and restored by the new process, so
+// this drop is expected and brief. Label it "updating" and reconnect promptly
+// (fresh backoff) instead of treating it like a network failure.
+const wsCloseRestart = 1012;
+
 const forceIdentityReload = (why) => {
 	console.warn(`identity desync (${why}); re-authenticating via reload`);
 	try {
@@ -110,6 +116,18 @@ const connect = (prefix) => {
 		// reconnect loop so the failure stays visible.
 		if (evt && evt.code === wsCloseNoIdentity && !disconnected
 			&& forceIdentityReload('socket closed ' + wsCloseNoIdentity)) {
+			return;
+		}
+
+		// server restarting (deploy drain): reconnect on a fresh, short backoff
+		// — the room and game state survive the restart server-side
+		if (evt && evt.code === wsCloseRestart && !disconnected) {
+			console.log("Server restarting; reconnecting shortly");
+			reconnectAttempts = 0;
+			if (window.lioConn) {
+				window.lioConn.set("updating");
+			}
+			reconnect(prefix);
 			return;
 		}
 
@@ -330,4 +348,42 @@ window.handlers.set(crowdTag, handleCrowd);
 // spectator socket and re-authenticates.
 window.handlers.set("id", () => {
 	try { sessionStorage.removeItem(identityReloadKey); } catch (e) { /* noop */ }
+});
+
+// Default redirect handler: the server sends this when the room a socket is
+// bound to no longer exists (e.g. an open challenge dropped by a server
+// restart) — navigate instead of reconnect-looping against a dead room. The
+// waiting page (lio-room-create.js, loaded after this file) overrides it with
+// its own version that also plays the game-ready notification sound.
+window.handlers.set("e", (message) => {
+	if (message.d && message.d.l) {
+		disconnected = true; // don't fight the navigation with a reconnect
+		window.location = message.d.l;
+	}
+});
+
+// Server version hello: every socket connect carries the running build's
+// version. If it differs from the version this page was rendered by (the
+// lio-version meta tag), the deploy that just happened shipped newer client
+// assets — surface a passive refresh prompt. Passive on purpose: a mid-game
+// refresh is safe (full state resync on connect) but forcing one mid-think
+// would be hostile.
+window.handlers.set("si", (message) => {
+	const rendered = document.querySelector('meta[name="lio-version"]');
+	if (!rendered || !message.d || !message.d.v || message.d.v === rendered.content) {
+		return;
+	}
+	if (document.getElementById("updateNotice")) {
+		return;
+	}
+	console.log(`Server updated: ${rendered.content} -> ${message.d.v}`);
+	const notice = document.createElement("div");
+	notice.id = "updateNotice";
+	notice.setAttribute("role", "status");
+	notice.className = "fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line-strong bg-elevated px-4 py-2.5 shadow-lg";
+	notice.innerHTML =
+		'<span class="text-sm font-medium text-fg">Lioctad has been updated.</span>' +
+		'<button type="button" class="rounded-md border border-accent px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-accent hover:bg-accent/10" onclick="window.location.reload()">Refresh</button>' +
+		'<button type="button" class="text-xs text-fg-muted hover:text-fg" aria-label="Dismiss" onclick="this.parentElement.remove()">✕</button>';
+	document.body.appendChild(notice);
 });

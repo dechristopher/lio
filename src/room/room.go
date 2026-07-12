@@ -260,6 +260,11 @@ func NewParams(creatorId string, variant variant.Variant) Params {
 
 // Create a room instance from the given parameters
 func Create(params Params) (*Instance, error) {
+	// no new rooms once the shutdown drain has begun
+	if Draining() {
+		return nil, ErrDraining{}
+	}
+
 	// make sure both players are configured
 	if len(params.Players) != 2 {
 		return nil, ErrBadParamsPlayers{}
@@ -535,8 +540,9 @@ func (r *Instance) OpenSeatColor() octad.Color {
 // prevent a cancel that loses the race against game start from tearing down
 // an in-progress game.
 func (r *Instance) Cancel() bool {
-	// only allow room cancellation in the waiting state
-	if r.State() != StateWaitingForPlayers {
+	// only allow room cancellation in the waiting state, and never while the
+	// shutdown drain is capturing final snapshots
+	if Draining() || r.State() != StateWaitingForPlayers {
 		return false
 	}
 
@@ -614,6 +620,12 @@ func (r *Instance) PlayerIDs() (white, black string) {
 // and the map write must be atomic or two players following the same join link
 // could both pass the test and corrupt the players map.
 func (r *Instance) Join(uid, joinToken string) bool {
+	// no new seats during the shutdown drain: the joiner would land in a room
+	// whose final snapshot (waiting, not persisted) is already decided
+	if Draining() {
+		return false
+	}
+
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 
@@ -843,6 +855,13 @@ func (r *Instance) humanIdleEligible() bool {
 // send that still manages to park across a rematch boundary is rejected by
 // makeMove's staleness guard instead of being applied to the next game.
 func (r *Instance) SendMove(move *message.RoomMove) {
+	// shutdown drain: the final snapshot is (being) captured; nothing may
+	// mutate after it. The client resyncs the dropped move on reconnect.
+	if Draining() {
+		util.DebugFlag("room", str.CRoom, "[%s] dropped move %s: draining", r.ID, move.Move.UOI)
+		return
+	}
+
 	switch r.State() {
 	case StateGameReady, StateGameOngoing:
 	default:
@@ -888,6 +907,11 @@ func (r *Instance) SendMove(move *message.RoomMove) {
 // the send is non-blocking with a final default. See
 // arch/DEPLOY_REMATCH_RACES.md (race #2).
 func (r *Instance) SubmitDeploy(deploy *message.RoomDeploy) {
+	if Draining() {
+		util.DebugFlag("room", str.CRoom, "[%s] dropped deploy from %s: draining", r.ID, deploy.Player)
+		return
+	}
+
 	if r.State() != StateDeploy {
 		util.DebugFlag("room", str.CRoom, "[%s] dropped deploy from %s: room not in deploy phase", r.ID, deploy.Player)
 		return
@@ -912,6 +936,10 @@ func (r *Instance) SubmitDeploy(deploy *message.RoomDeploy) {
 // click again). The game-over handler applies the agreement (and auto-agrees a
 // bot opponent, so a human's single click restarts a bot game).
 func (r *Instance) RequestRematch(meta channel.SocketContext) {
+	if Draining() {
+		return
+	}
+
 	// A rematch is meaningful once the finishing game is decided. That is
 	// normally the StateGameOver window — the only window handleGameOver is
 	// reading controlChannel — but there is a hazardous sliver just before it:
@@ -1298,10 +1326,15 @@ func (r *Instance) legalMoveLocked(move proto.MovePayload) *octad.Move {
 // flipClock flips the internal game clock after a move is made
 // and waits for acknowledgement
 func (r *Instance) flipClock() {
-	// don't flip a clock that has already stopped on a flag: its command and
-	// ack channels are closed, so sending would panic. The flagged state is
-	// handled separately via the clock StateChannel.
-	if r.game.Clock.State(true).Victor != clock.NoVictor {
+	// don't flip a clock that has already stopped on a flag (the flagged state
+	// is handled separately via the clock StateChannel), and don't flip a
+	// paused clock at all: paused means no clock goroutine is consuming
+	// ControlChannel — a send would block this routine forever while holding
+	// stateMu. In normal play the clock is always running here (started before
+	// the first move; resumed by the rehydration gate before moves are
+	// processed); the paused case is a move racing the shutdown drain's clock
+	// freeze, where skipping the flip is exactly right — drain froze time.
+	if st := r.game.Clock.State(true); st.Victor != clock.NoVictor || st.IsPaused {
 		return
 	}
 	ackChannel := r.game.Clock.GetAck()

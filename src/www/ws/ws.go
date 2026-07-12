@@ -123,7 +123,19 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		thisRoom, err := room.Get(roomId)
 		if thisRoom == nil {
 			util.Error(str.CWS, str.EWSConn, err.Error())
+			// the room this page is bound to no longer exists — typically an
+			// open challenge dropped by a server restart (waiting rooms are not
+			// persisted), or a client that missed its room's teardown. Complete
+			// the handshake and send the client home with a notice instead of
+			// silently closing and leaving it to reconnect-loop forever: both
+			// the game page (lio.js default handler) and the waiting page act
+			// on the redirect frame.
 			return func(conn *websocket.Conn) {
+				_ = conn.SetWriteDeadline(time.Now().Add(channel.WriteWait))
+				redir := proto.RedirectMessage{Location: "/?notice=room-gone"}
+				_ = conn.WriteMessage(websocket.TextMessage, redir.Marshal())
+				_ = conn.WriteMessage(websocket.CloseMessage,
+					websocket.FormatCloseMessage(websocket.CloseNormalClosure, "room gone"))
 				_ = conn.Close()
 			}
 		}
@@ -161,6 +173,11 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// (stale/partial cookies on the upgrade) detects the desync from this
 		// frame and re-authenticates instead of playing into the void.
 		socket.Enqueue(proto.IdentityMessage(uid, isSpectator))
+
+		// one-shot version hello: a page reconnecting across a deploy compares
+		// this against the version it was rendered by and surfaces a passive
+		// "updated — refresh" prompt on mismatch (lio.js)
+		socket.Enqueue(proto.ServerInfoMessage(config.VersionString()))
 
 		// the global TV channel pushes a one-shot grid snapshot on connect so a
 		// new viewer immediately sees the current featured games, then receives

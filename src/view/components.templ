@@ -79,7 +79,9 @@ templ connScript() {
 			const label = el ? el.querySelector(".conn-label") : null;
 			const states = ["conn-online", "conn-reconnecting", "conn-offline"];
 			window.lioConn = {
-				// set(state, latencyMs?) — state ∈ {"online","reconnecting","offline"}
+				// set(state, latencyMs?) — state ∈ {"online","reconnecting","updating","offline"}
+				// ("updating" is the server-restart close: styled like
+				// reconnecting but labeled so the drop reads as a deploy)
 				set: function (state, latencyMs) {
 					if (!el) { return; }
 					el.classList.remove("hidden");
@@ -91,6 +93,9 @@ templ connScript() {
 					} else if (state === "offline") {
 						el.classList.add("conn-offline");
 						text = "offline";
+					} else if (state === "updating") {
+						el.classList.add("conn-reconnecting");
+						text = "updating…";
 					} else {
 						el.classList.add("conn-reconnecting");
 						text = "reconnecting…";

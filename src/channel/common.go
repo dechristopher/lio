@@ -1,6 +1,10 @@
 package channel
 
-import "time"
+import (
+	"time"
+
+	"github.com/gofiber/contrib/v3/websocket"
+)
 
 const (
 	// WriteWait bounds how long a single websocket write may block before the
@@ -45,4 +49,28 @@ func BroadcastEx(d []byte, meta SocketContext) {
 			sock.Enqueue(d)
 		}
 	}
+}
+
+// CloseAll sends a close frame with the given code to every tracked connection
+// on every channel, then shuts each connection's writer down. It is the
+// shutdown drain's client notification: code 1012 (Service Restart) surfaces
+// as evt.code in the browser's onclose, telling clients this is a deploy —
+// reconnect promptly — rather than a network failure. WriteControl is safe
+// concurrently with the connection's writer goroutine.
+func CloseAll(code int, reason string) {
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.Sockets() {
+			if s.Connection != nil {
+				_ = s.Connection.WriteControl(websocket.CloseMessage,
+					websocket.FormatCloseMessage(code, reason),
+					time.Now().Add(WriteWait))
+			}
+			s.Close()
+		}
+		return true
+	})
 }

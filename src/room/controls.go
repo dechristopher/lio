@@ -61,6 +61,11 @@ func (r *Instance) RequestDraw(meta channel.SocketContext) {
 // buffer slots comfortably hold a resign/draw pair; a dropped control just means
 // the player clicks again.
 func (r *Instance) sendControl(control message.RoomControl) {
+	// shutdown drain: no mutations after the final snapshot capture
+	if Draining() {
+		return
+	}
+
 	select {
 	case r.controlChannel <- control:
 	case <-r.done:

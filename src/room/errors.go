@@ -27,3 +27,11 @@ type ErrBadParamsPlayers struct{}
 func (e ErrBadParamsPlayers) Error() string {
 	return "room:config: both players must be configured when creating a room"
 }
+
+// ErrDraining is returned by Create while the shutdown drain is in progress:
+// the process is about to exit and must not take on new rooms.
+type ErrDraining struct{}
+
+func (e ErrDraining) Error() string {
+	return "room:create: server is restarting"
+}

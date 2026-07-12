@@ -38,6 +38,10 @@ type Meta struct {
 	OGTitle     string // og:title
 	OGImage     string // og:image — absolute URL of the preview card PNG
 	Description string // description + og:description
+	// Notice is an optional one-shot banner rendered near the top of the home
+	// page (e.g. "that room is gone" after a client is redirected off a room
+	// that a server restart dropped). Empty renders nothing.
+	Notice string
 }
 
 const (

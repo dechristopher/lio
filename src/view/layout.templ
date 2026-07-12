@@ -18,6 +18,9 @@ templ head(meta Meta) {
 		<meta charset="utf-8"/>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5"/>
+		<!-- build version this page was rendered by; compared against the
+		     server's socket version hello to prompt a refresh after a deploy -->
+		<meta name="lio-version" content={ config.VersionString() }/>
 		<script>
 			// Resolve and apply the color theme, board theme, and piece set
 			// before first paint to avoid a flash of the wrong appearance:
