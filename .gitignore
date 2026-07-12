@@ -50,3 +50,6 @@ deploy/secrets/
 src/cmd/lio/static/app.css
 src/cmd/lio/static/themes.css
 src/cmd/lio/static/octadground.base.css
+
+# Redis database
+!/dump.rdb
