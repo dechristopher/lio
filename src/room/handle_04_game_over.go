@@ -75,6 +75,15 @@ func (r *Instance) handleGameOver() {
 		window = botAnalysisWindow
 	}
 
+	// a rehydrated room re-enters with the remainder of the window it was
+	// persisted with (already floored at rematchDisconnectGrace by Rehydrate)
+	// instead of a fresh full one, so a restart can never extend a game-over
+	// window. One-shot: a rematch out of this window starts clean.
+	if r.restoredWindow > 0 {
+		window = r.restoredWindow
+		r.restoredWindow = 0
+	}
+
 	// fullDeadline is the window's original end; deadline is the live (possibly
 	// shortened) one. Bounding shortening by fullDeadline means a flapping player
 	// can never extend the window past its original length.
@@ -209,6 +218,9 @@ func (r *Instance) handleGameOver() {
 						Requested: control.Ctx.UID,
 					}.Broadcast(channel.SocketContext{Channel: r.ID, MT: 1})
 				}
+				// the recorded one-sided agreement is part of the snapshot (a
+				// restored client reconciles its click from RematchWhite/Black)
+				markDirty(r)
 				continue
 			}
 

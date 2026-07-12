@@ -32,6 +32,7 @@ const (
 	CChan  = "Chan"
 	CCrypt = "Cryp"
 	CUser  = "User"
+	CCache = "Cach"
 )
 
 // (E) Error messages

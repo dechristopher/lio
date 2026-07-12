@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/dechristopher/lio/bus"
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/engine"
 )
@@ -16,6 +17,12 @@ import (
 // must be lowered before UpEngine: bring-up kicks off the deploy-cache warmer,
 // which reads DeploySearchDepth on another goroutine.
 func TestMain(m *testing.M) {
+	// the event bus must be online before any clock flips: handleCommand
+	// publishes clock state while holding the clock mutex, and bus.Publish
+	// spin-waits for bus.Up — without it, the first real makeMove (persistence
+	// round-trip tests) deadlocks the clock against the room's stateMu.
+	// Production has the same ordering via systems.Run (bus.Up runs first).
+	bus.Up()
 	engine.DeploySearchDepth = 1
 	dispatch.UpEngine()
 	os.Exit(m.Run())

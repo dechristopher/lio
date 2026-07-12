@@ -159,8 +159,16 @@ var EventPlayerAbandons = fsm.EventDesc{
 // newStateMachine returns a new finite state machine that helps
 // to control the state flow of a game of octad on the site
 func newStateMachine() *fsm.FSM {
+	return newStateMachineAt(StateInit)
+}
+
+// newStateMachineAt returns the room state machine primed at the given state:
+// the rehydration entry point, where the persisted state stands in for the
+// transitions the original process already made. All other rooms start at
+// StateInit via newStateMachine.
+func newStateMachineAt(initial State) *fsm.FSM {
 	return fsm.NewFSM(
-		string(StateInit),
+		string(initial),
 		fsm.Events{
 			EventRoomInitialized,
 			EventPlayerConnected,

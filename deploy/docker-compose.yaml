@@ -12,9 +12,11 @@
 #
 # Secrets are plain files under deploy/secrets/ (gitignored), mounted by
 # compose at /run/secrets/<name> — exactly where config.ReadSecret looks in
-# prod. All five are required: crypto_key for the session/identity crypto, and
-# the four lio_obj_* values for the MinIO/S3 game-archive store (the app exits
-# at boot in prod if the object store is unreachable or misconfigured).
+# prod. All six are required: crypto_key for the session/identity crypto, the
+# four lio_obj_* values for the MinIO/S3 game-archive store, and lio_redis_addr
+# (redis:6379 on this compose network) for room restart persistence (the app
+# exits at boot in prod if the object store or redis is unreachable or
+# misconfigured).
 
 name: lioctad
 
@@ -32,9 +34,14 @@ services:
     # so this deploy-side override is where prod log verbosity is chosen. Trim or
     # drop it to quiet the logs further.
     command: ["--debug", "room,dispatch,clock"]
-    # mirror fly.toml: SIGINT with a short grace period for in-flight games
+    # SIGINT triggers graceful shutdown; the grace period leaves headroom for
+    # the drain (final room-snapshot flush + client notify — see
+    # arch/STATE_PERSISTENCE_SCALING.md) which itself targets well under 2s
     stop_signal: SIGINT
-    stop_grace_period: 5s
+    stop_grace_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
     environment:
       DEPLOY: "prod"
       PORT: "4444"
@@ -75,6 +82,10 @@ services:
         uid: "10001"
         gid: "10001"
         mode: 0440
+      - source: lio_redis_addr
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
     healthcheck:
       # The runtime image is scratch (no shell/wget), so probe via the binary's
       # own health check (`/lio --health` → GET /lio on the loopback-only
@@ -93,24 +104,27 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Room restart persistence (arch/STATE_PERSISTENCE_SCALING.md): live-room
+  # snapshots with AOF-everysec durability. Off the host network; the app
+  # reaches it at redis:6379 (the lio_redis_addr secret) on the compose network.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
   # ---------------------------------------------------------------------------
   # Future integrations — carveouts, intentionally disabled. Uncomment the
   # service (and its volume below) when the app grows a real dependency on it.
-  # Both stay off the host network; the app reaches them by service name
-  # (redis:6379 / postgres:5432) on the default compose network.
+  # Off the host network; the app reaches it by service name (postgres:5432)
+  # on the default compose network.
   # ---------------------------------------------------------------------------
-
-  # redis:
-  #   image: redis:7-alpine
-  #   restart: unless-stopped
-  #   command: ["redis-server", "--appendonly", "yes"]
-  #   volumes:
-  #     - redis-data:/data
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 15s
-  #     timeout: 3s
-  #     retries: 3
 
   # postgres:
   #   image: postgres:17-alpine
@@ -140,9 +154,11 @@ secrets:
     file: ./secrets/lio_obj_access
   lio_obj_secret:
     file: ./secrets/lio_obj_secret
+  lio_redis_addr:
+    file: ./secrets/lio_redis_addr
   # postgres_password:
   #   file: ./secrets/postgres_password
 
-# volumes:
-#   redis-data:
+volumes:
+  redis-data:
 #   postgres-data:

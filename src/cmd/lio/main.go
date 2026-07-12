@@ -11,8 +11,10 @@ import (
 	"github.com/dechristopher/lio/crypt"
 	"github.com/joho/godotenv"
 
+	"github.com/dechristopher/lio/cache"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/systems"
 	"github.com/dechristopher/lio/util"
@@ -84,8 +86,21 @@ func main() {
 	// load .env if any
 	_ = godotenv.Load()
 
-	// asynchronously initialize subsystems
-	go systems.Run()
+	// initialize subsystems synchronously: the bus must be online before any
+	// room exists (clock flips publish to it), and everything below depends on
+	// config/secrets being readable. The chain is fast — the only network touch
+	// is the object store's credential check.
+	systems.Run()
+
+	// restart persistence (arch/STATE_PERSISTENCE_SCALING.md): bring the cache
+	// online, restore persisted rooms, then start the write-behind persister.
+	// Rehydration MUST complete before the listener below accepts connections,
+	// or reconnecting clients race the restore and get bounced as "room gone".
+	cache.Up()
+	if cache.Ready() {
+		room.RehydrateAll(cache.RoomSnapshots{})
+		room.UpPersister(cache.RoomSnapshots{})
+	}
 
 	// serve primary http endpoints
 	www.Serve(static)

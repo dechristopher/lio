@@ -40,6 +40,39 @@ func (p *Player) resetScore() {
 	p.results = nil
 }
 
+// Snapshot is the serializable form of a Player for room persistence: seat
+// identity plus the accumulated match score and per-game history, which are
+// otherwise unexported and would not survive a JSON round-trip.
+type Snapshot struct {
+	ID          string       `json:"id"`
+	IsBot       bool         `json:"bot,omitempty"`
+	ScorePoints int          `json:"sp,omitempty"`
+	ScoreHalf   int          `json:"sh,omitempty"`
+	Results     []GameResult `json:"res,omitempty"`
+}
+
+// Snapshot captures the player's persistable state.
+func (p *Player) Snapshot() Snapshot {
+	return Snapshot{
+		ID:          p.ID,
+		IsBot:       p.IsBot,
+		ScorePoints: p.scorePoints,
+		ScoreHalf:   p.scoreHalf,
+		Results:     p.results,
+	}
+}
+
+// RestorePlayer rebuilds a Player from a persisted snapshot.
+func RestorePlayer(s Snapshot) *Player {
+	return &Player{
+		ID:          s.ID,
+		IsBot:       s.IsBot,
+		scorePoints: s.ScorePoints,
+		scoreHalf:   s.ScoreHalf,
+		results:     s.Results,
+	}
+}
+
 // ToJoin is a sample Player used to configure a room in which
 // the opponent joins via URL and is then configured
 var ToJoin = Player{

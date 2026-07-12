@@ -17,11 +17,16 @@ import (
 var pub *bus.Publisher
 
 // Up brings the system publisher online and sends a test message
-// verifying that the bus has come online after some time
+// verifying that the bus has come online after some time. The delayed smoke
+// publish runs off this goroutine: Run is now called synchronously before the
+// server listens (boot must rehydrate persisted rooms first), so nothing in
+// the initializer chain may sleep.
 func Up() {
 	pub = bus.NewPublisher("sys", bus.SystemChannel)
-	time.Sleep(time.Millisecond * 500)
-	pub.Publish("bus online")
+	go func() {
+		time.Sleep(time.Millisecond * 500)
+		pub.Publish("bus online")
+	}()
 }
 
 // Initializers for subsystem components

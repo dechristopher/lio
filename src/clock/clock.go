@@ -128,8 +128,12 @@ func (c *Clock) EstimateRemaining(color octad.Color) CTime {
 	if c.turn == color {
 		rem := c.players[color].remaining()
 
-		// return full time if still first move
-		if c.firstMove {
+		// return exact time if still first move or the clock is not running
+		// (pre-start, stopped on game end, or restored-paused after a restart):
+		// time only drains against a running clock, so estimating off the last
+		// flip timestamp would wrongly keep draining after a Stop and would
+		// instantly zero a restored clock whose timestamp predates the restart
+		if c.firstMove || c.clockPaused {
 			return rem
 		}
 
@@ -181,18 +185,22 @@ func (c *Clock) Start() {
 
 	// set flag timer so we can reset it later on
 	c.flagTimer = time.NewTimer(time.Nanosecond)
+
+	// set up the delay timer here, under the mutex, not in the goroutine below:
+	// Stop reads delayTimer under the mutex, and an immediate Start→Stop (e.g. a
+	// restored room resumed and finished at once) would race the goroutine's
+	// unlocked write of the field
+	if c.control.Delay.t != 0 {
+		c.delayTimer = time.NewTimer(c.control.Delay.t)
+	} else {
+		// default to true for immediate decrement
+		c.delayTimer = time.NewTimer(time.Hour)
+		c.delayExpired = true
+	}
 	c.mutex.Unlock()
 
 	go func(cl *Clock, quit, stopped chan struct{}) {
 		defer close(stopped)
-		// set up delay timer
-		if cl.control.Delay.t != 0 {
-			cl.delayTimer = time.NewTimer(cl.control.Delay.t)
-		} else {
-			// default to true for immediate decrement
-			cl.delayTimer = time.NewTimer(time.Hour)
-			cl.delayExpired = true
-		}
 		for {
 			select {
 			case <-quit:
@@ -294,6 +302,71 @@ func (c *Clock) Stop(writeState, lock bool) {
 		close(c.quit)
 		c.quit = nil
 	}
+}
+
+// Snapshot is the serializable state of a clock as-of-last-flip: per-player
+// elapsed time, whose turn it is, and the first-move/victor flags. It
+// deliberately excludes the live flip timestamp — a restored clock never
+// charges wall time that passed while the process was down (restart
+// persistence policy: players are not charged for a deploy).
+type Snapshot struct {
+	WhiteElapsedMs int64       `json:"we"`
+	BlackElapsedMs int64       `json:"be"`
+	Turn           octad.Color `json:"t"`
+	FirstMove      bool        `json:"fm,omitempty"`
+	Victor         Victor      `json:"v,omitempty"`
+}
+
+// Snapshot captures the clock's persistable state. Safe to call on a running
+// clock: elapsed time is only ever advanced at a flip, so a mid-think capture
+// reads as-of-last-flip — exactly the restore semantics we want.
+func (c *Clock) Snapshot() Snapshot {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return Snapshot{
+		WhiteElapsedMs: c.players[octad.White].elapsed.Milli(),
+		BlackElapsedMs: c.players[octad.Black].elapsed.Milli(),
+		Turn:           c.turn,
+		FirstMove:      c.firstMove,
+		Victor:         c.victor,
+	}
+}
+
+// Restore builds a paused clock from a persisted snapshot. The clock does not
+// run until Resume (mid-game restore) or Start (fresh-game paths) is called;
+// until then State/EstimateRemaining report the exact restored remaining time.
+func Restore(tc TimeControl, s Snapshot) *Clock {
+	c := NewClock(tc)
+	c.players[octad.White].elapsed = ToCTime(time.Duration(s.WhiteElapsedMs) * Millisecond)
+	c.players[octad.Black].elapsed = ToCTime(time.Duration(s.BlackElapsedMs) * Millisecond)
+	c.turn = s.Turn
+	c.firstMove = s.FirstMove
+	c.victor = s.Victor
+	// defensive: never leave the zero timestamp in place — anything estimating
+	// off it would charge decades of "elapsed" time
+	c.timestamp = time.Now()
+	return c
+}
+
+// Resume unpauses a restored clock: it re-bases the flip timestamp to now (so
+// the side to move is charged from the resume instant, not from the pre-restart
+// flip) and starts the clock goroutine. The flag timer is then armed for the
+// side to move's remaining budget — Start's primer only checks once, and the
+// per-flip re-arm in handleCommand hasn't run for a restored mid-game clock.
+func (c *Clock) Resume() {
+	c.mutex.Lock()
+	c.timestamp = time.Now()
+	c.mutex.Unlock()
+
+	c.Start()
+
+	c.mutex.Lock()
+	if !c.firstMove && c.flagTimer != nil {
+		// a pending fire from Start's 1ns primer may still be delivered; that
+		// stray delivery is just an extra not-flagged check and is harmless
+		c.flagTimer.Reset(c.players[c.turn].remaining().t)
+	}
+	c.mutex.Unlock()
 }
 
 // State returns the current clock state

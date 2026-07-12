@@ -45,6 +45,18 @@ func (t CTime) MarshalJSON() ([]byte, error) {
 		'f', -1, 32)), nil
 }
 
+// UnmarshalJSON parses the seconds float emitted by MarshalJSON back into a
+// CTime, so structures embedding TimeControl (e.g. the variant definition
+// inside a persisted room snapshot) round-trip through JSON.
+func (t *CTime) UnmarshalJSON(b []byte) error {
+	secs, err := strconv.ParseFloat(string(b), 64)
+	if err != nil {
+		return err
+	}
+	t.t = time.Duration(secs * float64(time.Second))
+	return nil
+}
+
 // String returns the string representation of
 // the internal time.Duration for pretty printing
 func (t CTime) String() string {

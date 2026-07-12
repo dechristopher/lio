@@ -175,6 +175,24 @@ type Instance struct {
 	abandoned bool
 	cancelled bool
 
+	// resumeClockPending marks a rehydrated in-progress game whose restored
+	// clock is still paused (restart persistence never charges players for
+	// process downtime). handleGameOngoing resumes the clock — clearing this —
+	// once both seats are connected, or immediately when a move arrives (the
+	// mover is evidently present; the absent opponent's clock then runs exactly
+	// as it would after any mid-game disconnect). Set by Rehydrate before the
+	// routine starts and touched only by the room routine after, so it is
+	// unguarded like cancelled/abandoned.
+	resumeClockPending bool
+
+	// restoredWindow, when nonzero, replaces handleGameOver's full game-over
+	// window for a rehydrated room: the remainder of the window the room was
+	// persisted with, floored at rematchDisconnectGrace so a window that lapsed
+	// during the restart still gives returning players a beat before the room
+	// closes. Consumed (zeroed) on first use. Same access discipline as
+	// resumeClockPending.
+	restoredWindow time.Duration
+
 	// public reports whether an open human challenge should be listed in the
 	// home-page Open Challenges feed. Challenges default to private (link-only)
 	// and the creator opts in to public listing at creation time. Set once in
@@ -377,6 +395,9 @@ func (r *Instance) routine() {
 
 	for {
 		util.DebugFlag("room", str.CRoom, "[%s] room state transition - %s", r.ID, r.State())
+		// snapshot the room at every state boundary (restart persistence); a
+		// non-persistable state (waiting) is skipped inside Persist
+		markDirty(r)
 		switch r.State() {
 		case StateWaitingForPlayers:
 			r.handleWaitingForPlayers()
@@ -423,6 +444,9 @@ func (r *Instance) cleanup() {
 	}
 	// delete room instance from rooms map
 	rooms.Delete(r.ID)
+	// drop the room's persisted snapshot; routed through the persister loop so
+	// it serializes after any in-flight snapshot write of this room
+	forgetSnapshot(r.ID)
 }
 
 // event runs a state machine transition using the given EventDesc and args
@@ -1208,6 +1232,9 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	if move.Ctx.IsHuman() {
 		channel.Unicast(stateMsg, move.Ctx)
 	}
+
+	// write-behind persistence: every applied move dirties the snapshot
+	markDirty(r)
 
 	return true
 }

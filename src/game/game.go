@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/dechristopher/octad/v2"
@@ -41,6 +42,50 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 		ToMove:  game.Position().Turn(),
 		Variant: config.Variant,
 		Clock:   clock.NewClock(config.Variant.Control),
+		White:   config.White,
+		Black:   config.Black,
+	}
+
+	return &g, nil
+}
+
+// RestoreOctadGame rebuilds a persisted game by replaying its move list from
+// its starting OFEN (which differs from the standard start for deploy-mode
+// games), preserving the original game identity and seat assignment. The clock
+// is supplied by the caller (restored separately — see clock.Restore) rather
+// than created fresh like NewOctadGame does. Board-derived outcomes
+// (checkmate, stalemate, repetition, ...) re-arise from the replay itself;
+// declared outcomes (resignation, agreed draw) are the caller's to re-apply.
+func RestoreOctadGame(config OctadGameConfig, id string, start time.Time,
+	startOFEN string, moves []string, clk *clock.Clock) (*OctadGame, error) {
+	game, err := genGame(startOFEN)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, uoi := range moves {
+		var match *octad.Move
+		for _, m := range game.ValidMoves() {
+			if m.String() == uoi {
+				match = m
+				break
+			}
+		}
+		if match == nil {
+			return nil, fmt.Errorf("restore: illegal move %q at ply %d", uoi, i+1)
+		}
+		if err := game.Move(match); err != nil {
+			return nil, fmt.Errorf("restore: move %q at ply %d: %w", uoi, i+1, err)
+		}
+	}
+
+	g := OctadGame{
+		ID:      id,
+		Start:   start,
+		Game:    *game,
+		ToMove:  game.Position().Turn(),
+		Variant: config.Variant,
+		Clock:   clk,
 		White:   config.White,
 		Black:   config.Black,
 	}

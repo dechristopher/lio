@@ -80,6 +80,34 @@ func (r *Instance) handleGameOngoing() {
 	// the bot's opening move already played and the no-show human on the clock
 	refreshIdle()
 
+	// maybeResume unpauses a rehydrated room's restored clock (see
+	// resumeClockPending). Reading r.game unlocked here follows the handler's
+	// existing pattern (the select below reads r.game.Clock the same way): the
+	// routine is the sole writer of the game pointer while in this state. After
+	// the clock resumes, clients get a fresh state broadcast so their clocks
+	// start ticking, and if the bot is to move the engine search is
+	// (re)requested — the original request died with the old process.
+	maybeResume := func() {
+		if !r.resumeClockPending {
+			return
+		}
+		r.resumeClockPending = false
+
+		util.DebugFlag("room", str.CRoom, "[%s] resuming restored clock", r.ID)
+		r.game.Clock.Resume()
+
+		channel.Broadcast(r.CurrentGameStateMessage(false, false),
+			channel.SocketContext{Channel: r.ID, MT: 1})
+
+		r.stateMu.Lock()
+		botColor := r.players.GetBotColor()
+		botToMove := botColor != octad.NoColor && r.game.ToMove == botColor
+		r.stateMu.Unlock()
+		if botToMove {
+			r.requestEngineMove()
+		}
+	}
+
 	// arm the disconnect timer on entry if a player is already gone: a drop
 	// during the state transition lands before this handler's listener exists,
 	// so no connection event would ever arm it. A timed game would still end
@@ -87,6 +115,10 @@ func (r *Instance) handleGameOngoing() {
 	// room would outlive its players forever.
 	if !r.bothPlayersConnected() {
 		armAbandon()
+	} else {
+		// a rehydrated room can enter with both seats already present (e.g. the
+		// players reconnected while the routine was still spinning up)
+		maybeResume()
 	}
 
 	for {
@@ -99,6 +131,11 @@ func (r *Instance) handleGameOngoing() {
 				channel.Unicast(r.CurrentGameStateMessage(false, false), move.Ctx)
 				continue
 			}
+
+			// a move while the restored clock is still paused: resume it now —
+			// the mover is evidently present and acting, and flipClock would
+			// otherwise block forever on a clock goroutine that isn't running
+			maybeResume()
 
 			util.DebugFlag("room", str.CRoom, "[%s] got move %+v", r.ID, move)
 
@@ -139,6 +176,9 @@ func (r *Instance) handleGameOngoing() {
 				stopAbandon()
 				return
 			}
+			// a control that didn't end the game may still have mutated the
+			// draw-offer state; keep the snapshot current
+			markDirty(r)
 
 		// handle the engine's verdict on a draw offer in a bot game: an accepted
 		// draw ends the game, a declined one is surfaced to the player.
@@ -151,6 +191,7 @@ func (r *Instance) handleGameOngoing() {
 				stopAbandon()
 				return
 			}
+			markDirty(r)
 
 		// handle clock events
 		case flaggedState := <-r.game.Clock.StateChannel:
@@ -192,6 +233,7 @@ func (r *Instance) handleGameOngoing() {
 			// both players connected? a bot counts as always-connected
 			if r.bothPlayersConnected() {
 				util.DebugFlag("room", str.CRoom, "[%s] both players connected, cancelling abandon timer", r.ID)
+				maybeResume()
 				stopAbandon()
 				continue
 			}
