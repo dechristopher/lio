@@ -17,6 +17,14 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Games that outlive the server",
+		Date:  "Jul 12, 2026",
+		Body: "Server updates no longer end your game: live games are now preserved through " +
+			"restarts, and your board reconnects on its own with a brief \"updating\" status. " +
+			"When a new version ships, a small notice offers a refresh on your schedule, " +
+			"not ours.",
+	},
+	{
 		Title: "Who's ahead, at a glance",
 		Date:  "Jul 11, 2026",
 		Body: "Captured pieces now stack up beside each player's clock with a running point " +
@@ -47,8 +55,8 @@ var Items = []Item{
 		Title: "Sound, ready the moment you need it",
 		Date:  "Jul 10, 2026",
 		Body: "Move, capture, and check sounds are now served straight from lioctad and loaded " +
-			"ahead of time, so audio is primed to play the instant it's needed — no waiting on an " +
-			"outside service.",
+			"ahead of time, so audio is primed to play the instant it's needed. No waiting on an " +
+			"CDN or outside service.",
 	},
 	{
 		Title: "A more secure lioctad",
