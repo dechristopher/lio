@@ -53,3 +53,4 @@ src/cmd/lio/static/octadground.base.css
 
 # Redis database
 !/dump.rdb
+*.rdb
