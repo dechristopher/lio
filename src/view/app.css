@@ -1255,8 +1255,10 @@
 	.seg-ico { width: 1.05rem; height: 1.05rem; }
 	.seg-input:checked + .seg-btn {
 		color: var(--accent-contrast);
-		background: linear-gradient(180deg, var(--accent), var(--accent-hover));
-		box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+		/* Solid fill + opaque inset ring (no gradient / no semi-transparent
+		   box-shadow): Firefox-Android renders those as grey horizontal seams. */
+		background: var(--accent);
+		box-shadow: var(--shadow-sm), inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, var(--surface-2));
 	}
 	.seg-input:focus-visible + .seg-btn { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 	.seg-tag {
@@ -1294,9 +1296,12 @@
 	.tc-input:checked + .tc-label .tc-box {
 		transform: translateY(-2px);
 		border-color: transparent;
-		background: linear-gradient(165deg, var(--accent), var(--accent-hover));
+		/* Solid fill + opaque inset ring (no gradient / no semi-transparent
+		   hairline): Firefox-Android renders those as grey seams. The soft
+		   elevation glow below is kept — a blurred drop shadow, not a flat fill. */
+		background: var(--accent);
 		color: var(--accent-contrast);
-		box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent), 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, var(--surface-2)), 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent);
 	}
 	.tc-input:checked + .tc-label .tc-pool { color: color-mix(in srgb, #fff 78%, transparent); }
 	.tc-input:focus-visible + .tc-label .tc-box { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
