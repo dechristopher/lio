@@ -17,6 +17,13 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Your games, on the record",
+		Date:  "Jul 14, 2026",
+		Body: "Under the hood, every finished game is now recorded to a durable database, each " +
+			"move and position preserved alongside the result. It's the groundwork for game " +
+			"history, personal stats, and post-game analysis on the way.",
+	},
+	{
 		Title: "Sounds you won't miss",
 		Date:  "Jul 12, 2026",
 		Body: "Move sounds now play reliably across phones and older browsers that used to fall " +
