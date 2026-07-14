@@ -12,11 +12,13 @@
 #
 # Secrets are plain files under deploy/secrets/ (gitignored), mounted by
 # compose at /run/secrets/<name> — exactly where config.ReadSecret looks in
-# prod. All six are required: crypto_key for the session/identity crypto, the
-# four lio_obj_* values for the MinIO/S3 game-archive store, and lio_redis_addr
-# (redis:6379 on this compose network) for room restart persistence (the app
-# exits at boot in prod if the object store or redis is unreachable or
-# misconfigured).
+# prod. Required for the app: crypto_key for the session/identity crypto, the
+# four lio_obj_* values for the MinIO/S3 PGN archive, lio_redis_addr (redis:6379
+# on this compose network) for room restart persistence, and lio_pg_dsn
+# (postgres:5432) for the durable relational game archive. postgres_password is
+# consumed by the postgres container itself and must match the password embedded
+# in lio_pg_dsn. The app exits at boot in prod if the object store, redis, or
+# postgres is unreachable or misconfigured.
 
 name: lioctad
 
@@ -41,6 +43,8 @@ services:
     stop_grace_period: 30s
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     environment:
       DEPLOY: "prod"
@@ -86,6 +90,10 @@ services:
         uid: "10001"
         gid: "10001"
         mode: 0440
+      - source: lio_pg_dsn
+        uid: "10001"
+        gid: "10001"
+        mode: 0440
     healthcheck:
       # The runtime image is scratch (no shell/wget), so probe via the binary's
       # own health check (`/lio --health` → GET /lio on the loopback-only
@@ -119,29 +127,27 @@ services:
       timeout: 3s
       retries: 3
 
-  # ---------------------------------------------------------------------------
-  # Future integrations — carveouts, intentionally disabled. Uncomment the
-  # service (and its volume below) when the app grows a real dependency on it.
-  # Off the host network; the app reaches it by service name (postgres:5432)
-  # on the default compose network.
-  # ---------------------------------------------------------------------------
-
-  # postgres:
-  #   image: postgres:17-alpine
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: lio
-  #     POSTGRES_USER: lio
-  #     POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-  #   secrets:
-  #     - postgres_password
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U lio -d lio"]
-  #     interval: 15s
-  #     timeout: 3s
-  #     retries: 3
+  # Durable relational game archive:
+  # finished games + deduped move/position analytics. System of record for
+  # finished games only — never live game state (that is redis). Off the host
+  # network; the app reaches it at postgres:5432 via the lio_pg_dsn secret. The
+  # data dir is a persistent named volume; migrations run in-process at app boot.
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lio
+      POSTGRES_USER: lio
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lio -d lio"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
 
 secrets:
   crypto_key:
@@ -156,9 +162,14 @@ secrets:
     file: ./secrets/lio_obj_secret
   lio_redis_addr:
     file: ./secrets/lio_redis_addr
-  # postgres_password:
-  #   file: ./secrets/postgres_password
+  # full connection URL for the app, e.g.
+  # postgres://lio:<password>@postgres:5432/lio?sslmode=disable
+  lio_pg_dsn:
+    file: ./secrets/lio_pg_dsn
+  # consumed by the postgres container init; must match the password in lio_pg_dsn
+  postgres_password:
+    file: ./secrets/postgres_password
 
 volumes:
   redis-data:
-#   postgres-data:
+  postgres-data:

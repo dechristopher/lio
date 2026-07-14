@@ -13,6 +13,7 @@ import (
 
 	"github.com/dechristopher/lio/cache"
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
@@ -101,6 +102,10 @@ func main() {
 		room.RehydrateAll(cache.RoomSnapshots{})
 		room.UpPersister(cache.RoomSnapshots{})
 	}
+
+	// optional background position evaluator (fills the deduped positions eval
+	// cache off the game path; no-op unless Postgres + the evaluator are enabled)
+	db.UpEvaluator()
 
 	// serve primary http endpoints
 	www.Serve(static)

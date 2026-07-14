@@ -15,6 +15,7 @@ import (
 	"github.com/dechristopher/lio/channel/handlers"
 	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/lag"
@@ -1484,6 +1485,19 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// not affect the live game that readers may still observe.
 	gameCopy := *r.game
 
+	// capture the room-level archive context while still under the lock: scores
+	// are final after updateScoreLocked, and the reason/race-to/room fields are
+	// not reachable from the game copy alone. The game-derived fields are filled
+	// later from gameCopy in storeGame (arch/STATE_PERSISTENCE_SCALING.md L3).
+	archiveRec := db.GameRecord{
+		RoomID:     r.ID,
+		Creator:    r.creator,
+		RaceTo:     r.params.RaceTo,
+		WhiteScore: r.players[octad.White].Score(),
+		BlackScore: r.players[octad.Black].Score(),
+		Reason:     r.gameOverReasonLocked(false),
+	}
+
 	r.stateMu.Unlock()
 
 	// send final game update to prevent further moves, then the game over
@@ -1492,7 +1506,7 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	channel.Broadcast(overMsg, meta)
 
 	// archive the game off the hot path
-	go storeGame(gameCopy)
+	go storeGame(gameCopy, archiveRec)
 
 	// stream the final position to home-page TV viewers
 	tv.Publish(tvEnd)
@@ -1590,9 +1604,12 @@ func buildArchivePGN(g game.OctadGame) string {
 	return g.Game.String()
 }
 
-// storeGame puts the game in object storage for archival purposes
-// and also tracks it in the game database
-func storeGame(g game.OctadGame) {
+// storeGame archives a finished game two ways, both off the hot path: the PGN
+// blob to object storage (its long-standing durable home) and a relational row
+// plus deduped move/position analytics to Postgres. rec carries the room-level
+// context captured under stateMu by the caller; the game-derived fields come
+// from g here. Both writes degrade gracefully when their store is unconfigured.
+func storeGame(g game.OctadGame, rec db.GameRecord) {
 	pgn := buildArchivePGN(g)
 
 	util.DebugFlag("pgn", "PGN", "%s", pgn)
@@ -1608,6 +1625,54 @@ func storeGame(g game.OctadGame) {
 	err := store.PGNBucket.PutObject(key, []byte(pgn))
 	if err != nil {
 		util.Error(str.CHMov, str.ERecord, err.Error())
+	}
+
+	archiveToDatabase(g, rec, key)
+}
+
+// archiveToDatabase fills the game-derived archive fields and the per-ply
+// analytics rows from the finished game copy, then persists the relational
+// record (a no-op when Postgres is unconfigured). The moves list is packed to a
+// compact blob, and each ply carries the position reached after it (its
+// clock-independent hash + OFEN) for the deduped positions index.
+func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string) {
+	rec.GameID = g.ID
+	rec.StartTs = g.Start
+	rec.EndTs = time.Now()
+	rec.WhiteUID = g.White
+	rec.BlackUID = g.Black
+	rec.VariantName = g.Variant.Name
+	rec.VariantGroup = string(g.Variant.Group)
+	rec.Casual = g.Variant.Casual
+	rec.Outcome = g.Outcome().String()
+	rec.Method = int16(g.Method())
+	rec.PGNObjectKey = pgnKey
+
+	positions := g.Positions()
+	moves := g.Moves()
+	if len(positions) > 0 {
+		rec.StartingOFEN = positions[0].String()
+	}
+
+	rec.Moves = make([]byte, 0, len(moves)*2)
+	plies := make([]db.PlyRecord, 0, len(moves))
+	for i, m := range moves {
+		packed := game.PackMove(m)
+		rec.Moves = append(rec.Moves, byte(packed>>8), byte(packed))
+		pos := positions[i+1] // position after ply i (positions[0] is the start)
+		hash := pos.Hash()
+		plies = append(plies, db.PlyRecord{
+			Ply:     int16(i + 1),
+			Mv:      packed,
+			PosHash: hash[:],
+			PosOFEN: pos.String(),
+		})
+	}
+
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	if err := db.ArchiveGame(ctx, rec, plies); err != nil {
+		util.Error(str.CDB, "archive failed error=%s", err.Error())
 	}
 }
 

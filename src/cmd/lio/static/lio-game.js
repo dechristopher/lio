@@ -1168,12 +1168,6 @@ const requestRematch = (btn) => {
 	}
 	// in-room agreement flow (humans always; bots while the room is alive)
 	send(buildCommand("r", {rm: true}));
-	// echo the cue the opponent hears when we're the one initiating; when we're
-	// instead accepting their standing request the next game starts immediately
-	// (its own start sound follows), so skip the tick then — mirrors the draw flow
-	if (!opponentRematchNotified) {
-		window.rematchSound.play();
-	}
 	// leave the overlay up until the rematch actually starts; mark the request
 	// sent and reflect it on both rematch buttons + the still-running countdown
 	// (human games relabel to "Waiting for opponent").
@@ -1270,9 +1264,7 @@ if (drawBtn && !isSpec) {
 			drawBtn.disabled = true;
 			drawBtn.classList.remove('wants-draw');
 		} else {
-			// we offered: echo the same cue the opponent hears on receipt, then
-			// reflect pending until it is answered / superseded
-			window.drawSound.play();
+			// we offered: reflect pending until it is answered / superseded
 			drawOfferedByMe = true;
 			drawBtn.disabled = true;
 			drawBtn.innerHTML = 'Offered&hellip;';

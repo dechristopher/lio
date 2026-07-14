@@ -1,0 +1,84 @@
+# Local development stack for lioctad
+#
+# Backing services only — run the lio server itself natively (GoLand or
+# `go run ./cmd/lio`) so you keep fast rebuilds and the debugger. Service
+# versions match deploy/docker-compose.yaml so local behaviour mirrors prod.
+# Data lives in named volumes and persists across up/down; dev/dev.sh reset
+# wipes it for a clean slate (migrations re-apply on the next app boot).
+#
+#   dev/dev.sh up        # start pg + redis (waits until healthy)
+#   dev/dev.sh reset     # wipe volumes and restart from scratch
+#
+# Point the app at these via src/cmd/lio/.env (see .env.example):
+#   DEV_LIO_PG_DSN=postgres://lio:lio@localhost:5432/lio?sslmode=disable
+#   DEV_LIO_REDIS_ADDR=localhost:6379
+
+name: lio-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lio
+      POSTGRES_USER: lio
+      POSTGRES_PASSWORD: lio
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - lio-dev-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lio -d lio"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - lio-dev-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional object store for local PGN archival. store.Up uses Secure:true, so
+  # plain-http local MinIO needs care — leave DEV_LIO_OBJ_ENDPOINT empty to skip
+  # archival entirely (the games row then stores an empty pgn_object_key; the
+  # Postgres analytics plane is unaffected). Started only with the minio profile
+  # (dev/dev.sh minio).
+  #  minio:
+  #    image: minio/minio:latest
+  #    profiles: ["minio"]
+  #    restart: unless-stopped
+  #    command: ["server", "/data", "--console-address", ":9001"]
+  #    environment:
+  #      MINIO_ROOT_USER: lioadmin
+  #      MINIO_ROOT_PASSWORD: liosecret123
+  #    ports:
+  #      - "127.0.0.1:9000:9000"
+  #      - "127.0.0.1:9001:9001"
+  #    volumes:
+  #      - lio-dev-minio:/data
+  #
+  #  # One-shot: create the PGN bucket once MinIO is reachable, then exit.
+  #  minio-init:
+  #    image: minio/mc:latest
+  #    profiles: ["minio"]
+  #    depends_on:
+  #      - minio
+  #    entrypoint: >
+  #      /bin/sh -c "
+  #      until mc alias set local http://minio:9000 lioadmin liosecret123; do sleep 1; done;
+  #      mc mb --ignore-existing local/lio-pgn
+  #      "
+
+volumes:
+  lio-dev-pg:
+  lio-dev-redis:
+  # lio-dev-minio:x

@@ -51,6 +51,5 @@ src/cmd/lio/static/app.css
 src/cmd/lio/static/themes.css
 src/cmd/lio/static/octadground.base.css
 
-# Redis database
-!/dump.rdb
+# Redis database dumps (redis now runs in a container with its own volume)
 *.rdb

@@ -5,6 +5,7 @@ import (
 
 	"github.com/dechristopher/lio/bus"
 	"github.com/dechristopher/lio/clock"
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
@@ -33,6 +34,7 @@ func Up() {
 var Initializers = []func(){
 	bus.Up,
 	store.Up,
+	db.Up, // durable relational game archive; runs migrations, sibling of store.Up
 	dispatch.UpEngine,
 	engine.MonitorSub,
 	clock.MonitorSub,

@@ -1,0 +1,19 @@
+# sqlc config — run `sqlc generate` from src/ after editing db/query/*.sql or
+# db/migrations/*.sql. Generates the typed pgx/v5 data-access layer into db/gen
+# (committed, like view/*_templ.go). The goose migrations double as the schema
+# source of truth, so there is no separate schema.sql. Install the pinned tool
+# with: go install github.com/sqlc-dev/sqlc/cmd/sqlc@<version>
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "db/migrations"
+    queries: "db/query"
+    gen:
+      go:
+        package: "gen"
+        out: "db/gen"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"

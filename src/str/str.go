@@ -33,6 +33,7 @@ const (
 	CCrypt = "Cryp"
 	CUser  = "User"
 	CCache = "Cach"
+	CDB    = "DB"
 )
 
 // (E) Error messages

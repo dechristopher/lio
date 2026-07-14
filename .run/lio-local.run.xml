@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="lio-local" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="lioctad" />
+    <working_directory value="$PROJECT_DIR$/src/cmd/lio" />
+    <parameters value="--debug room,dispatch,clock,engine,db" />
+    <kind value="PACKAGE" />
+    <package value="github.com/dechristopher/lio/cmd/lio" />
+    <directory value="$PROJECT_DIR$/src/cmd/lio" />
+    <filePath value="$PROJECT_DIR$/src/cmd/lio/main.go" />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="dev services (up)" run_configuration_type="ShConfigurationType" />
+    </method>
+  </configuration>
+</component>
