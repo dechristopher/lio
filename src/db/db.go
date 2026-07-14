@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"log"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,6 +13,7 @@ import (
 	"github.com/pressly/goose/v3"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/db/gen"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
@@ -72,7 +74,32 @@ func Up() {
 	}
 
 	Pool = pool
+	initGamesTotal()
 	util.Debug(str.CDB, "postgres online")
+}
+
+// gamesTotal is an in-memory running count of archived games, shown on the home
+// page. It is seeded once from count(*) at boot and incremented on each
+// successful ArchiveGame, so the home-activity fragment (which self-refreshes
+// every 5s) reads it without ever touching the database.
+var gamesTotal atomic.Int64
+
+// initGamesTotal seeds the games counter from the current table size.
+func initGamesTotal() {
+	ctx, cancel := Ctx()
+	defer cancel()
+	n, err := gen.New(Pool).CountGames(ctx)
+	if err != nil {
+		util.Error(str.CDB, "games count init failed error=%s", err.Error())
+		return
+	}
+	gamesTotal.Store(n)
+}
+
+// TotalGames returns the cached count of archived games (0 when Postgres is
+// unconfigured).
+func TotalGames() int64 {
+	return gamesTotal.Load()
 }
 
 // fatalOrDegrade logs err as a fatal boot failure in prod, or a degraded-mode

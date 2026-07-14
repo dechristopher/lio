@@ -117,7 +117,11 @@ func ArchiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord) error {
 		}
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	gamesTotal.Add(1)
+	return nil
 }
 
 // ts wraps a time.Time as a valid pgtype.Timestamptz.

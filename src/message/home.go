@@ -31,4 +31,7 @@ type SiteStats struct {
 	// any room (seated players and spectators) unioned with recent home-page
 	// viewers, deduped by user id so nobody is counted twice.
 	Playing int
+	// TotalGames is the running count of finished games recorded to the archive
+	// database (0 when Postgres is unconfigured).
+	TotalGames int
 }

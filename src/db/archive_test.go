@@ -94,8 +94,12 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 			"DELETE FROM games WHERE room_id IN ('testroom','testroom2')")
 	})
 
+	gamesBefore := TotalGames()
 	if err := ArchiveGame(ctx, rec, plies); err != nil {
 		t.Fatalf("archive: %v", err)
+	}
+	if got := TotalGames(); got != gamesBefore+1 {
+		t.Errorf("games counter: got %d want %d after one archive", got, gamesBefore+1)
 	}
 
 	q := gen.New(Pool)
@@ -134,6 +138,9 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 	}
 	if after := countPositions(t, ctx); after != before {
 		t.Errorf("dedup failed: positions grew %d→%d on an identical game", before, after)
+	}
+	if got := TotalGames(); got != gamesBefore+2 {
+		t.Errorf("games counter: got %d want %d after two archives", got, gamesBefore+2)
 	}
 
 	// both games surface in the white player's history

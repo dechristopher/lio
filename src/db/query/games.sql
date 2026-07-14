@@ -9,6 +9,9 @@ INSERT INTO games (
 )
 RETURNING id;
 
+-- name: CountGames :one
+SELECT count(*) FROM games;
+
 -- name: GetGameByUUID :one
 SELECT * FROM games WHERE game_id = $1;
 

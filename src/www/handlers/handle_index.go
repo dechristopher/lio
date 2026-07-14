@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/room"
@@ -47,5 +48,6 @@ func HomeActivityHandler(c fiber.Ctx) error {
 func homeActivity() ([]message.OpenChallenge, message.SiteStats) {
 	_, challenges, stats, present := room.HomeListing()
 	stats.Playing = presence.Online(present)
+	stats.TotalGames = int(db.TotalGames())
 	return challenges, stats
 }

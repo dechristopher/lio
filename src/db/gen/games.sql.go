@@ -12,6 +12,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countGames = `-- name: CountGames :one
+SELECT count(*) FROM games
+`
+
+func (q *Queries) CountGames(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countGames)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getGameByUUID = `-- name: GetGameByUUID :one
 SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_score, black_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key FROM games WHERE game_id = $1
 `
