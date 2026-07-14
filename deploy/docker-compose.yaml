@@ -133,7 +133,7 @@ services:
   # network; the app reaches it at postgres:5432 via the lio_pg_dsn secret. The
   # data dir is a persistent named volume; migrations run in-process at app boot.
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: lio
