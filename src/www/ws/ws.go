@@ -84,12 +84,21 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	// exactly this reason; these captures bypassed it.
 	uid := strings.Clone(user.GetID(ctx))
 
+	// Resolve the real client IP for this socket's log lines. Like the HTTP
+	// access log, the socket sits behind the Cloudflare tunnel / reverse proxy,
+	// so fiber's ctx.IP() only ever sees the loopback / compose-network peer —
+	// prefer the edge-set forwarding headers (see clientIP). Cloned because the
+	// returned handler and its deferred disconnect log outlive the pooled ctx
+	// buffers these header strings are backed by — the same hazard as uid /
+	// roomId below.
+	addr := strings.Clone(clientIP(ctx))
+
 	// no usable identity on the upgrade (missing/mismatched cookies — an iOS
 	// Safari hazard): complete the handshake, then close with the dedicated
 	// code so the client re-authenticates instead of being silently seated as
 	// a spectator whose game frames the handlers would drop.
 	if uid == "" {
-		util.Error(str.CWS, str.EWSNoUid, ctx.IP())
+		util.Error(str.CWS, str.EWSNoUid, addr)
 		return func(c *websocket.Conn) {
 			_ = c.SetWriteDeadline(time.Now().Add(channel.WriteWait))
 			_ = c.WriteMessage(websocket.CloseMessage,
@@ -142,7 +151,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		isSpectator = !thisRoom.IsPlayer(uid)
 	}
 
-	util.Info(str.CWS, str.MWSConn, uid, thisChannel, ctx.IP(), isSpectator)
+	util.Info(str.CWS, str.MWSConn, uid, thisChannel, addr, isSpectator)
 
 	// return websocket handler injected with values from request context
 	return func(c *websocket.Conn) {
@@ -187,7 +196,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		}
 
 		// UnTrack this socket and stop its writer when the read loop exits
-		defer killSocket(socket, thisChannel)
+		defer killSocket(socket, thisChannel, addr)
 
 		// Bound the size of any single inbound frame (see maxInboundMessage).
 		c.SetReadLimit(maxInboundMessage)
@@ -253,8 +262,8 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 
 // killSocket untracks the connection and signals its writer goroutine to close
 // the underlying websocket.
-func killSocket(socket *channel.Socket, thisChannel string) {
-	util.Info(str.CWS, str.MWSDisc, socket.UID, thisChannel, socket.Connection.RemoteAddr())
+func killSocket(socket *channel.Socket, thisChannel, addr string) {
+	util.Info(str.CWS, str.MWSDisc, socket.UID, thisChannel, addr)
 	channel.Map.GetSockMap(thisChannel).UnTrack(socket.UID, socket.ID)
 	socket.Close()
 }
@@ -263,6 +272,31 @@ func killSocket(socket *channel.Socket, thisChannel string) {
 func validTag(tag string) bool {
 	_, ok := routes.Map[proto.PayloadTag(tag)]
 	return ok
+}
+
+// clientIP resolves the real client IP for a websocket upgrade, for logging.
+// The socket's only ingress is the Cloudflare tunnel / reverse proxy over
+// loopback, so fiber's ctx.IP() sees 127.0.0.1 (or a compose-network peer) for
+// every connection — useless in prod logs. Mirror the HTTP access log and prefer
+// the edge-set forwarding headers: Cloudflare's trusted CF-Connecting-IP, then
+// X-Real-IP, then the first X-Forwarded-For hop, falling back to the direct peer
+// for local/dev where none are present. (The room-create rate limiter has a
+// parallel resolver that deliberately omits the spoofable X-Real-IP because its
+// value keys a security control; here the value is only logged.)
+func clientIP(c fiber.Ctx) string {
+	if ip := c.Get("CF-Connecting-IP"); ip != "" {
+		return ip
+	}
+	if ip := c.Get("X-Real-IP"); ip != "" {
+		return ip
+	}
+	if xff := c.Get(fiber.HeaderXForwardedFor); xff != "" {
+		if i := strings.IndexByte(xff, ','); i >= 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	return c.IP()
 }
 
 // okOrigin approves a websocket connection if it comes from an origin we
