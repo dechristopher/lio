@@ -1568,8 +1568,10 @@ func (r *Instance) updateScoreLocked() {
 // tag-pair roster plus, for games that don't begin from the standard octad start
 // (deploy-mode games start from a rearranged home rank), a SetUp/FEN tag pair
 // carrying the starting OFEN so the game can be replayed from the correct
-// initial position for analysis and database import.
-func buildArchivePGN(g game.OctadGame) string {
+// initial position for analysis and database import. end is the game's finish
+// time, recorded as EndDate/EndTime so a later archive backfill can recover an
+// accurate end_ts rather than approximating it from the start.
+func buildArchivePGN(g game.OctadGame, end time.Time) string {
 	// the Result token is the last space-delimited field of the movetext
 	parts := strings.Split(g.Game.String(), " ")
 
@@ -1587,6 +1589,8 @@ func buildArchivePGN(g game.OctadGame) string {
 	g.Game.AddTagPair("Result", parts[len(parts)-1])
 	g.Game.AddTagPair("Reason", state)
 	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
+	g.Game.AddTagPair("EndDate", end.Format("2006.01.02"))
+	g.Game.AddTagPair("EndTime", end.Format("15:04:05"))
 
 	// record a non-standard starting position (e.g. a deploy-mode game) as a
 	// SetUp/FEN tag pair so the movetext replays from the correct initial OFEN.
@@ -1610,7 +1614,9 @@ func buildArchivePGN(g game.OctadGame) string {
 // context captured under stateMu by the caller; the game-derived fields come
 // from g here. Both writes degrade gracefully when their store is unconfigured.
 func storeGame(g game.OctadGame, rec db.GameRecord) {
-	pgn := buildArchivePGN(g)
+	// one finish time, shared by the PGN (EndDate/EndTime) and the DB row (end_ts)
+	end := time.Now()
+	pgn := buildArchivePGN(g, end)
 
 	util.DebugFlag("pgn", "PGN", "%s", pgn)
 
@@ -1627,7 +1633,7 @@ func storeGame(g game.OctadGame, rec db.GameRecord) {
 		util.Error(str.CHMov, str.ERecord, err.Error())
 	}
 
-	archiveToDatabase(g, rec, key)
+	archiveToDatabase(g, rec, key, end)
 }
 
 // archiveToDatabase fills the game-derived archive fields and the per-ply
@@ -1635,10 +1641,10 @@ func storeGame(g game.OctadGame, rec db.GameRecord) {
 // record (a no-op when Postgres is unconfigured). The moves list is packed to a
 // compact blob, and each ply carries the position reached after it (its
 // clock-independent hash + OFEN) for the deduped positions index.
-func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string) {
+func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string, end time.Time) {
 	rec.GameID = g.ID
 	rec.StartTs = g.Start
-	rec.EndTs = time.Now()
+	rec.EndTs = end
 	rec.WhiteUID = g.White
 	rec.BlackUID = g.Black
 	rec.VariantName = g.Variant.Name
@@ -1648,26 +1654,15 @@ func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string) {
 	rec.Method = int16(g.Method())
 	rec.PGNObjectKey = pgnKey
 
-	positions := g.Positions()
-	moves := g.Moves()
-	if len(positions) > 0 {
+	if positions := g.Positions(); len(positions) > 0 {
 		rec.StartingOFEN = positions[0].String()
 	}
 
-	rec.Moves = make([]byte, 0, len(moves)*2)
-	plies := make([]db.PlyRecord, 0, len(moves))
-	for i, m := range moves {
-		packed := game.PackMove(m)
-		rec.Moves = append(rec.Moves, byte(packed>>8), byte(packed))
-		pos := positions[i+1] // position after ply i (positions[0] is the start)
-		hash := pos.Hash()
-		plies = append(plies, db.PlyRecord{
-			Ply:     int16(i + 1),
-			Mv:      packed,
-			PosHash: hash[:],
-			PosOFEN: pos.String(),
-		})
-	}
+	// db.BuildPlies is the single source of the move-packing + position-hash
+	// encoding, shared with the archive backfill so a replayed game hashes
+	// identically to a live one (or the deduped positions table would fragment).
+	moves, plies := db.BuildPlies(&g.Game)
+	rec.Moves = moves
 
 	ctx, cancel := db.Ctx()
 	defer cancel()

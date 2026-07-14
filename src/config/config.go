@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -62,6 +63,13 @@ func ReadSecret(name string) (string, error) {
 		return "", err
 	}
 
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Printf("failed to close file: %v", err)
+		}
+	}(f)
+
 	secret, err := io.ReadAll(f)
 	if err != nil {
 		return "", err
@@ -99,6 +107,8 @@ func GenerateCode(length int, charset ...Charset) string {
 				b[i] = charsetHex[rng.Intn(len(charsetHex))]
 			case Base58:
 				b[i] = charsetBase58[rng.Intn(len(charsetBase58))]
+			default:
+				panic("GenerateCode: invalid charset")
 			}
 		}
 
@@ -128,7 +138,7 @@ func GetPort() string {
 
 // PlausibleDomain returns the host of the self-hosted Plausible analytics
 // instance (PLAUSIBLE_DOMAIN env var, e.g. "plausible.example.com"). Kept out
-// of VCS deliberately; empty means analytics is disabled — the tracker script
+// of VCS deliberately; empty means analytics are disabled — the tracker script
 // is not rendered and the CSP stays same-origin only.
 func PlausibleDomain() string {
 	return os.Getenv("PLAUSIBLE_DOMAIN")

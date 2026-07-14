@@ -5,6 +5,8 @@ const (
 	FHealth      = "health"
 	FHealthUsage = "Server does not run. Instead, a health" +
 		" check runs for any local servers"
+	FBackfill        = "backfill"
+	FBackfillUsage   = "Replay the object-store PGN archive into Postgres, then exit"
 	FDebugFlags      = "debug"
 	FDebugFlagsUsage = "Comma separated debug flags [foo,bar,baz]"
 

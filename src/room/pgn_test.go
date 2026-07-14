@@ -3,6 +3,7 @@ package room
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dechristopher/octad/v2"
 
@@ -40,7 +41,7 @@ func TestBuildArchivePGNDeployStart(t *testing.T) {
 		}
 	}
 
-	pgn := buildArchivePGN(*g)
+	pgn := buildArchivePGN(*g, time.Now())
 
 	if !strings.Contains(pgn, `[SetUp "1"]`) {
 		t.Errorf("deploy PGN missing SetUp tag:\n%s", pgn)
@@ -74,9 +75,15 @@ func TestBuildArchivePGNStandardStart(t *testing.T) {
 		t.Fatalf("NewOctadGame(standard) failed: %v", err)
 	}
 
-	pgn := buildArchivePGN(*g)
+	end := time.Date(2026, 7, 14, 9, 35, 0, 0, time.UTC)
+	pgn := buildArchivePGN(*g, end)
 
 	if strings.Contains(pgn, "[FEN ") || strings.Contains(pgn, "[SetUp ") {
 		t.Errorf("standard-start PGN should carry no SetUp/FEN tag:\n%s", pgn)
+	}
+
+	// the finish time is recorded so a later archive backfill recovers end_ts
+	if !strings.Contains(pgn, `[EndDate "2026.07.14"]`) || !strings.Contains(pgn, `[EndTime "09:35:00"]`) {
+		t.Errorf("standard-start PGN missing EndDate/EndTime tags:\n%s", pgn)
 	}
 }

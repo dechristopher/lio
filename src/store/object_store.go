@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log"
 
 	"github.com/minio/minio-go/v7"
@@ -88,12 +89,35 @@ func (b Bucket) GetObject(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	// create data array
+	// read the object into a fully-sized array. io.ReadFull (not a single Read,
+	// which may legally return fewer bytes) guarantees the whole object — the
+	// archive backfill parses these bytes as complete PGNs.
 	data := make([]byte, info.Size)
-
-	// read object into data array
-	_, err = obj.Read(data)
+	_, err = io.ReadFull(obj, data)
 	return data, err
+}
+
+// Configured reports whether an object store connection is available.
+func Configured() bool {
+	return C != nil
+}
+
+// ListKeys returns every object key in the bucket (recursive). Used by the
+// archive backfill to enumerate stored PGNs; keys are small strings, so the
+// streamed listing is collected into a slice.
+func (b Bucket) ListKeys(ctx context.Context) ([]string, error) {
+	if C == nil {
+		return nil, errors.New("store: no object store configured")
+	}
+
+	var keys []string
+	for obj := range C.ListObjects(ctx, string(b), minio.ListObjectsOptions{Recursive: true}) {
+		if obj.Err != nil {
+			return nil, obj.Err
+		}
+		keys = append(keys, obj.Key)
+	}
+	return keys, nil
 }
 
 // PutObject inserts an object into storage under the specified key

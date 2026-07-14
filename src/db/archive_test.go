@@ -74,6 +74,55 @@ func countPositions(t *testing.T, ctx context.Context) int64 {
 	return n
 }
 
+func TestArchiveGameIfNewIdempotent(t *testing.T) {
+	skipNoDB(t)
+	ctx := context.Background()
+
+	plies, blob, startOFEN := buildGamePlies(t, 4)
+	key := "backfill-test/" + uuid.NewString() + ".pgn"
+	rec := GameRecord{
+		RoomID: "", Creator: "", RaceTo: 0, WhiteScore: 0, BlackScore: 0,
+		Reason: "checkmate", GameID: uuid.NewString(),
+		StartTs: time.Now(), EndTs: time.Now(),
+		WhiteUID: "bf_w", BlackUID: "bf_b",
+		VariantName: "Test", VariantGroup: "blitz", Casual: false,
+		Outcome: "1-0", Method: 1, StartingOFEN: startOFEN,
+		Moves: blob, PGNObjectKey: key,
+	}
+	t.Cleanup(func() {
+		_, _ = Pool.Exec(context.Background(), "DELETE FROM games WHERE pgn_object_key = $1", key)
+	})
+
+	// first archive inserts
+	inserted, err := ArchiveGameIfNew(ctx, rec, plies)
+	if err != nil {
+		t.Fatalf("first archive: %v", err)
+	}
+	if !inserted {
+		t.Fatal("first ArchiveGameIfNew should have inserted")
+	}
+
+	// a second archive with the SAME pgn_object_key (even a different game_id,
+	// as a live-archived game would have) is skipped, not duplicated
+	rec2 := rec
+	rec2.GameID = uuid.NewString()
+	inserted, err = ArchiveGameIfNew(ctx, rec2, plies)
+	if err != nil {
+		t.Fatalf("second archive: %v", err)
+	}
+	if inserted {
+		t.Error("second ArchiveGameIfNew with same pgn_object_key should have been skipped")
+	}
+
+	var n int
+	if err := Pool.QueryRow(ctx, "SELECT count(*) FROM games WHERE pgn_object_key = $1", key).Scan(&n); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("expected exactly 1 row for pgn_object_key, got %d", n)
+	}
+}
+
 func TestArchiveGameRoundTrip(t *testing.T) {
 	skipNoDB(t)
 	ctx := context.Background()
@@ -133,6 +182,7 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 	rec2 := rec
 	rec2.GameID = uuid.NewString()
 	rec2.RoomID = "testroom2"
+	rec2.PGNObjectKey = "test/key2.pgn" // distinct key (pgn_object_key is now UNIQUE)
 	if err := ArchiveGame(ctx, rec2, plies); err != nil {
 		t.Fatalf("archive dup: %v", err)
 	}
