@@ -65,7 +65,7 @@ func header(width string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div><div class=\"relative flex items-center gap-2\"><button type=\"button\" id=\"loginButton\" class=\"btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm\">Log in</button> <button type=\"button\" id=\"prefsButton\" aria-label=\"Preferences\" title=\"Preferences\" class=\"inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div><div class=\"relative flex items-center gap-2\"><button type=\"button\" id=\"loginButton\" class=\"btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm\">Log in</button> <button type=\"button\" id=\"prefsButton\" aria-label=\"Preferences\" title=\"Preferences\" class=\"inline-flex h-9 w-9 items-center justify-center rounded-md border-2 border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -73,7 +73,7 @@ func header(width string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</button> <button type=\"button\" onclick=\"__toggleTheme()\" aria-label=\"Toggle dark mode\" title=\"Toggle dark mode\" class=\"inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</button> <button type=\"button\" onclick=\"__toggleTheme()\" aria-label=\"Toggle dark mode\" title=\"Toggle dark mode\" class=\"inline-flex h-9 w-9 items-center justify-center rounded-md border-2 border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
