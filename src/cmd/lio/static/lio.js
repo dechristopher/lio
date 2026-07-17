@@ -367,27 +367,12 @@ window.handlers.set("e", (message) => {
 });
 
 // Server version hello: every socket connect carries the running build's
-// version. If it differs from the version this page was rendered by (the
-// lio-version meta tag), the deploy that just happened shipped newer client
-// assets — surface a passive refresh prompt. Passive on purpose: a mid-game
-// refresh is safe (full state resync on connect) but forcing one mid-think
-// would be hostile.
+// version. window.lioUpdateNotice (inlined in the header — see
+// updateNoticeScript in view/components.templ) compares it against the
+// version this page was rendered by and surfaces a passive refresh prompt on
+// mismatch.
 window.handlers.set("si", (message) => {
-	const rendered = document.querySelector('meta[name="lio-version"]');
-	if (!rendered || !message.d || !message.d.v || message.d.v === rendered.content) {
-		return;
+	if (message.d && message.d.v && window.lioUpdateNotice) {
+		window.lioUpdateNotice(message.d.v);
 	}
-	if (document.getElementById("updateNotice")) {
-		return;
-	}
-	console.log(`Server updated: ${rendered.content} -> ${message.d.v}`);
-	const notice = document.createElement("div");
-	notice.id = "updateNotice";
-	notice.setAttribute("role", "status");
-	notice.className = "fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line-strong bg-elevated px-4 py-2.5 shadow-lg";
-	notice.innerHTML =
-		'<span class="text-sm font-medium text-fg">Lioctad has been updated.</span>' +
-		'<button type="button" class="rounded-md border border-accent px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-accent hover:bg-accent/10" onclick="window.location.reload()">Refresh</button>' +
-		'<button type="button" class="text-xs text-fg-muted hover:text-fg" aria-label="Dismiss" onclick="this.parentElement.remove()">✕</button>';
-	document.body.appendChild(notice);
 });

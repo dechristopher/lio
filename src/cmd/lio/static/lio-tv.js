@@ -121,6 +121,15 @@
 			}
 			return;
 		}
+		// server version hello: the home page loads no lio.js socket, so this
+		// TV stream is where a deploy's new version first shows up — hand it
+		// to the shared refresh prompt (updateNoticeScript in the header)
+		if (msg.t === 'si') {
+			if (msg.d && msg.d.v && window.lioUpdateNotice) {
+				window.lioUpdateNotice(msg.d.v);
+			}
+			return;
+		}
 		if (msg.t !== 'tv' || !msg.d) {
 			return;
 		}

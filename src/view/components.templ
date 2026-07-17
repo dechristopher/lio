@@ -53,6 +53,7 @@ templ header(width string) {
 	@accountModal()
 	@navScript()
 	@connScript()
+	@updateNoticeScript()
 }
 
 // connIndicator is the unified ("omnibus") connection-health badge in the header.
@@ -103,6 +104,41 @@ templ connScript() {
 					if (label) { label.textContent = text; }
 					el.title = "Connection: " + (state === "online" ? "connected" : state);
 				}
+			};
+		})();
+	</script>
+}
+
+// updateNoticeScript defines window.lioUpdateNotice — the shared "site
+// updated, refresh" prompt. Every socket client (the room/waiting sockets in
+// lio.js, the home-page TV socket in lio-tv.js) feeds it the version carried
+// by the server's one-shot "si" hello; it compares that against the version
+// this page was rendered by (the lio-version meta tag) and surfaces a passive
+// refresh prompt on mismatch. Inlined in the header (like connScript) so it is
+// present on every page regardless of which JS bundle the page loads. Passive
+// on purpose: a mid-game refresh is safe (full state resync on connect) but
+// forcing one mid-think would be hostile.
+templ updateNoticeScript() {
+	<script>
+		(function () {
+			window.lioUpdateNotice = function (version) {
+				const rendered = document.querySelector('meta[name="lio-version"]');
+				if (!rendered || !version || version === rendered.content) {
+					return;
+				}
+				if (document.getElementById("updateNotice")) {
+					return;
+				}
+				console.log("Server updated: " + rendered.content + " -> " + version);
+				const notice = document.createElement("div");
+				notice.id = "updateNotice";
+				notice.setAttribute("role", "status");
+				notice.className = "fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line-strong bg-elevated px-4 py-2.5 shadow-lg";
+				notice.innerHTML =
+					'<span class="text-sm font-medium text-fg">Lioctad has been updated.</span>' +
+					'<button type="button" class="rounded-md border border-accent px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-accent hover:bg-accent/10" onclick="window.location.reload()">Refresh</button>' +
+					'<button type="button" class="text-xs text-fg-muted hover:text-fg" aria-label="Dismiss" onclick="this.parentElement.remove()">✕</button>';
+				document.body.appendChild(notice);
 			};
 		})();
 	</script>
