@@ -27,27 +27,22 @@ func checkOrigin(t *testing.T, origin string) bool {
 	return got
 }
 
-// TestOkOrigin pins the upgrade origin policy: exact matches against the
-// env's origin list only — no substring near-misses — with absent Origin
-// allowed (non-browser clients) and everything allowed in the local env.
+// TestOkOrigin pins the upgrade origin policy: outside production every
+// origin is trusted (LAN devices, tunnels, and test harnesses reach non-prod
+// servers from origins no allowlist can anticipate); production allows exact
+// matches against the configured origin list only — no substring near-misses
+// — with absent Origin allowed (non-browser clients).
 func TestOkOrigin(t *testing.T) {
-	t.Run("dev", func(t *testing.T) {
+	t.Run("dev allows all", func(t *testing.T) {
 		t.Setenv("DEPLOY", "dev")
-		cases := []struct {
-			origin string
-			want   bool
-		}{
-			{"http://localhost:4444", true},
-			{"http://localhost:8080", true},
-			{"https://dev.lioctad.org", true},
-			{"", true},                          // non-browser clients omit Origin
-			{"http://192.168.1.50:4444", false}, // LAN device against a non-local env
-			{"http://localhost:444", false},     // substring of an allowed origin
-			{"http://localhost:44440", false},   // allowed origin as a prefix
-		}
-		for _, tc := range cases {
-			if got := checkOrigin(t, tc.origin); got != tc.want {
-				t.Errorf("okOrigin(%q) = %t, want %t", tc.origin, got, tc.want)
+		for _, origin := range []string{
+			"",
+			"https://dev.lioctad.org",
+			"http://192.168.1.50:4444", // LAN device against the dev env
+			"https://evil.example",
+		} {
+			if !checkOrigin(t, origin) {
+				t.Errorf("okOrigin(%q) = false, want true in dev env", origin)
 			}
 		}
 	})

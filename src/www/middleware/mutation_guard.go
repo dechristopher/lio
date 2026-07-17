@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/env"
 )
 
 // MutationGuard is a stateless, token-free CSRF defense for state-changing
@@ -28,6 +29,15 @@ func MutationGuard() fiber.Handler {
 		case fiber.MethodPost, fiber.MethodPut, fiber.MethodPatch, fiber.MethodDelete:
 			// guarded below
 		default:
+			return c.Next()
+		}
+
+		// outside production the guard stands down entirely: LAN devices,
+		// tunnels, and test harnesses reach non-prod servers from arbitrary
+		// origins (which no static allowlist can anticipate), and the forged
+		// cross-site mutation this stops only matters where real sessions
+		// live. Mirrors ws.okOrigin and the wildcard config.CorsOrigins.
+		if !env.IsProd() {
 			return c.Next()
 		}
 

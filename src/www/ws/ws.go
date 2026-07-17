@@ -300,16 +300,21 @@ func clientIP(c fiber.Ctx) string {
 }
 
 // okOrigin approves a websocket connection if it comes from an origin we
-// trust. The Origin header must exactly match an entry in the configured
-// origin list — the old substring check would have admitted registerable
-// near-miss domains (e.g. an Origin of https://lioctad.or is a substring of
-// https://lioctad.org). An absent Origin is allowed through: only non-browser
-// clients omit it, and the check exists to stop cross-site browser pages, not
-// curl. Rejections are logged because they surface client-side as an opaque
-// handshake failure indistinguishable from an outage (LAN-device testing
-// against a non-local env died silently here).
+// trust. Outside production every origin is trusted — LAN devices, tunnels,
+// and test harnesses reach non-prod servers from origins no static allowlist
+// can anticipate (LAN-device testing against a non-local env once died
+// silently here); this mirrors middleware.MutationGuard and the wildcard
+// config.CorsOrigins. In production the Origin header must exactly match an
+// entry in the configured origin list — the old substring check would have
+// admitted registerable near-miss domains (e.g. an Origin of
+// https://lioctad.or is a substring of https://lioctad.org). An absent Origin
+// is allowed through: only non-browser clients omit it, and the check exists
+// to stop cross-site browser pages, not curl. Rejections are logged because
+// they surface client-side as an opaque handshake failure indistinguishable
+// from an outage.
 func okOrigin(c fiber.Ctx) bool {
-	if env.IsLocal() {
+	// note: env.IsDev means the dev *deployment* specifically, not "non-prod"
+	if !env.IsProd() {
 		return true
 	}
 

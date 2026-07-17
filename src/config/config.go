@@ -174,13 +174,16 @@ func SiteURL() string {
 	return "https://lioctad.org/"
 }
 
-// CorsOrigins returns the proper CORS origin configuration
-// for the current environment
+// CorsOrigins returns the proper CORS origin configuration for the current
+// environment. Production pins the canonical origin; everywhere else the
+// wildcard admits any origin, so LAN devices, tunnels, and test harnesses can
+// hit a non-prod server without curating an allowlist. The other two origin
+// gates (middleware.MutationGuard, ws.okOrigin) stand down outside production
+// the same way — a "*" entry would never match their exact-origin comparisons,
+// so they carry explicit env bypasses instead of consuming this wildcard.
 func CorsOrigins() string {
 	if env.IsProd() {
 		return "https://lioctad.org"
 	}
-	return "http://localhost:4444, " +
-		"http://localhost:8080, " +
-		"https://dev.lioctad.org"
+	return "*"
 }
