@@ -1918,10 +1918,23 @@
 	}
 	.swatch-btn:hover { border-color: var(--border-strong); }
 	.swatch-btn.is-active { border-color: var(--accent); }
-	/* prefs popover: the selected theme mode (Light/Dark/System) highlights with
-	   the accent, matching the active board swatch / piece pill treatment. The
-	   #prefsPopover scope outranks the buttons' utility border/text classes. */
-	#prefsPopover [data-set-theme].is-active {
+	/* prefs popover theme mode (Light/Dark/System): same treatment as the board
+	   swatches / piece pills — quiet ring on hover, accent ring + tinted label
+	   when selected. A component class (not utilities) so the is-active state
+	   isn't outranked by Tailwind's later utilities layer. */
+	.theme-btn {
+		padding: 0.375rem 0;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text);
+		cursor: pointer;
+		transition: border-color 0.15s var(--ease-snappy), color 0.15s var(--ease-snappy);
+	}
+	.theme-btn:hover { border-color: var(--border-strong); }
+	.theme-btn.is-active {
 		border-color: var(--accent);
 		color: var(--accent);
 	}
@@ -1942,7 +1955,7 @@
 		align-items: center;
 		gap: 5px;
 		padding: 8px 4px 7px;
-		border: 1.5px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--surface-2);
 		cursor: pointer;
