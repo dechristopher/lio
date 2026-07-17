@@ -38,10 +38,24 @@ func UpEvaluator() {
 		ticker := time.NewTicker(evalTick)
 		defer ticker.Stop()
 		for range ticker.C {
-			evalBatchOnce()
+			safeEvalBatch()
 		}
 	}()
 	util.Debug(str.CDB, "position evaluator online")
+}
+
+// safeEvalBatch runs one evaluator batch, converting any panic into an error
+// log. The evaluator is an opt-in background cache filler whose correctness
+// nothing depends on — an unrecovered panic on its goroutine would kill the
+// whole process (an engine edge case on terminal positions did exactly that),
+// which is never the right trade for it.
+func safeEvalBatch() {
+	defer func() {
+		if r := recover(); r != nil {
+			util.Error(str.CDB, "evaluator batch panicked: %v", r)
+		}
+	}()
+	evalBatchOnce()
 }
 
 // evalBatchOnce evaluates up to evalBatch unevaluated positions.
@@ -60,15 +74,23 @@ func evalBatchOnce() {
 		// repetition scoring — a standalone position has no game line).
 		me := engine.Search(row.Ofen, nil, evalDepth, evalBudget, engine.MinimaxAB)
 		cp := clampEval(me.Eval * evalCentiUnit)
-		best := game.PackMove(&me.Move)
 		depth := int16(evalDepth)
+
+		// a terminal position (mate/stalemate) has no best move: Search returns
+		// the zero move (the "a1a1" idiom, see engine.bestOf) — store the exact
+		// terminal eval and leave best_move NULL rather than packing a non-move
+		var bestPtr *int16
+		if me.Move.String() != "a1a1" {
+			best := game.PackMove(&me.Move)
+			bestPtr = &best
+		}
 
 		setCtx, setCancel := Ctx()
 		err := gen.New(Pool).SetPositionEval(setCtx, gen.SetPositionEvalParams{
 			ID:        row.ID,
 			EvalCp:    &cp,
 			EvalDepth: &depth,
-			BestMove:  &best,
+			BestMove:  bestPtr,
 		})
 		setCancel()
 		if err != nil {

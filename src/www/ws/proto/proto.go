@@ -221,6 +221,20 @@ type ClockPayload struct {
 	Black   int64 `json:"b"`  // black clock in centi-seconds
 	White   int64 `json:"w"`  // white clock in centi-seconds
 	Lag     int64 `json:"l"`  // internal server lag in ms
+	// PreStart is the remaining pre-start countdown in centi-seconds: the
+	// bounded first-move grace after a deploy reveal, during which white may
+	// move freely before their clock starts draining on its own. Present
+	// (nonzero) only while the countdown is running, so reconnecting clients
+	// resync the overlay from any board snapshot. PreStartTotal is the full
+	// countdown for rendering the radial progress fraction.
+	PreStart      int64 `json:"ps,omitempty"`
+	PreStartTotal int64 `json:"pst,omitempty"`
+	// Paused reports a clock that is not running (pre-game, restored-paused,
+	// or stopped on game end). It disambiguates a ply-0 snapshot with no
+	// countdown: paused means white's clock awaits their first move (classic
+	// games), running means the pre-start countdown already expired and white
+	// is draining — a reconnecting client must tick their clock.
+	Paused bool `json:"p,omitempty"`
 }
 
 // CrowdPayload contains data about connected players and spectator count.

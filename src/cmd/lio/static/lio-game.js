@@ -81,6 +81,15 @@ let deploySubmitRetryTimer = null;
 // set are stale pre-deploy positions and stay dropped.
 let deployPriorGameIDs = [];
 
+// Pre-start countdown (the bounded first-move grace after a deploy reveal):
+// while it runs, the server reports remaining/total centi-seconds in every
+// clock payload (c.ps / c.pst). The mid-board radial overlay ticks locally
+// off a deadline; when it lapses, white is on the clock server-side and
+// their ticker is armed locally — no message flows at that instant.
+let preStartDeadline = 0;  // performance.now() ms when the countdown ends; 0 = idle
+let preStartTotalMs = 0;   // full countdown in ms, for the ring fraction
+let preStartRafId = null;  // overlay ticker rAF handle
+
 window.addEventListener('load', () => {
 	if (window.ws) {
 		return false;
@@ -154,6 +163,52 @@ const isSpec = document.getElementById('gcon-xx').dataset.spectator === 'true';
 // board flips instead (the same anchoring the TV grid uses). The server renders
 // the initial orientation class from the anchor's current color.
 const anchorId = document.getElementById('gcon-xx').dataset.anchor || '';
+
+// ---- spectator audio-unlock affordance ------------------------------------
+// Browsers keep audio muted until the page sees a user gesture. A player
+// interacts almost immediately, but a spectator can sit through a whole game
+// without ever tapping — every sound silently swallowed with no hint why. All
+// our sounds share Howler's single Web Audio context, so "muted" is simply
+// that context not running yet. While that holds (spectators only), show a
+// tappable muted icon mid-board; the tap is itself the unlocking gesture. Any
+// other tap on the page unlocks audio too (Howler's auto-unlock), so the icon
+// also hides on the context's own statechange — whatever the gesture was.
+const audioUnlockOverlayEl = document.getElementById('audio-unlock-overlay');
+
+const hideAudioUnlock = () => {
+	if (audioUnlockOverlayEl) {
+		audioUnlockOverlayEl.classList.remove('au-show');
+		audioUnlockOverlayEl.setAttribute('aria-hidden', 'true');
+	}
+};
+
+const initAudioUnlock = () => {
+	if (!audioUnlockOverlayEl || !isSpec) {
+		return;
+	}
+	const ctx = window.Howler && Howler.ctx;
+	if (!ctx || ctx.state === 'running') {
+		return;
+	}
+	audioUnlockOverlayEl.classList.add('au-show');
+	audioUnlockOverlayEl.setAttribute('aria-hidden', 'false');
+	// authoritative hide: the context actually started, by whatever gesture
+	ctx.addEventListener('statechange', () => {
+		if (ctx.state === 'running') {
+			hideAudioUnlock();
+		}
+	});
+	const btn = document.getElementById('audio-unlock');
+	if (btn) {
+		btn.addEventListener('click', () => {
+			// the tap is the user gesture; resume directly and hide
+			// optimistically (statechange would hide it anyway)
+			ctx.resume();
+			hideAudioUnlock();
+		});
+	}
+};
+initAudioUnlock();
 
 // create game board, oriented by the server-rendered class: the player's own
 // color, or the anchored player's current color for a spectator (whose
@@ -1653,6 +1708,7 @@ const handleGameOver = (message) => {
 		// defensively re-freeze the clocks: a repeat means the game is over, so
 		// no interpolator may be left running whatever path armed it
 		cancelAnimationFrame(frameId);
+		hidePreStartCountdown();
 		if (message.d.rw) {
 			startCountdown(message.d.rw, rematchWindowLabel);
 		} else if (message.d.ng) {
@@ -1675,6 +1731,9 @@ const handleGameOver = (message) => {
 	const wasGameOver = gameOver;
 
 	cancelAnimationFrame(frameId);
+	// a game ending during the pre-start countdown (resign, abandon) must take
+	// the overlay and its ticker down with it
+	hidePreStartCountdown();
 	document.getElementById("info").innerHTML = message.d.s;
 	// don't replay the end sound for a room-cleanup notice while the player is
 	// reviewing the finished game; the result it announces is long since heard
@@ -2037,6 +2096,16 @@ const updateUI = (message, ofenParts) => {
 		oppBar.style.width = barWidth(message.d.c.tc, opponentTimeRemaining);
 	}
 
+	// pre-start countdown (bounded first-move grace after the deploy reveal):
+	// any snapshot carrying c.ps shows or re-bases the overlay — including a
+	// reconnect resync mid-countdown — while any snapshot without it takes the
+	// overlay down: a move landed, the game ended, or the countdown lapsed
+	if (!casualGame && !gameOver && message.d.c.ps > 0) {
+		showPreStartCountdown(message.d.c.ps, message.d.c.pst);
+	} else {
+		hidePreStartCountdown();
+	}
+
 	// set clock UI active state
 	if (isPlayerTurn(message, ofenParts)) {
 		plyClock.classList.add('active');
@@ -2070,6 +2139,18 @@ const updateUI = (message, ofenParts) => {
 		// set frame time to compare against
 		frameTime = performance.now();
 		// reset centi-second clock interpolator to decrement correct player
+		if (isPlayerTurn(message, ofenParts)) {
+			frameId = requestAnimFrame(clockFrame(playerTimeRemaining, message.d.c.tc, plyTime, plyBar));
+		} else {
+			frameId = requestAnimFrame(clockFrame(opponentTimeRemaining, message.d.c.tc, oppTime, oppBar));
+		}
+	} else if (!message.d.m && !gameOver && !casualGame
+		&& !message.d.c.p && !(message.d.c.ps > 0)) {
+		// a moveless snapshot of a running clock with no pre-start countdown:
+		// the bounded first-move grace already lapsed (e.g. we reconnected
+		// after it) and white is draining server-side without a move having
+		// been played — tick the side to move (white at ply 0) locally too
+		frameTime = performance.now();
 		if (isPlayerTurn(message, ofenParts)) {
 			frameId = requestAnimFrame(clockFrame(playerTimeRemaining, message.d.c.tc, plyTime, plyBar));
 		} else {
@@ -2140,6 +2221,102 @@ const resetClocksToFull = () => {
 		if (bar) { bar.style.width = '100%'; }
 		clk.classList.remove('low', 'active');
 	});
+};
+
+// ---- pre-start countdown overlay -------------------------------------------
+// The mid-board radial timer shown between the deploy reveal and the game
+// commencing: white may move at any time under it (it is pointer-transparent),
+// otherwise their clock starts draining when it hits zero.
+
+const preStartOverlayEl = document.getElementById('prestart-overlay');
+const preStartProgressEl = document.getElementById('prestart-progress');
+const preStartNumberEl = document.getElementById('prestart-number');
+
+// circumference of the .prestart-progress ring (2π·21 in the 48-unit viewBox);
+// must match the stroke-dasharray in app.css
+const preStartRingCirc = 131.95;
+
+/**
+ * armWhiteClockTicker starts the local interpolator draining white's clock
+ * from the last known server value. Used when the pre-start countdown lapses
+ * without a move: the server put white on the clock at that instant, but no
+ * move-bearing message flows to arm the ticker through updateUI.
+ */
+const armWhiteClockTicker = () => {
+	if (gameOver || casualGame) {
+		return;
+	}
+	const whiteClock = playerWhite ? clockPlayerEl : clockOpponentEl;
+	if (!whiteClock) {
+		return;
+	}
+	const timeEl = whiteClock.getElementsByClassName('clockTime')[0];
+	const barEl = whiteClock.getElementsByClassName('clockProgressBar')[0];
+	if (!timeEl || !barEl) {
+		return;
+	}
+	cancelAnimationFrame(frameId);
+	frameTime = performance.now();
+	frameId = requestAnimFrame(clockFrame(wt, timeControlCenti, timeEl, barEl));
+};
+
+/**
+ * showPreStartCountdown shows or re-bases the countdown overlay from an
+ * authoritative server snapshot. Idempotent: reconnect resyncs and repeat
+ * snapshots just refresh the deadline.
+ * @param remainingCenti - centi-seconds until white's clock starts
+ * @param totalCenti - the full countdown, for the ring fraction
+ */
+const showPreStartCountdown = (remainingCenti, totalCenti) => {
+	if (!preStartOverlayEl) {
+		return;
+	}
+	preStartDeadline = performance.now() + remainingCenti * 10;
+	preStartTotalMs = (totalCenti || remainingCenti) * 10;
+	preStartOverlayEl.classList.add('ps-show');
+	preStartOverlayEl.setAttribute('aria-hidden', 'false');
+	cancelAnimationFrame(preStartRafId);
+	preStartRafId = requestAnimFrame(preStartFrame);
+};
+
+/**
+ * hidePreStartCountdown takes the overlay down and stops its ticker. Safe to
+ * call whenever the countdown cannot (or must no longer) be running: a move
+ * landed, the game ended, a new deploy phase began.
+ */
+const hidePreStartCountdown = () => {
+	preStartDeadline = 0;
+	cancelAnimationFrame(preStartRafId);
+	preStartRafId = null;
+	if (preStartOverlayEl) {
+		preStartOverlayEl.classList.remove('ps-show');
+		preStartOverlayEl.setAttribute('aria-hidden', 'true');
+	}
+};
+
+/**
+ * preStartFrame ticks the overlay: whole-seconds number plus ring sweep. At
+ * the deadline the overlay comes down and white's clock starts draining
+ * locally, mirroring the server ending the grace at the same instant.
+ */
+const preStartFrame = () => {
+	if (!preStartDeadline) {
+		return;
+	}
+	const remaining = preStartDeadline - performance.now();
+	if (remaining <= 0) {
+		hidePreStartCountdown();
+		armWhiteClockTicker();
+		return;
+	}
+	if (preStartNumberEl) {
+		preStartNumberEl.innerHTML = `${Math.ceil(remaining / 1000)}`;
+	}
+	if (preStartProgressEl && preStartTotalMs > 0) {
+		const frac = Math.min(remaining / preStartTotalMs, 1);
+		preStartProgressEl.style.strokeDashoffset = `${preStartRingCirc * (1 - frac)}`;
+	}
+	preStartRafId = requestAnimFrame(preStartFrame);
 };
 
 /**
@@ -2534,8 +2711,10 @@ const enterDeployMode = (seconds, payload) => {
 	deployPriorGameIDs = [d.i, currentGameID].filter(Boolean);
 
 	// a deploy phase begins a new game, so clear any lingering game-over /
-	// rematch overlay from the previous game
+	// rematch overlay from the previous game — and any pre-start countdown
+	// left over from a game that never commenced
 	hideResult();
+	hidePreStartCountdown();
 
 	// the next game starts both clocks at full time; show that now rather than
 	// leaving the previous game's final times up through the whole arrange phase
@@ -2621,6 +2800,7 @@ const enterDeploySpectatorMode = (payload) => {
 	// same reveal-recognition baseline as the player path (see enterDeployMode)
 	deployPriorGameIDs = [d.i, currentGameID].filter(Boolean);
 	hideResult();
+	hidePreStartCountdown();
 
 	// the next game starts both clocks at full time (see enterDeployMode); the
 	// previous game's material diff is stale for the same reason

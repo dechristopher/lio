@@ -25,6 +25,12 @@ func (c *Clock) handleCommand(cmd Command) bool {
 		// don't subtract time or increment on first move of game
 		if c.firstMove {
 			c.firstMove = false
+			// a first move inside the pre-start window starts the game
+			// manually; disarm the countdown so it cannot fire later
+			if c.preStartTimer != nil {
+				c.preStartTimer.Stop()
+			}
+			c.preStartDeadline = time.Time{}
 		} else {
 			// update elapsed time of current player
 			c.players[c.turn].takeTime(ToCTime(time.Since(c.timestamp)))

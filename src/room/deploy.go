@@ -23,6 +23,14 @@ var deployTimeout = 30 * time.Second
 // idempotent refresh. It is a var so tests can shorten it.
 var deployAnnounceInterval = 2 * time.Second
 
+// botRevealHold is how long a bot playing White waits after the deploy reveal
+// before its opening move is requested, so the human gets a beat to absorb the
+// revealed position instead of being slammed with an instant reply. It applies
+// only when the game's clock has a pre-start countdown (timed deploy games) and
+// must stay well below TimeControl.PreStart — the hold spends the countdown,
+// never the bot's own clock. It is a var so tests can shorten it.
+var botRevealHold = 4 * time.Second
+
 // Deployment is a player's blind home-rank arrangement of their four pieces
 // (one king, one knight, two pawns), given from that player's own left-to-right
 // perspective: index 0 is the player's leftmost home-rank square.

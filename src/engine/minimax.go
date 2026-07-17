@@ -156,8 +156,12 @@ func minimaxABRoot(situation *octad.Game, depth int, repHist map[string]int) Mov
 
 // bestOf returns the best root evaluation for the side to move, falling back
 // to the first legal move if no move beat the completely losing default
-// evaluation.
+// evaluation. An empty move list (a terminal position that slipped past
+// Search's guard) yields the zero MoveEval rather than a panic.
 func bestOf(results []MoveEval, moves []octad.Move, isWhite bool) MoveEval {
+	if len(moves) == 0 {
+		return MoveEval{}
+	}
 	bestMoveEval := WinVal
 	if isWhite {
 		bestMoveEval = -WinVal

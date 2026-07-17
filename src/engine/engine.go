@@ -72,6 +72,20 @@ func Search(ofen string, history []string, depth int, budget time.Duration, alg 
 		panic(err)
 	}
 
+	// a terminal position (checkmate/stalemate) has no move to search for:
+	// return its exact evaluation in absolute white-positive space with the
+	// zero move, instead of letting a root search index an empty move list.
+	// Live rooms never request a move for a finished game, but the background
+	// position evaluator (db.UpEvaluator) routinely feeds archived *final*
+	// positions here — this was a real process-killing panic.
+	if len(situation.ValidMoves()) == 0 {
+		e := Evaluate(situation) // side-to-move-relative
+		if situation.Position().Turn() == octad.Black {
+			e = -e
+		}
+		return MoveEval{Eval: e}
+	}
+
 	var eval MoveEval
 
 	// publish search starting message

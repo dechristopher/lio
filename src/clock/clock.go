@@ -39,7 +39,12 @@ type Clock struct {
 
 	flagTimer  *time.Timer // fires an event to check for a player flagging
 	delayTimer *time.Timer // fires an event to represent delay time expiring
-	mutex      *sync.Mutex // prevent concurrent clock state changes
+	// preStartTimer ends the bounded first-move grace (TimeControl.PreStart):
+	// when it fires the side to move goes on the clock without having moved.
+	// preStartDeadline mirrors it for State reporting. Guarded by mutex.
+	preStartTimer    *time.Timer
+	preStartDeadline time.Time
+	mutex            *sync.Mutex // prevent concurrent clock state changes
 
 	publisher *bus.Publisher
 }
@@ -197,6 +202,19 @@ func (c *Clock) Start() {
 		c.delayTimer = time.NewTimer(time.Hour)
 		c.delayExpired = true
 	}
+
+	// arm the pre-start countdown when the time control bounds the first-move
+	// grace; a flip inside the window disarms it (handleCommand), expiry ends
+	// the grace (expirePreStart). Without one, the stopped timer's channel
+	// simply never fires in the select below.
+	if c.control.PreStart.t > 0 && c.firstMove {
+		c.preStartDeadline = time.Now().Add(c.control.PreStart.t)
+		c.preStartTimer = time.NewTimer(c.control.PreStart.t)
+	} else {
+		c.preStartDeadline = time.Time{}
+		c.preStartTimer = time.NewTimer(time.Hour)
+		c.preStartTimer.Stop()
+	}
 	c.mutex.Unlock()
 
 	go func(cl *Clock, quit, stopped chan struct{}) {
@@ -214,10 +232,20 @@ func (c *Clock) Start() {
 			case <-cl.delayTimer.C:
 				// set delay expired after delay timer has ended
 				cl.delayExpired = true
+			case <-cl.preStartTimer.C:
+				// pre-start countdown expired; put the side to move on the clock
+				cl.expirePreStart()
 			case <-cl.flagTimer.C:
 				// check to see if any player has flagged
 				if cl.EstimateFlagged() {
 					cl.mutex.Lock()
+					// charge the flagged player's un-flipped think time, as a
+					// flip would have, so the final state reads truthfully:
+					// takeTime caps at the full budget, leaving remaining 0
+					// rather than the stale as-of-last-flip value (a player
+					// flagging without ever moving would otherwise show a
+					// full clock under an "out of time" result)
+					cl.players[cl.turn].takeTime(ToCTime(time.Since(cl.timestamp)))
 					if cl.turn == octad.Black {
 						cl.victor = White
 					} else {
@@ -231,6 +259,43 @@ func (c *Clock) Start() {
 			}
 		}
 	}(c, quit, stopped)
+}
+
+// expirePreStart ends the bounded first-move grace when the pre-start
+// countdown lapses: the side to move goes on the clock as if the game had
+// just commenced — time drains from now and the flag timer is armed for
+// their full budget, so a player who never moves flags through the normal
+// path. A no-op if a flip already started the game or the clock stopped
+// (the timer fire races both harmlessly).
+func (c *Clock) expirePreStart() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if !c.firstMove || c.clockPaused {
+		return
+	}
+
+	c.firstMove = false
+	c.preStartDeadline = time.Time{}
+	c.timestamp = time.Now()
+	c.flagTimer.Reset(c.players[c.turn].remaining().t)
+
+	// publish clock state to monitors
+	c.publisher.Publish(Flip, c.State(false))
+}
+
+// preStartRemaining reports the time left in a running pre-start countdown,
+// zero once the game has commenced or when none is configured. The caller
+// must hold mutex.
+func (c *Clock) preStartRemaining() CTime {
+	if !c.firstMove || c.clockPaused || c.preStartDeadline.IsZero() {
+		return ToCTime(0)
+	}
+	rem := time.Until(c.preStartDeadline)
+	if rem < 0 {
+		rem = 0
+	}
+	return ToCTime(rem)
 }
 
 // Reset the clock times and prepare for another game. Stop terminates the
@@ -291,6 +356,10 @@ func (c *Clock) Stop(writeState, lock bool) {
 	if c.delayTimer != nil {
 		c.delayTimer.Stop()
 	}
+	if c.preStartTimer != nil {
+		c.preStartTimer.Stop()
+	}
+	c.preStartDeadline = time.Time{}
 
 	if writeState {
 		// StateChannel is buffered(1), so this never blocks
@@ -381,5 +450,6 @@ func (c *Clock) State(lock bool) State {
 		Turn:      c.turn,
 		IsPaused:  c.clockPaused,
 		Victor:    c.victor,
+		PreStart:  c.preStartRemaining(),
 	}
 }

@@ -53,11 +53,14 @@ func (r *Instance) handleGameOngoing() {
 	// idle-abandon timer (bot games only). The disconnect abandon timer above
 	// keys off socket presence, so it can't catch a human who is still connected
 	// but never moves (an idle/backgrounded tab, or someone off watching the
-	// home-page TV): the bot would otherwise play the game out to a flag for
-	// nobody. This timer fires when
-	// humanIdleEligible holds — a bot game, the human has not moved, and it is
-	// their turn — and is disarmed the instant they move. Created disarmed;
-	// refreshIdle (re)evaluates the condition on entry and after every move.
+	// home-page TV). This timer fires when humanIdleEligible holds — a bot game,
+	// the human has not moved, it is their turn, AND no flag is coming (their
+	// clock is not genuinely running, e.g. a restored room awaiting resume). A
+	// connected no-show whose clock is draining is deliberately left to lose on
+	// time instead of being abandoned — the visible clock (and, in deploy games,
+	// the pre-start countdown) is the pressure, and the flag is the outcome.
+	// Created disarmed; refreshIdle (re)evaluates the condition on entry and
+	// after every move.
 	idleTimer := time.NewTimer(idleTimeout)
 	if !idleTimer.Stop() {
 		<-idleTimer.C
@@ -76,8 +79,10 @@ func (r *Instance) handleGameOngoing() {
 			idleTimer.Reset(idleTimeout)
 		}
 	}
-	// arm on entry: a rematch in which the human plays Black reaches here with
-	// the bot's opening move already played and the no-show human on the clock
+	// evaluate on entry: a rematch in which the human plays Black reaches here
+	// with the bot's opening move already played and the no-show human on the
+	// clock (with the clock running and the human connected this arms nothing —
+	// the flag governs — but a paused-clock or vacant-seat entry still arms)
 	refreshIdle()
 
 	// maybeResume unpauses a rehydrated room's restored clock (see

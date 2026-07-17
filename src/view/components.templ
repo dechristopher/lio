@@ -117,9 +117,9 @@ templ prefsPopover() {
 		<div class="mt-2">
 			<p class="mb-1 text-xs font-medium text-fg-muted">Theme</p>
 			<div class="grid grid-cols-3 gap-1">
-				<button type="button" onclick="__setTheme('light')" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">Light</button>
-				<button type="button" onclick="__setTheme('dark')" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">Dark</button>
-				<button type="button" onclick="__useSystemTheme()" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">System</button>
+				<button type="button" data-set-theme="light" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">Light</button>
+				<button type="button" data-set-theme="dark" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">Dark</button>
+				<button type="button" data-set-theme="system" class="rounded-md border border-line bg-panel py-1.5 text-xs font-semibold text-fg hover:border-accent">System</button>
 			</div>
 		</div>
 		<div class="mt-3 border-t border-line pt-3">
@@ -211,22 +211,40 @@ templ navScript() {
 			const prefsBtn = document.getElementById("prefsButton");
 			const popover = document.getElementById("prefsPopover");
 
-			// Ring the swatch/pill matching the live <html> data-board/data-piece.
+			// Ring the swatch/pill matching the live <html> data-board/data-piece,
+			// and highlight the selected theme mode. The mode is derived from
+			// storage, not <html> data-theme: an explicit choice persists a
+			// "theme" key, while System is its absence (data-theme always holds
+			// the *resolved* light/dark, which can't distinguish the two).
 			const syncPrefs = () => {
 				const root = document.documentElement.dataset;
 				popover.querySelectorAll("[data-set-board]").forEach((b) =>
 					b.classList.toggle("is-active", b.dataset.setBoard === root.board));
 				popover.querySelectorAll("[data-set-piece]").forEach((b) =>
 					b.classList.toggle("is-active", b.dataset.setPiece === root.piece));
+				let mode = "system";
+				try {
+					const t = localStorage.getItem("theme");
+					if (t === "light" || t === "dark") mode = t;
+				} catch (e) {}
+				popover.querySelectorAll("[data-set-theme]").forEach((b) =>
+					b.classList.toggle("is-active", b.dataset.setTheme === mode));
 			};
-			// Delegated: a swatch sets the board theme, a pill sets the piece set.
-			// __setBoard/__setPiece (layout.templ) flip the <html> attribute +
-			// persist; the CSS + accent retint react instantly.
+			// Delegated: a swatch sets the board theme, a pill sets the piece set,
+			// a theme button sets (or clears, for System) the color scheme.
+			// __setBoard/__setPiece/__setTheme/__useSystemTheme (layout.templ)
+			// flip the <html> attribute + persist; the CSS reacts instantly.
 			popover.addEventListener("click", (e) => {
 				const boardBtn = e.target.closest("[data-set-board]");
 				if (boardBtn) { window.__setBoard(boardBtn.dataset.setBoard); syncPrefs(); return; }
 				const pieceBtn = e.target.closest("[data-set-piece]");
-				if (pieceBtn) { window.__setPiece(pieceBtn.dataset.setPiece); syncPrefs(); }
+				if (pieceBtn) { window.__setPiece(pieceBtn.dataset.setPiece); syncPrefs(); return; }
+				const themeBtn = e.target.closest("[data-set-theme]");
+				if (themeBtn) {
+					const v = themeBtn.dataset.setTheme;
+					if (v === "system") { window.__useSystemTheme(); } else { window.__setTheme(v); }
+					syncPrefs();
+				}
 			});
 
 			const togglePopover = (e) => {
@@ -417,6 +435,31 @@ templ board(payload message.RoomTemplatePayload) {
 						<div id="deploy-waiting" class="deploy-waiting hidden">Locked in — waiting for opponent…</div>
 						<div id="deploy-opponent-status" class="deploy-opp-status hidden"></div>
 					</div>
+				</div>
+				<!-- pre-start countdown: small radial timer shown mid-board after the
+				     deploy reveal until white moves or the countdown expires and their
+				     clock starts on its own (lio-game.js toggles .ps-show and drives
+				     the ring's stroke-dashoffset). Non-blocking: white can move under it. -->
+				<div id="prestart-overlay" class="prestart-overlay" aria-hidden="true">
+					<div class="prestart-dial">
+						<svg class="prestart-ring" viewBox="0 0 48 48">
+							<circle class="prestart-track" cx="24" cy="24" r="21"></circle>
+							<circle id="prestart-progress" class="prestart-progress" cx="24" cy="24" r="21"></circle>
+						</svg>
+						<div id="prestart-number" class="prestart-number"></div>
+					</div>
+				</div>
+				<!-- spectator audio-unlock: browsers keep audio muted until a page
+				     gesture, and a spectator may never otherwise interact. lio-game.js
+				     shows this tappable mid-board icon while audio is locked so the
+				     silent state has a visible fix; any tap on the page unlocks too —
+				     this is just the affordance (hidden again the moment audio runs). -->
+				<div id="audio-unlock-overlay" class="audio-unlock-overlay" aria-hidden="true">
+					<button id="audio-unlock" type="button" class="audio-unlock" title="Tap to enable sound" aria-label="Enable sound">
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"></path>
+						</svg>
+					</button>
 				</div>
 				<!-- endgame annotation: a small non-interactive pill naming the finished
 				     game's result, shown mid-board while the final position is reviewed

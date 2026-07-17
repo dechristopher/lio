@@ -74,6 +74,11 @@ type TimeControl struct {
 	Time      CTime `json:"t"` // time in seconds
 	Increment CTime `json:"i"` // seconds gained after each move
 	Delay     CTime `json:"d"` // seconds before time starts to decrement
+	// PreStart bounds the first-move grace period. The clock normally charges
+	// no time before white's first move; with PreStart set, Start arms a
+	// countdown that ends the grace when it expires — white goes on the clock
+	// and can flag without ever moving. Zero keeps the unbounded grace.
+	PreStart CTime `json:"ps"`
 	// TODO extra time after x time passes?
 	// TODO Bronstein delay?
 }
@@ -107,4 +112,8 @@ type State struct {
 	Turn      octad.Color `json:"t"`
 	IsPaused  bool        `json:"p"`
 	Victor    Victor      `json:"v"`
+	// PreStart is the time remaining in the running pre-start countdown
+	// (TimeControl.PreStart), zero once the game has commenced — via a first
+	// move or the countdown expiring — or when no countdown is configured.
+	PreStart CTime `json:"ps"`
 }

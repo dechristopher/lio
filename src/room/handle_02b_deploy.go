@@ -172,10 +172,20 @@ func (r *Instance) deployAndStart(got map[octad.Color]Deployment, botColor octad
 		panic(err)
 	}
 
-	// when the bot plays White it owns the opening move
+	// when the bot plays White it owns the opening move. With a pre-start
+	// countdown running, hold the request for a few seconds so the human can
+	// absorb the revealed position (the countdown, not the bot's clock, pays
+	// for the hold). A late fire after the room has moved on is harmless:
+	// requestEngineMove snapshots the game at fire time and tags the request
+	// with the game ID, so a stale result is dropped by makeMove's guard.
 	if botColor == octad.White {
-		util.DebugFlag("room", str.CRoom, "[%s] bot to move, requesting opening move", r.ID)
-		r.requestEngineMove()
+		if cfg.Variant.Control.PreStart.Milli() > 0 {
+			util.DebugFlag("room", str.CRoom, "[%s] bot to move, holding opening move %s", r.ID, botRevealHold)
+			time.AfterFunc(botRevealHold, r.requestEngineMove)
+		} else {
+			util.DebugFlag("room", str.CRoom, "[%s] bot to move, requesting opening move", r.ID)
+			r.requestEngineMove()
+		}
 	}
 }
 

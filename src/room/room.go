@@ -814,27 +814,48 @@ func (r *Instance) humanMovedThisGame() bool {
 
 // humanIdleEligible reports whether the room is a bot game in which the human
 // has not yet moved and it is currently their turn to move — the condition under
-// which a connected-but-idle human (who would otherwise let the bot play the
-// game out to a flag, then auto-rematch into another idle game) should be
-// abandoned. It deliberately returns false while it is the bot's turn, so we
-// never abandon a game that is merely waiting on the engine, and false once the
-// human has moved, so a genuinely engaged player is never subject to it.
+// which an idle human should be abandoned. It deliberately returns false while
+// it is the bot's turn, so we never abandon a game that is merely waiting on
+// the engine, and false once the human has moved, so a genuinely engaged
+// player is never subject to it.
 // Casual games are always ineligible: thinking time is unbounded by design, the
 // infinite clock means there is no flag to play out to, and the room is instead
 // cleaned up when the player disconnects.
+// A connected human whose clock is genuinely running is also ineligible: the
+// clock is the arbiter there — they lose on time like any other player instead
+// of having the game abandoned out from under them (post pre-start-countdown
+// deploy games, and classic games where the bot moved first). The idle timer
+// then only covers states no flag would ever end: a running-but-paused clock
+// (a restored room awaiting resume) — a disconnected human is the abandon
+// timer's job, not this one's.
 func (r *Instance) humanIdleEligible() bool {
 	r.stateMu.Lock()
-	defer r.stateMu.Unlock()
 
 	if r.params.Casual {
+		r.stateMu.Unlock()
 		return false
 	}
 
 	botColor := r.players.GetBotColor()
 	if botColor == octad.NoColor || r.humanMoved {
+		r.stateMu.Unlock()
 		return false
 	}
-	return r.game.ToMove != botColor
+	humanTurn := r.game.ToMove != botColor
+	clk := r.game.Clock
+	r.stateMu.Unlock()
+
+	if !humanTurn {
+		return false
+	}
+
+	// the connectivity check must run outside stateMu (bothPlayersConnected
+	// re-locks it via playerInfo); the clock has its own lock
+	if !clk.State(true).IsPaused && r.bothPlayersConnected() {
+		return false
+	}
+
+	return true
 }
 
 // SendMove writes a move to the room's moveChannel to be consumed by the
@@ -1127,12 +1148,20 @@ func (r *Instance) currentGameStateMessageLocked(addLast bool, gameStart bool) [
 // independently synchronized.
 func (r *Instance) currentClockLocked() proto.ClockPayload {
 	state := r.game.Clock.State(true)
-	return proto.ClockPayload{
+	payload := proto.ClockPayload{
 		Control: r.game.Variant.Control.Time.Centi(),
 		Black:   state.BlackTime.Centi(),
 		White:   state.WhiteTime.Centi(),
 		Lag:     clock.ToCTime(lag.Move.Get()).Centi(),
+		Paused:  state.IsPaused,
 	}
+	// surface a running pre-start countdown (bounded first-move grace) so the
+	// client can render — and, on reconnect, resync — the countdown overlay
+	if state.PreStart.Centi() > 0 {
+		payload.PreStart = state.PreStart.Centi()
+		payload.PreStartTotal = r.game.Variant.Control.PreStart.Centi()
+	}
+	return payload
 }
 
 // getSANLocked returns the last move in algebraic notation. The caller must
