@@ -26,7 +26,7 @@ RUN git clone --depth 1 --branch "${OCTADGROUND_REF}" \
 #      both from pinned single binaries — no npm client involved
 FROM debian:bookworm-slim AS assets-web
 # renovate: datasource=github-releases depName=tailwindlabs/tailwindcss
-ARG TAILWIND_VERSION=v4.3.1
+ARG TAILWIND_VERSION=v4.3.3
 # renovate: datasource=npm depName=esbuild
 ARG ESBUILD_VERSION=0.24.0
 ARG TARGETARCH
