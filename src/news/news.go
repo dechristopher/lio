@@ -17,6 +17,32 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "The reveal gets a countdown",
+		Date:  "Jul 17, 2026",
+		Body: "In deploy games, a ten-second countdown now rings the center of the board the " +
+			"moment both secret arrangements are revealed. Take it in, then make your first move " +
+			"whenever you're ready — or let the timer lapse and white's clock starts on its own. " +
+			"The computer holds its opening move for a beat too, so the reveal is never a blur. " +
+			"And a player who never moves now loses on time like anyone else, instead of the " +
+			"game quietly closing.",
+	},
+	{
+		Title: "Sound for spectators",
+		Date:  "Jul 17, 2026",
+		Body: "Browsers keep a page silent until it's been tapped at least once — so watching a " +
+			"game from a fresh tab used to mean no sounds at all, with no hint why. Spectators " +
+			"now see a small muted icon mid-board while sound is locked: tap it (or anywhere) " +
+			"and the game comes to life.",
+	},
+	{
+		Title: "Little touches",
+		Date:  "Jul 17, 2026",
+		Body: "The preferences menu now highlights your chosen theme — light, dark, or system — " +
+			"in your accent color, matching the board and piece pickers. The home page counts " +
+			"every game ever played on the site. A clock that runs out now reads an honest " +
+			"0:00.0. And gradient backgrounds on Android lost their color banding.",
+	},
+	{
 		Title: "Your games, on the record",
 		Date:  "Jul 14, 2026",
 		Body: "Under the hood, every finished game is now recorded to a durable database, each " +
