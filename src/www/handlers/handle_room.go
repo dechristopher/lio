@@ -162,12 +162,13 @@ func RoomCancelHandler(c fiber.Ctx) error {
 }
 
 // NewQuickRoomVsHuman creates a game against a human player with the default
-// time control and randomized color. Quick games are a public seek by nature —
+// variant (½ + 1 deploy blitz) and randomized color. Quick games are a public
+// seek by nature —
 // there is no link to share with a specific opponent — so they are always listed.
 func NewQuickRoomVsHuman(c fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitz,
+		variant:       variant.HalfOneBlitzDeploy,
 		selectedColor: util.RandomColor(),
 		public:        true,
 	})
@@ -264,13 +265,14 @@ func NewCustomRoom(c fiber.Ctx) error {
 }
 
 // NewRoomVsComputer creates a new game against a computer opponent. With no
-// query parameters it uses the default time control and a randomized color (the
+// query parameters it uses the default variant (½ + 1 deploy blitz) and a
+// randomized color (the
 // home-page quick game). The optional tc (time-control HTMLName) and color
 // (w/b/r) query params let a finished game's client spin up a "same settings"
 // rematch into a fresh room — a bot game's rematch does not reuse its (possibly
 // already torn-down) room, so it navigates here instead.
 func NewRoomVsComputer(c fiber.Ctx) error {
-	selectedVariant := variant.HalfOneBlitz
+	selectedVariant := variant.HalfOneBlitzDeploy
 	if tc := c.Query("tc"); tc != "" {
 		if v, ok := pools.Map[tc]; ok {
 			selectedVariant = v
