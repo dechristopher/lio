@@ -214,8 +214,13 @@ initAudioUnlock();
 // color, or the anchored player's current color for a spectator (whose
 // interaction is all off — mirrors enterDeploySpectatorMode's config; drawable
 // shapes stay usable).
+// deploy variants never start from the standard arrangement and the blind
+// deploy pre-game hides positions by design, so their boards boot empty:
+// showing the default pieces would flash a position that is wrong at best and
+// meant to be hidden at worst, until the socket delivers the real state.
+const isDeployVariant = document.getElementById('gcon-xx').dataset.deploy === 'true';
 let og = Octadground(document.getElementById('game'), {
-	ofen: 'ppkn/4/4/NKPP', // set initial board state to prevent brief period of missing pieces
+	ofen: isDeployVariant ? '4/4/4/4' : 'ppkn/4/4/NKPP', // initial board state prevents a brief period of missing pieces in classic games
 	orientation: document.getElementById('gcon-xx').classList.contains('b') ? 'black' : 'white',
 	highlight: {
 		lastMove: true,

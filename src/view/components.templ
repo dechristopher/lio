@@ -439,12 +439,15 @@ templ createGameButton() {
 // ("w"/"b"); spectators are oriented to the anchored player's current color and
 // carry a data-spectator attribute that lio-game.js reads once at init to enter
 // watch-only mode, plus data-anchor (the anchored player's id) so the client
-// can keep that player on the bottom as colors swap between games.
+// can keep that player on the bottom as colors swap between games. data-deploy
+// marks blind-deploy variants: the client boots those boards empty so the
+// default arrangement never flashes before the socket delivers the real
+// (possibly still hidden) position.
 // botRematchURL, when set (bot games only), is the "same settings" fresh-room
 // rematch link the result overlay's Rematch button navigates to.
 templ board(payload message.RoomTemplatePayload) {
 	<div class="board-shell">
-		<div id="gcon-xx" class={ "gcon " + boardOrientation(payload) } data-spectator={ strconv.FormatBool(payload.IsSpectator) } data-anchor={ payload.AnchorID } data-tc={ strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10) } data-casual={ strconv.FormatBool(payload.Variant.Casual) }>
+		<div id="gcon-xx" class={ "gcon " + boardOrientation(payload) } data-spectator={ strconv.FormatBool(payload.IsSpectator) } data-anchor={ payload.AnchorID } data-tc={ strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10) } data-casual={ strconv.FormatBool(payload.Variant.Casual) } data-deploy={ strconv.FormatBool(payload.Variant.Deploy) }>
 			<div class="gwrap">
 				<div id="game" class="og-wrap"></div>
 				<!-- blind deploy: opponent home-rank "?" cells, overlaid on the top rank -->
