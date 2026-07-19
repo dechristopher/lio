@@ -22,6 +22,14 @@ func (c *Clock) handleCommand(cmd Command) bool {
 
 	switch cmd {
 	case Flip:
+		// the flip ack reports this ply's cost: think time as actually charged
+		// (the drop in the mover's remaining budget, so lag compensation and
+		// the cap at a full budget are already reflected; zero on the
+		// uncharged first move) and the remaining budget after the flip
+		// (post-increment)
+		before := c.players[c.turn].remaining()
+		var ack FlipAck
+
 		// don't subtract time or increment on first move of game
 		if c.firstMove {
 			c.firstMove = false
@@ -38,13 +46,17 @@ func (c *Clock) handleCommand(cmd Command) bool {
 			// compensate player for move processing lag
 			c.players[c.turn].giveTime(ToCTime(lag.Move.Get()))
 
+			// the charged think time is final here — before any increment
+			ack.Think = before.Diff(c.players[c.turn].remaining())
+
 			// check to see if someone flagged
 			if c.flagged() {
 				// acknowledge the flip first so the caller blocked in
 				// flipClock (<-ackChannel) is released before Stop closes the
 				// ack channels; otherwise the room routine and this goroutine
 				// deadlock (routine waits on the ack, we wait to publish state)
-				c.ackChannels[c.turn] <- true
+				ack.Remaining = c.players[c.turn].remaining()
+				c.ackChannels[c.turn] <- ack
 				c.Stop(true, false)
 				return true
 			}
@@ -55,6 +67,10 @@ func (c *Clock) handleCommand(cmd Command) bool {
 			}
 		}
 
+		// remaining is what the mover's clock shows opponents for the rest of
+		// the game: their post-increment budget
+		ack.Remaining = c.players[c.turn].remaining()
+
 		// reset delay if enabled
 		if c.delayTimer != nil && c.control.Delay.t != 0 {
 			c.delayTimer.Reset(c.control.Delay.t)
@@ -62,7 +78,7 @@ func (c *Clock) handleCommand(cmd Command) bool {
 		}
 
 		// acknowledge clock flip
-		c.ackChannels[c.turn] <- true
+		c.ackChannels[c.turn] <- ack
 
 		// flip clock
 		c.turn = c.turn.Other()

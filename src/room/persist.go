@@ -56,13 +56,14 @@ type PersistedRoom struct {
 	Black player.Snapshot `json:"black"`
 
 	// per-game state; empty for a game_ready snapshot
-	GameID    string         `json:"gameId,omitempty"`
-	GameStart time.Time      `json:"gameStart,omitempty"`
-	StartOFEN string         `json:"startOfen,omitempty"`
-	Moves     []string       `json:"moves,omitempty"`
-	Outcome   string         `json:"outcome,omitempty"`
-	Method    uint8          `json:"method,omitempty"`
-	Clock     clock.Snapshot `json:"clock,omitempty"`
+	GameID    string          `json:"gameId,omitempty"`
+	GameStart time.Time       `json:"gameStart,omitempty"`
+	StartOFEN string          `json:"startOfen,omitempty"`
+	Moves     []string        `json:"moves,omitempty"`
+	MoveTimes []game.MoveTime `json:"moveTimes,omitempty"`
+	Outcome   string          `json:"outcome,omitempty"`
+	Method    uint8           `json:"method,omitempty"`
+	Clock     clock.Snapshot  `json:"clock,omitempty"`
 
 	HumanMoved   bool        `json:"humanMoved,omitempty"`
 	DrawOffer    octad.Color `json:"drawOffer,omitempty"`
@@ -155,6 +156,7 @@ func (r *Instance) Persist() ([]byte, bool) {
 		for _, mov := range r.game.Moves() {
 			p.Moves = append(p.Moves, mov.String())
 		}
+		p.MoveTimes = append(p.MoveTimes, r.game.MoveTimes...)
 	}
 	p.State = state
 
@@ -221,7 +223,8 @@ func Rehydrate(data []byte) (*Instance, error) {
 		g, err = game.NewOctadGame(params.GameConfig)
 	} else {
 		g, err = game.RestoreOctadGame(params.GameConfig, p.GameID, p.GameStart,
-			p.StartOFEN, p.Moves, clock.Restore(p.Variant.Control, p.Clock))
+			p.StartOFEN, p.Moves, p.MoveTimes,
+			clock.Restore(p.Variant.Control, p.Clock))
 		if err == nil {
 			err = reapplyOutcome(g, octad.Outcome(p.Outcome), octad.Method(p.Method))
 		}

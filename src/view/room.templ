@@ -16,7 +16,7 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 				if payload.IsCreator || payload.IsJoining {
 					// pre-game waiting hero: wider than the game view to fit the
 					// two-panel layout, so header/footer widths match the hero.
-					@header("max-w-[44rem]")
+					@header("w-[92vw] max-w-[44rem]")
 					if payload.IsCreator {
 						@roomCreator(meta, payload)
 					} else {
@@ -24,7 +24,9 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 					}
 					@footer(meta, "max-w-[44rem]")
 				} else {
-					@header("max-w-[34rem]")
+					// header width mirrors .game-grid's exact formula (app.css) so
+					// its outer edges align with the board + rail at every viewport
+					@header("w-[min(96vw,60rem)] min-[900px]:w-[min(96vw,48rem)]")
 					@roomGame(meta, payload)
 				}
 			</div>

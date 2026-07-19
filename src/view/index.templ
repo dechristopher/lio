@@ -10,7 +10,7 @@ templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteSta
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header("max-w-[34rem] md:max-w-3xl lg:max-w-5xl")
+				@header("w-[92vw] max-w-[34rem] md:max-w-3xl lg:max-w-5xl")
 				if meta.Notice != "" {
 					<div class="card mt-2 w-[92vw] max-w-[34rem] text-sm text-fg md:max-w-3xl lg:max-w-5xl" role="status">{ meta.Notice }</div>
 				}

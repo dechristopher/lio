@@ -27,7 +27,7 @@ type Clock struct {
 
 	ControlChannel chan Command
 	StateChannel   chan State
-	ackChannels    map[octad.Color]chan bool
+	ackChannels    map[octad.Color]chan FlipAck
 
 	// quit terminates the running clock goroutine. Start creates a fresh one
 	// per run; Stop closes it. It is guarded by mutex.
@@ -100,7 +100,7 @@ func NewClock(tc TimeControl) *Clock {
 		// blocking on a consumer that may itself be blocked waiting on the
 		// flip acknowledgement — see Stop and handleCommand
 		StateChannel: make(chan State, 1),
-		ackChannels:  make(map[octad.Color]chan bool),
+		ackChannels:  make(map[octad.Color]chan FlipAck),
 		mutex:        &sync.Mutex{},
 		publisher:    bus.NewPublisher("clock", Channel),
 	}
@@ -108,8 +108,8 @@ func NewClock(tc TimeControl) *Clock {
 	clock.players[octad.White] = &playerClock{control: tc, elapsed: ToCTime(0)}
 	clock.players[octad.Black] = &playerClock{control: tc, elapsed: ToCTime(0)}
 
-	clock.ackChannels[octad.White] = make(chan bool)
-	clock.ackChannels[octad.Black] = make(chan bool)
+	clock.ackChannels[octad.White] = make(chan FlipAck)
+	clock.ackChannels[octad.Black] = make(chan FlipAck)
 
 	return clock
 }
@@ -169,7 +169,7 @@ func (c *Clock) EstimateFlagged() bool {
 }
 
 // GetAck returns the ack channel for the current player
-func (c *Clock) GetAck() chan bool {
+func (c *Clock) GetAck() chan FlipAck {
 	return c.ackChannels[c.turn]
 }
 

@@ -22,7 +22,7 @@ const maxReconcileAttempts = 3;
 // reviewing an earlier ply it stays put and only the move list grows.
 // lastLiveMessage caches the most recent live board-state so returning to the
 // tip can restore full interactivity (dests, turn, orientation).
-let history = { uois: [], sans: [], ofens: [] };
+let history = { uois: [], sans: [], ofens: [], times: [], clocks: [] };
 let currentPly = 0;
 let viewPly = 0;
 let followingLive = true;
@@ -1580,6 +1580,8 @@ const handleMove = (message) => {
 		uois: message.d.m || [],
 		sans: message.d.sm || [],
 		ofens: message.d.om || [],
+		times: message.d.mt || [],
+		clocks: message.d.ct || [],
 	};
 
 	if (!message.d.m) {
@@ -1801,6 +1803,11 @@ const handleGameOver = (message) => {
 		endAnnotationText = resultSummary(message.d);
 	}
 	updateEndAnnotation();
+
+	// re-render the move list now that the game is over: per-move think times
+	// are shown only for finished games, so the labels appear the moment the
+	// result lands rather than on the first manual navigation
+	renderMoveList();
 
 	// disallow further moves
 	og.set({
@@ -2138,7 +2145,10 @@ const applyBrowsedGame = (data) => {
 	const b = data.board || {};
 	const uid = myArchiveUid();
 	browseOrientWhite = uid ? b.w === uid : true;
-	history = { uois: b.m || [], sans: b.sm || [], ofens: b.om || [] };
+	history = {
+		uois: b.m || [], sans: b.sm || [], ofens: b.om || [],
+		times: b.mt || [], clocks: b.ct || [],
+	};
 	currentPly = history.uois.length;
 	viewPly = currentPly;
 	followingLive = false;
@@ -3467,6 +3477,11 @@ const goToPly = (ply) => {
 	if (deployMode || deploySpectating) {
 		return;
 	}
+	// any manual navigation pauses an in-flight realtime playback (playback's
+	// own steps come through with playbackStepping set)
+	if (!playbackStepping) {
+		stopPlayback();
+	}
 	// touching any navigation control while the result card is up dismisses it,
 	// so the modal never blocks reviewing the finished game
 	dismissResultForAnalysis();
@@ -3491,6 +3506,8 @@ const goToPly = (ply) => {
 		renderReviewPosition(ply);
 	}
 	renderMoveList();
+	// archive pages carry live-style clock cards; keep them at the viewed ply
+	renderArchiveClocks(ply);
 	// sound the move we traversed onto — the move leading into the ply we landed
 	// on, which is also the last-move the board now highlights. Only when the ply
 	// actually changed, so a clamped no-op (e.g. ▶ at the live tip) stays silent.
@@ -3509,6 +3526,23 @@ const updateNavButtons = () => {
 	if (navPrevBtn) { navPrevBtn.disabled = atStart; }
 	if (navNextBtn) { navNextBtn.disabled = atLive; }
 	if (navLastBtn) { navLastBtn.disabled = atLive; }
+	updatePlayButton();
+};
+
+/**
+ * formatMoveTime renders a per-move think time (ms) for the move list: tenths
+ * under ten seconds, whole seconds under a minute, m:ss beyond.
+ */
+const formatMoveTime = (ms) => {
+	if (ms < 9950) {
+		return (ms / 1000).toFixed(1) + 's';
+	}
+	if (ms < 60000) {
+		return Math.round(ms / 1000) + 's';
+	}
+	const m = Math.floor(ms / 60000);
+	const s = Math.floor((ms % 60000) / 1000);
+	return m + ':' + (s < 10 ? '0' : '') + s;
 };
 
 /**
@@ -3521,6 +3555,15 @@ const renderMoveList = () => {
 		return;
 	}
 	const sans = history.sans || [];
+	// annotate each move with its recorded think time once the game is no
+	// longer live-in-progress (archive pages, post-game analysis, browsing);
+	// untimed games (pre-timing archives) simply have no array to show
+	const times = history.times || [];
+	const showTimes = times.length > 0 && times.length === sans.length
+		&& (isArchive || gameOver || browsing);
+	const timeCell = (ply) => showTimes
+		? '<span class="move-time">' + formatMoveTime(times[ply - 1]) + '</span>'
+		: '';
 	let html = '';
 	for (let i = 0; i < sans.length; i += 2) {
 		const num = (i / 2) + 1;
@@ -3529,10 +3572,12 @@ const renderMoveList = () => {
 		html += '<div class="move-row">';
 		html += '<span class="move-num">' + num + '.</span>';
 		html += '<span class="move' + (viewPly === wPly ? ' active' : '')
-			+ '" data-ply="' + wPly + '" role="listitem">' + escapeHtml(sans[i]) + '</span>';
+			+ '" data-ply="' + wPly + '" role="listitem">' + escapeHtml(sans[i])
+			+ timeCell(wPly) + '</span>';
 		if (sans[i + 1] !== undefined) {
 			html += '<span class="move' + (viewPly === bPly ? ' active' : '')
-				+ '" data-ply="' + bPly + '" role="listitem">' + escapeHtml(sans[i + 1]) + '</span>';
+				+ '" data-ply="' + bPly + '" role="listitem">' + escapeHtml(sans[i + 1])
+				+ timeCell(bPly) + '</span>';
 		} else {
 			html += '<span class="move move-empty"></span>';
 		}
@@ -3575,6 +3620,222 @@ if (moveListEl) {
 		if (!isNaN(ply)) {
 			goToPly(ply);
 		}
+	});
+}
+
+// ---- archive clocks ----
+// The archive page renders the same clock cards as the live game (names,
+// ratings, colors, material) and this section drives their times from the
+// per-ply remaining-clock history (history.clocks): static as-of-ply values
+// while navigating, and a realtime drain of the mover's clock during playback.
+
+/**
+ * archiveClocksAtPly reconstructs both remaining clocks (ms) as of the given
+ * ply from the per-ply post-move values: each side shows the remainder after
+ * their last completed move, or the full budget before their first. White
+ * always owns the odd plies (octad games — deploy starts included — begin with
+ * white to move), and ply 1's post-move value IS the full budget: the first
+ * flip charges nothing and awards no increment.
+ */
+const archiveClocksAtPly = (ply) => {
+	const clocks = history.clocks || [];
+	// The full starting budget: prefer the server-resolved time control
+	// (data-tc, centis). Ply 1's post-move value is only a fallback for
+	// retired variants — it usually equals the budget (the first flip is
+	// uncharged) but NOT when a deploy pre-start expiry put white on the
+	// clock before their first move: that ply is charged and incremented,
+	// so deriving "full" from it would skew the starting-position clocks.
+	const full = timeControlCenti > 0 ? timeControlCenti * 10
+		: (clocks.length ? clocks[0] : 0);
+	const lastWhitePly = ply % 2 === 1 ? ply : ply - 1;
+	const lastBlackPly = ply % 2 === 0 ? ply : ply - 1;
+	return {
+		w: lastWhitePly >= 1 ? clocks[lastWhitePly - 1] : full,
+		b: lastBlackPly >= 2 ? clocks[lastBlackPly - 1] : full,
+		full: full,
+	};
+};
+
+/**
+ * setArchiveClock writes one clock card's time, bar, and low-time emphasis
+ * from a milliseconds value (timeFormatter/barWidth speak centis/ratios).
+ */
+const setArchiveClock = (el, ms, fullMs) => {
+	const t = el.getElementsByClassName('clockTime')[0];
+	const bar = el.getElementsByClassName('clockProgressBar')[0];
+	if (t) { t.innerHTML = timeFormatter(ms / 10); }
+	if (bar) { bar.style.width = barWidth(fullMs, ms); }
+	el.classList.toggle('low', ms < 10000);
+};
+
+/**
+ * renderArchiveClocks paints both clock cards for the viewed ply: color
+ * identity, the running (side-to-move) emphasis, and the reconstructed times.
+ * Casual games show the live page's static ∞; games archived before timing
+ * was recorded keep the identity cards but show no time.
+ */
+const renderArchiveClocks = (ply) => {
+	if (!isArchive || !clockPlayerEl || !clockOpponentEl) {
+		return;
+	}
+	cancelAnimationFrame(playbackClockRaf);
+
+	const bottomWhite = browseBottomIsWhite();
+	const whiteEl = bottomWhite ? clockPlayerEl : clockOpponentEl;
+	const blackEl = bottomWhite ? clockOpponentEl : clockPlayerEl;
+	whiteEl.classList.add('playerWhite');
+	whiteEl.classList.remove('playerBlack');
+	blackEl.classList.add('playerBlack');
+	blackEl.classList.remove('playerWhite');
+
+	// the side to move out of the viewed ply owns the running clock; at the
+	// final ply this mirrors the live page's frozen end-of-game state
+	const whiteToMove = ply % 2 === 0;
+	whiteEl.classList.toggle('active', whiteToMove);
+	blackEl.classList.toggle('active', !whiteToMove);
+
+	if (casualGame) {
+		setClockInfinite(whiteEl);
+		setClockInfinite(blackEl);
+		return;
+	}
+
+	// untimed detection keys off the recorded history, never the budget: a
+	// resolvable time control with no per-ply clocks is still a pre-timing
+	// archive, and full-budget cards would misrepresent it at every ply
+	const at = archiveClocksAtPly(ply);
+	if (!(history.clocks || []).length || !at.full) {
+		// untimed archive (pre-timing game): identity cards without times
+		[whiteEl, blackEl].forEach((el) => {
+			const t = el.getElementsByClassName('clockTime')[0];
+			const bar = el.getElementsByClassName('clockProgressBar')[0];
+			if (t) { t.innerHTML = '–:––'; }
+			if (bar) { bar.style.width = '0%'; }
+			el.classList.remove('low');
+		});
+		return;
+	}
+	setArchiveClock(whiteEl, at.w, at.full);
+	setArchiveClock(blackEl, at.b, at.full);
+};
+
+/**
+ * animatePlaybackClock drains the mover's clock in realtime beneath a pending
+ * playback step: from their as-of-ply remainder, at wall rate, capped at the
+ * recorded think time (a floored step pads without draining extra). The step
+ * landing snaps both clocks to their true post-move values via
+ * renderArchiveClocks — including the increment jump, exactly like live play.
+ */
+const animatePlaybackClock = () => {
+	if (!isArchive || casualGame) {
+		return;
+	}
+	const at = archiveClocksAtPly(viewPly);
+	if (!(history.clocks || []).length || !at.full) {
+		return;
+	}
+	const moverIsWhite = viewPly % 2 === 0;
+	const bottomWhite = browseBottomIsWhite();
+	const el = moverIsWhite === bottomWhite ? clockPlayerEl : clockOpponentEl;
+	if (!el) {
+		return;
+	}
+	const startMs = moverIsWhite ? at.w : at.b;
+	const times = history.times || [];
+	const think = times.length > viewPly ? times[viewPly] : 0;
+	const t0 = performance.now();
+	const frame = () => {
+		const drained = Math.min(performance.now() - t0, think);
+		setArchiveClock(el, Math.max(startMs - drained, 0), at.full);
+		playbackClockRaf = requestAnimFrame(frame);
+	};
+	cancelAnimationFrame(playbackClockRaf);
+	playbackClockRaf = requestAnimFrame(frame);
+};
+
+// ---- realtime playback (archive pages) ----
+
+// The ⏵ control nestled among the move-nav buttons (rendered only on archive
+// pages) replays the game at its recorded pace: each move advances after the
+// mover's recorded think time. Instant moves are floored so steps stay
+// visible, and untimed archives (games predating per-move timing) fall back
+// to a uniform cadence.
+const navPlayBtn = document.getElementById('nav-play');
+const playbackFloorMs = 300;
+const playbackFallbackMs = 1000;
+let playbackTimer = null;      // pending step timer while playing, else null
+let playbackStepping = false;  // marks goToPly calls made by playback itself
+let playbackClockRaf = null;   // rAF draining the mover's clock during a step
+
+/**
+ * updatePlayButton syncs the play/pause glyph and enablement with the
+ * playback and game state (disabled on an empty game).
+ */
+const updatePlayButton = () => {
+	if (!navPlayBtn) {
+		return;
+	}
+	const playing = playbackTimer !== null;
+	navPlayBtn.textContent = playing ? '⏸' : '⏵';
+	const label = playing ? 'Pause playback' : 'Play moves at recorded speed';
+	navPlayBtn.title = label;
+	navPlayBtn.setAttribute('aria-label', label);
+	navPlayBtn.disabled = currentPly === 0;
+};
+
+/**
+ * stopPlayback cancels any pending playback step and restores the ⏵ glyph.
+ * Safe to call when not playing.
+ */
+const stopPlayback = () => {
+	if (playbackTimer !== null) {
+		clearTimeout(playbackTimer);
+		playbackTimer = null;
+	}
+	// snap an interrupted clock drain back to the as-of-ply values
+	// (renderArchiveClocks cancels playbackClockRaf itself)
+	renderArchiveClocks(viewPly);
+	updatePlayButton();
+};
+
+/**
+ * schedulePlaybackStep arms the next playback advance: the move after the
+ * viewed ply lands after its recorded think time. Reaching the final ply ends
+ * the run.
+ */
+const schedulePlaybackStep = () => {
+	if (viewPly >= currentPly) {
+		stopPlayback();
+		return;
+	}
+	const times = history.times || [];
+	// think time of the move leading out of the viewed ply (ply viewPly+1)
+	const think = times.length > viewPly ? times[viewPly] : playbackFallbackMs;
+	playbackTimer = setTimeout(() => {
+		playbackTimer = null;
+		playbackStepping = true;
+		goToPly(viewPly + 1);
+		playbackStepping = false;
+		schedulePlaybackStep();
+	}, Math.max(think, playbackFloorMs));
+	// drain the mover's clock in realtime while the step is pending
+	animatePlaybackClock();
+	updatePlayButton();
+};
+
+if (navPlayBtn) {
+	navPlayBtn.addEventListener('click', () => {
+		if (playbackTimer !== null) {
+			stopPlayback();
+			return;
+		}
+		// pressing play at the end restarts the game from the top
+		if (viewPly >= currentPly) {
+			playbackStepping = true;
+			goToPly(0);
+			playbackStepping = false;
+		}
+		schedulePlaybackStep();
 	});
 }
 
@@ -3702,7 +3963,10 @@ const hydrateArchive = () => {
 
 	gameOver = true;
 	gameResult = archiveData.outcome || '*';
-	history = { uois: b.m || [], sans: b.sm || [], ofens: b.om || [] };
+	history = {
+		uois: b.m || [], sans: b.sm || [], ofens: b.om || [],
+		times: b.mt || [], clocks: b.ct || [],
+	};
 	currentPly = history.uois.length;
 	viewPly = currentPly;
 	lastPly = currentPly;
@@ -3712,6 +3976,13 @@ const hydrateArchive = () => {
 	// enables movement)
 	renderReviewPosition(currentPly);
 	renderMoveList();
+
+	// the clock cards open frozen at their end-of-game values, and the score
+	// chips carry the final match score, mirroring a just-finished live game
+	renderArchiveClocks(currentPly);
+	if (archiveData.sc) {
+		updateScore({ d: { sc: archiveData.sc } });
+	}
 
 	// match timeline (absent on standalone single-game views); renderTimeline
 	// decorates the cells as permalinks itself in archive mode

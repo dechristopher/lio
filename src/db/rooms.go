@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/dechristopher/lio/db/gen"
+	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/util"
 )
@@ -124,4 +125,31 @@ func GetGameByUUID(id string) (gen.Game, bool, error) {
 		return gen.Game{}, false, err
 	}
 	return g, true, nil
+}
+
+// ListGameMoveTimes returns an archived game's per-ply timing in ply order,
+// nil when the game predates per-move timing (or Postgres is unconfigured).
+// Plies are timed all-or-nothing at archive time (BuildPlies), so a NULL on
+// any ply reads as an untimed game.
+func ListGameMoveTimes(gameRef int32) ([]game.MoveTime, error) {
+	if Pool == nil {
+		return nil, nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	rows, err := gen.New(Pool).ListGameMoveTimes(ctx, gameRef)
+	if err != nil {
+		return nil, err
+	}
+	times := make([]game.MoveTime, 0, len(rows))
+	for _, r := range rows {
+		if r.ClockMs == nil || r.MoveMs == nil {
+			return nil, nil
+		}
+		times = append(times, game.MoveTime{
+			ThinkMs: int64(*r.MoveMs),
+			ClockMs: int64(*r.ClockMs),
+		})
+	}
+	return times, nil
 }

@@ -13,7 +13,9 @@ templ RoomArchive(meta Meta, m ArchiveModel) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header("max-w-[34rem]")
+				// header width mirrors .game-grid's exact formula (app.css) so
+				// its outer edges align with the board + rail at every viewport
+				@header("w-[min(96vw,60rem)] min-[900px]:w-[min(96vw,48rem)]")
 				@archiveGame(meta, m)
 			</div>
 		</body>
@@ -27,7 +29,15 @@ templ RoomArchive(meta Meta, m ArchiveModel) {
 // clock, control, and overlay scaffolding a live game needs.
 templ archiveGame(meta Meta, m ArchiveModel) {
 	<div class="game-room mt-2">
-		<div class="game-grid analyzing">
+		<div class="game-grid analyzing archive-grid">
+			<!-- the same clock sandwich as the live page (identity row + time +
+			     progress bar), so replays carry names, ratings, colors, and — via
+			     lio-game.js's archive clock renderer — the clock state as of the
+			     viewed ply, draining in realtime during playback. .archive-clock
+			     hides the live-only presence dot. -->
+			<div id="clockOpponent" class="clockOpponent ga-opp archive-clock" data-bot={ strconv.FormatBool(m.TopIsBot) }>
+				@clock(m.TopName)
+			</div>
 			<div class="ga-board">
 				@archiveBoard(m)
 				if !m.Standalone {
@@ -43,6 +53,9 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 						<div class="tl-games" role="list"></div>
 					</div>
 				}
+			</div>
+			<div id="clockPlayer" class="clockPlayer ga-you archive-clock" data-bot={ strconv.FormatBool(m.BottomIsBot) }>
+				@clock(m.BottomName)
 			</div>
 			<aside class="ga-rail">
 				<div class="rail-stack">
@@ -65,6 +78,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 						<div class="move-nav">
 							<button type="button" id="nav-first" class="nav-btn" title="Jump to start (↑)" aria-label="Jump to start">⏮</button>
 							<button type="button" id="nav-prev" class="nav-btn" title="Previous move (←)" aria-label="Previous move">◀</button>
+							<button type="button" id="nav-play" class="nav-btn nav-play" title="Play moves at recorded speed" aria-label="Play moves at recorded speed">⏵</button>
 							<button type="button" id="nav-next" class="nav-btn" title="Next move (→)" aria-label="Next move">▶</button>
 							<button type="button" id="nav-last" class="nav-btn" title="Jump to end (↓)" aria-label="Jump to end">⏭</button>
 						</div>
@@ -100,7 +114,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 // watch-only mode, so the board never accepts input.
 templ archiveBoard(m ArchiveModel) {
 	<div class="board-shell">
-		<div id="gcon-xx" class={ "gcon " + m.Orientation } data-spectator="true" data-archive="true" data-tc="0" data-casual={ strconv.FormatBool(m.Casual) } data-deploy="false">
+		<div id="gcon-xx" class={ "gcon " + m.Orientation } data-spectator="true" data-archive="true" data-tc={ strconv.FormatInt(m.TCCenti, 10) } data-casual={ strconv.FormatBool(m.Casual) } data-deploy="false">
 			<div class="gwrap">
 				<div id="game" class="og-wrap"></div>
 				<!-- endgame annotation: the mid-board pill naming the game's result

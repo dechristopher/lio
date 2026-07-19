@@ -9,9 +9,11 @@ import (
 // header is the site wordmark + account/preferences/theme controls shown at the
 // top of every page. Accounts are not built yet, so "Log in" opens a
 // coming-soon dialog; the preferences popover exposes the working theme control
-// and stubs the rest.
+// and stubs the rest. width is the caller's complete sizing class list (base
+// width + caps), so a page whose content uses a different width formula (the
+// room game grid's min(96vw,…)) can align the header edges exactly to it.
 templ header(width string) {
-	<header class={ "flex w-[92vw] items-center justify-between gap-4 pt-1 pb-3 " + width }>
+	<header class={ "flex items-center justify-between gap-4 pt-1 pb-3 " + width }>
 		<div class="flex flex-col items-start leading-none">
 			<a href="/" class="no-underline">
 				// wordmark: text-2xl (1.5rem) capped, but fluid below ~328px viewports so

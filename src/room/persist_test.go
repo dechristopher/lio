@@ -97,6 +97,28 @@ func TestPersistRoundTripOngoing(t *testing.T) {
 		}
 	}
 
+	// per-ply timing survives the round trip, still 1:1 with the move list
+	if len(r.game.MoveTimes) != len(wantMoves) {
+		t.Fatalf("recorded %d move times, want one per ply (%d)",
+			len(r.game.MoveTimes), len(wantMoves))
+	}
+	if len(r2.game.MoveTimes) != len(wantMoves) {
+		t.Fatalf("restored %d move times, want %d", len(r2.game.MoveTimes), len(wantMoves))
+	}
+	for i, want := range r.game.MoveTimes {
+		if r2.game.MoveTimes[i] != want {
+			t.Fatalf("move time %d = %+v, want %+v", i, r2.game.MoveTimes[i], want)
+		}
+	}
+	// the first flip is the uncharged first move; later plies carry the
+	// mover's real remaining clock
+	if r.game.MoveTimes[0].ThinkMs != 0 {
+		t.Fatalf("first move charged %dms, want 0", r.game.MoveTimes[0].ThinkMs)
+	}
+	if r.game.MoveTimes[1].ClockMs <= 0 {
+		t.Fatalf("ply 2 remaining clock = %dms, want > 0", r.game.MoveTimes[1].ClockMs)
+	}
+
 	if got := r2.players[octad.White].Score(); got != 1.5 {
 		t.Fatalf("white score = %v, want 1.5", got)
 	}

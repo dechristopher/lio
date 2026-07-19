@@ -1117,20 +1117,23 @@ func (r *Instance) GameOverStateMessage() []byte {
 // currentGameStateMessageLocked builds the current board-state payload. The
 // caller must hold stateMu (it reads the game and players).
 func (r *Instance) currentGameStateMessageLocked(addLast bool, gameStart bool) []byte {
+	thinkMs, clockMs := game.TimingArrays(r.game.MoveTimes)
 	curr := proto.MovePayload{
-		Clock:     r.currentClockLocked(),
-		OFEN:      r.game.OFEN(),
-		MoveNum:   len(r.game.Moves()) / 2,
-		Check:     r.game.Position().InCheck(),
-		Moves:     r.game.MoveHistory(),
-		SANs:      r.game.SANHistory(),
-		OFENs:     r.game.OFENHistory(),
-		Latency:   clock.ToCTime(0),
-		White:     r.players[octad.White].ID,
-		Black:     r.players[octad.Black].ID,
-		Score:     r.players.ScoreMap(),
-		History:   r.players.MatchHistory(),
-		GameStart: gameStart,
+		Clock:      r.currentClockLocked(),
+		OFEN:       r.game.OFEN(),
+		MoveNum:    len(r.game.Moves()) / 2,
+		Check:      r.game.Position().InCheck(),
+		Moves:      r.game.MoveHistory(),
+		SANs:       r.game.SANHistory(),
+		OFENs:      r.game.OFENHistory(),
+		MoveTimes:  thinkMs,
+		ClockTimes: clockMs,
+		Latency:    clock.ToCTime(0),
+		White:      r.players[octad.White].ID,
+		Black:      r.players[octad.Black].ID,
+		Score:      r.players.ScoreMap(),
+		History:    r.players.MatchHistory(),
+		GameStart:  gameStart,
 		// carry the game identity so a client that missed the single game-start
 		// broadcast recognizes the new game from any later snapshot (its
 		// gs/ply staleness guards would otherwise drop it forever)
@@ -1263,8 +1266,13 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 
 	// flip the game clock. This blocks briefly on the clock acknowledgement,
 	// but the clock has its own mutex and never calls back into the room, so
-	// holding stateMu here cannot deadlock.
-	r.flipClock()
+	// holding stateMu here cannot deadlock. The ack carries the ply's timing,
+	// recorded parallel to the move list for replay/analysis and the archive.
+	ack := r.flipClock()
+	r.game.MoveTimes = append(r.game.MoveTimes, game.MoveTime{
+		ThinkMs: ack.Think.Milli(),
+		ClockMs: ack.Remaining.Milli(),
+	})
 
 	r.game.ToMove = r.game.Position().Turn()
 
@@ -1361,9 +1369,12 @@ func (r *Instance) legalMoveLocked(move proto.MovePayload) *octad.Move {
 	return nil
 }
 
-// flipClock flips the internal game clock after a move is made
-// and waits for acknowledgement
-func (r *Instance) flipClock() {
+// flipClock flips the internal game clock after a move is made and waits for
+// acknowledgement, returning the flip's per-move timing (think time charged +
+// remaining clock). A skipped flip — stopped or paused clock — reports the
+// mover's current remaining time with zero think time, so the caller can keep
+// its per-ply timing record 1:1 with the move list.
+func (r *Instance) flipClock() clock.FlipAck {
 	// don't flip a clock that has already stopped on a flag (the flagged state
 	// is handled separately via the clock StateChannel), and don't flip a
 	// paused clock at all: paused means no clock goroutine is consuming
@@ -1373,13 +1384,18 @@ func (r *Instance) flipClock() {
 	// processed); the paused case is a move racing the shutdown drain's clock
 	// freeze, where skipping the flip is exactly right — drain froze time.
 	if st := r.game.Clock.State(true); st.Victor != clock.NoVictor || st.IsPaused {
-		return
+		// the mover is whichever side the un-flipped clock still charges
+		remaining := st.WhiteTime
+		if st.Turn == octad.Black {
+			remaining = st.BlackTime
+		}
+		return clock.FlipAck{Remaining: remaining}
 	}
 	ackChannel := r.game.Clock.GetAck()
 	// handle clock flipping
 	r.game.Clock.ControlChannel <- clock.Flip
 	// wait for acknowledgement
-	<-ackChannel
+	return <-ackChannel
 }
 
 // Bot search time-budget policy: the engine iteratively deepens toward the
@@ -1609,8 +1625,8 @@ func (r *Instance) updateScoreLocked() {
 // time, recorded as EndDate/EndTime so a later archive backfill can recover an
 // accurate end_ts rather than approximating it from the start.
 func buildArchivePGN(g game.OctadGame, end time.Time) string {
-	// the Result token is the last space-delimited field of the movetext
-	parts := strings.Split(g.Game.String(), " ")
+	// the Result token is octad's outcome encoding ("1-0", "0-1", "1/2-1/2", "*")
+	result := string(g.Game.Outcome())
 
 	// get game state message for Reason field
 	_, state := genGameOverState(&g)
@@ -1623,7 +1639,7 @@ func buildArchivePGN(g game.OctadGame, end time.Time) string {
 	g.Game.AddTagPair("Group", string(g.Variant.Group))
 	g.Game.AddTagPair("White", g.White)
 	g.Game.AddTagPair("Black", g.Black)
-	g.Game.AddTagPair("Result", parts[len(parts)-1])
+	g.Game.AddTagPair("Result", result)
 	g.Game.AddTagPair("Reason", state)
 	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
 	g.Game.AddTagPair("EndDate", end.Format("2006.01.02"))
@@ -1642,7 +1658,51 @@ func buildArchivePGN(g game.OctadGame, end time.Time) string {
 		}
 	}
 
-	return g.Game.String()
+	// compose the PGN here rather than via octad's Game.String so the movetext
+	// can carry per-ply %clk comments (octad's encoder has no comment support;
+	// its decoder strips comments, so the PGN replays/backfills identically)
+	var sb strings.Builder
+	for _, tag := range g.Game.TagPairs() {
+		fmt.Fprintf(&sb, "[%s \"%s\"]\n", tag.Key, tag.Value)
+	}
+	sb.WriteByte('\n')
+	sb.WriteString(archiveMovetext(&g.Game, g.MoveTimes))
+	sb.WriteString(" " + result)
+	return sb.String()
+}
+
+// archiveMovetext renders the numbered SAN movetext, with a { [%clk h:mm:ss] }
+// comment after each move — the mover's remaining clock, Lichess-style — when
+// per-ply timing was recorded (times parallel to the move list; an untimed or
+// desynced record emits plain movetext).
+func archiveMovetext(g *octad.Game, times []game.MoveTime) string {
+	positions := g.Positions()
+	moves := g.Moves()
+	timed := len(times) == len(moves)
+	var sb strings.Builder
+	for i, m := range moves {
+		if i > 0 {
+			sb.WriteByte(' ')
+		}
+		if i%2 == 0 {
+			fmt.Fprintf(&sb, "%d. ", i/2+1)
+		}
+		sb.WriteString(octad.AlgebraicNotation{}.Encode(positions[i], m))
+		if timed {
+			fmt.Fprintf(&sb, " { [%%clk %s] }", formatClk(times[i].ClockMs))
+		}
+	}
+	return sb.String()
+}
+
+// formatClk renders a remaining-clock milliseconds value in the PGN %clk
+// h:mm:ss.cc form (octad games are short enough that centis matter).
+func formatClk(ms int64) string {
+	if ms < 0 {
+		ms = 0
+	}
+	return fmt.Sprintf("%d:%02d:%02d.%02d",
+		ms/3600000, ms%3600000/60000, ms%60000/1000, ms%1000/10)
 }
 
 // storeGame archives a finished game two ways, both off the hot path: the PGN
@@ -1698,7 +1758,7 @@ func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string, end t
 	// db.BuildPlies is the single source of the move-packing + position-hash
 	// encoding, shared with the archive backfill so a replayed game hashes
 	// identically to a live one (or the deduped positions table would fragment).
-	moves, plies := db.BuildPlies(&g.Game)
+	moves, plies := db.BuildPlies(&g.Game, g.MoveTimes)
 	rec.Moves = moves
 
 	ctx, cancel := db.Ctx()

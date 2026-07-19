@@ -10,14 +10,15 @@ import (
 )
 
 const insertMove = `-- name: InsertMove :exec
-INSERT INTO moves (game_ref, position_id, clock_ms, ply, mv)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO moves (game_ref, position_id, clock_ms, move_ms, ply, mv)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type InsertMoveParams struct {
 	GameRef    int32
 	PositionID int32
 	ClockMs    *int32
+	MoveMs     *int32
 	Ply        int16
 	Mv         int16
 }
@@ -27,14 +28,48 @@ func (q *Queries) InsertMove(ctx context.Context, arg InsertMoveParams) error {
 		arg.GameRef,
 		arg.PositionID,
 		arg.ClockMs,
+		arg.MoveMs,
 		arg.Ply,
 		arg.Mv,
 	)
 	return err
 }
 
+const listGameMoveTimes = `-- name: ListGameMoveTimes :many
+SELECT ply, clock_ms, move_ms FROM moves WHERE game_ref = $1 ORDER BY ply
+`
+
+type ListGameMoveTimesRow struct {
+	Ply     int16
+	ClockMs *int32
+	MoveMs  *int32
+}
+
+// Per-ply timing for one game, in ply order: think time (move_ms) and
+// remaining clock after the move (clock_ms). Both NULL for games archived
+// before timing was recorded.
+func (q *Queries) ListGameMoveTimes(ctx context.Context, gameRef int32) ([]ListGameMoveTimesRow, error) {
+	rows, err := q.db.Query(ctx, listGameMoveTimes, gameRef)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGameMoveTimesRow
+	for rows.Next() {
+		var i ListGameMoveTimesRow
+		if err := rows.Scan(&i.Ply, &i.ClockMs, &i.MoveMs); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGameMoves = `-- name: ListGameMoves :many
-SELECT game_ref, position_id, clock_ms, ply, mv FROM moves WHERE game_ref = $1 ORDER BY ply
+SELECT game_ref, position_id, clock_ms, ply, mv, move_ms FROM moves WHERE game_ref = $1 ORDER BY ply
 `
 
 func (q *Queries) ListGameMoves(ctx context.Context, gameRef int32) ([]Move, error) {
@@ -52,6 +87,7 @@ func (q *Queries) ListGameMoves(ctx context.Context, gameRef int32) ([]Move, err
 			&i.ClockMs,
 			&i.Ply,
 			&i.Mv,
+			&i.MoveMs,
 		); err != nil {
 			return nil, err
 		}

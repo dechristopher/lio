@@ -782,6 +782,64 @@
 	.move.active { background: var(--accent); color: var(--accent-contrast); }
 	.move-empty { cursor: default; }
 	.move-empty:hover { background: transparent; }
+	/* recorded think time beside the SAN (archive + post-game analysis) */
+	.move-time {
+		float: right;
+		margin-left: 0.3rem;
+		font-size: 0.68rem;
+		font-weight: 400;
+		line-height: 1.6;
+		color: var(--text-subtle);
+	}
+	.move.active .move-time { color: color-mix(in srgb, var(--accent-contrast) 78%, transparent); }
+	/* the ⏵/⏸ realtime-playback control renders its glyph slightly larger so it
+	   reads at the same optical weight as the ◀▶ steppers */
+	.nav-play { font-size: 1.05rem; }
+	/* archive clock cards reuse the live clock component wholesale; only the
+	   live-only seat-presence dot has no meaning there */
+	.archive-clock .clockPresence { display: none; }
+	/* Archive rail fill (two-column layout only): a live rail pins the
+	   resign/draw/rematch controls to its bottom (margin-top: auto), so the
+	   rail's leftover height reads as intentional. The archive has no controls
+	   card, which would leave dead space between the moves panel and the
+	   bottom clock — instead let the panel (and the move list inside it)
+	   stretch to fill the rail row, keeping the fixed-height rule for live
+	   pages and the single-column stack. */
+	@media (min-width: 900px) {
+		/* A long game's move list must never stretch the right column past the
+		   left one: the board + timeline alone set the grid height, the right
+		   column's bottom edge (info bar) stays flush with the timeline's,
+		   and the move list scrolls its overflow (renderMoveList keeps the
+		   active ply in view on every nav/autoplay step). minmax(0,1fr) alone
+		   cannot do this — in an auto-height grid, flexible tracks still size
+		   to their content — so the rail's content is absolutely positioned
+		   inside the stretched .ga-rail: absolute boxes contribute nothing to
+		   intrinsic sizing, which breaks the growth feedback loop while the
+		   stack still fills the row exactly. */
+		.game-grid.archive-grid {
+			grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+		}
+		.archive-grid .ga-rail {
+			align-self: stretch;
+			min-height: 0;
+			position: relative;
+		}
+		.archive-grid .rail-stack {
+			position: absolute;
+			inset: 0;
+			/* pressure valve for very short desktop viewports, where the rail
+			   row can undercut the stack's own minimum (title + floored list
+			   + nav): the whole stack scrolls instead of spilling past the
+			   card; invisible at normal sizes */
+			overflow-y: auto;
+		}
+		.archive-grid .moves-panel { flex: 1; min-height: 0; }
+		.archive-grid .move-list {
+			height: auto;
+			flex: 1;
+			min-height: clamp(6rem, 20vh, 8rem);
+		}
+	}
 	.move-nav { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
 	.nav-btn {
 		flex: 1;

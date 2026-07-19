@@ -87,3 +87,48 @@ func TestBuildArchivePGNStandardStart(t *testing.T) {
 		t.Errorf("standard-start PGN missing EndDate/EndTime tags:\n%s", pgn)
 	}
 }
+
+// TestBuildArchivePGNClockComments verifies that a game with recorded per-ply
+// timing emits one %clk comment per move (the mover's remaining clock) and
+// that the annotated PGN still re-imports move-for-move — octad's decoder
+// strips comments, which is what keeps the backfill replay path safe.
+func TestBuildArchivePGNClockComments(t *testing.T) {
+	g, err := game.NewOctadGame(game.OctadGameConfig{
+		Variant: variant.HalfOneBlitz,
+		White:   "white",
+		Black:   "black",
+	})
+	if err != nil {
+		t.Fatalf("NewOctadGame failed: %v", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		moves := g.Game.ValidMoves()
+		if err := g.Game.Move(moves[0]); err != nil {
+			t.Fatalf("playing move %s failed: %v", moves[0], err)
+		}
+		g.MoveTimes = append(g.MoveTimes, game.MoveTime{
+			ThinkMs: int64(i) * 750,
+			ClockMs: 15000 - int64(i)*750,
+		})
+	}
+
+	pgn := buildArchivePGN(*g, time.Now())
+
+	if got, want := strings.Count(pgn, "[%clk "), 3; got != want {
+		t.Fatalf("PGN carries %d %%clk comments, want %d:\n%s", got, want, pgn)
+	}
+	// spot-check the formatting of the first two: full budget, then -750ms
+	if !strings.Contains(pgn, "{ [%clk 0:00:15.00] }") ||
+		!strings.Contains(pgn, "{ [%clk 0:00:14.25] }") {
+		t.Errorf("PGN missing expected %%clk values:\n%s", pgn)
+	}
+
+	sc := octad.NewScanner(strings.NewReader(pgn + "\n\n"))
+	if !sc.Scan() {
+		t.Fatalf("re-scanning annotated PGN failed: %v", sc.Err())
+	}
+	if got, want := len(sc.Next().Moves()), 3; got != want {
+		t.Errorf("annotated PGN replayed %d moves, want %d", got, want)
+	}
+}

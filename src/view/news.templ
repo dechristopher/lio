@@ -14,7 +14,7 @@ templ News(meta Meta, page int) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header("max-w-[34rem]")
+				@header("w-[92vw] max-w-[34rem]")
 				<main class="card mb-4 w-[92vw] max-w-[34rem] text-left">
 					<h1 class="font-display text-xl font-bold">
 						<a class="text-fg no-underline transition-colors duration-150 hover:text-accent" href="/news" hx-get="/news" hx-target="#news-content" hx-swap="innerHTML" hx-push-url="true">News</a>

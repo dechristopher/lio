@@ -130,7 +130,7 @@ type GameHistoryEntry struct {
 type MatchHistoryPayload []GameHistoryEntry
 
 // MovePayloadVersion represents the current proto version of the MovePayload
-const MovePayloadVersion = 4
+const MovePayloadVersion = 5
 
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
@@ -144,6 +144,8 @@ type MovePayload struct {
 	Moves      []string            `json:"m,omitempty"`  // UOI move per ply, len == plies
 	SANs       []string            `json:"sm,omitempty"` // SAN per ply, len == plies (parallel to Moves)
 	OFENs      []string            `json:"om,omitempty"` // OFEN per position; OFENs[0] = start, OFENs[i] = after ply i, len == plies+1
+	MoveTimes  []int64             `json:"mt,omitempty"` // think time ms per ply as charged, parallel to Moves; absent when unrecorded
+	ClockTimes []int64             `json:"ct,omitempty"` // remaining clock ms after each ply (post-increment), parallel to Moves
 	ValidMoves map[string][]string `json:"v,omitempty"`
 	Latency    clock.CTime         `json:"l,omitempty"`  // player latency indicator
 	Ack        int                 `json:"a,omitempty"`  // move ack from player

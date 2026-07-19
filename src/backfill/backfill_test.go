@@ -76,7 +76,7 @@ func playToEnd(t *testing.T) *octad.Game {
 // lets backfilled positions dedupe against live ones.
 func TestParsePGNRoundTrip(t *testing.T) {
 	g := playToEnd(t)
-	expectedBlob, _ := db.BuildPlies(g)
+	expectedBlob, _ := db.BuildPlies(g, nil)
 	moveCount := len(g.Moves())
 	method := g.Method()
 	result := lastField(g.String())

@@ -131,10 +131,9 @@ func TestHandleCommandFlagAcksFlip(t *testing.T) {
 
 	// a concurrent reader standing in for flipClock's <-ackChannel
 	ack := c.GetAck()
-	acked := make(chan struct{})
+	acked := make(chan FlipAck, 1)
 	go func() {
-		<-ack
-		close(acked)
+		acked <- <-ack
 	}()
 
 	var flagged bool
@@ -147,7 +146,15 @@ func TestHandleCommandFlagAcksFlip(t *testing.T) {
 	}
 
 	select {
-	case <-acked:
+	case fa := <-acked:
+		// the flagged flip's ack reads truthfully: the whole budget was
+		// charged (takeTime caps at it) and nothing remains
+		if fa.Think.Milli() != 10 {
+			t.Fatalf("flagged flip should charge the full budget, got %s", fa.Think)
+		}
+		if fa.Remaining.Milli() != 0 {
+			t.Fatalf("flagged flip should leave zero remaining, got %s", fa.Remaining)
+		}
 	case <-time.After(time.Second):
 		t.Fatal("flagged flip was not acknowledged (deadlock regression)")
 	}
@@ -165,4 +172,49 @@ func TestHandleCommandFlagAcksFlip(t *testing.T) {
 	if c.State(true).Turn != octad.White {
 		t.Fatal("turn should not advance when the moving player flags")
 	}
+}
+
+// flipAck mirrors flip but returns the FlipAck payload for inspection.
+func flipAck(c *Clock) FlipAck {
+	ack := c.GetAck()
+	c.ControlChannel <- Flip
+	fa := <-ack
+	_ = c.State(true)
+	return fa
+}
+
+// TestFlipAckReportsMoveTiming verifies the per-move timing carried by the
+// flip acknowledgement: the uncharged first move reads as zero think time and
+// a full budget, and a later move reports its actual charge plus the
+// post-increment remaining budget.
+func TestFlipAckReportsMoveTiming(t *testing.T) {
+	inc := 100 * time.Millisecond
+	c := NewClock(TimeControl{Time: ToCTime(time.Minute), Increment: ToCTime(inc)})
+	c.Start()
+
+	withTimeout(t, time.Second, "flip handshake deadlocked", func() {
+		// white's first move: never charged, no increment awarded
+		fa := flipAck(c)
+		if fa.Think.Milli() != 0 {
+			t.Errorf("first move should charge nothing, got %s", fa.Think)
+		}
+		if fa.Remaining.Milli() != time.Minute.Milliseconds() {
+			t.Errorf("first move should leave the full budget, got %s", fa.Remaining)
+		}
+
+		// black thinks for a measurable moment before moving
+		think := 50 * time.Millisecond
+		time.Sleep(think)
+		fa = flipAck(c)
+		if fa.Think.t < think/2 || fa.Think.t > think*4 {
+			t.Errorf("think time %s not near the %s slept", fa.Think, think)
+		}
+		// remaining reflects the increment: budget - charge + increment
+		want := time.Minute - fa.Think.t + inc
+		if fa.Remaining.t != want {
+			t.Errorf("remaining %s, want budget-think+inc = %s", fa.Remaining, ToCTime(want))
+		}
+	})
+
+	c.Stop(false, true)
 }

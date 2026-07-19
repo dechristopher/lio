@@ -9,6 +9,7 @@ import (
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/db/gen"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
@@ -197,11 +198,35 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		Orientation:  orientation,
 		TopName:      seatLabel(topUID, viewerPlayed, uid),
 		BottomName:   seatLabel(bottomUID, viewerPlayed, uid),
+		TopIsBot:     topUID == "",
+		BottomIsBot:  bottomUID == "",
+		TCCenti:      archiveTimeCenti(selected.VariantName, selected.VariantGroup),
 		EndedDate:    selected.EndTs.Time.Format("Jan 2, 2006"),
 		Data:         buildArchiveData(games, selected, og),
 	}
 
 	return view.Render(c, fiber.StatusOK, view.RoomArchive(view.ArchiveMeta(model), model))
+}
+
+// archiveTimeCenti resolves an archived game's full starting clock budget
+// (centiseconds) from the variant registry — the games row stores only the
+// variant's display name and group, not its numbers. A same-name variant in a
+// different group (the deploy pairing shares its base control's name) is an
+// acceptable fallback: the paired variants differ only in pre-start, never in
+// budget. Returns 0 when the name no longer resolves at all (a retired
+// variant); the client then derives the budget from the ply-1 clock.
+func archiveTimeCenti(name, group string) int64 {
+	var byName int64
+	for _, v := range pools.Map {
+		if v.Name != name {
+			continue
+		}
+		if string(v.Group) == group {
+			return v.Control.Time.Centi()
+		}
+		byName = v.Control.Time.Centi()
+	}
+	return byName
 }
 
 // seatLabel names a timeline row's seat: the engine is "BOT" (bot seats hold
@@ -235,10 +260,12 @@ func replayArchivedGame(g gen.Game) (*game.OctadGame, error) {
 }
 
 // boardPayload builds the MovePayload-shaped board block (final OFEN, per-ply
-// histories, seat uids) for an archived game.
+// histories, seat uids) for an archived game. Per-ply timing comes from the
+// moves table (the packed games.moves blob carries none); games archived
+// before timing was recorded simply omit the arrays.
 func boardPayload(g gen.Game, og *game.OctadGame) proto.MovePayload {
 	ofens := og.OFENHistory()
-	return proto.MovePayload{
+	payload := proto.MovePayload{
 		OFEN:  ofens[len(ofens)-1],
 		Moves: og.MoveHistory(),
 		SANs:  og.SANHistory(),
@@ -246,6 +273,15 @@ func boardPayload(g gen.Game, og *game.OctadGame) proto.MovePayload {
 		White: g.WhiteUid,
 		Black: g.BlackUid,
 	}
+	times, err := db.ListGameMoveTimes(g.ID)
+	if err != nil {
+		// degrade to an untimed payload; the archive view works without timing
+		util.Error(str.CRoom, "archive move times lookup failed game=%s: %s",
+			g.GameID.String(), err.Error())
+	} else if len(times) == len(payload.Moves) {
+		payload.MoveTimes, payload.ClockTimes = game.TimingArrays(times)
+	}
+	return payload
 }
 
 // buildArchiveData assembles the client hydration payload for the selected

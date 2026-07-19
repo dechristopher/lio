@@ -45,13 +45,17 @@ type GameRecord struct {
 }
 
 // PlyRecord is one ply of the derived move/position analytics index: the packed
-// move and the position reached after it (its clock-independent hash + OFEN).
+// move, the position reached after it (its clock-independent hash + OFEN), and
+// the ply's timing — remaining clock after the move (ClockMs) and think time as
+// charged (MoveMs). The timing pointers are nil when unrecorded (the PGN
+// backfill; games predating per-move timing).
 type PlyRecord struct {
 	Ply     int16
 	Mv      int16
 	PosHash []byte
 	PosOFEN string
 	ClockMs *int32
+	MoveMs  *int32
 }
 
 // BuildPlies encodes a finished game's move list into the compact packed blob
@@ -59,10 +63,15 @@ type PlyRecord struct {
 // reached after each move, keyed by its clock-independent hash. It is the single
 // source of the archive's move/position encoding — both the live seam and the
 // backfill call it, so a replayed game hashes byte-for-byte identically to a
-// live one (otherwise the deduped positions table would fragment).
-func BuildPlies(g *octad.Game) ([]byte, []PlyRecord) {
+// live one (otherwise the deduped positions table would fragment). times is the
+// per-ply timing recorded by the room, parallel to the move list; nil (or a
+// desynced length, which should never happen) archives the plies untimed.
+func BuildPlies(g *octad.Game, times []game.MoveTime) ([]byte, []PlyRecord) {
 	positions := g.Positions()
 	moves := g.Moves()
+	if len(times) != len(moves) {
+		times = nil
+	}
 	blob := make([]byte, 0, len(moves)*2)
 	plies := make([]PlyRecord, 0, len(moves))
 	for i, m := range moves {
@@ -70,12 +79,19 @@ func BuildPlies(g *octad.Game) ([]byte, []PlyRecord) {
 		blob = append(blob, byte(packed>>8), byte(packed))
 		pos := positions[i+1] // position after ply i (positions[0] is the start)
 		h := pos.Hash()
-		plies = append(plies, PlyRecord{
+		rec := PlyRecord{
 			Ply:     int16(i + 1),
 			Mv:      packed,
 			PosHash: h[:],
 			PosOFEN: pos.String(),
-		})
+		}
+		if times != nil {
+			clockMs := int32(times[i].ClockMs)
+			moveMs := int32(times[i].ThinkMs)
+			rec.ClockMs = &clockMs
+			rec.MoveMs = &moveMs
+		}
+		plies = append(plies, rec)
 	}
 	return blob, plies
 }
@@ -206,6 +222,7 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 			GameRef:    gameRef,
 			PositionID: positionID,
 			ClockMs:    p.ClockMs,
+			MoveMs:     p.MoveMs,
 			Ply:        p.Ply,
 			Mv:         p.Mv,
 		}); err != nil {

@@ -81,6 +81,18 @@ type ArchiveModel struct {
 	// the engine, "PLAYER" otherwise.
 	TopName    string
 	BottomName string
+	// Top/BottomIsBot mark the engine's seat (empty archived uid) so the
+	// archive clock cards can show the CPU glyph exactly like the live page.
+	TopIsBot    bool
+	BottomIsBot bool
+	// TCCenti is the game's full starting clock budget in centiseconds,
+	// resolved from the variant registry (the archived row stores only the
+	// variant's display name). It renders into the board's data-tc — the
+	// authoritative "full budget" for the archive clock cards; the per-ply
+	// clock history alone cannot recover it when a deploy pre-start expiry
+	// charged the first move. 0 when the variant no longer resolves (the
+	// client then falls back to the ply-1 clock value).
+	TCCenti int64
 	// EndedDate is the selected game's end date for the info line.
 	EndedDate string
 	Data      ArchiveData

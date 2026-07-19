@@ -55,14 +55,64 @@ func buildGamePlies(t *testing.T, plyCount int) (plies []PlyRecord, blob []byte,
 		blob = append(blob, byte(packed>>8), byte(packed))
 		pos := positions[i+1]
 		h := pos.Hash()
+		// deterministic per-ply timing, so the round-trip test can verify the
+		// clock_ms/move_ms columns land and read back in order
+		clockMs := int32(60000 - 500*(i+1))
+		moveMs := int32(250 * i)
 		plies = append(plies, PlyRecord{
 			Ply:     int16(i + 1),
 			Mv:      packed,
 			PosHash: h[:],
 			PosOFEN: pos.String(),
+			ClockMs: &clockMs,
+			MoveMs:  &moveMs,
 		})
 	}
 	return plies, blob, positions[0].String()
+}
+
+// TestBuildPliesTimes verifies BuildPlies zips per-ply timing into the records
+// when the times list is parallel to the move list, and archives untimed (nil
+// pointers) when no times — or a desynced count — are supplied.
+func TestBuildPliesTimes(t *testing.T) {
+	g, err := octad.NewGame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := g.Move(g.ValidMoves()[0]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	times := []game.MoveTime{
+		{ThinkMs: 0, ClockMs: 60000},
+		{ThinkMs: 1200, ClockMs: 58800},
+		{ThinkMs: 3400, ClockMs: 56600},
+	}
+	_, plies := BuildPlies(g, times)
+	if len(plies) != 3 {
+		t.Fatalf("got %d plies, want 3", len(plies))
+	}
+	for i, p := range plies {
+		if p.ClockMs == nil || p.MoveMs == nil {
+			t.Fatalf("ply %d untimed, want timing", i+1)
+		}
+		if int64(*p.MoveMs) != times[i].ThinkMs || int64(*p.ClockMs) != times[i].ClockMs {
+			t.Fatalf("ply %d timing = %d/%d, want %d/%d",
+				i+1, *p.MoveMs, *p.ClockMs, times[i].ThinkMs, times[i].ClockMs)
+		}
+	}
+
+	// nil and desynced-length times both archive untimed
+	for _, times := range [][]game.MoveTime{nil, times[:2]} {
+		_, plies := BuildPlies(g, times)
+		for i, p := range plies {
+			if p.ClockMs != nil || p.MoveMs != nil {
+				t.Fatalf("ply %d timed with %d times supplied, want untimed", i+1, len(times))
+			}
+		}
+	}
 }
 
 func countPositions(t *testing.T, ctx context.Context) int64 {
@@ -177,6 +227,21 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 	}
 	if len(mvs) != len(plies) {
 		t.Fatalf("move count: got %d want %d", len(mvs), len(plies))
+	}
+
+	// per-ply timing reads back in ply order
+	times, err := ListGameMoveTimes(gm.ID)
+	if err != nil {
+		t.Fatalf("list move times: %v", err)
+	}
+	if len(times) != len(plies) {
+		t.Fatalf("move times: got %d want %d", len(times), len(plies))
+	}
+	for i, p := range plies {
+		if times[i].ThinkMs != int64(*p.MoveMs) || times[i].ClockMs != int64(*p.ClockMs) {
+			t.Fatalf("ply %d timing = %+v, want %d/%d",
+				i+1, times[i], *p.MoveMs, *p.ClockMs)
+		}
 	}
 
 	// dedup: archiving an identical game (new uuid) inserts zero new positions

@@ -89,6 +89,16 @@ const Centisecond = time.Second / 100
 // Millisecond represents one millisecond
 const Millisecond = time.Second / 1000
 
+// FlipAck acknowledges a clock flip back to the room routine, reporting what
+// the flip charged: the mover's think time for the ply just played (as charged
+// — net of lag compensation and capped at their budget; zero on the uncharged
+// first move) and their remaining budget after the flip (post-increment; zero
+// when the flip flagged them).
+type FlipAck struct {
+	Think     CTime
+	Remaining CTime
+}
+
 // Command constant for clock operations
 type Command int
 

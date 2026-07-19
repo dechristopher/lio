@@ -112,7 +112,8 @@ func parsePGN(key string, data []byte) (db.GameRecord, []db.PlyRecord, error) {
 	}
 
 	method, reason := classify(tags["Reason"], tags["Result"], g.Method())
-	blob, plies := db.BuildPlies(g)
+	// nil times: PGNs predating per-move timing carry nothing to recover
+	blob, plies := db.BuildPlies(g, nil)
 
 	var startOFEN string
 	if positions := g.Positions(); len(positions) > 0 {

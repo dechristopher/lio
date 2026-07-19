@@ -16,6 +16,17 @@ import (
 // Channel is the engine monitoring bus channel
 const Channel bus.Channel = "lio:game"
 
+// MoveTime is the recorded timing of one ply: the mover's think time as the
+// clock charged it (net of lag compensation, zero for the uncharged first
+// move) and the mover's remaining clock after the move (post-increment) — the
+// %clk value a PGN would carry. Times come from the clock's flip
+// acknowledgements, so restart persistence semantics carry over: a ply whose
+// think time straddled a deploy records only the charged portion.
+type MoveTime struct {
+	ThinkMs int64 `json:"t"` // think time in ms, as charged
+	ClockMs int64 `json:"c"` // remaining clock in ms after the move
+}
+
 // OctadGame wraps octad game and clock
 type OctadGame struct {
 	octad.Game
@@ -26,6 +37,12 @@ type OctadGame struct {
 	ToMove  octad.Color     `json:"m"` // color to move
 	Variant variant.Variant // octad variant
 	Clock   *clock.Clock    // clock instance
+
+	// MoveTimes records per-ply timing, parallel to Moves(): MoveTimes[i] is
+	// the timing of ply i+1. Appended by the room routine as each move's clock
+	// flip is acknowledged, persisted alongside the move list, and archived to
+	// the moves table (clock_ms/move_ms) at game end.
+	MoveTimes []MoveTime
 }
 
 // NewOctadGame returns a new OctadGame instance from the given configuration
@@ -57,7 +74,8 @@ func NewOctadGame(config OctadGameConfig) (*OctadGame, error) {
 // (checkmate, stalemate, repetition, ...) re-arise from the replay itself;
 // declared outcomes (resignation, agreed draw) are the caller's to re-apply.
 func RestoreOctadGame(config OctadGameConfig, id string, start time.Time,
-	startOFEN string, moves []string, clk *clock.Clock) (*OctadGame, error) {
+	startOFEN string, moves []string, times []MoveTime,
+	clk *clock.Clock) (*OctadGame, error) {
 	game, err := genGame(startOFEN)
 	if err != nil {
 		return nil, err
@@ -79,15 +97,22 @@ func RestoreOctadGame(config OctadGameConfig, id string, start time.Time,
 		}
 	}
 
+	// keep timing strictly parallel to the replayed move list: snapshots from
+	// before move times were recorded (or written mid-move) pad with zeros
+	// rather than desyncing the plies
+	restored := make([]MoveTime, len(moves))
+	copy(restored, times)
+
 	g := OctadGame{
-		ID:      id,
-		Start:   start,
-		Game:    *game,
-		ToMove:  game.Position().Turn(),
-		Variant: config.Variant,
-		Clock:   clk,
-		White:   config.White,
-		Black:   config.Black,
+		ID:        id,
+		Start:     start,
+		Game:      *game,
+		ToMove:    game.Position().Turn(),
+		Variant:   config.Variant,
+		Clock:     clk,
+		White:     config.White,
+		Black:     config.Black,
+		MoveTimes: restored,
 	}
 
 	return &g, nil
@@ -139,6 +164,22 @@ func (g *OctadGame) SANHistory() []string {
 		sans = append(sans, octad.AlgebraicNotation{}.Encode(positions[i], move))
 	}
 	return sans
+}
+
+// TimingArrays splits a per-ply timing record into the parallel think-time and
+// remaining-clock millisecond arrays the client protocol carries (both nil for
+// an unrecorded/empty history).
+func TimingArrays(times []MoveTime) (thinkMs, clockMs []int64) {
+	if len(times) == 0 {
+		return nil, nil
+	}
+	thinkMs = make([]int64, len(times))
+	clockMs = make([]int64, len(times))
+	for i, t := range times {
+		thinkMs[i] = t.ThinkMs
+		clockMs[i] = t.ClockMs
+	}
+	return thinkMs, clockMs
 }
 
 // OFENHistory returns the OFEN of every position the game has passed through:

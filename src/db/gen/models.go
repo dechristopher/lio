@@ -40,6 +40,7 @@ type Move struct {
 	ClockMs    *int32
 	Ply        int16
 	Mv         int16
+	MoveMs     *int32
 }
 
 type Position struct {
