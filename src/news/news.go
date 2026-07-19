@@ -17,6 +17,14 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "It's that time already?",
+		Date:  "Jul 19, 2026",
+		Body: "Time taken per move is now tracked in the database, and can be seen in the move list " +
+			"UI. We also added a play/pause button in the archived game UI that can be used to " +
+			"play back the game in realtime as it happened. Additional fixes include unifying header " +
+			"navigation styles and sharpening the move list UI across all viewports.",
+	},
+	{
 		Title: "Matches that outlive the room",
 		Date:  "Jul 19, 2026",
 		Body: "Game links used to go dead once a room closed. No more: every finished match now " +
