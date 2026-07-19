@@ -17,6 +17,33 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Matches that outlive the room",
+		Date:  "Jul 19, 2026",
+		Body: "Game links used to go dead once a room closed. No more: every finished match now " +
+			"lives on at its original link, with the final position on the board, the full move " +
+			"list, and the whole match timeline ready to replay. Each game of a match has its own " +
+			"link too — add /2 to a room link to jump straight to game two — and every game gets " +
+			"a permanent address for sharing a finish worth studying. Links you've already shared " +
+			"are covered, and previews of ended matches now show how the board ended up.",
+	},
+	{
+		Title: "A timeline you can click through",
+		Date:  "Jul 19, 2026",
+		Body: "The match score timeline got a clean new look — one compact score column per game, " +
+			"showing who had which color and how each game was decided. It's clickable now, too: " +
+			"once a game ends, tap any earlier game to replay it right there on the board while " +
+			"the rematch clock keeps ticking, then tap the latest game to jump back. Archived " +
+			"matches link between their games the same way.",
+	},
+	{
+		Title: "Quick games go blind",
+		Date:  "Jul 18, 2026",
+		Body: "The quick-game buttons now deal deploy games by default: arrange your home rank in " +
+			"secret, then meet your opponent's setup at the reveal. Classic starts are still a " +
+			"click away in the custom game builder. Also fixed a brief flash of the standard " +
+			"starting position before the blind setup covered the board.",
+	},
+	{
 		Title: "The reveal gets a countdown",
 		Date:  "Jul 17, 2026",
 		Body: "In deploy games, a ten-second countdown now rings the center of the board the " +

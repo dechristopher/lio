@@ -119,6 +119,19 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 
 	q := gen.New(tx)
 
+	// game_index is the 1-based ordinal within the room (the <n> in the
+	// /<room_id>/<n> permalink), derived here rather than in the room actor so
+	// it survives restarts and same-room fresh matches (player result history
+	// resets when a decided race-to match rematches). Room-less rows (backfill)
+	// keep index 0. games_room_game_idx UNIQUE backstops the concurrent case.
+	var gameIndex int16
+	if rec.RoomID != "" {
+		gameIndex, err = q.NextGameIndex(ctx, rec.RoomID)
+		if err != nil {
+			return false, err
+		}
+	}
+
 	params := gen.InsertGameParams{
 		GameID:       gameUUID,
 		StartTs:      ts(rec.StartTs),
@@ -139,6 +152,7 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 		StartingOfen: rec.StartingOFEN,
 		Moves:        rec.Moves,
 		PgnObjectKey: rec.PGNObjectKey,
+		GameIndex:    gameIndex,
 	}
 
 	var gameRef int32
@@ -154,6 +168,30 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 	}
 	if err != nil {
 		return false, err
+	}
+
+	// keep the room (match) row current in the same transaction: inserted on
+	// the match's first archived game, then the "as of latest game" fields
+	// refresh with each one — so the room permalink is fully served even if the
+	// room's cosmetic close marker never lands (crash).
+	if rec.RoomID != "" {
+		if err := q.UpsertRoom(ctx, gen.UpsertRoomParams{
+			RoomID:       rec.RoomID,
+			FirstGameTs:  ts(rec.StartTs),
+			LastGameTs:   ts(rec.EndTs),
+			RaceTo:       int32(rec.RaceTo),
+			GameCount:    int32(gameIndex),
+			Casual:       rec.Casual,
+			CreatorUid:   rec.Creator,
+			WhiteUid:     rec.WhiteUID,
+			BlackUid:     rec.BlackUID,
+			WhiteScore:   float32(rec.WhiteScore),
+			BlackScore:   float32(rec.BlackScore),
+			VariantName:  rec.VariantName,
+			VariantGroup: rec.VariantGroup,
+		}); err != nil {
+			return false, err
+		}
 	}
 
 	for _, p := range plies {

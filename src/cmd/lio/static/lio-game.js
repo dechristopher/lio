@@ -90,7 +90,20 @@ let preStartDeadline = 0;  // performance.now() ms when the countdown ends; 0 = 
 let preStartTotalMs = 0;   // full countdown in ms, for the ring fraction
 let preStartRafId = null;  // overlay ticker rAF handle
 
+// Archive mode: the server-rendered permalink page for a finished room/game
+// (view/room_archive.templ) inlines the full match/game history as JSON in
+// #archive-data. Its presence switches this script into a socket-less replay
+// viewer: the board, move list, and match timeline hydrate from the inline
+// data and the websocket is never opened (the room actor may not even exist).
+const archiveDataEl = document.getElementById('archive-data');
+const archiveData = archiveDataEl ? JSON.parse(archiveDataEl.textContent) : null;
+const isArchive = !!archiveData;
+
 window.addEventListener('load', () => {
+	if (isArchive) {
+		hydrateArchive();
+		return false;
+	}
 	if (window.ws) {
 		return false;
 	}
@@ -520,8 +533,10 @@ const updateMaterial = (boardOfen) => {
 	}
 	const whiteHTML = materialHTML(whiteUp, 'black', score);
 	const blackHTML = materialHTML(blackUp, 'white', -score);
-	clockMaterialPlayerEl.innerHTML = bottomClockIsWhite() ? whiteHTML : blackHTML;
-	clockMaterialOpponentEl.innerHTML = bottomClockIsWhite() ? blackHTML : whiteHTML;
+	// browse-aware: while reviewing an earlier game of the match the board (and
+	// so the material rows) belong to that game's colors, not the live seats
+	clockMaterialPlayerEl.innerHTML = browseBottomIsWhite() ? whiteHTML : blackHTML;
+	clockMaterialOpponentEl.innerHTML = browseBottomIsWhite() ? blackHTML : whiteHTML;
 };
 
 /**
@@ -1546,6 +1561,12 @@ const handleMove = (message) => {
 		}
 	}
 
+	// an authoritative board state returns the board to the live game: any
+	// in-page archive browsing ends here (new game starting, reconnect resync)
+	if (browsing) {
+		exitBrowse();
+	}
+
 	// whether this message carries a genuinely new move (the ply advanced) —
 	// captured before lastPly is overwritten; repeats/resync snapshots of the
 	// same position never qualify
@@ -1735,6 +1756,13 @@ const handleGameOver = (message) => {
 	// game-over — captured before the flag is (re)set below
 	const wasGameOver = gameOver;
 
+	// a full game-over (re)delivery describes the LIVE game; restore the live
+	// review state before it overwrites gameResult/annotation, so an in-page
+	// browse of an earlier game can't be half-clobbered
+	if (browsing) {
+		exitBrowse();
+	}
+
 	cancelAnimationFrame(frameId);
 	// a game ending during the pre-start countdown (resign, abandon) must take
 	// the overlay and its ticker down with it
@@ -1899,11 +1927,16 @@ tlStrips.forEach((strip) => {
 });
 
 // backend reason codes -> timeline win-method glyphs. Draw methods all render
-// as '=' on both rows (the cell's ½ already says it was a draw); decisive
-// methods mark only the winner's cell (see tlCell).
+// as '=' on both halves (the ½ already says it was a draw); decisive methods
+// mark only the winner's half (see tlHalf). All text codepoints — except time,
+// which is an inline SVG clock (U+231B renders as an emoji): stroke is
+// currentColor so it inherits the half's win color.
+const tlClockSVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+	+ ' stroke-width="3" stroke-linecap="round" aria-hidden="true">'
+	+ '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
 const tlGlyphs = {
 	checkmate: '#',
-	time: '⌛',
+	time: tlClockSVG,
 	resignation: '⚑',
 	stalemate: '=',
 	insufficient: '=',
@@ -1921,37 +1954,61 @@ const tlPoints = (pts) => {
 };
 
 /**
- * tlCell builds one finished-game timeline cell for one player: their points,
- * the win-method glyph (winner's cell only; draws mark both), and the
- * white/black tint of the side they held that game.
+ * tlHalf renders one half of a combined game cell: one player's points, the
+ * win-method glyph (winner's half only; draws mark both), and the white/black
+ * edge tint of the side they held that game.
  * @param pts - points this player earned (1, 0.5, or 0)
  * @param color - 'w'/'b', the side this player held that game
  * @param reason - backend method code (see resultReasons)
- * @param num - 1-based game number, for the tooltip
- * @returns {HTMLElement} the cell
+ * @returns {string} the half's HTML
  */
-const tlCell = (pts, color, reason, num) => {
-	const cell = document.createElement('span');
+const tlHalf = (pts, color, reason) => {
 	const result = pts >= 1 ? 'win' : (pts >= 0.5 ? 'draw' : 'loss');
-	cell.className = `tl-cell tl-${result} tl-${color === 'w' ? 'white' : 'black'}`;
-	cell.setAttribute('role', 'listitem');
-
-	const method = resultReasons[reason] || '';
-	cell.title = `Game ${num}: ${result} ${method}`.trim();
-
 	let html = tlPoints(pts);
 	const glyph = tlGlyphs[reason];
 	if (glyph && pts >= 0.5) {
 		html += `<span class="tl-glyph">${glyph}</span>`;
 	}
-	cell.innerHTML = html;
-	return cell;
+	return `<span class="tl-h tl-${color === 'w' ? 'w' : 'b'} tl-${result}">${html}</span>`;
 };
 
 /**
+ * tlGame builds one finished game's combined timeline cell: a single button
+ * stacking the opponent's score half over the local player's (matching the
+ * clock layout). Click behavior is wired by renderTimeline.
+ * @param e - MatchHistoryPayload entry (keyed by the players' current seats)
+ * @param num - 1-based game number
+ * @returns {HTMLElement} the cell
+ */
+const tlGame = (e, num) => {
+	// wp is the color the currently-white player held in that game
+	const myColor = playerWhite ? e.wp : (e.wp === 'w' ? 'b' : 'w');
+	const oppColor = myColor === 'w' ? 'b' : 'w';
+	const myPts = playerWhite ? e.w : e.b;
+	const oppPts = playerWhite ? e.b : e.w;
+
+	const cell = document.createElement('button');
+	cell.type = 'button';
+	cell.className = 'tl-game';
+	cell.setAttribute('role', 'listitem');
+	const result = myPts >= 1 ? 'win' : (myPts >= 0.5 ? 'draw' : 'loss');
+	const method = resultReasons[e.r] || '';
+	cell.title = `Game ${num}: ${result} ${method}`.trim();
+	cell.innerHTML = tlHalf(oppPts, oppColor, e.r) + tlHalf(myPts, myColor, e.r);
+	return cell;
+};
+
+// number of finished games currently shown in the timeline (the latest one is
+// the game on the live board during a post-game lull); kept by renderTimeline
+// for the browse logic
+let tlGameCount = 0;
+
+/**
  * renderTimeline rebuilds the match timeline from a score-bearing message:
- * name-side totals, one column per finished game, plus a pulsing live column
- * for the game in progress (absent between games / once the room is over).
+ * name-side totals, one combined cell per finished game, plus a pulsing live
+ * column for the game in progress (absent between games / once the room is
+ * over). Finished cells turn interactive once the current game is over:
+ * in-page browsing on the live page, permalink navigation on archive pages.
  * @param message - move/game-over message (d.sc present, d.h optional)
  */
 const renderTimeline = (message) => {
@@ -1965,35 +2022,192 @@ const renderTimeline = (message) => {
 	tlPly.querySelector('.tl-total').innerHTML = tlPoints(playerWhite ? w : b);
 	tlOpp.querySelector('.tl-total').innerHTML = tlPoints(playerWhite ? b : w);
 
-	const plyGames = tlPly.querySelector('.tl-games');
-	const oppGames = tlOpp.querySelector('.tl-games');
-	plyGames.innerHTML = '';
-	oppGames.innerHTML = '';
+	const gamesEl = timelineEl.querySelector('.tl-games');
+	gamesEl.innerHTML = '';
 
-	// history entries are keyed by the players' CURRENT seats (the ScorePayload
-	// convention); wp is the color the currently-white player held in that game
-	(message.d.h || []).forEach((e, i) => {
-		const myColor = playerWhite ? e.wp : (e.wp === 'w' ? 'b' : 'w');
-		const oppColor = myColor === 'w' ? 'b' : 'w';
-		plyGames.appendChild(tlCell(playerWhite ? e.w : e.b, myColor, e.r, i + 1));
-		oppGames.appendChild(tlCell(playerWhite ? e.b : e.w, oppColor, e.r, i + 1));
+	const entries = message.d.h || [];
+	tlGameCount = entries.length;
+	entries.forEach((e, i) => {
+		const n = i + 1;
+		const cell = tlGame(e, n);
+		if (isArchive) {
+			cell.classList.add('tl-link');
+			cell.title += ' — view this game';
+			cell.addEventListener('click', () => {
+				if (n !== archiveData.n) {
+					location.href = '/' + archiveData.roomId + '/' + n;
+				}
+			});
+		} else if (gameOver) {
+			// post-game lull on the live page: cells switch the board between
+			// the match's games in place (no navigation — the socket and any
+			// rematch window survive)
+			cell.classList.add('tl-link');
+			cell.addEventListener('click', () => browseArchivedGame(n));
+		}
+		gamesEl.appendChild(cell);
 	});
 
 	// the in-progress game's column
 	if (!gameOver) {
-		const num = (message.d.h || []).length + 1;
-		[plyGames, oppGames].forEach((rowEl) => {
-			const cell = document.createElement('span');
-			cell.className = 'tl-cell tl-live';
-			cell.setAttribute('role', 'listitem');
-			cell.title = `Game ${num}: in progress`;
-			rowEl.appendChild(cell);
-		});
+		const cell = document.createElement('button');
+		cell.type = 'button';
+		cell.className = 'tl-game tl-live';
+		cell.setAttribute('role', 'listitem');
+		cell.title = `Game ${tlGameCount + 1}: in progress`;
+		gamesEl.appendChild(cell);
 	}
 
+	refreshTimelineSelection();
+
 	// keep the newest games in view if the match outgrows the row
-	plyGames.scrollLeft = plyGames.scrollWidth;
-	oppGames.scrollLeft = oppGames.scrollWidth;
+	gamesEl.scrollLeft = gamesEl.scrollWidth;
+};
+
+/**
+ * refreshTimelineSelection rings the game currently on the board: the browsed
+ * game, the just-finished latest game during a post-game lull, or the archive
+ * page's selected game. No ring mid-game (the pulsing live column tells that
+ * story).
+ */
+const refreshTimelineSelection = () => {
+	if (!timelineEl) {
+		return;
+	}
+	const sel = isArchive ? archiveData.n
+		: (browsing || (gameOver ? tlGameCount : 0));
+	timelineEl.querySelectorAll('.tl-games .tl-game:not(.tl-live)')
+		.forEach((cell, i) => {
+			cell.classList.toggle('tl-selected', i + 1 === sel);
+		});
+};
+
+// ---- in-page match browsing (live rooms, post-game) ----
+// While a live room sits in a post-game lull (rematch window, race-to
+// interlude, bot analysis), the finished games of the match are browsable in
+// place: clicking a timeline cell fetches that game's archived data
+// (/api/room/:id/game/:n) and swaps the review state under the existing
+// board/move-list machinery. No navigation — the socket and rematch window
+// survive. Any authoritative live board state (new game, reconnect resync)
+// tears browsing down first, so browse mode only ever exists inside a lull.
+let browsing = 0;             // 1-based ordinal being browsed; 0 = live view
+let browseOrientWhite = null; // bottom seat held white in the browsed game
+let liveReview = null;        // live review globals saved while browsing
+const browseCache = new Map(); // n -> archived game data (immutable)
+
+// browseBottomIsWhite resolves which color the bottom-of-board seat maps to,
+// honoring an active browse (colors swap between games of a match). Feeds the
+// board orientation, material rows, and PGN name mapping.
+const browseBottomIsWhite = () =>
+	(browsing && browseOrientWhite !== null) ? browseOrientWhite : playerWhite;
+
+/**
+ * myArchiveUid resolves the uid the browsed-game orientation should anchor to:
+ * the spectator anchor, or the local player's uid via their current seat.
+ */
+const myArchiveUid = () => {
+	if (isSpec) {
+		return anchorId;
+	}
+	if (!lastLiveMessage) {
+		return null;
+	}
+	return playerWhite ? lastLiveMessage.d.w : lastLiveMessage.d.b;
+};
+
+/**
+ * applyBrowsedGame swaps the review state to an archived game of this match
+ * and re-renders board, move list, and result annotation from it.
+ * @param data - the /api/room/:id/game/:n response
+ */
+const applyBrowsedGame = (data) => {
+	if (!gameOver) {
+		return; // play resumed while the fetch was in flight
+	}
+	if (!browsing) {
+		// first hop off the live game: save its review state for the return
+		liveReview = {
+			history, currentPly, viewPly, followingLive,
+			gameResult, endAnnotationText,
+		};
+	}
+	browsing = data.n;
+	// the result card, if up, hands the board over to browsing
+	dismissResultForAnalysis();
+
+	const b = data.board || {};
+	const uid = myArchiveUid();
+	browseOrientWhite = uid ? b.w === uid : true;
+	history = { uois: b.m || [], sans: b.sm || [], ofens: b.om || [] };
+	currentPly = history.uois.length;
+	viewPly = currentPly;
+	followingLive = false;
+	gameResult = data.outcome || '*';
+	endAnnotationText = resultSummary({ w: data.w, r: data.r });
+
+	renderReviewPosition(currentPly);
+	renderMoveList();
+	updateEndAnnotation();
+	refreshTimelineSelection();
+};
+
+/**
+ * browseArchivedGame is the timeline cell click handler on the live page:
+ * switch the board to game n of the match, or back to the live (latest) game.
+ * @param n - 1-based game ordinal
+ */
+const browseArchivedGame = (n) => {
+	if (n === browsing) {
+		return;
+	}
+	if (n === tlGameCount) {
+		// the latest finished game IS the live board during a lull
+		exitBrowse();
+		return;
+	}
+	const cached = browseCache.get(n);
+	if (cached) {
+		applyBrowsedGame(cached);
+		return;
+	}
+	const roomId = location.pathname.split('/')[1];
+	fetch(`/api/room/${roomId}/game/${n}`)
+		.then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
+		.then((data) => {
+			browseCache.set(n, data);
+			applyBrowsedGame(data);
+		})
+		.catch(() => { /* cell stays put; nothing to unwind */ });
+};
+
+/**
+ * exitBrowse restores the live game's review state (and board) after browsing
+ * an earlier game of the match. Also invoked defensively by every handler that
+ * applies an authoritative live board state.
+ */
+const exitBrowse = () => {
+	if (!browsing) {
+		return;
+	}
+	browsing = 0;
+	browseOrientWhite = null;
+	if (liveReview) {
+		history = liveReview.history;
+		currentPly = liveReview.currentPly;
+		viewPly = liveReview.viewPly;
+		followingLive = liveReview.followingLive;
+		gameResult = liveReview.gameResult;
+		endAnnotationText = liveReview.endAnnotationText;
+		liveReview = null;
+	}
+	if (followingLive && lastLiveMessage) {
+		renderLivePosition(lastLiveMessage, lastLiveMessage.d.o.split(' '));
+	} else {
+		renderReviewPosition(viewPly);
+	}
+	renderMoveList();
+	updateEndAnnotation();
+	refreshTimelineSelection();
 };
 
 // previous match score (raw white/black), so updateScore can flash only the side
@@ -2642,6 +2856,12 @@ const deployMovable = (white) => {
 const handleDeploy = (message) => {
 	const d = message.d || {};
 
+	// a deploy phase means the next live game is starting: any in-page archive
+	// browsing ends before the arrange overlay takes the board
+	if (browsing) {
+		exitBrowse();
+	}
+
 	// a lock update ({lk}) reports a side committed; update the indicator only.
 	// Outside the phase it can only be a straggler from a phase this client has
 	// already left — drop it, or the indicator would linger over the live board.
@@ -3178,7 +3398,7 @@ const navLastBtn = document.getElementById('nav-last');
  * playerColor returns the viewer's board orientation color — the local
  * player's, or the anchored player's current color for a spectator.
  */
-const playerColor = () => (playerWhite ? 'white' : 'black');
+const playerColor = () => (browseBottomIsWhite() ? 'white' : 'black');
 
 /**
  * escapeHtml defensively escapes text destined for innerHTML. SAN strings are
@@ -3260,8 +3480,12 @@ const goToPly = (ply) => {
 	viewPly = ply;
 	followingLive = (ply === currentPly);
 	if (followingLive) {
-		if (lastLiveMessage) {
+		if (lastLiveMessage && !browsing) {
 			renderLivePosition(lastLiveMessage, lastLiveMessage.d.o.split(' '));
+		} else {
+			// archive mode never sees a live message, and a browsed game's tip
+			// is just its final archived position — never the live board
+			renderReviewPosition(ply);
 		}
 	} else {
 		renderReviewPosition(ply);
@@ -3382,8 +3606,9 @@ const buildPGN = () => {
 	};
 	const bottomName = nameOf('#tl-row-player .tl-name') || 'Anonymous';
 	const topName = nameOf('#tl-row-opponent .tl-name') || 'Anonymous';
-	const whiteName = playerWhite ? bottomName : topName;
-	const blackName = playerWhite ? topName : bottomName;
+	// browse-aware: a browsed game's colors may be swapped from the live seats
+	const whiteName = browseBottomIsWhite() ? bottomName : topName;
+	const blackName = browseBottomIsWhite() ? topName : bottomName;
 
 	const now = new Date();
 	const pad = (n) => String(n).padStart(2, '0');
@@ -3462,6 +3687,42 @@ if (copyPgnBtn) {
 		});
 	});
 }
+
+// ---- archive mode (permanent room/game permalinks) ----
+
+/**
+ * hydrateArchive boots the socket-less archive view from the inline
+ * #archive-data payload: the finished game's final position on the board, the
+ * full move list with review navigation, the match timeline (as permalink
+ * cells), and the mid-board result annotation. Reuses the exact render paths
+ * the live spectator/review mode uses — the payload mirrors the wire shapes.
+ */
+const hydrateArchive = () => {
+	const b = archiveData.board || {};
+
+	gameOver = true;
+	gameResult = archiveData.outcome || '*';
+	history = { uois: b.m || [], sans: b.sm || [], ofens: b.om || [] };
+	currentPly = history.uois.length;
+	viewPly = currentPly;
+	lastPly = currentPly;
+	followingLive = true;
+
+	// final position on the board (read-only; renderReviewPosition never
+	// enables movement)
+	renderReviewPosition(currentPly);
+	renderMoveList();
+
+	// match timeline (absent on standalone single-game views); renderTimeline
+	// decorates the cells as permalinks itself in archive mode
+	if (archiveData.sc) {
+		renderTimeline({ d: { sc: archiveData.sc, h: archiveData.h || [] } });
+	}
+
+	// mid-board result pill ("White wins: by checkmate")
+	endAnnotationText = resultSummary({ w: archiveData.w, r: archiveData.r });
+	updateEndAnnotation();
+};
 
 // keyboard navigation: ←/→ step one move, ↑/Home to start, ↓/End to live. Left
 // alone while arranging a blind deploy, when typing in a field, or when a

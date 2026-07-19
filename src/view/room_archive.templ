@@ -1,0 +1,112 @@
+package view
+
+import "strconv"
+
+// RoomArchive renders the permanent, read-only view of an archived room
+// (match) or single game: the final position on the board, the full move list
+// with review navigation, and the match score timeline — everything the live
+// game page shows after a game ends, minus the live affordances (clocks,
+// controls, socket). The page inlines the full history as JSON
+// (#archive-data); its presence switches lio-game.js into archive mode, which
+// hydrates the board/move-list/timeline machinery and never opens a websocket.
+templ RoomArchive(meta Meta, m ArchiveModel) {
+	@base(meta) {
+		<body>
+			<div class="page">
+				@header("max-w-[34rem]")
+				@archiveGame(meta, m)
+			</div>
+		</body>
+		@scriptsBase(meta)
+		@scriptsRoom(meta)
+	}
+}
+
+// archiveGame is the archived analogue of roomGame: the same board-centric
+// grid, pre-set to the .analyzing (post-game review) layout, without the
+// clock, control, and overlay scaffolding a live game needs.
+templ archiveGame(meta Meta, m ArchiveModel) {
+	<div class="game-room mt-2">
+		<div class="game-grid analyzing">
+			<div class="ga-board">
+				@archiveBoard(m)
+				if !m.Standalone {
+					<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline">
+						<div class="tl-id" id="tl-row-opponent">
+							<span class="tl-name">{ m.TopName }</span>
+							<span class="tl-total">0</span>
+						</div>
+						<div class="tl-id" id="tl-row-player">
+							<span class="tl-name">{ m.BottomName }</span>
+							<span class="tl-total">0</span>
+						</div>
+						<div class="tl-games" role="list"></div>
+					</div>
+				}
+			</div>
+			<aside class="ga-rail">
+				<div class="rail-stack">
+					<div class="rail-card moves-panel flex flex-col">
+						<span class="rail-title">
+							<span class="rail-title-text">
+								{ m.VariantName }
+								if m.RaceTo > 0 {
+									· Race to { strconv.Itoa(m.RaceTo) }
+								}
+								· { archiveModeLabel(m) }
+							</span>
+							<span class="archive-chip" title="This match has ended; you are viewing its permanent archive">Archived</span>
+							<button type="button" id="btn-copy-pgn" class="copy-pgn" title="Copy PGN to clipboard" aria-label="Copy game PGN to clipboard" data-variant={ m.VariantName }>
+								<svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+								<svg class="icon-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+							</button>
+						</span>
+						<div id="moveList" class="move-list" role="list" aria-label="Move history"></div>
+						<div class="move-nav">
+							<button type="button" id="nav-first" class="nav-btn" title="Jump to start (↑)" aria-label="Jump to start">⏮</button>
+							<button type="button" id="nav-prev" class="nav-btn" title="Previous move (←)" aria-label="Previous move">◀</button>
+							<button type="button" id="nav-next" class="nav-btn" title="Next move (→)" aria-label="Next move">▶</button>
+							<button type="button" id="nav-last" class="nav-btn" title="Jump to end (↓)" aria-label="Jump to end">⏭</button>
+						</div>
+					</div>
+				</div>
+			</aside>
+			<div class="ga-info">
+				<div class="info-bar">
+					<span>
+						if m.Standalone {
+							Archived game
+						} else if m.Count > 1 {
+							Archived match · game { strconv.Itoa(m.N) } of { strconv.Itoa(m.Count) }
+						} else {
+							Archived match
+						}
+					</span>
+					<span>{ m.EndedDate }</span>
+				</div>
+			</div>
+			<footer class="ga-foot flex flex-col items-center gap-1.5 pt-3 pb-1 text-xs text-fg-subtle">
+				@footerContent(meta)
+			</footer>
+		</div>
+	</div>
+	@templ.JSONScript("archive-data", m.Data)
+}
+
+// archiveBoard is the slim archived-board mount: the octadground container and
+// the endgame annotation pill, without the deploy / pre-start / promotion /
+// result-overlay scaffolding a live game needs (lio-game.js null-guards every
+// lookup of those). data-spectator switches the client into its existing
+// watch-only mode, so the board never accepts input.
+templ archiveBoard(m ArchiveModel) {
+	<div class="board-shell">
+		<div id="gcon-xx" class={ "gcon " + m.Orientation } data-spectator="true" data-archive="true" data-tc="0" data-casual={ strconv.FormatBool(m.Casual) } data-deploy="false">
+			<div class="gwrap">
+				<div id="game" class="og-wrap"></div>
+				<!-- endgame annotation: the mid-board pill naming the game's result
+				     while its final position is on the board -->
+				<div id="end-annotation" class="end-annotation" aria-hidden="true"></div>
+			</div>
+		</div>
+	</div>
+}

@@ -2,10 +2,11 @@
 INSERT INTO games (
     game_id, start_ts, end_ts, race_to, white_score, black_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
-    variant_group, outcome, reason, starting_ofen, moves, pgn_object_key
+    variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
+    game_index
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19
+    $18, $19, $20
 )
 RETURNING id;
 
@@ -16,13 +17,27 @@ RETURNING id;
 INSERT INTO games (
     game_id, start_ts, end_ts, race_to, white_score, black_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
-    variant_group, outcome, reason, starting_ofen, moves, pgn_object_key
+    variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
+    game_index
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19
+    $18, $19, $20
 )
 ON CONFLICT (pgn_object_key) DO NOTHING
 RETURNING id;
+
+-- name: NextGameIndex :one
+-- The next 1-based ordinal for a room's game, derived inside the archive
+-- transaction (restart-proof; the partial unique games_room_game_idx backstops
+-- the practically-impossible concurrent-archive race).
+SELECT (COALESCE(MAX(game_index), 0) + 1)::smallint FROM games
+WHERE room_id = $1;
+
+-- name: ListRoomGames :many
+SELECT * FROM games WHERE room_id = $1 ORDER BY game_index;
+
+-- name: GetRoomGameByIndex :one
+SELECT * FROM games WHERE room_id = $1 AND game_index = $2;
 
 -- name: CountGames :one
 SELECT count(*) FROM games;

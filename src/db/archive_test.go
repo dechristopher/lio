@@ -141,6 +141,8 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 	t.Cleanup(func() {
 		_, _ = Pool.Exec(context.Background(),
 			"DELETE FROM games WHERE room_id IN ('testroom','testroom2')")
+		_, _ = Pool.Exec(context.Background(),
+			"DELETE FROM rooms WHERE room_id IN ('testroom','testroom2')")
 	})
 
 	gamesBefore := TotalGames()

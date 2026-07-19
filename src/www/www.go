@@ -198,8 +198,20 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	newRoom.Post("/human/quick", handlers.NewQuickRoomVsHuman)
 	newRoom.Post("/computer", handlers.NewRoomVsComputer)
 
-	// room handlers
+	// direct archived-game permalink by UUID (301s to the canonical
+	// /<room_id>/<n> when the game has a room). Registered before the room
+	// wildcards so "game" is never captured as a room id.
+	r.Get("/game/:uuid", handlers.ArchiveGameByUUIDHandler)
+
+	// archived-game data for in-room match browsing (immutable JSON; see
+	// ArchiveGameJSONHandler)
+	r.Get("/api/room/:id/game/:num", handlers.ArchiveGameJSONHandler)
+
+	// room handlers. /:id serves the live room while its actor exists and
+	// falls back to the archived match view once it's gone; /:id/:num is the
+	// permanent per-game permalink (1-based match ordinal)
 	r.Get("/:id", handlers.RoomHandler)
+	r.Get("/:id/:num", handlers.ArchiveGameHandler)
 	r.Post("/:id/join", handlers.RoomJoinHandler)
 	r.Post("/:id/cancel", handlers.RoomCancelHandler)
 

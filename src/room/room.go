@@ -282,8 +282,12 @@ func Create(params Params) (*Instance, error) {
 
 	roomId := config.GenerateCode(7, config.Base58)
 
+	// room URLs are permanent permalinks once a game archives, so a candidate
+	// ID must be unused all-time: absent from the live registry AND from the
+	// archived rooms table (db check degrades to a pass when unconfigured)
 	for {
-		if _, exists := rooms.Load(roomId); !exists {
+		_, exists := rooms.Load(roomId)
+		if !exists && !db.RoomIDExists(roomId) {
 			break
 		}
 		roomId = config.GenerateCode(7, config.Base58)
@@ -453,6 +457,10 @@ func (r *Instance) cleanup() {
 	// drop the room's persisted snapshot; routed through the persister loop so
 	// it serializes after any in-flight snapshot write of this room
 	forgetSnapshot(r.ID)
+	// stamp the archived room's cosmetic closed_at marker (no-op for rooms
+	// that never archived a game, or without Postgres); off the routine so
+	// teardown never waits on the database
+	go db.MarkRoomClosed(r.ID)
 }
 
 // event runs a state machine transition using the given EventDesc and args

@@ -515,26 +515,35 @@
 	.thinking i:nth-child(2) { animation-delay: -0.16s; }
 
 	/* ---- match score timeline ----
-	   One row per player (local player bottom, mirroring their point of view of
-	   the board), one fixed-width cell per game so the two rows stay column-
-	   aligned. The shared identity column is sized by the wider name via the
-	   display:contents rows. Cells are tinted/edged by the color the player held
-	   that game (sides swap between games), carry the points + win-method glyph,
-	   and the in-progress game shows as a pulsing accent cell. Built by
-	   renderTimeline in lio-game.js — keep the tl-* hooks in sync with the JS. */
+	   Names + running totals in a left column (local player bottom, mirroring
+	   their point of view of the board and the clocks), then a single dense
+	   strip of combined cells — one .tl-game button per finished game, stacking
+	   the opponent's points over the player's so the halves align with the name
+	   rows. Each half is edge-tinted by the color that player held (sides swap
+	   between games) and carries the points + win-method glyph; the in-progress
+	   game shows as a pulsing accent column. Once a game is over the cells turn
+	   interactive (.tl-link): in-page match browsing on live rooms, permalink
+	   navigation on archive pages, with the viewed game ringed (.tl-selected).
+	   Built by renderTimeline in lio-game.js — keep tl-* hooks in sync. */
 	.timeline {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-rows: auto auto;
 		column-gap: 0.7rem;
-		row-gap: 0.35rem;
+		row-gap: 0.3rem;
 		align-items: center;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--surface-2);
-		padding: 0.5rem 0.7rem;
+		padding: 0.45rem 0.7rem;
 	}
-	.tl-row { display: contents; }
-	.tl-id { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+	.tl-id {
+		grid-column: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		min-width: 0;
+	}
 	.tl-name {
 		font-size: 0.72rem;
 		font-weight: 600;
@@ -552,68 +561,139 @@
 		margin-left: auto;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.78rem;
+		font-size: 0.82rem;
 		font-weight: 700;
 		color: var(--text);
-		background: var(--surface-3);
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		padding: 0 0.4rem;
-		min-width: 1.3rem;
-		text-align: center;
+		min-width: 1.1rem;
+		text-align: right;
 	}
 	.tl-games {
+		grid-column: 2;
+		grid-row: 1 / span 2;
 		display: flex;
-		gap: 0.25rem;
+		gap: 0.15rem;
 		overflow-x: auto;
 		scrollbar-width: none;
 	}
 	.tl-games::-webkit-scrollbar { display: none; }
-	.tl-cell {
+	/* one combined cell per game — the "Scoreline" treatment: pure typography,
+	   no box chrome. A bare column of two stacked digits (opponent over player,
+	   matching the name rows), the winner's digit in the win color with the
+	   method glyph beside it, and a hairline white/black underbar beneath each
+	   digit showing the side that player held (sides swap between games).
+	   Hover raises a soft pill, the viewed game carries an accent underline. */
+	.tl-game {
 		flex: none;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.15rem;
-		width: 2.15rem;
-		height: 1.45rem;
-		border: 1px solid var(--border);
-		border-radius: 4px;
-		background: var(--surface-3);
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		justify-content: space-between;
+		width: 1.45rem;
+		padding: 0.14rem 0 0.2rem;
+		border: 0;
+		border-radius: 5px;
+		background: none;
+		position: relative;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.72rem;
+		font-size: 0.7rem;
 		font-weight: 700;
-		color: var(--text-muted);
+		color: var(--text-subtle);
+		cursor: default;
+		transition: background-color 120ms var(--ease-snappy);
 	}
-	/* side the player held that game: a white/black bottom edge plus a subtle
-	   background tint, readable in both themes without stealing focus */
-	.tl-cell.tl-white {
-		background: color-mix(in srgb, #ffffff 9%, var(--surface-3));
-		box-shadow: inset 0 -2px 0 color-mix(in srgb, #ffffff 80%, var(--border));
+	.tl-h {
+		position: relative;
+		display: flex;
+		align-items: baseline;
+		justify-content: center;
+		gap: 1px;
+		line-height: 1rem;
+		padding-bottom: 3px;
+		color: var(--text-subtle);
 	}
-	.tl-cell.tl-black {
-		background: color-mix(in srgb, #000000 9%, var(--surface-3));
-		box-shadow: inset 0 -2px 0 color-mix(in srgb, #000000 65%, var(--border));
-	}
-	.tl-cell.tl-win { color: var(--win); }
-	.tl-cell.tl-draw { color: var(--draw); }
-	.tl-cell.tl-loss { color: var(--text-subtle); }
-	/* the in-progress game's column */
-	.tl-cell.tl-live {
-		border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-		background: color-mix(in srgb, var(--accent) 8%, var(--surface-3));
-		color: var(--accent);
-	}
-	.tl-cell.tl-live::before {
+	/* side that player held that game: a hairline underbar in the piece color;
+	   the ring keeps white visible on light surfaces and black on dark */
+	.tl-h::after {
 		content: "";
-		width: 5px;
-		height: 5px;
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		bottom: 1px;
+		width: 0.8rem;
+		height: 2px;
+		border-radius: 2px;
+	}
+	.tl-h.tl-w::after {
+		background: #ffffff;
+		box-shadow: 0 0 0 1px var(--border-strong);
+	}
+	.tl-h.tl-b::after {
+		background: #1c1917;
+		box-shadow: 0 0 0 1px var(--border-strong);
+	}
+	.tl-h.tl-win { color: var(--win); }
+	.tl-h.tl-draw { color: var(--draw); }
+	.tl-h.tl-loss { color: var(--text-subtle); }
+	/* method glyphs are text codepoints; the time glyph is an inline SVG clock
+	   (stroke currentColor, so it inherits the half's result color) */
+	.tl-glyph {
+		display: inline-flex;
+		align-items: center;
+		align-self: center;
+		font-family: var(--font-sans);
+		font-weight: 600;
+		font-size: 0.55rem;
+	}
+	.tl-glyph svg { width: 0.55rem; height: 0.55rem; display: block; }
+	/* the in-progress game's column: a single pulsing dot, no box */
+	.tl-game.tl-live {
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+	}
+	.tl-game.tl-live::before {
+		content: "";
+		width: 6px;
+		height: 6px;
 		border-radius: 50%;
 		background: var(--accent);
 		animation: tlLivePulse 1.6s ease-in-out infinite;
 	}
-	.tl-glyph { font-family: var(--font-sans); font-weight: 600; }
+	/* interactive cells: in-page match browsing (live rooms, post-game) or
+	   permalink navigation (archive pages). Hover = soft pill; the viewed game
+	   gets an accent-tinted pill + underline. */
+	.tl-game.tl-link { cursor: pointer; }
+	.tl-game.tl-link:hover { background: var(--surface-3); }
+	.tl-game.tl-link:focus-visible {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 1px;
+	}
+	.tl-game.tl-selected {
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+	}
+	.tl-game.tl-selected::before {
+		content: "";
+		position: absolute;
+		left: 15%;
+		right: 15%;
+		bottom: 0;
+		height: 2px;
+		border-radius: 2px;
+		background: var(--accent);
+	}
+	/* the "Archived" pill beside the rail title on permalink pages */
+	.archive-chip {
+		flex: none;
+		padding: 0.1rem 0.4rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface-3);
+		font-size: 0.62rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		color: var(--text-muted);
+	}
 
 	/* ---- side rail ---- */
 	.rail-stack { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; }

@@ -73,9 +73,18 @@ func getUserAndRoom(c fiber.Ctx) (string, *room.Instance, error, bool) {
 
 // RoomHandler executes the room page template
 func RoomHandler(c fiber.Ctx) error {
-	uid, roomInstance, err, redirected := getUserAndRoom(c)
-	if err != nil || redirected {
-		return err
+	uid := user.GetID(c)
+	// turn away players/scripts/bots with no uid set
+	if uid == "" {
+		return redirect(c, "/")
+	}
+
+	roomInstance, err := room.Get(c.Params("id"))
+	if err != nil || roomInstance == nil {
+		// the live room actor is gone (or never existed): serve the permanent
+		// archived match view when the room's games are in Postgres, else the
+		// old 404
+		return ArchiveRoomFallback(c)
 	}
 
 	// figure out how user is allowed to join this room

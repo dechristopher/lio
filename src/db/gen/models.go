@@ -31,6 +31,7 @@ type Game struct {
 	StartingOfen string
 	Moves        []byte
 	PgnObjectKey string
+	GameIndex    int16
 }
 
 type Move struct {
@@ -49,4 +50,23 @@ type Position struct {
 	EvalDepth   *int16
 	BestMove    *int16
 	EvaluatedAt pgtype.Timestamptz
+}
+
+type Room struct {
+	ID           int32
+	RoomID       string
+	CreatedAt    pgtype.Timestamptz
+	FirstGameTs  pgtype.Timestamptz
+	LastGameTs   pgtype.Timestamptz
+	ClosedAt     pgtype.Timestamptz
+	RaceTo       int32
+	GameCount    int32
+	Casual       bool
+	CreatorUid   string
+	WhiteUid     string
+	BlackUid     string
+	WhiteScore   float32
+	BlackScore   float32
+	VariantName  string
+	VariantGroup string
 }

@@ -1,0 +1,123 @@
+package view
+
+import (
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
+	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/www/ws/proto"
+)
+
+// ArchiveData is the inline JSON payload (templ.JSONScript, #archive-data) the
+// archived room/game page hands to lio-game.js. Its presence on the page is
+// what switches the client into archive mode: no socket, board + move list +
+// timeline hydrated entirely from this data. The board/score/history blocks
+// reuse the live wire payload types so the JSON key names ("m"/"sm"/"om",
+// "sc", "h", ...) can never drift from what the client's render paths expect.
+type ArchiveData struct {
+	// RoomID is empty for a standalone game view (a room-less backfilled game).
+	RoomID string `json:"roomId,omitempty"`
+	GameID string `json:"gameId"`
+	// N is the selected game's 1-based match ordinal; Count the match's total.
+	N     int `json:"n"`
+	Count int `json:"count"`
+	// Board mirrors a live MovePayload: final OFEN (o), per-ply UOI/SAN/OFEN
+	// histories (m/sm/om), and seat uids (w/b) for the selected game.
+	Board proto.MovePayload `json:"board"`
+	// Score is the final cumulative match score and History the per-game match
+	// results, both keyed by the SELECTED game's seats (the client maps rows
+	// via its playerWhite orientation, exactly like the live convention of
+	// keying by current seats).
+	Score   proto.ScorePayload        `json:"sc,omitempty"`
+	History proto.MatchHistoryPayload `json:"h,omitempty"`
+	// Winner ("w"/"b"/"d") and Reason (short method code) mirror the
+	// GameOverPayload fields the client's result rendering reads.
+	Winner string `json:"w"`
+	Reason string `json:"r"`
+	// Outcome is the PGN result token ("1-0", "0-1", "1/2-1/2") for copy-PGN.
+	Outcome string `json:"outcome"`
+}
+
+// ArchiveGameData is the response of the archived-game JSON endpoint
+// (GET /api/room/:id/game/:num) that powers in-room game browsing: while a
+// room is live and in a post-game lull, clicking a finished game in the match
+// timeline fetches this and swaps the client's review state in place — no
+// navigation, so the socket and rematch window survive. Deliberately
+// viewer-independent (orientation is resolved client-side from the seat uids)
+// and free of match-cumulative fields (score/history/count), so the response
+// for a given game is immutable and publicly cacheable forever.
+type ArchiveGameData struct {
+	RoomID string `json:"roomId"`
+	GameID string `json:"gameId"`
+	N      int    `json:"n"`
+	// Board mirrors a live MovePayload: final OFEN (o), per-ply UOI/SAN/OFEN
+	// histories (m/sm/om), and seat uids (w/b).
+	Board   proto.MovePayload `json:"board"`
+	Winner  string            `json:"w"`
+	Reason  string            `json:"r"`
+	Outcome string            `json:"outcome"`
+}
+
+// ArchiveModel is everything the archived room/game page renders server-side:
+// the static labels and chrome around the board, plus the ArchiveData blob the
+// client hydrates from.
+type ArchiveModel struct {
+	RoomID      string
+	VariantName string
+	// VariantGroup is the variant's speed group name ("blitz", ...).
+	VariantGroup string
+	Casual       bool
+	RaceTo       int
+	N            int
+	Count        int
+	// Standalone marks a room-less single-game view (backfilled archives):
+	// no match timeline, no room permalink context.
+	Standalone bool
+	// Orientation is the board-orientation class ("w"/"b"): the viewer's own
+	// color when they played in this game, else white.
+	Orientation string
+	// Top/Bottom label the timeline rows (bottom is the seat the board is
+	// oriented to): "You"/"Opponent" for a returning participant, "BOT" for
+	// the engine, "PLAYER" otherwise.
+	TopName    string
+	BottomName string
+	// EndedDate is the selected game's end date for the info line.
+	EndedDate string
+	Data      ArchiveData
+}
+
+// archiveModeLabel mirrors the live rail's Casual/Competitive tag.
+func archiveModeLabel(m ArchiveModel) string {
+	if m.Casual {
+		return "Casual"
+	}
+	return "Competitive"
+}
+
+// ArchiveMeta builds page metadata for an archived room/game permalink. The
+// OG card reuses the room-card route (which falls back to the archive too) so
+// shared links preview the final position.
+func ArchiveMeta(m ArchiveModel) Meta {
+	group := cases.Title(language.English).String(m.VariantGroup)
+	mode := "competitive"
+	if m.Casual {
+		mode = "casual"
+	}
+	title := group + " (" + m.VariantName + ") " + mode + " octad • Archived match"
+
+	meta := Meta{
+		Version:     config.VersionString(),
+		SiteURL:     config.SiteURL(),
+		Title:       title + " • lioctad.org",
+		OGTitle:     title,
+		OGURL:       "https://lioctad.org/game/" + m.Data.GameID,
+		OGImage:     "https://lioctad.org/og/default.png",
+		Description: "Finished octad game — replay every move.",
+	}
+	if !m.Standalone {
+		meta.OGURL = "https://lioctad.org/" + m.RoomID
+		meta.OGImage = "https://lioctad.org/og/room/" + m.RoomID + ".png"
+		meta.Description = "Finished octad match — replay every move."
+	}
+	return meta
+}
