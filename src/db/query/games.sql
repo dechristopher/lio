@@ -3,10 +3,10 @@ INSERT INTO games (
     game_id, start_ts, end_ts, race_to, white_score, black_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
-    game_index
+    game_index, white_user_id, black_user_id, creator_user_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20
+    $18, $19, $20, $21, $22, $23
 )
 RETURNING id;
 
@@ -18,10 +18,10 @@ INSERT INTO games (
     game_id, start_ts, end_ts, race_to, white_score, black_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
-    game_index
+    game_index, white_user_id, black_user_id, creator_user_id
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20
+    $18, $19, $20, $21, $22, $23
 )
 ON CONFLICT (pgn_object_key) DO NOTHING
 RETURNING id;

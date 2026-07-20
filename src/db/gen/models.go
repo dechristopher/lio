@@ -10,28 +10,31 @@ import (
 )
 
 type Game struct {
-	ID           int32
-	GameID       uuid.UUID
-	StartTs      pgtype.Timestamptz
-	EndTs        pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	RaceTo       int32
-	WhiteScore   float32
-	BlackScore   float32
-	Method       int16
-	Casual       bool
-	RoomID       string
-	CreatorUid   string
-	WhiteUid     string
-	BlackUid     string
-	VariantName  string
-	VariantGroup string
-	Outcome      string
-	Reason       string
-	StartingOfen string
-	Moves        []byte
-	PgnObjectKey string
-	GameIndex    int16
+	ID            int32
+	GameID        uuid.UUID
+	StartTs       pgtype.Timestamptz
+	EndTs         pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	RaceTo        int32
+	WhiteScore    float32
+	BlackScore    float32
+	Method        int16
+	Casual        bool
+	RoomID        string
+	CreatorUid    string
+	WhiteUid      string
+	BlackUid      string
+	VariantName   string
+	VariantGroup  string
+	Outcome       string
+	Reason        string
+	StartingOfen  string
+	Moves         []byte
+	PgnObjectKey  string
+	GameIndex     int16
+	WhiteUserID   *int64
+	BlackUserID   *int64
+	CreatorUserID *int64
 }
 
 type Move struct {
@@ -54,22 +57,25 @@ type Position struct {
 }
 
 type Room struct {
-	ID           int32
-	RoomID       string
-	CreatedAt    pgtype.Timestamptz
-	FirstGameTs  pgtype.Timestamptz
-	LastGameTs   pgtype.Timestamptz
-	ClosedAt     pgtype.Timestamptz
-	RaceTo       int32
-	GameCount    int32
-	Casual       bool
-	CreatorUid   string
-	WhiteUid     string
-	BlackUid     string
-	WhiteScore   float32
-	BlackScore   float32
-	VariantName  string
-	VariantGroup string
+	ID            int32
+	RoomID        string
+	CreatedAt     pgtype.Timestamptz
+	FirstGameTs   pgtype.Timestamptz
+	LastGameTs    pgtype.Timestamptz
+	ClosedAt      pgtype.Timestamptz
+	RaceTo        int32
+	GameCount     int32
+	Casual        bool
+	CreatorUid    string
+	WhiteUid      string
+	BlackUid      string
+	WhiteScore    float32
+	BlackScore    float32
+	VariantName   string
+	VariantGroup  string
+	WhiteUserID   *int64
+	BlackUserID   *int64
+	CreatorUserID *int64
 }
 
 type Session struct {

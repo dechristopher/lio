@@ -121,11 +121,16 @@ func parsePGN(key string, data []byte) (db.GameRecord, []db.PlyRecord, error) {
 	}
 
 	rec := db.GameRecord{
-		GameID:       uuid.NewSHA1(backfillNamespace, []byte(key)).String(),
-		StartTs:      start,
-		EndTs:        end,
-		WhiteUID:     tags["White"],
-		BlackUID:     tags["Black"],
+		GameID:  uuid.NewSHA1(backfillNamespace, []byte(key)).String(),
+		StartTs: start,
+		EndTs:   end,
+		// prefer the dedicated WhiteUID/BlackUID tags (written since accounts
+		// landed, carrying the raw session uid) and fall back to White/Black
+		// for older PGNs, where those tags still held the uid. Post-accounts
+		// PGNs put the display name in White/Black, so reading those directly
+		// would pollute the uid columns with usernames.
+		WhiteUID:     seatUID(tags, "White"),
+		BlackUID:     seatUID(tags, "Black"),
 		VariantName:  tags["Variant"],
 		VariantGroup: tags["Group"],
 		Outcome:      resultOrOutcome(tags["Result"], g),
@@ -138,6 +143,17 @@ func parsePGN(key string, data []byte) (db.GameRecord, []db.PlyRecord, error) {
 		// room/creator/race/scores are per-room/per-match context, not per-game.
 	}
 	return rec, plies, nil
+}
+
+// seatUID resolves a seat's raw session uid from the PGN tags: the dedicated
+// "<seat>UID" tag when present (post-accounts PGNs, whose White/Black tags
+// hold a display name), else the legacy "<seat>" tag (pre-accounts PGNs, whose
+// White/Black tags held the uid). A bot seat is "" either way.
+func seatUID(tags map[string]string, seat string) string {
+	if uid, ok := tags[seat+"UID"]; ok {
+		return uid
+	}
+	return tags[seat]
 }
 
 // parseTags reads all [Key "Value"] tag pairs from the raw PGN text.

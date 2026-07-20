@@ -7,6 +7,7 @@ import (
 
 	"github.com/dechristopher/octad/v2"
 
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/variant"
 )
@@ -41,7 +42,7 @@ func TestBuildArchivePGNDeployStart(t *testing.T) {
 		}
 	}
 
-	pgn := buildArchivePGN(*g, time.Now())
+	pgn := buildArchivePGN(*g, db.GameRecord{}, time.Now())
 
 	if !strings.Contains(pgn, `[SetUp "1"]`) {
 		t.Errorf("deploy PGN missing SetUp tag:\n%s", pgn)
@@ -76,7 +77,7 @@ func TestBuildArchivePGNStandardStart(t *testing.T) {
 	}
 
 	end := time.Date(2026, 7, 14, 9, 35, 0, 0, time.UTC)
-	pgn := buildArchivePGN(*g, end)
+	pgn := buildArchivePGN(*g, db.GameRecord{}, end)
 
 	if strings.Contains(pgn, "[FEN ") || strings.Contains(pgn, "[SetUp ") {
 		t.Errorf("standard-start PGN should carry no SetUp/FEN tag:\n%s", pgn)
@@ -85,6 +86,38 @@ func TestBuildArchivePGNStandardStart(t *testing.T) {
 	// the finish time is recorded so a later archive backfill recovers end_ts
 	if !strings.Contains(pgn, `[EndDate "2026.07.14"]`) || !strings.Contains(pgn, `[EndTime "09:35:00"]`) {
 		t.Errorf("standard-start PGN missing EndDate/EndTime tags:\n%s", pgn)
+	}
+}
+
+// TestBuildArchivePGNSeatTags verifies the Phase-2 PGN seat tags: the standard
+// White/Black tags carry the display names (username / "BOT"), while the raw
+// session uids move to the dedicated WhiteUID/BlackUID tags. The split keeps
+// the PGN human-readable while the backfill still recovers machine identity
+// (see backfill.seatUID). An empty GameRecord falls back to the game's uids in
+// White/Black (covered by the other tests).
+func TestBuildArchivePGNSeatTags(t *testing.T) {
+	g, err := game.NewOctadGame(game.OctadGameConfig{
+		Variant: variant.HalfOneBlitz,
+		White:   "uid_drew", // white is a logged-in human
+		Black:   "",         // black is the bot (empty uid)
+	})
+	if err != nil {
+		t.Fatalf("NewOctadGame failed: %v", err)
+	}
+	rec := db.GameRecord{WhiteName: "drewtest", BlackName: "BOT"}
+	pgn := buildArchivePGN(*g, rec, time.Now())
+
+	for _, want := range []string{
+		`[White "drewtest"]`, `[Black "BOT"]`,
+		`[WhiteUID "uid_drew"]`, `[BlackUID ""]`,
+	} {
+		if !strings.Contains(pgn, want) {
+			t.Errorf("PGN missing %s:\n%s", want, pgn)
+		}
+	}
+	// the display name must not leak into the uid tag position
+	if strings.Contains(pgn, `[WhiteUID "drewtest"]`) {
+		t.Errorf("display name leaked into WhiteUID tag:\n%s", pgn)
 	}
 }
 
@@ -113,7 +146,7 @@ func TestBuildArchivePGNClockComments(t *testing.T) {
 		})
 	}
 
-	pgn := buildArchivePGN(*g, time.Now())
+	pgn := buildArchivePGN(*g, db.GameRecord{}, time.Now())
 
 	if got, want := strings.Count(pgn, "[%clk "), 3; got != want {
 		t.Fatalf("PGN carries %d %%clk comments, want %d:\n%s", got, want, pgn)

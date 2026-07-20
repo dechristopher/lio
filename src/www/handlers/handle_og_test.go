@@ -69,7 +69,7 @@ func TestOGDefaultCard(t *testing.T) {
 // TestOGRoomCard exercises the room card against a real registered room, and
 // the default-card fallback for an unknown room id.
 func TestOGRoomCard(t *testing.T) {
-	params := room.NewParams("og-test-user", variant.HalfOneBlitz)
+	params := room.NewParams(player.Identity{UID: "og-test-user"}, variant.HalfOneBlitz)
 	params.Players[octad.White] = &player.Player{ID: "og-test-user"}
 	toJoin := player.ToJoin
 	params.Players[octad.Black] = &toJoin

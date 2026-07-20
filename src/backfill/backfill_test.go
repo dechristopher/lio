@@ -136,6 +136,32 @@ func TestParsePGNRoundTrip(t *testing.T) {
 	}
 }
 
+// TestParsePGNSeatUIDTags: a post-accounts PGN carries display names in the
+// White/Black tags and the raw session uids in WhiteUID/BlackUID; parsePGN
+// must read the uid columns from the UID tags (not the display names), so
+// backfilled rows keep machine identity. Legacy PGNs (uid in White/Black, no
+// UID tags) still fall back correctly — covered by TestParsePGNRoundTrip.
+func TestParsePGNSeatUIDTags(t *testing.T) {
+	g := playToEnd(t)
+	g.AddTagPair("White", "drewtest")   // display name
+	g.AddTagPair("Black", "BOT")        // bot display name
+	g.AddTagPair("WhiteUID", "u_white") // raw uid
+	g.AddTagPair("BlackUID", "")        // bot has no uid
+	g.AddTagPair("Result", lastField(g.String()))
+	g.AddTagPair("Reason", reasonTagFor(g.Method()))
+
+	rec, _, err := parsePGN("names.pgn", []byte(g.String()))
+	if err != nil {
+		t.Fatalf("parsePGN: %v", err)
+	}
+	if rec.WhiteUID != "u_white" {
+		t.Errorf("white uid: got %q want the WhiteUID tag %q", rec.WhiteUID, "u_white")
+	}
+	if rec.BlackUID != "" {
+		t.Errorf("black uid: got %q want empty (bot) from BlackUID tag", rec.BlackUID)
+	}
+}
+
 // TestParsePGNEndTsFallback: a PGN without EndDate/EndTime falls back to start.
 func TestParsePGNEndTsFallback(t *testing.T) {
 	g := playToEnd(t)

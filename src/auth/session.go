@@ -298,6 +298,31 @@ func Login(c fiber.Ctx, sess *Session, userID int64, username string) error {
 	return nil
 }
 
+// CurrentSession resolves the request's session (cache-first, no mint). Nil
+// when there is no live session. Handlers use it for the account-admin gate
+// and to get the current session id (the one to keep on a password change /
+// "log out everywhere else").
+func CurrentSession(c fiber.Ctx) *Session {
+	return FromRequest(c)
+}
+
+// LogoutAll revokes every session the user holds — including the current one —
+// and clears the cookie. The current session's cache entry is dropped so the
+// revocation is immediate for this device (the others lapse within cacheTTL).
+func LogoutAll(c fiber.Ctx, userID int64) error {
+	if token := c.Cookies(SessionCookie); token != "" {
+		if hash, ok := hashToken(token); ok {
+			cacheDrop(hash)
+		}
+	}
+	var err error
+	if Enabled() {
+		err = db.DeleteSessionsForUser(userID)
+	}
+	clearCookie(c, SessionCookie)
+	return err
+}
+
 // Logout revokes the request's session (hard delete) and clears the cookie.
 // The next page load mints a fresh anonymous session.
 func Logout(c fiber.Ctx) {

@@ -203,12 +203,25 @@ type Instance struct {
 
 // Params for room Instance creation
 type Params struct {
-	Creator    string
-	Players    player.Players
-	GameConfig game.OctadGameConfig
+	Creator string
+	// CreatorUserID / CreatorName carry the creator's account identity when
+	// they were logged in at room creation (arch/ACCOUNTS_AUTH_RATINGS.md
+	// Phase 2): CreatorUserID stamps the archived game's creator_user_id,
+	// CreatorName personalizes the joiner's pre-game view. Zero-valued for an
+	// anonymous creator.
+	CreatorUserID *int64
+	CreatorName   string
+	Players       player.Players
+	GameConfig    game.OctadGameConfig
 	// Public lists an open human challenge in the home-page Open Challenges
 	// feed. Defaults to false (private, link-only); the creator opts in.
 	Public bool
+	// Rated makes the game affect both players' Glicko-2 ratings
+	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Requires both seats logged in
+	// and a non-casual variant; the rating update runs in the archive
+	// transaction. Defaults to false (casual). Wired through here (and the
+	// snapshot) now so Phase 5 is a fill-in, not another schema break.
+	Rated bool
 	// Deploy enables the blind deploy pre-game: before each game both players
 	// privately arrange their home rank, then normal play begins from the
 	// assembled position. Defaults to false (classic immediate start).
@@ -243,12 +256,15 @@ type Params struct {
 	BotRandomDeploy bool
 }
 
-// NewParams returns a new parameters object configured
-// using the given variant
-func NewParams(creatorId string, variant variant.Variant) Params {
+// NewParams returns a new parameters object configured using the given variant
+// and the creating player's identity (uid + account fields, the account fields
+// zero-valued for an anonymous creator).
+func NewParams(creator player.Identity, variant variant.Variant) Params {
 	return Params{
-		Creator: creatorId,
-		Players: make(player.Players),
+		Creator:       creator.UID,
+		CreatorUserID: creator.UserID,
+		CreatorName:   creator.Username,
+		Players:       make(player.Players),
 		GameConfig: game.OctadGameConfig{
 			Variant: variant,
 		},
@@ -628,7 +644,7 @@ func (r *Instance) PlayerIDs() (white, black string) {
 // the whole check-and-populate is done under stateMu: the HasTwoPlayers test
 // and the map write must be atomic or two players following the same join link
 // could both pass the test and corrupt the players map.
-func (r *Instance) Join(uid, joinToken string) bool {
+func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 	// no new seats during the shutdown drain: the joiner would land in a room
 	// whose final snapshot (waiting, not persisted) is already decided
 	if Draining() {
@@ -648,16 +664,19 @@ func (r *Instance) Join(uid, joinToken string) bool {
 
 	// if second player joining
 	if !hasPlayers && missing != octad.NoColor {
-		// set missing player
+		// set missing player, stamping the joiner's account identity onto the
+		// seat (nil/empty for an anonymous joiner)
 		r.players[missing] = &player.Player{
-			ID: uid,
+			ID:       seat.UID,
+			UserID:   seat.UserID,
+			Username: seat.Username,
 		}
 
 		// set internal game instance state
 		if missing == octad.White {
-			r.game.White = uid
+			r.game.White = seat.UID
 		} else {
-			r.game.Black = uid
+			r.game.Black = seat.UID
 		}
 
 		// joined properly
@@ -1543,12 +1562,21 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// not reachable from the game copy alone. The game-derived fields are filled
 	// later from gameCopy in storeGame (arch/STATE_PERSISTENCE_SCALING.md L3).
 	archiveRec := db.GameRecord{
-		RoomID:     r.ID,
-		Creator:    r.creator,
-		RaceTo:     r.params.RaceTo,
-		WhiteScore: r.players[octad.White].Score(),
-		BlackScore: r.players[octad.Black].Score(),
-		Reason:     r.gameOverReasonLocked(false),
+		RoomID:        r.ID,
+		Creator:       r.creator,
+		CreatorUserID: r.params.CreatorUserID,
+		RaceTo:        r.params.RaceTo,
+		Rated:         r.params.Rated,
+		WhiteScore:    r.players[octad.White].Score(),
+		BlackScore:    r.players[octad.Black].Score(),
+		Reason:        r.gameOverReasonLocked(false),
+		// account identity + PGN-ready display names for each seat, captured
+		// here under stateMu (not reachable from the game copy, which carries
+		// only uids). WhiteName/BlackName render "BOT"/"Anonymous"/<username>.
+		WhiteUserID: r.players[octad.White].UserID,
+		BlackUserID: r.players[octad.Black].UserID,
+		WhiteName:   seatArchiveName(r.players[octad.White]),
+		BlackName:   seatArchiveName(r.players[octad.Black]),
 	}
 
 	r.stateMu.Unlock()
@@ -1617,6 +1645,24 @@ func (r *Instance) updateScoreLocked() {
 	}
 }
 
+// seatArchiveName resolves a seat's PGN display name: "BOT" for the engine,
+// the account username for a logged-in human, or "Anonymous" for an anonymous
+// human. Unlike the live-view DisplayName (which returns "" for anon so the
+// view can pick You/Anonymous), the archive has no viewer, so anon is spelled
+// out. A nil seat (shouldn't happen at game over) is "Anonymous".
+func seatArchiveName(p *player.Player) string {
+	if p == nil {
+		return "Anonymous"
+	}
+	if p.IsBot {
+		return "BOT"
+	}
+	if p.Username != "" {
+		return p.Username
+	}
+	return "Anonymous"
+}
+
 // buildArchivePGN assembles the archival PGN for a finished game: the standard
 // tag-pair roster plus, for games that don't begin from the standard octad start
 // (deploy-mode games start from a rearranged home rank), a SetUp/FEN tag pair
@@ -1624,12 +1670,24 @@ func (r *Instance) updateScoreLocked() {
 // initial position for analysis and database import. end is the game's finish
 // time, recorded as EndDate/EndTime so a later archive backfill can recover an
 // accurate end_ts rather than approximating it from the start.
-func buildArchivePGN(g game.OctadGame, end time.Time) string {
+func buildArchivePGN(g game.OctadGame, rec db.GameRecord, end time.Time) string {
 	// the Result token is octad's outcome encoding ("1-0", "0-1", "1/2-1/2", "*")
 	result := string(g.Game.Outcome())
 
 	// get game state message for Reason field
 	_, state := genGameOverState(&g)
+
+	// seat display names for the standard White/Black tags (username / "BOT" /
+	// "Anonymous"); the raw session uids move to the WhiteUID/BlackUID tags, so
+	// the analytics/backfill path keeps machine identity while the PGN reads
+	// human. Fall back to the uid if a name wasn't captured (defensive).
+	whiteName, blackName := rec.WhiteName, rec.BlackName
+	if whiteName == "" {
+		whiteName = g.White
+	}
+	if blackName == "" {
+		blackName = g.Black
+	}
 
 	// encode PGN tag pairs
 	g.Game.AddTagPair("Event", "Lioctad Test Match")
@@ -1637,8 +1695,10 @@ func buildArchivePGN(g game.OctadGame, end time.Time) string {
 	g.Game.AddTagPair("Date", g.Start.Format("2006.01.02"))
 	g.Game.AddTagPair("Variant", g.Variant.Name)
 	g.Game.AddTagPair("Group", string(g.Variant.Group))
-	g.Game.AddTagPair("White", g.White)
-	g.Game.AddTagPair("Black", g.Black)
+	g.Game.AddTagPair("White", whiteName)
+	g.Game.AddTagPair("Black", blackName)
+	g.Game.AddTagPair("WhiteUID", g.White)
+	g.Game.AddTagPair("BlackUID", g.Black)
 	g.Game.AddTagPair("Result", result)
 	g.Game.AddTagPair("Reason", state)
 	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
@@ -1713,7 +1773,7 @@ func formatClk(ms int64) string {
 func storeGame(g game.OctadGame, rec db.GameRecord) {
 	// one finish time, shared by the PGN (EndDate/EndTime) and the DB row (end_ts)
 	end := time.Now()
-	pgn := buildArchivePGN(g, end)
+	pgn := buildArchivePGN(g, rec, end)
 
 	util.DebugFlag("pgn", "PGN", "%s", pgn)
 
@@ -1806,6 +1866,18 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		anchorID = p.ID
 	}
 
+	// per-seat display names for the clocks/timeline: the account username, or
+	// "" for an anonymous human / bot (the view resolves "" to You/Anonymous
+	// and the bot flags to "BOT"). CreatorName personalizes the joiner view.
+	whiteName := ""
+	if p := r.players[octad.White]; p != nil {
+		whiteName = p.DisplayName()
+	}
+	blackName := ""
+	if p := r.players[octad.Black]; p != nil {
+		blackName = p.DisplayName()
+	}
+
 	// display name of the variant: time control + speed group for a timed
 	// game ("½ + 1 blitz"), just the ∞ for a casual one — the views append
 	// the Casual/Competitive mode label themselves, so "∞ unlimited" would
@@ -1824,6 +1896,9 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		BlackIsBot:    blackIsBot,
 		AnchorColor:   anchorColor.String(),
 		AnchorID:      anchorID,
+		WhiteName:     whiteName,
+		BlackName:     blackName,
+		CreatorName:   r.params.CreatorName,
 		VariantName:   variantName,
 		Variant:       r.game.Variant,
 		Public:        r.public,

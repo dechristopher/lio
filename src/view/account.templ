@@ -1,0 +1,82 @@
+package view
+
+import "strconv"
+
+// profilePopover is the logged-in account menu anchored under the username
+// button, mirroring the prefsPopover UX (hidden toggle, outside-click/Escape —
+// wired in navScript). Account administration lives in collapsible sections
+// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 3): change password, active sessions
+// (lazy-loaded fragment), a security placeholder for Phase 4, and the logout
+// actions. lio-auth.js drives the forms/sections.
+templ profilePopover(username string) {
+	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] rounded-lg border border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+		<p class="mt-1 truncate text-md font-semibold text-fg">{ username }</p>
+		<!-- ratings summary slot (Phase 5) -->
+		<div class="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">
+			<details class="account-section">
+				<summary class="account-summary">Change password</summary>
+				<form id="passwordForm" class="account-body flex flex-col gap-2" novalidate>
+					<label class="auth-label">
+						Current password
+						<input class="auth-input" name="current" type="password" autocomplete="current-password" required/>
+					</label>
+					<label class="auth-label">
+						New password
+						<input class="auth-input" name="new" type="password" autocomplete="new-password" required minlength="8" maxlength="128"/>
+					</label>
+					<label class="auth-label">
+						Confirm new password
+						<input class="auth-input" name="confirm" type="password" autocomplete="new-password" required/>
+					</label>
+					<p class="auth-error hidden" data-auth-error role="alert"></p>
+					<p class="auth-ok hidden" data-auth-ok role="status">Password changed. Other sessions were signed out.</p>
+					<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm">Update password</button>
+				</form>
+			</details>
+			<details id="sessionsDetails" class="account-section">
+				<summary class="account-summary">Active sessions</summary>
+				<div id="sessionsBody" class="account-body" data-loaded="false">
+					<p class="auth-hint">Loading…</p>
+				</div>
+			</details>
+			<details class="account-section">
+				<summary class="account-summary">Security</summary>
+				<div class="account-body">
+					<p class="auth-hint">Two-factor authentication and passkeys arrive soon.</p>
+				</div>
+			</details>
+		</div>
+		<div class="mt-3 flex items-center gap-2 border-t border-line pt-3">
+			<button type="button" id="logoutButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm">Log out</button>
+			<button type="button" id="logoutAllButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm text-loss">Log out everywhere</button>
+		</div>
+	</div>
+}
+
+// SessionList is the active-sessions fragment served by GET /api/auth/sessions
+// and injected into #sessionsBody. The current session is labeled and offers
+// no revoke button (Log out ends it instead).
+templ SessionList(sessions []SessionView) {
+	if len(sessions) == 0 {
+		<p class="auth-hint">No active sessions.</p>
+	} else {
+		<ul class="session-list">
+			for _, s := range sessions {
+				<li class="session-row">
+					<div class="session-meta">
+						<span class="session-device">
+							{ s.Device }
+							if s.Current {
+								<span class="session-current">This device</span>
+							}
+						</span>
+						<span class="session-seen">{ s.LastSeen }</span>
+					</div>
+					if !s.Current {
+						<button type="button" class="session-revoke" data-session-id={ strconv.FormatInt(s.ID, 10) } title="Revoke this session">Revoke</button>
+					}
+				</li>
+			}
+		</ul>
+	}
+}

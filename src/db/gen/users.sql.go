@@ -70,6 +70,18 @@ func (q *Queries) GetUserByUsernameLower(ctx context.Context, lower string) (Use
 	return i, err
 }
 
+const getUsernameByID = `-- name: GetUsernameByID :one
+SELECT username FROM users WHERE id = $1
+`
+
+// Resolve a user id to its display-case username (archive page seat labels).
+func (q *Queries) GetUsernameByID(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRow(ctx, getUsernameByID, id)
+	var username string
+	err := row.Scan(&username)
+	return username, err
+}
+
 const updatePasswordHash = `-- name: UpdatePasswordHash :exec
 UPDATE users SET password_hash = $2 WHERE id = $1
 `

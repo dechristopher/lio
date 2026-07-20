@@ -76,3 +76,64 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Fatal("session survives revocation")
 	}
 }
+
+// TestSessionAdmin exercises the Phase-3 account-admin queries against a real
+// Postgres: list a user's sessions, revoke one by id (owner-scoped), keep the
+// current one on a password-change sweep, and fetch the user by id.
+func TestSessionAdmin(t *testing.T) {
+	skipNoDB(t)
+
+	username := "admintest" + time.Now().Format("0102150405.000")
+	email := "admin-test@example.invalid"
+	uid, err := CreateUser(username, &email, "$argon2id$fake")
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := Ctx()
+		defer cancel()
+		_, _ = Pool.Exec(ctx, "DELETE FROM users WHERE id = $1", uid)
+	})
+
+	// GetUserByID round-trips
+	u, found, err := GetUserByID(uid)
+	if err != nil || !found || u.Username != username {
+		t.Fatalf("GetUserByID: found=%v user=%+v err=%v", found, u, err)
+	}
+
+	// three authed sessions for this user
+	var ids []int64
+	for i := 0; i < 3; i++ {
+		h := sha256.Sum256([]byte(username + "-sess-" + time.Now().Format(time.RFC3339Nano) + string(rune('a'+i))))
+		id, err := CreateSession(h[:], "uid_admin", &uid, time.Now().Add(time.Hour), "go-test UA")
+		if err != nil {
+			t.Fatalf("create session %d: %v", i, err)
+		}
+		ids = append(ids, id)
+	}
+
+	if list, err := ListSessionsForUser(uid); err != nil || len(list) != 3 {
+		t.Fatalf("ListSessionsForUser: n=%d err=%v", len(list), err)
+	}
+
+	// revoke one by id, owner-scoped
+	if err := DeleteSessionByID(ids[0], uid); err != nil {
+		t.Fatalf("DeleteSessionByID: %v", err)
+	}
+	// a different user's id must not delete this user's session
+	if err := DeleteSessionByID(ids[1], uid+99999); err != nil {
+		t.Fatalf("DeleteSessionByID (wrong owner): %v", err)
+	}
+	if list, _ := ListSessionsForUser(uid); len(list) != 2 {
+		t.Fatalf("after single revoke: n=%d want 2", len(list))
+	}
+
+	// password-change sweep keeps the current session (ids[2]) only
+	if err := DeleteSessionsForUserExcept(uid, ids[2]); err != nil {
+		t.Fatalf("DeleteSessionsForUserExcept: %v", err)
+	}
+	list, _ := ListSessionsForUser(uid)
+	if len(list) != 1 || list[0].ID != ids[2] {
+		t.Fatalf("after except-sweep: %+v (want only id %d)", list, ids[2])
+	}
+}

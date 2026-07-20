@@ -150,8 +150,8 @@ func TestRenderRoomGame(t *testing.T) {
 
 // TestRenderRoomSpectator locks the watch-only room page: the spectator flag
 // lio-game.js keys off, the anchored board orientation and anchor id, identity-
-// labeled (BOT/PLAYER) clocks and timeline rows, and every game control
-// rendered permanently disabled.
+// labeled (BOT/Anonymous, or usernames) clocks and timeline rows, and every
+// game control rendered permanently disabled.
 func TestRenderRoomSpectator(t *testing.T) {
 	p := message.RoomTemplatePayload{
 		RoomID:      "abc",
@@ -175,10 +175,13 @@ func TestRenderRoomSpectator(t *testing.T) {
 
 	// clocks and timeline rows are labeled by identity, not You/Opponent or
 	// color; the anchor pins the human to the bottom, so the bot marker is
-	// always on the top clock whatever color the bot holds
+	// always on the top clock whatever color the bot holds. The human seat has
+	// no account here, so it reads "Anonymous" (never "You" — the viewer is a
+	// spectator, not that player)
 	mustContain(t, out, ">BOT</span>")
-	mustContain(t, out, ">PLAYER</span>")
+	mustContain(t, out, ">Anonymous</span>")
 	mustNotContain(t, out, ">You</span>")
+	mustNotContain(t, out, ">PLAYER</span>")
 	mustContain(t, out, `id="clockPlayer" class="clockPlayer ga-you" data-bot="false"`)
 	mustContain(t, out, `id="clockOpponent" class="clockOpponent ga-opp" data-bot="true"`)
 
@@ -190,6 +193,45 @@ func TestRenderRoomSpectator(t *testing.T) {
 
 	// crowd label reflects the spectator-only count semantics
 	mustContain(t, out, "watching")
+}
+
+// TestRenderRoomUsernames locks the Phase-2 username display: a logged-in
+// player sees their opponent's username on the top clock and "You" on their
+// own (anonymous) bottom clock; a logged-in player's own username shows when
+// present. Names are resolved by color through the seat-label helpers.
+func TestRenderRoomUsernames(t *testing.T) {
+	// viewer is white and logged in as "drewtest"; opponent black is
+	// "cdpplayer"
+	p := message.RoomTemplatePayload{
+		RoomID:        "abc",
+		PlayerColor:   "w",
+		OpponentColor: "b",
+		WhiteName:     "drewtest",
+		BlackName:     "cdpplayer",
+		CreatorName:   "drewtest",
+		VariantName:   "Half One blitz",
+		Variant:       variant.HalfOneBlitz,
+	}
+	out := renderSmoke(t, Room(RoomMeta(p), p))
+	// own seat shows the username (not "You") when logged in; opponent's too
+	mustContain(t, out, ">drewtest</span>")
+	mustContain(t, out, ">cdpplayer</span>")
+	mustNotContain(t, out, ">You</span>")
+	mustNotContain(t, out, ">Anonymous</span>")
+
+	// a logged-in viewer facing an anonymous opponent: opponent reads
+	// "Anonymous", the viewer's own seat their username
+	p2 := message.RoomTemplatePayload{
+		RoomID: "abc", PlayerColor: "w", OpponentColor: "b",
+		WhiteName: "drewtest", Variant: variant.HalfOneBlitz,
+		VariantName: "Half One blitz",
+	}
+	out2 := renderSmoke(t, Room(RoomMeta(p2), p2))
+	mustContain(t, out2, ">drewtest</span>")
+	mustContain(t, out2, ">Anonymous</span>")
+
+	// the OG/room title carries the challenger's username
+	mustContain(t, out, "Challenge from drewtest")
 }
 
 func TestRenderRoomCreator(t *testing.T) {
@@ -283,4 +325,29 @@ func TestRenderHeaderViewerStates(t *testing.T) {
 	mustContain(t, loggedIn, `content="uid123"`) // lio-uid meta
 	mustNotContain(t, loggedIn, `id="modalAccount"`)
 	mustNotContain(t, loggedIn, `id="loginButton"`)
+
+	// Phase 3 account-admin sections + actions live in the popover
+	mustContain(t, loggedIn, `id="passwordForm"`)
+	mustContain(t, loggedIn, `id="sessionsDetails"`)
+	mustContain(t, loggedIn, `id="sessionsBody"`)
+	mustContain(t, loggedIn, `id="logoutAllButton"`)
+}
+
+// TestRenderSessionList covers the active-sessions fragment: the current
+// session is labeled and has no revoke button; other sessions carry a revoke
+// button keyed by id.
+func TestRenderSessionList(t *testing.T) {
+	out := renderSmoke(t, SessionList([]SessionView{
+		{ID: 1, Device: "Chrome on macOS", LastSeen: "just now", Current: true},
+		{ID: 2, Device: "Safari on iOS", LastSeen: "2 hours ago", Current: false},
+	}))
+	mustContain(t, out, "Chrome on macOS")
+	mustContain(t, out, "Safari on iOS")
+	mustContain(t, out, "This device")
+	// the current session (id 1) is not revocable; the other (id 2) is
+	mustContain(t, out, `data-session-id="2"`)
+	mustNotContain(t, out, `data-session-id="1"`)
+
+	// empty state
+	mustContain(t, renderSmoke(t, SessionList(nil)), "No active sessions")
 }

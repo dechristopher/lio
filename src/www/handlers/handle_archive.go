@@ -178,12 +178,18 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 	if uid != "" && uid == selected.BlackUid {
 		orientation = "b"
 	}
-	viewerPlayed := uid != "" && (uid == selected.WhiteUid || uid == selected.BlackUid)
 
-	bottomUID := selected.WhiteUid
-	topUID := selected.BlackUid
+	// resolve each seat's account username (empty for anon/bot); the archive
+	// has no live player records, so it reads them off the games row's user-id
+	// FKs (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2)
+	whiteName := db.UsernameForID(selected.WhiteUserID)
+	blackName := db.UsernameForID(selected.BlackUserID)
+
+	bottomUID, bottomName := selected.WhiteUid, whiteName
+	topUID, topName := selected.BlackUid, blackName
 	if orientation == "b" {
 		bottomUID, topUID = topUID, bottomUID
+		bottomName, topName = topName, bottomName
 	}
 
 	model := view.ArchiveModel{
@@ -196,8 +202,8 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		Count:        len(games),
 		Standalone:   standalone,
 		Orientation:  orientation,
-		TopName:      seatLabel(topUID, viewerPlayed, uid),
-		BottomName:   seatLabel(bottomUID, viewerPlayed, uid),
+		TopName:      seatLabel(topUID, topName, uid),
+		BottomName:   seatLabel(bottomUID, bottomName, uid),
 		TopIsBot:     topUID == "",
 		BottomIsBot:  bottomUID == "",
 		TCCenti:      archiveTimeCenti(selected.VariantName, selected.VariantGroup),
@@ -229,20 +235,21 @@ func archiveTimeCenti(name, group string) int64 {
 	return byName
 }
 
-// seatLabel names a timeline row's seat: the engine is "BOT" (bot seats hold
-// an empty uid — they never join), a returning participant sees themselves as
-// "You" and their opponent as "Opponent", and everyone else is "PLAYER".
-func seatLabel(seatUID string, viewerPlayed bool, viewerUID string) string {
+// seatLabel names a timeline row's seat, mirroring the live-room rules: the
+// engine is "BOT" (bot seats hold an empty uid — they never join), a logged-in
+// seat shows its username to everyone (including that player), the anonymous
+// viewer's own seat reads "You", and any other anonymous human is "Anonymous".
+func seatLabel(seatUID, seatUsername, viewerUID string) string {
 	if seatUID == "" {
 		return "BOT"
 	}
-	if viewerPlayed {
-		if seatUID == viewerUID {
-			return "You"
-		}
-		return "Opponent"
+	if seatUsername != "" {
+		return seatUsername
 	}
-	return "PLAYER"
+	if viewerUID != "" && seatUID == viewerUID {
+		return "You"
+	}
+	return "Anonymous"
 }
 
 // replayArchivedGame rebuilds a finished game from its archived row, logging

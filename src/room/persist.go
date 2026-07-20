@@ -22,7 +22,12 @@ import (
 // persistVersion is the room snapshot schema version. Bump it when the
 // PersistedRoom shape changes incompatibly; Rehydrate rejects other versions
 // (a stale snapshot from an old build is dropped, not misread).
-const persistVersion = 1
+//
+// v2 (accounts, Phase 2): player.Snapshot gained the account fields
+// (UserID/Username/RatingDisplay) and Params gained the creator account +
+// Rated flag. In-flight v1 snapshots are dropped at the deploy that ships v2
+// — a one-time loss of live rooms, so deploy in a quiet window.
+const persistVersion = 2
 
 // PersistedRoom is the serializable snapshot of a room for restart
 // persistence: everything needed to rebuild the room actor after a process
@@ -34,12 +39,15 @@ type PersistedRoom struct {
 	V       int       `json:"v"`
 	SavedAt time.Time `json:"at"`
 
-	RoomID      string `json:"id"`
-	Creator     string `json:"creator"`
-	State       State  `json:"state"`
-	Public      bool   `json:"public,omitempty"`
-	JoinToken   string `json:"jt,omitempty"`
-	CancelToken string `json:"ct,omitempty"`
+	RoomID        string `json:"id"`
+	Creator       string `json:"creator"`
+	CreatorUserID *int64 `json:"creatorUid,omitempty"`
+	CreatorName   string `json:"creatorName,omitempty"`
+	State         State  `json:"state"`
+	Public        bool   `json:"public,omitempty"`
+	Rated         bool   `json:"rated,omitempty"`
+	JoinToken     string `json:"jt,omitempty"`
+	CancelToken   string `json:"ct,omitempty"`
 
 	// params: the full variant definition is embedded (rather than a registry
 	// key) so a snapshot never dangles on a renamed variant; clock.CTime
@@ -111,11 +119,14 @@ func (r *Instance) Persist() ([]byte, bool) {
 		V:       persistVersion,
 		SavedAt: time.Now(),
 
-		RoomID:      r.ID,
-		Creator:     r.creator,
-		Public:      r.public,
-		JoinToken:   r.joinToken,
-		CancelToken: r.cancelToken,
+		RoomID:        r.ID,
+		Creator:       r.creator,
+		CreatorUserID: r.params.CreatorUserID,
+		CreatorName:   r.params.CreatorName,
+		Public:        r.public,
+		Rated:         r.params.Rated,
+		JoinToken:     r.joinToken,
+		CancelToken:   r.cancelToken,
 
 		Variant:         r.params.GameConfig.Variant,
 		ParamsOFEN:      r.params.GameConfig.OFEN,
@@ -198,8 +209,10 @@ func Rehydrate(data []byte) (*Instance, error) {
 	}
 
 	params := Params{
-		Creator: p.Creator,
-		Players: players,
+		Creator:       p.Creator,
+		CreatorUserID: p.CreatorUserID,
+		CreatorName:   p.CreatorName,
+		Players:       players,
 		GameConfig: game.OctadGameConfig{
 			White:   p.White.ID,
 			Black:   p.Black.ID,
@@ -207,6 +220,7 @@ func Rehydrate(data []byte) (*Instance, error) {
 			OFEN:    p.ParamsOFEN,
 		},
 		Public:          p.Public,
+		Rated:           p.Rated,
 		Deploy:          p.Deploy,
 		RaceTo:          p.RaceTo,
 		Casual:          p.Casual,

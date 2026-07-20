@@ -21,12 +21,23 @@ import (
 // package never imports db/gen.
 type GameRecord struct {
 	// room-level (captured under stateMu in tryGameOver)
-	RoomID     string
-	Creator    string
-	RaceTo     int
-	WhiteScore float64
-	BlackScore float64
-	Reason     string
+	RoomID        string
+	Creator       string
+	CreatorUserID *int64
+	RaceTo        int
+	Rated         bool
+	WhiteScore    float64
+	BlackScore    float64
+	Reason        string
+
+	// account identity of each seat, captured under stateMu alongside the
+	// scores (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2). UserIDs stamp the new
+	// nullable FK columns (nil = anon/bot); WhiteName/BlackName are the
+	// PGN-ready display names ("BOT"/"Anonymous"/<username>).
+	WhiteUserID *int64
+	BlackUserID *int64
+	WhiteName   string
+	BlackName   string
 
 	// game-level (filled from the finished game copy in storeGame)
 	GameID       string
@@ -149,26 +160,29 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 	}
 
 	params := gen.InsertGameParams{
-		GameID:       gameUUID,
-		StartTs:      ts(rec.StartTs),
-		EndTs:        ts(rec.EndTs),
-		RaceTo:       int32(rec.RaceTo),
-		WhiteScore:   float32(rec.WhiteScore),
-		BlackScore:   float32(rec.BlackScore),
-		Method:       rec.Method,
-		Casual:       rec.Casual,
-		RoomID:       rec.RoomID,
-		CreatorUid:   rec.Creator,
-		WhiteUid:     rec.WhiteUID,
-		BlackUid:     rec.BlackUID,
-		VariantName:  rec.VariantName,
-		VariantGroup: rec.VariantGroup,
-		Outcome:      rec.Outcome,
-		Reason:       rec.Reason,
-		StartingOfen: rec.StartingOFEN,
-		Moves:        rec.Moves,
-		PgnObjectKey: rec.PGNObjectKey,
-		GameIndex:    gameIndex,
+		GameID:        gameUUID,
+		StartTs:       ts(rec.StartTs),
+		EndTs:         ts(rec.EndTs),
+		RaceTo:        int32(rec.RaceTo),
+		WhiteScore:    float32(rec.WhiteScore),
+		BlackScore:    float32(rec.BlackScore),
+		Method:        rec.Method,
+		Casual:        rec.Casual,
+		RoomID:        rec.RoomID,
+		CreatorUid:    rec.Creator,
+		WhiteUid:      rec.WhiteUID,
+		BlackUid:      rec.BlackUID,
+		VariantName:   rec.VariantName,
+		VariantGroup:  rec.VariantGroup,
+		Outcome:       rec.Outcome,
+		Reason:        rec.Reason,
+		StartingOfen:  rec.StartingOFEN,
+		Moves:         rec.Moves,
+		PgnObjectKey:  rec.PGNObjectKey,
+		GameIndex:     gameIndex,
+		WhiteUserID:   rec.WhiteUserID,
+		BlackUserID:   rec.BlackUserID,
+		CreatorUserID: rec.CreatorUserID,
 	}
 
 	var gameRef int32
@@ -192,19 +206,22 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 	// room's cosmetic close marker never lands (crash).
 	if rec.RoomID != "" {
 		if err := q.UpsertRoom(ctx, gen.UpsertRoomParams{
-			RoomID:       rec.RoomID,
-			FirstGameTs:  ts(rec.StartTs),
-			LastGameTs:   ts(rec.EndTs),
-			RaceTo:       int32(rec.RaceTo),
-			GameCount:    int32(gameIndex),
-			Casual:       rec.Casual,
-			CreatorUid:   rec.Creator,
-			WhiteUid:     rec.WhiteUID,
-			BlackUid:     rec.BlackUID,
-			WhiteScore:   float32(rec.WhiteScore),
-			BlackScore:   float32(rec.BlackScore),
-			VariantName:  rec.VariantName,
-			VariantGroup: rec.VariantGroup,
+			RoomID:        rec.RoomID,
+			FirstGameTs:   ts(rec.StartTs),
+			LastGameTs:    ts(rec.EndTs),
+			RaceTo:        int32(rec.RaceTo),
+			GameCount:     int32(gameIndex),
+			Casual:        rec.Casual,
+			CreatorUid:    rec.Creator,
+			WhiteUid:      rec.WhiteUID,
+			BlackUid:      rec.BlackUID,
+			WhiteScore:    float32(rec.WhiteScore),
+			BlackScore:    float32(rec.BlackScore),
+			VariantName:   rec.VariantName,
+			VariantGroup:  rec.VariantGroup,
+			CreatorUserID: rec.CreatorUserID,
+			WhiteUserID:   rec.WhiteUserID,
+			BlackUserID:   rec.BlackUserID,
 		}); err != nil {
 			return false, err
 		}

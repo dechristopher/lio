@@ -24,7 +24,7 @@ func (q *Queries) CloseRoom(ctx context.Context, roomID string) error {
 }
 
 const getRoom = `-- name: GetRoom :one
-SELECT id, room_id, created_at, first_game_ts, last_game_ts, closed_at, race_to, game_count, casual, creator_uid, white_uid, black_uid, white_score, black_score, variant_name, variant_group FROM rooms WHERE room_id = $1
+SELECT id, room_id, created_at, first_game_ts, last_game_ts, closed_at, race_to, game_count, casual, creator_uid, white_uid, black_uid, white_score, black_score, variant_name, variant_group, white_user_id, black_user_id, creator_user_id FROM rooms WHERE room_id = $1
 `
 
 func (q *Queries) GetRoom(ctx context.Context, roomID string) (Room, error) {
@@ -47,6 +47,9 @@ func (q *Queries) GetRoom(ctx context.Context, roomID string) (Room, error) {
 		&i.BlackScore,
 		&i.VariantName,
 		&i.VariantGroup,
+		&i.WhiteUserID,
+		&i.BlackUserID,
+		&i.CreatorUserID,
 	)
 	return i, err
 }
@@ -68,33 +71,38 @@ const upsertRoom = `-- name: UpsertRoom :exec
 INSERT INTO rooms (
     room_id, first_game_ts, last_game_ts, race_to, game_count, casual,
     creator_uid, white_uid, black_uid, white_score, black_score,
-    variant_name, variant_group
+    variant_name, variant_group, creator_user_id, white_user_id, black_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 )
 ON CONFLICT (room_id) DO UPDATE SET
-    last_game_ts = EXCLUDED.last_game_ts,
-    game_count   = EXCLUDED.game_count,
-    white_uid    = EXCLUDED.white_uid,
-    black_uid    = EXCLUDED.black_uid,
-    white_score  = EXCLUDED.white_score,
-    black_score  = EXCLUDED.black_score
+    last_game_ts  = EXCLUDED.last_game_ts,
+    game_count    = EXCLUDED.game_count,
+    white_uid     = EXCLUDED.white_uid,
+    black_uid     = EXCLUDED.black_uid,
+    white_score   = EXCLUDED.white_score,
+    black_score   = EXCLUDED.black_score,
+    white_user_id = EXCLUDED.white_user_id,
+    black_user_id = EXCLUDED.black_user_id
 `
 
 type UpsertRoomParams struct {
-	RoomID       string
-	FirstGameTs  pgtype.Timestamptz
-	LastGameTs   pgtype.Timestamptz
-	RaceTo       int32
-	GameCount    int32
-	Casual       bool
-	CreatorUid   string
-	WhiteUid     string
-	BlackUid     string
-	WhiteScore   float32
-	BlackScore   float32
-	VariantName  string
-	VariantGroup string
+	RoomID        string
+	FirstGameTs   pgtype.Timestamptz
+	LastGameTs    pgtype.Timestamptz
+	RaceTo        int32
+	GameCount     int32
+	Casual        bool
+	CreatorUid    string
+	WhiteUid      string
+	BlackUid      string
+	WhiteScore    float32
+	BlackScore    float32
+	VariantName   string
+	VariantGroup  string
+	CreatorUserID *int64
+	WhiteUserID   *int64
+	BlackUserID   *int64
 }
 
 // Called inside every game-archive transaction: inserts the room row on the
@@ -116,6 +124,9 @@ func (q *Queries) UpsertRoom(ctx context.Context, arg UpsertRoomParams) error {
 		arg.BlackScore,
 		arg.VariantName,
 		arg.VariantGroup,
+		arg.CreatorUserID,
+		arg.WhiteUserID,
+		arg.BlackUserID,
 	)
 	return err
 }

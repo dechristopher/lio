@@ -46,6 +46,9 @@ func Wire(g fiber.Router) {
 	g.Post("/login", LoginHandler)
 	g.Post("/logout", LogoutHandler)
 	g.Get("/username-available", UsernameAvailableHandler)
+
+	// logged-in account administration (password / sessions / logout-all)
+	wireAdmin(g)
 }
 
 // RegisterHandler creates an account and logs the visitor in by upgrading

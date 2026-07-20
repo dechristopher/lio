@@ -281,6 +281,17 @@
 			top: 1rem;
 		}
 		.ga-timeline { width: 100%; }
+		/* on the desktop/tablet rail the seat's name reads as its identity: a
+		   touch larger than the metadata row and tinted the board's accent hue
+		   so it pops. The active clock already tints its own time accent, so an
+		   always-accent name reads as cohesive there and stands out against the
+		   muted metadata on the idle clock. The .game-grid prefix outweighs the
+		   later base .clockName declaration (same trick as .ga-rail above). */
+		.game-grid .clockName {
+			font-size: 0.95rem;
+			font-weight: 700;
+			color: var(--accent);
+		}
 	}
 
 	/* ---- single-column (mobile) rail dissolution + analysis mode ----
@@ -383,8 +394,8 @@
 	.clockName {
 		font-size: 0.78rem;
 		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+		/* usernames render in their exact display case — no text-transform (the
+		   BOT/You/Anonymous fallbacks read fine as authored) */
 		color: var(--text-muted);
 		white-space: nowrap;
 		overflow: hidden;
@@ -547,8 +558,7 @@
 	.tl-name {
 		font-size: 0.72rem;
 		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+		/* case-preserved usernames (see .clockName) */
 		color: var(--text-muted);
 		white-space: nowrap;
 		overflow: hidden;
@@ -1333,6 +1343,31 @@
 		}
 	}
 
+	/* ---- header popover backdrop ----
+	   Dims + blurs the page behind an open header popover (preferences /
+	   profile). Deliberately lighter than .modal-shade — a menu is less modal
+	   than a dialog — so less dim and less blur. z-40 sits below the elevated
+	   control cluster (z-50, kept crisp) and below real modals (z-100). Fades
+	   via opacity/visibility (navScript toggles .is-open) so no display flip
+	   kills the transition. */
+	.menu-scrim {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		background-color: color-mix(in srgb, var(--surface) 7%, rgba(0, 0, 0, 0.26));
+		-webkit-backdrop-filter: blur(1px);
+		backdrop-filter: blur(1px);
+		opacity: 0;
+		visibility: hidden;
+		pointer-events: none;
+		transition: opacity 140ms var(--ease-snappy), visibility 140ms var(--ease-snappy);
+	}
+	.menu-scrim.is-open {
+		opacity: 1;
+		visibility: visible;
+		pointer-events: auto;
+	}
+
 	/* ---- create-game modal ---- */
 	.modal-shade {
 		display: none;
@@ -1413,6 +1448,95 @@
 		font-weight: 600;
 		color: var(--loss);
 	}
+	.auth-ok {
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--win);
+	}
+
+	/* profile popover: collapsible account-admin sections + the active-sessions
+	   list. The <details> summary is a compact row with a rotating caret. */
+	.account-section {
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		background: var(--surface-2);
+		overflow: hidden;
+	}
+	.account-summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.5rem 0.65rem;
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--text);
+		cursor: pointer;
+		list-style: none;
+		user-select: none;
+	}
+	.account-summary::-webkit-details-marker { display: none; }
+	.account-summary::after {
+		content: "›";
+		font-size: 1rem;
+		line-height: 1;
+		color: var(--text-subtle);
+		transition: transform 150ms var(--ease-snappy);
+	}
+	.account-section[open] > .account-summary::after { transform: rotate(90deg); }
+	.account-body {
+		padding: 0.15rem 0.65rem 0.65rem;
+	}
+
+	.session-list { display: flex; flex-direction: column; gap: 0.4rem; }
+	.session-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.35rem 0.5rem;
+		border: 1px solid var(--border);
+		border-radius: 0.4rem;
+		background: var(--surface-3);
+	}
+	.session-meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+	.session-device {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.session-current {
+		flex: none;
+		font-size: 0.6rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 14%, transparent);
+		border-radius: 999px;
+		padding: 0.05rem 0.4rem;
+	}
+	.session-seen { font-size: 0.68rem; color: var(--text-subtle); }
+	.session-revoke {
+		flex: none;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--loss);
+		border: 1px solid color-mix(in srgb, var(--loss) 40%, var(--border));
+		border-radius: 0.35rem;
+		padding: 0.2rem 0.5rem;
+		background: transparent;
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.session-revoke:hover { background: var(--loss); color: #fff; border-color: transparent; }
+	.session-revoke:disabled { opacity: 0.5; cursor: default; }
 
 	/* the create-game modal is a wider, richer, horizontal two-panel dialog; it
 	   reuses the shared .modal-shade/.modal-close chrome but overrides the box */

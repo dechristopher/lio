@@ -78,7 +78,11 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 				<span class="waiting-dot" aria-hidden="true"></span>
 				<h1 class="wait-title">An opponent is waiting for you</h1>
 			</div>
-			<p class="wait-sub">An anonymous player set up this game — it starts the moment you take the seat.</p>
+			if payload.CreatorName != "" {
+				<p class="wait-sub"><strong class="text-fg">{ payload.CreatorName }</strong> set up this game — it starts the moment you take the seat.</p>
+			} else {
+				<p class="wait-sub">An anonymous player set up this game — it starts the moment you take the seat.</p>
+			}
 		</div>
 		<div class="wait-join">
 			@gameSummary(payload)

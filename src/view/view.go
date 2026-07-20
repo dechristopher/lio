@@ -76,8 +76,12 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	if payload.Variant.Casual {
 		mode = "casual"
 	}
+	challenger := "anonymous player"
+	if payload.CreatorName != "" {
+		challenger = payload.CreatorName
+	}
 	challenge := group + " (" + payload.Variant.Name +
-		") " + mode + " octad • Challenge from anonymous player"
+		") " + mode + " octad • Challenge from " + challenger
 	return Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
@@ -156,38 +160,74 @@ func groupTitle(g variant.Group) string {
 	return cases.Title(language.English).String(g.String())
 }
 
-// opponentName is the label shown on the opponent's clock: "BOT" for a game
-// against the built-in engine, otherwise the generic "Opponent" (there are no
-// human accounts/usernames yet).
-func opponentName(payload message.RoomTemplatePayload) string {
-	if payload.OpponentIsBot {
+// seatColorLabel resolves one seat's clock/timeline label from the payload:
+// "BOT" for the engine, the account username when the seat is logged in, "You"
+// for the anonymous viewer's own seat, and "Anonymous" for any other
+// anonymous human. color is "w"/"b"; isBot is that seat's bot flag.
+func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot bool) string {
+	if isBot {
 		return "BOT"
 	}
-	return "Opponent"
+	name := ""
+	switch color {
+	case "w":
+		name = payload.WhiteName
+	case "b":
+		name = payload.BlackName
+	}
+	if name != "" {
+		return name
+	}
+	// anonymous human: the viewer's own seat reads "You", everyone else
+	// "Anonymous". A spectator has no own seat, so both seats read "Anonymous".
+	if !payload.IsSpectator && color == payload.PlayerColor {
+		return "You"
+	}
+	return "Anonymous"
+}
+
+// otherColorStr flips a "w"/"b" color string (passthrough for anything else).
+func otherColorStr(c string) string {
+	switch c {
+	case "w":
+		return "b"
+	case "b":
+		return "w"
+	default:
+		return c
+	}
+}
+
+// topClockColor / bottomClockColor resolve which seat (by color) each clock
+// row shows. A player is always on the bottom (their opponent on top); a
+// spectator's board is oriented to the anchored player, who holds the bottom
+// row across the color flips between games of a match.
+func bottomClockColor(payload message.RoomTemplatePayload) string {
+	if payload.IsSpectator {
+		return payload.AnchorColor
+	}
+	return payload.PlayerColor
+}
+
+func topClockColor(payload message.RoomTemplatePayload) string {
+	if payload.IsSpectator {
+		return otherColorStr(payload.AnchorColor)
+	}
+	return payload.OpponentColor
 }
 
 // topClockName / bottomClockName label the two clocks (and the matching match-
-// timeline rows). Players see the relative You/Opponent labels; spectators see
-// seats by identity — "BOT" for the engine, "PLAYER" for a human (no usernames
-// yet) — because the rows are anchored to the *players*, not to the colors,
-// which swap between games of a match. The anchored player (the human in a bot
-// game) always holds the bottom row; each clock's left-edge stripe (app.css)
-// shows the color that seat currently holds.
+// timeline rows) by the seat each shows — usernames for logged-in players,
+// You/Anonymous for anonymous humans, "BOT" for the engine. The rows are
+// anchored to the *players*, not the colors, which swap between games of a
+// match; the anchored player (the human in a bot game) always holds the bottom
+// row and each clock's left-edge stripe (app.css) shows its current color.
 func topClockName(payload message.RoomTemplatePayload) string {
-	if payload.IsSpectator {
-		if payload.WhiteIsBot || payload.BlackIsBot {
-			return "BOT"
-		}
-		return "PLAYER"
-	}
-	return opponentName(payload)
+	return seatColorLabel(payload, topClockColor(payload), topClockIsBot(payload))
 }
 
 func bottomClockName(payload message.RoomTemplatePayload) string {
-	if payload.IsSpectator {
-		return "PLAYER"
-	}
-	return "You"
+	return seatColorLabel(payload, bottomClockColor(payload), bottomClockIsBot(payload))
 }
 
 // topClockIsBot / bottomClockIsBot drive the data-bot attribute that the

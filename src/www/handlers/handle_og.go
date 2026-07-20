@@ -54,7 +54,11 @@ func OGRoomHandler(c fiber.Ctx) error {
 	var subtitle string
 	switch roomInstance.State() {
 	case room.StateWaitingForPlayers:
-		subtitle = "Challenge from anonymous player — join the game."
+		challenger := "an anonymous player"
+		if payload.CreatorName != "" {
+			challenger = payload.CreatorName
+		}
+		subtitle = "Challenge from " + challenger + " — join the game."
 	case room.StateGameOver, room.StateRoomOver:
 		subtitle = "Game finished — see how it ended."
 	default:

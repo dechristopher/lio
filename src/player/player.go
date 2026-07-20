@@ -19,12 +19,39 @@ type GameResult struct {
 // layer (channel.SocketContext.IsSpectator), and are flagged to the view via
 // RoomTemplatePayload.IsSpectator.
 type Player struct {
-	ID          string
-	IsBot       bool
-	scorePoints int
-	scoreHalf   int
-	results     []GameResult
+	ID    string
+	IsBot bool
+	// UserID / Username carry the seat's account identity when the player is
+	// logged in (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2): UserID is the users
+	// row id stamped onto the archived game, Username the display name shown
+	// on clocks/timeline/pregame/OG. Both are zero-valued for an anonymous
+	// human (the view renders "You"/"Anonymous") and for a bot (rendered
+	// "BOT"). RatingDisplay is a Phase-5 slot, captured at seat-claim so page
+	// renders never read the DB (currently always empty).
+	UserID        *int64
+	Username      string
+	RatingDisplay string
+	scorePoints   int
+	scoreHalf     int
+	results       []GameResult
 	// sendLatency bool // TODO send server latency stats if enabled
+}
+
+// Identity is the seat identity a handler hands to the room when a player
+// creates or joins: the session uid plus the account fields (nil/empty for an
+// anonymous seat). It decouples the room package from the request/session
+// layer — handlers build it from user.GetContext.
+type Identity struct {
+	UID      string
+	UserID   *int64
+	Username string
+}
+
+// DisplayName returns the seat's account username, or "" for an anonymous
+// human. Bots are not distinguished here (callers check IsBot) — this is the
+// raw name the view resolves into "You"/"Anonymous"/"BOT" by context.
+func (p *Player) DisplayName() string {
+	return p.Username
 }
 
 // Results returns the player's per-game match history in game order
@@ -41,35 +68,45 @@ func (p *Player) resetScore() {
 }
 
 // Snapshot is the serializable form of a Player for room persistence: seat
-// identity plus the accumulated match score and per-game history, which are
-// otherwise unexported and would not survive a JSON round-trip.
+// identity (including the account fields as of Phase 2) plus the accumulated
+// match score and per-game history, which are otherwise unexported and would
+// not survive a JSON round-trip.
 type Snapshot struct {
-	ID          string       `json:"id"`
-	IsBot       bool         `json:"bot,omitempty"`
-	ScorePoints int          `json:"sp,omitempty"`
-	ScoreHalf   int          `json:"sh,omitempty"`
-	Results     []GameResult `json:"res,omitempty"`
+	ID            string       `json:"id"`
+	IsBot         bool         `json:"bot,omitempty"`
+	UserID        *int64       `json:"uid,omitempty"`
+	Username      string       `json:"un,omitempty"`
+	RatingDisplay string       `json:"rd,omitempty"`
+	ScorePoints   int          `json:"sp,omitempty"`
+	ScoreHalf     int          `json:"sh,omitempty"`
+	Results       []GameResult `json:"res,omitempty"`
 }
 
 // Snapshot captures the player's persistable state.
 func (p *Player) Snapshot() Snapshot {
 	return Snapshot{
-		ID:          p.ID,
-		IsBot:       p.IsBot,
-		ScorePoints: p.scorePoints,
-		ScoreHalf:   p.scoreHalf,
-		Results:     p.results,
+		ID:            p.ID,
+		IsBot:         p.IsBot,
+		UserID:        p.UserID,
+		Username:      p.Username,
+		RatingDisplay: p.RatingDisplay,
+		ScorePoints:   p.scorePoints,
+		ScoreHalf:     p.scoreHalf,
+		Results:       p.results,
 	}
 }
 
 // RestorePlayer rebuilds a Player from a persisted snapshot.
 func RestorePlayer(s Snapshot) *Player {
 	return &Player{
-		ID:          s.ID,
-		IsBot:       s.IsBot,
-		scorePoints: s.ScorePoints,
-		scoreHalf:   s.ScoreHalf,
-		results:     s.Results,
+		ID:            s.ID,
+		IsBot:         s.IsBot,
+		UserID:        s.UserID,
+		Username:      s.Username,
+		RatingDisplay: s.RatingDisplay,
+		scorePoints:   s.ScorePoints,
+		scoreHalf:     s.ScoreHalf,
+		results:       s.Results,
 	}
 }
 

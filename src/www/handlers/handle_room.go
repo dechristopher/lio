@@ -16,6 +16,20 @@ import (
 	"github.com/dechristopher/lio/view"
 )
 
+// identityOf builds the seat identity for a request: the session uid plus the
+// account fields when the visitor is logged in (nil/empty otherwise). Room
+// creation and joining stamp it onto the seat (arch/ACCOUNTS_AUTH_RATINGS.md
+// Phase 2).
+func identityOf(c fiber.Ctx) player.Identity {
+	id := player.Identity{UID: user.GetID(c)}
+	if acct := user.GetAccount(c); acct != nil {
+		uid := acct.ID
+		id.UserID = &uid
+		id.Username = acct.Username
+	}
+	return id
+}
+
 type newRoomPayload struct {
 	c             fiber.Ctx
 	variant       variant.Variant
@@ -115,7 +129,7 @@ func RoomHandler(c fiber.Ctx) error {
 
 // RoomJoinHandler joins the player to the room
 func RoomJoinHandler(c fiber.Ctx) error {
-	uid, roomInstance, err, redirected := getUserAndRoom(c)
+	_, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
 		return err
 	}
@@ -129,8 +143,8 @@ func RoomJoinHandler(c fiber.Ctx) error {
 		return redirect(c, "/#errJoin")
 	}
 
-	// attempt to join room
-	if roomInstance.Join(uid, joinPayload.Token) {
+	// attempt to join room, stamping the joiner's account identity onto the seat
+	if roomInstance.Join(identityOf(c), joinPayload.Token) {
 		// broadcast message to waiting player(s)
 		go roomInstance.NotifyWaiting()
 		// redirect player to game room
@@ -306,21 +320,23 @@ func NewRoomVsComputer(c fiber.Ctx) error {
 
 // newRoom handles room creation and the validation of room payload parameters
 func newRoom(payload newRoomPayload) error {
-	uid := user.GetID(payload.c)
+	creator := identityOf(payload.c)
 
-	if uid == "" {
+	if creator.UID == "" {
 		// TODO prevent anonymous users from creating games when we have accounts
 		return redirect(payload.c, "/")
 	}
 
 	// establish room parameters
-	params := room.NewParams(uid, payload.variant)
+	params := room.NewParams(creator, payload.variant)
 	params.Public = payload.public
 	params.RaceTo = payload.raceTo
 
-	// set creating player ID in players map
+	// set creating player in players map, stamping their account identity
 	params.Players[payload.selectedColor] = &player.Player{
-		ID: uid,
+		ID:       creator.UID,
+		UserID:   creator.UserID,
+		Username: creator.Username,
 	}
 
 	// configure room with player to join via URL
@@ -339,7 +355,7 @@ func newRoom(payload newRoomPayload) error {
 		return redirect(payload.c, "/")
 	}
 
-	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", uid, instance.ID, payload.vsBot)
+	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", creator.UID, instance.ID, payload.vsBot)
 
 	// redirect to waiting room vs human, or game vs computer
 	return redirect(payload.c, "/"+instance.ID)

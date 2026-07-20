@@ -126,7 +126,7 @@ func TestRoomConcurrentJoin(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			if r.Join(fmt.Sprintf("joiner-%d", n), "tok") {
+			if r.Join(player.Identity{UID: fmt.Sprintf("joiner-%d", n)}, "tok") {
 				atomic.AddInt32(&successes, 1)
 			}
 		}(i)

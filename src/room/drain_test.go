@@ -9,6 +9,7 @@ import (
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
@@ -52,7 +53,7 @@ func TestDrainGateDropsMutations(t *testing.T) {
 	}
 
 	// seats and lifecycle: refused
-	if r.Join("newplayer", r.joinToken) {
+	if r.Join(player.Identity{UID: "newplayer"}, r.joinToken) {
 		t.Fatal("join accepted during drain")
 	}
 	if r.Cancel() {

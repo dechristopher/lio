@@ -45,6 +45,78 @@
 		});
 	}
 
+	// log out everywhere: revoke all sessions (incl. this one) then reload
+	const logoutAllBtn = document.getElementById('logoutAllButton');
+	if (logoutAllBtn) {
+		logoutAllBtn.addEventListener('click', async () => {
+			logoutAllBtn.disabled = true;
+			try { await post('/api/auth/logout-all', null); } catch (e) { /* still reload */ }
+			window.location.reload();
+		});
+	}
+
+	// change password: confirm client-side, POST, then show success (the server
+	// signs out the account's other sessions; this one stays)
+	const pwForm = document.getElementById('passwordForm');
+	if (pwForm) {
+		const okEl = pwForm.querySelector('[data-auth-ok]');
+		pwForm.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			showError(pwForm);
+			if (okEl) { okEl.classList.add('hidden'); }
+			if (pwForm.new.value !== pwForm.confirm.value) {
+				showError(pwForm, 'New passwords do not match.');
+				return;
+			}
+			try {
+				const { status, data } = await post('/api/auth/password', {
+					current: pwForm.current.value,
+					new: pwForm.new.value,
+				});
+				if (status === 204) {
+					pwForm.reset();
+					if (okEl) { okEl.classList.remove('hidden'); }
+					return;
+				}
+				showError(pwForm, data.error || 'Could not change password.');
+			} catch (err) {
+				showError(pwForm, 'Network error — try again.');
+			}
+		});
+	}
+
+	// active sessions: lazy-load the fragment the first time the section opens,
+	// and reload it after a revoke (event-delegated on the list body)
+	const sessionsDetails = document.getElementById('sessionsDetails');
+	const sessionsBody = document.getElementById('sessionsBody');
+	if (sessionsDetails && sessionsBody) {
+		const loadSessions = async () => {
+			try {
+				const res = await fetch('/api/auth/sessions');
+				sessionsBody.innerHTML = res.ok
+					? await res.text()
+					: '<p class="auth-hint">Could not load sessions.</p>';
+				sessionsBody.dataset.loaded = 'true';
+			} catch (err) {
+				sessionsBody.innerHTML = '<p class="auth-hint">Could not load sessions.</p>';
+			}
+		};
+		sessionsDetails.addEventListener('toggle', () => {
+			if (sessionsDetails.open && sessionsBody.dataset.loaded !== 'true') {
+				loadSessions();
+			}
+		});
+		sessionsBody.addEventListener('click', async (e) => {
+			const btn = e.target.closest('[data-session-id]');
+			if (!btn) { return; }
+			btn.disabled = true;
+			try {
+				await post('/api/auth/sessions/revoke', { id: Number(btn.dataset.sessionId) });
+			} catch (err) { /* reload reflects the result either way */ }
+			await loadSessions();
+		});
+	}
+
 	// --- logged-out: auth modal --------------------------------------------
 	const modal = document.getElementById('modalAccount');
 	if (!modal) { return; }

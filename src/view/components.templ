@@ -29,7 +29,10 @@ templ header(width string) {
 				@connIndicator()
 			</div>
 		</div>
-		<div class="relative flex items-center gap-2">
+		// z-50 lifts the control cluster (buttons + popovers) above the menu
+		// scrim (z-40) so they stay crisp and clickable while the rest of the
+		// page is dimmed/blurred behind an open popover.
+		<div class="relative z-50 flex items-center gap-2">
 			if viewer(ctx).LoggedIn {
 				<button type="button" id="profileButton" class="btn btn-ghost max-w-40 truncate whitespace-nowrap px-3 py-1.5 text-sm font-semibold">{ viewer(ctx).Username }</button>
 			} else if viewer(ctx).AccountsEnabled {
@@ -63,6 +66,10 @@ templ header(width string) {
 			}
 		</div>
 	</header>
+	<!-- backdrop for the header popovers: dims + blurs the rest of the page
+	     while a menu is open, and dismisses it on click (navScript). Always in
+	     the DOM, invisible until a popover opens. -->
+	<div id="menuScrim" class="menu-scrim" aria-hidden="true"></div>
 	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
 		@accountModal()
 	}
@@ -279,20 +286,6 @@ templ accountModal() {
 	</div>
 }
 
-// profilePopover is the logged-in account menu anchored under the username
-// button, mirroring the prefsPopover pattern. Phase 1 is minimal — identity +
-// log out; account administration (password, sessions, MFA, ratings) lands
-// here in later phases (arch/ACCOUNTS_AUTH_RATINGS.md).
-templ profilePopover(username string) {
-	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-64 rounded-lg border border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
-		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Account</p>
-		<p class="mt-1 truncate text-sm font-semibold text-fg">{ username }</p>
-		<div class="mt-3 border-t border-line pt-3">
-			<button type="button" id="logoutButton" class="btn btn-ghost w-full justify-center py-1.5 text-sm">Log out</button>
-		</div>
-	</div>
-}
-
 // navScript wires the header's auth modal, profile popover and preferences
 // popover. It is self-contained (only touches its own elements, all optional
 // — the modal only exists logged-out, the profile popover only logged-in) so
@@ -302,6 +295,22 @@ templ navScript() {
 		(function () {
 			const modal = document.getElementById("modalAccount");
 			const loginBtn = document.getElementById("loginButton");
+			const profileBtn = document.getElementById("profileButton");
+			const profilePop = document.getElementById("profilePopover");
+			const prefsBtn = document.getElementById("prefsButton");
+			const popover = document.getElementById("prefsPopover"); // preferences
+			const scrim = document.getElementById("menuScrim");
+
+			const isOpen = (el) => el && !el.classList.contains("hidden");
+			const closePrefs = () => { if (popover) popover.classList.add("hidden"); };
+			const closeProfile = () => { if (profilePop) profilePop.classList.add("hidden"); };
+			// the backdrop follows the menus: shown (dim + blur) whenever either
+			// header popover is open, hidden once both are closed
+			const syncScrim = () => {
+				if (scrim) scrim.classList.toggle("is-open", isOpen(popover) || isOpen(profilePop));
+			};
+			const closeMenus = () => { closePrefs(); closeProfile(); syncScrim(); };
+
 			const closeModal = () => { if (modal) modal.classList.remove("open"); };
 			if (modal) {
 				const closeBtn = modal.querySelector(".modal-close");
@@ -309,22 +318,6 @@ templ navScript() {
 				if (closeBtn) closeBtn.addEventListener("click", closeModal);
 				modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 			}
-
-			// profile popover (logged-in): same open/close pattern as prefs below
-			const profileBtn = document.getElementById("profileButton");
-			const profilePop = document.getElementById("profilePopover");
-			if (profileBtn && profilePop) {
-				profileBtn.addEventListener("click", (e) => {
-					e.stopPropagation();
-					profilePop.classList.toggle("hidden");
-				});
-				document.addEventListener("click", (e) => {
-					if (!profilePop.contains(e.target) && e.target !== profileBtn) profilePop.classList.add("hidden");
-				});
-			}
-
-			const prefsBtn = document.getElementById("prefsButton");
-			const popover = document.getElementById("prefsPopover");
 
 			// Ring the swatch/pill matching the live <html> data-board/data-piece,
 			// and highlight the selected theme mode. The mode is derived from
@@ -349,7 +342,7 @@ templ navScript() {
 			// a theme button sets (or clears, for System) the color scheme.
 			// __setBoard/__setPiece/__setTheme/__useSystemTheme (layout.templ)
 			// flip the <html> attribute + persist; the CSS reacts instantly.
-			popover.addEventListener("click", (e) => {
+			if (popover) popover.addEventListener("click", (e) => {
 				const boardBtn = e.target.closest("[data-set-board]");
 				if (boardBtn) { window.__setBoard(boardBtn.dataset.setBoard); syncPrefs(); return; }
 				const pieceBtn = e.target.closest("[data-set-piece]");
@@ -362,21 +355,35 @@ templ navScript() {
 				}
 			});
 
-			const togglePopover = (e) => {
+			// Opening either popover closes the other first, so the two never
+			// stack; the scrim then reflects whether anything is open.
+			if (prefsBtn) prefsBtn.addEventListener("click", (e) => {
 				e.stopPropagation();
+				closeProfile();
 				popover.classList.toggle("hidden");
-				if (!popover.classList.contains("hidden")) syncPrefs();
-			};
-			if (prefsBtn) prefsBtn.addEventListener("click", togglePopover);
+				if (isOpen(popover)) syncPrefs();
+				syncScrim();
+			});
+			if (profileBtn && profilePop) profileBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				closePrefs();
+				profilePop.classList.toggle("hidden");
+				syncScrim();
+			});
+
+			// the backdrop dismisses any open menu on click
+			if (scrim) scrim.addEventListener("click", closeMenus);
+			// safety net for outside clicks not caught by the scrim
 			document.addEventListener("click", (e) => {
-				if (!popover.contains(e.target) && e.target !== prefsBtn) popover.classList.add("hidden");
+				const within =
+					(popover && popover.contains(e.target)) ||
+					(profilePop && profilePop.contains(e.target)) ||
+					(prefsBtn && prefsBtn.contains(e.target)) ||
+					(profileBtn && profileBtn.contains(e.target));
+				if (!within) closeMenus();
 			});
 			document.addEventListener("keydown", (e) => {
-				if (e.key === "Escape") {
-					closeModal();
-					popover.classList.add("hidden");
-					if (profilePop) profilePop.classList.add("hidden");
-				}
+				if (e.key === "Escape") { closeModal(); closeMenus(); }
 			});
 		})();
 	</script>

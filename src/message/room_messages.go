@@ -31,6 +31,14 @@ type RoomTemplatePayload struct {
 	// message's white player id to re-derive the orientation after a swap.
 	AnchorColor string
 	AnchorID    string
+	// WhiteName / BlackName are each seat's account username, or "" for an
+	// anonymous human or a bot (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2). The
+	// view's seat-label helpers resolve "" to "You"/"Anonymous" by viewer
+	// context and the *IsBot flags to "BOT". CreatorName is the creator's
+	// username, personalizing the joiner's pre-game view ("" when anonymous).
+	WhiteName   string
+	BlackName   string
+	CreatorName string
 	VariantName string
 	Variant     variant.Variant
 	IsCreator   bool

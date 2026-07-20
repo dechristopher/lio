@@ -49,6 +49,27 @@ func CreateUser(username string, email *string, passwordHash string) (int64, err
 	return row.ID, nil
 }
 
+// GetUserByID fetches a user by id. Returns found=false on a miss. Used by the
+// password-change path to verify the current password.
+func GetUserByID(id int64) (UserRecord, bool, error) {
+	ctx, cancel := Ctx()
+	defer cancel()
+	u, err := gen.New(Pool).GetUserByID(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return UserRecord{}, false, nil
+	}
+	if err != nil {
+		return UserRecord{}, false, err
+	}
+	return UserRecord{
+		ID:           u.ID,
+		Username:     u.Username,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		CreatedAt:    u.CreatedAt.Time,
+	}, true, nil
+}
+
 // GetUserByUsername fetches a user by case-insensitive username. Returns
 // found=false on a miss.
 func GetUserByUsername(username string) (UserRecord, bool, error) {
@@ -76,6 +97,22 @@ func UsernameTaken(username string) (bool, error) {
 	ctx, cancel := Ctx()
 	defer cancel()
 	return gen.New(Pool).UsernameTaken(ctx, username)
+}
+
+// UsernameForID resolves a (nullable) user id to its display-case username,
+// returning "" for a nil id (anon/bot seat) or a miss. Used by the archive
+// page to label seats. Degrades to "" when Postgres is unconfigured.
+func UsernameForID(id *int64) string {
+	if id == nil || Pool == nil {
+		return ""
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	name, err := gen.New(Pool).GetUsernameByID(ctx, *id)
+	if err != nil {
+		return ""
+	}
+	return name
 }
 
 // UpdatePasswordHash swaps a user's stored PHC string — password changes and
