@@ -38,7 +38,7 @@ func TestArchiveRoomsAndOrdinals(t *testing.T) {
 		t.Fatalf("room %s should not exist yet", roomID)
 	}
 
-	if err := ArchiveGame(ctx, rec, plies); err != nil {
+	if _, err := ArchiveGame(ctx, rec, plies); err != nil {
 		t.Fatalf("archive game 1: %v", err)
 	}
 
@@ -49,7 +49,7 @@ func TestArchiveRoomsAndOrdinals(t *testing.T) {
 	rec2.WhiteScore, rec2.BlackScore = 1, 1
 	rec2.Outcome = "0-1"
 	rec2.PGNObjectKey = "test/rooms-" + rec1Key()
-	if err := ArchiveGame(ctx, rec2, plies); err != nil {
+	if _, err := ArchiveGame(ctx, rec2, plies); err != nil {
 		t.Fatalf("archive game 2: %v", err)
 	}
 

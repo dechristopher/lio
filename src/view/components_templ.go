@@ -145,6 +145,12 @@ func header(width string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
+		if viewer(ctx).LoggedIn {
+			templ_7745c5c3_Err = securityModal().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
 		templ_7745c5c3_Err = navScript().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -390,7 +396,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 214, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 217, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -403,7 +409,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 214, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 217, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -416,7 +422,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 214, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 217, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -429,7 +435,7 @@ func boardSwatch(name, label, light, dark string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("--l:" + light + ";--d:" + dark)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 215, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 218, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -475,7 +481,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 224, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 227, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -488,7 +494,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 224, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 227, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -501,7 +507,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("/res/img/" + name + "/wK.svg")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 226, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 229, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -514,7 +520,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue("/res/img/" + name + "/wP.svg")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 227, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 230, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -527,7 +533,7 @@ func pieceOption(name, label string) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 229, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 232, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -569,7 +575,7 @@ func prefStub(label string) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 235, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 238, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -615,7 +621,7 @@ func accountModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</button><h2>Welcome</h2><div class=\"mt-3 grid grid-cols-2 gap-1\" role=\"tablist\" aria-label=\"Log in or sign up\"><button type=\"button\" class=\"theme-btn is-active\" data-auth-tab=\"login\" role=\"tab\">Log in</button> <button type=\"button\" class=\"theme-btn\" data-auth-tab=\"register\" role=\"tab\">Sign up</button></div><form id=\"loginForm\" class=\"mt-4 flex flex-col gap-3 text-left\" data-auth-form=\"login\" novalidate><label class=\"auth-label\">Username <input class=\"auth-input\" name=\"username\" type=\"text\" autocomplete=\"username\" required minlength=\"3\" maxlength=\"20\"></label> <label class=\"auth-label\">Password <input class=\"auth-input\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><button type=\"submit\" class=\"btn btn-primary w-full justify-center py-2\">Log in</button></form><form id=\"registerForm\" class=\"mt-4 hidden flex-col gap-3 text-left\" data-auth-form=\"register\" novalidate><label class=\"auth-label\">Username <input class=\"auth-input\" name=\"username\" type=\"text\" autocomplete=\"username\" required minlength=\"3\" maxlength=\"20\" pattern=\"[A-Za-z0-9][A-Za-z0-9_\\-]{2,19}\"> <span class=\"auth-hint\" data-auth-avail></span></label> <label class=\"auth-label\">Password <input class=\"auth-input\" name=\"password\" type=\"password\" autocomplete=\"new-password\" required minlength=\"8\" maxlength=\"128\"></label> <label class=\"auth-label\">Email <span class=\"text-fg-subtle\">(optional)</span> <input class=\"auth-input\" name=\"email\" type=\"email\" autocomplete=\"email\"></label><p class=\"auth-hint\">Email is only used to recover your account. Skipping it means a forgotten password can't be reset.</p><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><button type=\"submit\" class=\"btn btn-primary w-full justify-center py-2\">Create account</button></form></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</button><h2>Welcome</h2><div id=\"authTabs\" class=\"mt-3 grid grid-cols-2 gap-1\" role=\"tablist\" aria-label=\"Log in or sign up\"><button type=\"button\" class=\"theme-btn is-active\" data-auth-tab=\"login\" role=\"tab\">Log in</button> <button type=\"button\" class=\"theme-btn\" data-auth-tab=\"register\" role=\"tab\">Sign up</button></div><form id=\"loginForm\" class=\"mt-4 flex flex-col gap-3 text-left\" data-auth-form=\"login\" novalidate><label class=\"auth-label\">Username <input class=\"auth-input\" name=\"username\" type=\"text\" autocomplete=\"username\" required minlength=\"3\" maxlength=\"20\"></label> <label class=\"auth-label\">Password <input class=\"auth-input\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required></label><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><button type=\"submit\" class=\"btn btn-primary w-full justify-center py-2\">Log in</button></form><form id=\"registerForm\" class=\"mt-4 hidden flex-col gap-3 text-left\" data-auth-form=\"register\" novalidate><label class=\"auth-label\">Username <input class=\"auth-input\" name=\"username\" type=\"text\" autocomplete=\"username\" required minlength=\"3\" maxlength=\"20\" pattern=\"[A-Za-z0-9][A-Za-z0-9_\\-]{2,19}\"> <span class=\"auth-hint\" data-auth-avail></span></label> <label class=\"auth-label\">Password <input class=\"auth-input\" name=\"password\" type=\"password\" autocomplete=\"new-password\" required minlength=\"8\" maxlength=\"128\"></label> <label class=\"auth-label\">Email <span class=\"text-fg-subtle\">(optional)</span> <input class=\"auth-input\" name=\"email\" type=\"email\" autocomplete=\"email\"></label><p class=\"auth-hint\">Email is only used to recover your account. Skipping it means a forgotten password can't be reset.</p><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><button type=\"submit\" class=\"btn btn-primary w-full justify-center py-2\">Create account</button></form><!-- second-factor step: shown by lio-auth.js when login returns\n\t\t\t     mfa:true. The tabs + login/register forms are hidden while it is\n\t\t\t     up. The single code field serves TOTP or recovery-code entry\n\t\t\t     depending on the chosen method; the alt buttons switch methods\n\t\t\t     and trigger passkey verification. --><div id=\"mfaStep\" class=\"mt-4 hidden flex-col gap-3 text-left\" data-auth-form=\"mfa\"><p class=\"auth-hint\" data-mfa-prompt>Enter the 6-digit code from your authenticator app.</p><form id=\"mfaCodeForm\" class=\"flex flex-col gap-3\" novalidate><label class=\"auth-label\"><span data-mfa-label>Authentication code</span> <input class=\"auth-input\" name=\"code\" inputmode=\"numeric\" autocomplete=\"one-time-code\" autocapitalize=\"off\" spellcheck=\"false\" required></label> <button type=\"submit\" class=\"btn btn-primary w-full justify-center py-2\">Verify</button></form><button type=\"button\" id=\"mfaPasskeyBtn\" class=\"btn btn-primary w-full justify-center py-2 hidden\">Verify with a passkey</button><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><div class=\"flex flex-col items-center gap-1 pt-1\"><button type=\"button\" class=\"auth-alt hidden\" data-mfa-alt=\"passkey\">Use a passkey instead</button> <button type=\"button\" class=\"auth-alt hidden\" data-mfa-alt=\"recovery\">Use a recovery code</button> <button type=\"button\" class=\"auth-alt hidden\" data-mfa-alt=\"totp\">Use your authenticator app</button></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -966,13 +972,13 @@ func footerContent(meta Meta) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Version)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 472, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 497, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</a></nav><p class=\"m-0\">© 2021-2026 lioctad.org</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</a></nav><p class=\"m-0\">© 2021-2026 li<span class=\"text-accent/70\">octad</span>.org</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1220,7 +1226,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.IsSpectator))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 540, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 565, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -1233,7 +1239,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.AnchorID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 540, Col: 155}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 565, Col: 155}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -1246,7 +1252,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 540, Col: 227}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 565, Col: 227}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
@@ -1259,7 +1265,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.Variant.Casual))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 540, Col: 286}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 565, Col: 286}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 		if templ_7745c5c3_Err != nil {
@@ -1272,20 +1278,20 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.Variant.Deploy))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 540, Col: 345}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 565, Col: 345}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\"><div class=\"gwrap\"><div id=\"game\" class=\"og-wrap\"></div><!-- blind deploy: opponent home-rank \"?\" cells, overlaid on the top rank --><div id=\"deploy-questions\" class=\"deploy-questions\" aria-hidden=\"true\"><span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span></div><!-- blind deploy (spectator): bottom home-rank \"?\" cells, hiding both sides --><div id=\"deploy-questions-btm\" class=\"deploy-questions deploy-questions-btm\" aria-hidden=\"true\"><span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span></div><!-- blind deploy: on-board controls (non-blocking so the board stays interactive) --><div id=\"deploy-overlay\" class=\"deploy-overlay\"><div class=\"deploy-card\"><div class=\"deploy-headline\">Arrange your pieces</div><div class=\"deploy-hint\">Drag a piece onto another — or tap two squares — to swap, then confirm.</div><div id=\"deploy-countdown\" class=\"deploy-countdown\"></div><button id=\"deploy-confirm\" type=\"button\" class=\"deploy-btn\">Confirm deployment</button><div id=\"deploy-waiting\" class=\"deploy-waiting hidden\">Locked in — waiting for opponent…</div><div id=\"deploy-opponent-status\" class=\"deploy-opp-status hidden\"></div></div></div><!-- pre-start countdown: small radial timer shown mid-board after the\n\t\t\t\t     deploy reveal until white moves or the countdown expires and their\n\t\t\t\t     clock starts on its own (lio-game.js toggles .ps-show and drives\n\t\t\t\t     the ring's stroke-dashoffset). Non-blocking: white can move under it. --><div id=\"prestart-overlay\" class=\"prestart-overlay\" aria-hidden=\"true\"><div class=\"prestart-dial\"><svg class=\"prestart-ring\" viewBox=\"0 0 48 48\"><circle class=\"prestart-track\" cx=\"24\" cy=\"24\" r=\"21\"></circle> <circle id=\"prestart-progress\" class=\"prestart-progress\" cx=\"24\" cy=\"24\" r=\"21\"></circle></svg><div id=\"prestart-number\" class=\"prestart-number\"></div></div></div><!-- spectator audio-unlock: browsers keep audio muted until a page\n\t\t\t\t     gesture, and a spectator may never otherwise interact. lio-game.js\n\t\t\t\t     shows this tappable mid-board icon while audio is locked so the\n\t\t\t\t     silent state has a visible fix; any tap on the page unlocks too —\n\t\t\t\t     this is just the affordance (hidden again the moment audio runs). --><div id=\"audio-unlock-overlay\" class=\"audio-unlock-overlay\" aria-hidden=\"true\"><button id=\"audio-unlock\" type=\"button\" class=\"audio-unlock\" title=\"Tap to enable sound\" aria-label=\"Enable sound\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z\"></path></svg></button></div><!-- endgame annotation: a small non-interactive pill naming the finished\n\t\t\t\t     game's result, shown mid-board while the final position is reviewed\n\t\t\t\t     with the result card out of the way (lio-game.js toggles .ea-show) --><div id=\"end-annotation\" class=\"end-annotation\" aria-hidden=\"true\"></div><div id=\"promo-shade\" class=\"promo-shade hidden\"></div><div id=\"promo-select\" class=\"promo hidden\"><piece class=\"promo queen\"></piece> <piece class=\"promo rook\"></piece> <piece class=\"promo bishop\"></piece> <piece class=\"promo knight\"></piece></div><div id=\"result-overlay\" class=\"result-overlay\"><div class=\"result-card\"><div id=\"result-headline\" class=\"result-headline\"></div><div id=\"result-reason\" class=\"result-reason\"></div><div id=\"result-score\" class=\"result-score\"></div><div id=\"result-note\" class=\"result-note hidden\"></div><div class=\"result-actions\"><button id=\"result-rematch\" type=\"button\" class=\"result-btn result-rematch\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\"><div class=\"gwrap\"><div id=\"game\" class=\"og-wrap\"></div><!-- blind deploy: opponent home-rank \"?\" cells, overlaid on the top rank --><div id=\"deploy-questions\" class=\"deploy-questions\" aria-hidden=\"true\"><span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span></div><!-- blind deploy (spectator): bottom home-rank \"?\" cells, hiding both sides --><div id=\"deploy-questions-btm\" class=\"deploy-questions deploy-questions-btm\" aria-hidden=\"true\"><span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span> <span class=\"dq-cell\">?</span></div><!-- blind deploy: on-board controls (non-blocking so the board stays interactive) --><div id=\"deploy-overlay\" class=\"deploy-overlay\"><div class=\"deploy-card\"><div class=\"deploy-headline\">Arrange your pieces</div><div class=\"deploy-hint\">Drag a piece onto another — or tap two squares — to swap, then confirm.</div><div id=\"deploy-countdown\" class=\"deploy-countdown\"></div><button id=\"deploy-confirm\" type=\"button\" class=\"deploy-btn\">Confirm deployment</button><div id=\"deploy-waiting\" class=\"deploy-waiting hidden\">Locked in — waiting for opponent…</div><div id=\"deploy-opponent-status\" class=\"deploy-opp-status hidden\"></div></div></div><!-- pre-start countdown: small radial timer shown mid-board after the\n\t\t\t\t     deploy reveal until white moves or the countdown expires and their\n\t\t\t\t     clock starts on its own (lio-game.js toggles .ps-show and drives\n\t\t\t\t     the ring's stroke-dashoffset). Non-blocking: white can move under it. --><div id=\"prestart-overlay\" class=\"prestart-overlay\" aria-hidden=\"true\"><div class=\"prestart-dial\"><svg class=\"prestart-ring\" viewBox=\"0 0 48 48\"><circle class=\"prestart-track\" cx=\"24\" cy=\"24\" r=\"21\"></circle> <circle id=\"prestart-progress\" class=\"prestart-progress\" cx=\"24\" cy=\"24\" r=\"21\"></circle></svg><div id=\"prestart-number\" class=\"prestart-number\"></div></div></div><!-- spectator audio-unlock: browsers keep audio muted until a page\n\t\t\t\t     gesture, and a spectator may never otherwise interact. lio-game.js\n\t\t\t\t     shows this tappable mid-board icon while audio is locked so the\n\t\t\t\t     silent state has a visible fix; any tap on the page unlocks too —\n\t\t\t\t     this is just the affordance (hidden again the moment audio runs). --><div id=\"audio-unlock-overlay\" class=\"audio-unlock-overlay\" aria-hidden=\"true\"><button id=\"audio-unlock\" type=\"button\" class=\"audio-unlock\" title=\"Tap to enable sound\" aria-label=\"Enable sound\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z\"></path></svg></button></div><!-- endgame annotation: a small non-interactive pill naming the finished\n\t\t\t\t     game's result, shown mid-board while the final position is reviewed\n\t\t\t\t     with the result card out of the way (lio-game.js toggles .ea-show) --><div id=\"end-annotation\" class=\"end-annotation\" aria-hidden=\"true\"></div><div id=\"promo-shade\" class=\"promo-shade hidden\"></div><div id=\"promo-select\" class=\"promo hidden\"><piece class=\"promo queen\"></piece> <piece class=\"promo rook\"></piece> <piece class=\"promo bishop\"></piece> <piece class=\"promo knight\"></piece></div><div id=\"result-overlay\" class=\"result-overlay\"><div class=\"result-card\"><div id=\"result-headline\" class=\"result-headline\"></div><div id=\"result-reason\" class=\"result-reason\"></div><div id=\"result-score\" class=\"result-score\"></div><!-- per-player rating change (rated games only): filled by\n\t\t\t\t\t\t     lio-game.js from the rating-update frame, empty (and\n\t\t\t\t\t\t     collapsed) otherwise --><div id=\"result-ratings\" class=\"result-ratings\"></div><div id=\"result-note\" class=\"result-note hidden\"></div><div class=\"result-actions\"><button id=\"result-rematch\" type=\"button\" class=\"result-btn result-rematch\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Play again"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 611, Col: 126}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 640, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -1298,7 +1304,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 611, Col: 170}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 640, Col: 170}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 		if templ_7745c5c3_Err != nil {
@@ -1333,7 +1339,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 // the big time on its own full-width line. Stacking decouples the time from the
 // name so a long name only ellipsizes within its row and never compresses the
 // clock horizontally.
-func clock(name string) templ.Component {
+func clock(name string, rating string, ratingDelta int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1369,13 +1375,77 @@ func clock(name string) templ.Component {
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 651, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 680, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</span> <span class=\"clockRating\"><span class=\"clockRatingNumber\">0</span></span><!-- material-difference icons (lichess-style): lio-game.js fills this\n\t\t\t\t     with <piece> sprites for the piece types this seat is up, plus a\n\t\t\t\t     +N point score when this seat leads; empty (and collapsed via\n\t\t\t\t     :empty) while material is level --><span class=\"clockMaterial\" title=\"Material advantage\"></span> <span class=\"thinking\" aria-label=\"thinking\"><i></i><i></i><i></i></span> <span class=\"clockScore\">0</span></div><span class=\"clockTime\">0:00.0</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</span> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if rating != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<span class=\"clockRating\"><span class=\"clockRatingNumber\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var56 string
+			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(rating)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 683, Col: 46}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "</span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if ratingDelta != 0 {
+				var templ_7745c5c3_Var57 = []any{"clockRatingDelta " + ratingDeltaClass(ratingDelta)}
+				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var57...)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<span class=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var58 string
+				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var57).String())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 1, Col: 0}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var59 string
+				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(ratingDeltaText(ratingDelta))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 685, Col: 105}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<!-- material-difference icons (lichess-style): lio-game.js fills this\n\t\t\t\t     with <piece> sprites for the piece types this seat is up, plus a\n\t\t\t\t     +N point score when this seat leads; empty (and collapsed via\n\t\t\t\t     :empty) while material is level --><span class=\"clockMaterial\" title=\"Material advantage\"></span> <span class=\"thinking\" aria-label=\"thinking\"><i></i><i></i><i></i></span> <span class=\"clockScore\">0</span></div><span class=\"clockTime\">0:00.0</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

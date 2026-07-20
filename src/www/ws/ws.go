@@ -11,6 +11,7 @@ import (
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
@@ -132,16 +133,26 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		thisRoom, err := room.Get(roomId)
 		if thisRoom == nil {
 			util.Error(str.CWS, str.EWSConn, err.Error())
-			// the room this page is bound to no longer exists — typically an
-			// open challenge dropped by a server restart (waiting rooms are not
-			// persisted), or a client that missed its room's teardown. Complete
-			// the handshake and send the client home with a notice instead of
-			// silently closing and leaving it to reconnect-loop forever: both
-			// the game page (lio.js default handler) and the waiting page act
-			// on the redirect frame.
+			// the room this page is bound to no longer exists — either a finished
+			// match whose live actor has been torn down, or an unplayed waiting
+			// room (an open challenge dropped by a server restart). Complete the
+			// handshake and send the client somewhere instead of silently closing
+			// and leaving it to reconnect-loop forever: both the game page
+			// (lio.js default handler) and the waiting page act on the redirect
+			// frame.
+			//
+			// A match that archived at least one game has a rooms row, so route
+			// the client to the room's permalink — RoomHandler serves the
+			// socket-less archive view there (so a bfcache-restored live page
+			// that back-navigated here lands on the game history, not home). An
+			// unplayed room has no archive to show, so send it home with a notice.
+			location := "/?notice=room-gone"
+			if db.RoomIDExists(roomId) {
+				location = "/" + roomId
+			}
 			return func(conn *websocket.Conn) {
 				_ = conn.SetWriteDeadline(time.Now().Add(channel.WriteWait))
-				redir := proto.RedirectMessage{Location: "/?notice=room-gone"}
+				redir := proto.RedirectMessage{Location: location}
 				_ = conn.WriteMessage(websocket.TextMessage, redir.Marshal())
 				_ = conn.WriteMessage(websocket.CloseMessage,
 					websocket.FormatCloseMessage(websocket.CloseNormalClosure, "room gone"))

@@ -185,30 +185,56 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 	whiteName := db.UsernameForID(selected.WhiteUserID)
 	blackName := db.UsernameForID(selected.BlackUserID)
 
-	bottomUID, bottomName := selected.WhiteUid, whiteName
-	topUID, topName := selected.BlackUid, blackName
+	bottomUID, bottomName, bottomUserID := selected.WhiteUid, whiteName, selected.WhiteUserID
+	topUID, topName, topUserID := selected.BlackUid, blackName, selected.BlackUserID
+	// rating "at the time of the game" + that game's +/- change, per seat
+	// (empty/zero for casual/anon/bot and pre-tracking rows)
+	bottomRating, bottomDelta := derefStr(selected.WhiteRating), derefInt16(selected.WhiteRatingDelta)
+	topRating, topDelta := derefStr(selected.BlackRating), derefInt16(selected.BlackRatingDelta)
 	if orientation == "b" {
 		bottomUID, topUID = topUID, bottomUID
 		bottomName, topName = topName, bottomName
+		bottomUserID, topUserID = topUserID, bottomUserID
+		bottomRating, topRating = topRating, bottomRating
+		bottomDelta, topDelta = topDelta, bottomDelta
+	}
+
+	// all-time head-to-head score between the two seats' accounts (shown beside
+	// the timeline names). Keyed A=bottom, B=top to match the oriented rows;
+	// zero-Games means nothing to show (a bot/anonymous seat or a first meeting).
+	var topH2H, bottomH2H float64
+	h2hShow := false
+	if !standalone {
+		if h := db.HeadToHead(bottomUserID, topUserID); h.Games > 0 {
+			bottomH2H, topH2H = h.AScore, h.BScore
+			h2hShow = true
+		}
 	}
 
 	model := view.ArchiveModel{
-		RoomID:       selected.RoomID,
-		VariantName:  selected.VariantName,
-		VariantGroup: selected.VariantGroup,
-		Casual:       selected.Casual,
-		RaceTo:       int(selected.RaceTo),
-		N:            n,
-		Count:        len(games),
-		Standalone:   standalone,
-		Orientation:  orientation,
-		TopName:      seatLabel(topUID, topName, uid),
-		BottomName:   seatLabel(bottomUID, bottomName, uid),
-		TopIsBot:     topUID == "",
-		BottomIsBot:  bottomUID == "",
-		TCCenti:      archiveTimeCenti(selected.VariantName, selected.VariantGroup),
-		EndedDate:    selected.EndTs.Time.Format("Jan 2, 2006"),
-		Data:         buildArchiveData(games, selected, og),
+		RoomID:            selected.RoomID,
+		VariantName:       selected.VariantName,
+		VariantGroup:      selected.VariantGroup,
+		Casual:            selected.Casual,
+		RaceTo:            int(selected.RaceTo),
+		N:                 n,
+		Count:             len(games),
+		Standalone:        standalone,
+		Orientation:       orientation,
+		TopName:           seatLabel(topUID, topName, topUserID, uid),
+		BottomName:        seatLabel(bottomUID, bottomName, bottomUserID, uid),
+		TopRating:         topRating,
+		BottomRating:      bottomRating,
+		TopRatingDelta:    topDelta,
+		BottomRatingDelta: bottomDelta,
+		TopIsBot:          isBotSeat(topUID, topUserID),
+		BottomIsBot:       isBotSeat(bottomUID, bottomUserID),
+		TopH2H:            topH2H,
+		BottomH2H:         bottomH2H,
+		H2HShow:           h2hShow,
+		TCCenti:           archiveTimeCenti(selected.VariantName, selected.VariantGroup),
+		EndedDate:         selected.EndTs.Time.Format("Jan 2, 2006"),
+		Data:              buildArchiveData(games, selected, og),
 	}
 
 	return view.Render(c, fiber.StatusOK, view.RoomArchive(view.ArchiveMeta(model), model))
@@ -235,18 +261,31 @@ func archiveTimeCenti(name, group string) int64 {
 	return byName
 }
 
+// isBotSeat reports whether an archived seat was the engine. A bot seat holds
+// no identity at all — no session uid (bots never join over a socket) AND no
+// account. This is deliberately stricter than the old "empty uid" test: a real
+// logged-in player whose session uid was lost to the deploy-rebuild bug (fixed
+// in Join) still carries an account FK, so keying bot-ness off the uid alone
+// mislabeled such humans as "BOT" in the archive. The account check rescues
+// those rows without a data migration.
+func isBotSeat(seatUID string, seatUserID *int64) bool {
+	return seatUID == "" && seatUserID == nil
+}
+
 // seatLabel names a timeline row's seat, mirroring the live-room rules: the
-// engine is "BOT" (bot seats hold an empty uid — they never join), a logged-in
-// seat shows its username to everyone (including that player), the anonymous
-// viewer's own seat reads "You", and any other anonymous human is "Anonymous".
-func seatLabel(seatUID, seatUsername, viewerUID string) string {
-	if seatUID == "" {
+// engine is "BOT" (no session uid and no account), a seat with an account shows
+// its username to everyone (including that player), the anonymous viewer's own
+// seat reads "You", and any other anonymous human is "Anonymous". A seat with an
+// account but a lost session uid (the deploy-rebuild bug) still resolves by its
+// username, never "BOT".
+func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID string) string {
+	if isBotSeat(seatUID, seatUserID) {
 		return "BOT"
 	}
 	if seatUsername != "" {
 		return seatUsername
 	}
-	if viewerUID != "" && seatUID == viewerUID {
+	if viewerUID != "" && seatUID != "" && seatUID == viewerUID {
 		return "You"
 	}
 	return "Anonymous"
@@ -341,6 +380,21 @@ func buildArchiveData(games []gen.Game, selected gen.Game, og *game.OctadGame) v
 	}
 	data.History = history
 	return data
+}
+
+// derefStr / derefInt16 unwrap nullable archive columns to their zero value.
+func derefStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+func derefInt16(p *int16) int {
+	if p == nil {
+		return 0
+	}
+	return int(*p)
 }
 
 // winnerFromOutcome maps a PGN result token to the client's winner code.

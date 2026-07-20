@@ -9,7 +9,10 @@ import (
 	"github.com/looplab/fsm"
 
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/player"
+	"github.com/dechristopher/lio/variant"
 )
 
 // driveToDeploy advances the FSM from init into the deploy phase.
@@ -75,6 +78,72 @@ func TestDeployPhaseHumanGame(t *testing.T) {
 	want := "ppkn/4/4/KNPP w NCFncf - 0 1"
 	if got := r.game.OFEN(); got != want {
 		t.Fatalf("deployed OFEN = %q, want %q", got, want)
+	}
+}
+
+// TestDeployPreservesJoinerUID is a regression test for the archive "BOT" bug:
+// the joiner's seat uid must survive the deploy-phase game rebuild. A room is
+// created with the creator seated and the other seat open, so GameConfig starts
+// without the joiner's uid; Join must stamp the uid onto both r.game AND
+// r.params.GameConfig, because deployAndStart rebuilds r.game from GameConfig at
+// the end of the deploy phase. The old bug synced only r.game, so the rebuild
+// wiped the joiner's uid — the first game then archived an empty seat uid, which
+// the archive view rendered as "BOT".
+func TestDeployPreservesJoinerUID(t *testing.T) {
+	// mirror production Create: creator on white, black seat still open
+	// (ID == "", so GameConfig.Black is empty until a joiner claims it)
+	cfg := game.OctadGameConfig{Variant: variant.HalfOneBlitzDeploy, White: "creator"}
+	g, err := game.NewOctadGame(cfg)
+	if err != nil {
+		t.Fatalf("new game: %v", err)
+	}
+	players := player.Players{
+		octad.White: &player.Player{ID: "creator"},
+		octad.Black: &player.Player{ID: ""}, // open seat (player.ToJoin)
+	}
+	r := &Instance{
+		ID:           "testroom",
+		creator:      "creator",
+		stateMachine: newStateMachine(),
+		params:       Params{Players: players, GameConfig: cfg},
+		game:         g,
+		players:      players,
+		rematch:      player.Agreement{},
+		draw:         player.Agreement{},
+		done:         make(chan struct{}),
+		joinToken:    "tok",
+	}
+
+	// the joiner claims the open black seat
+	uid := int64(42)
+	if !r.Join(player.Identity{UID: "joiner", UserID: &uid}, "tok") {
+		t.Fatal("join failed")
+	}
+	if r.game.Black != "joiner" {
+		t.Fatalf("after join, game.Black = %q, want %q", r.game.Black, "joiner")
+	}
+
+	driveToDeploy(t, r)
+
+	done := make(chan struct{})
+	go func() {
+		r.handleDeploy()
+		close(done)
+	}()
+	submitDeploy(r, "creator", "nkpp")
+	submitDeploy(r, "joiner", "nkpp")
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("deploy did not complete in time")
+	}
+
+	// the rebuilt game must still carry both seats' uids
+	if r.game.White != "creator" {
+		t.Errorf("after deploy rebuild, game.White = %q, want %q", r.game.White, "creator")
+	}
+	if r.game.Black != "joiner" {
+		t.Errorf("after deploy rebuild, game.Black = %q, want %q (deploy wiped the joiner uid)", r.game.Black, "joiner")
 	}
 }
 

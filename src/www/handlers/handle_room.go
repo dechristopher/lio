@@ -6,6 +6,7 @@ import (
 	"github.com/dechristopher/octad/v2"
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
@@ -36,6 +37,10 @@ type newRoomPayload struct {
 	selectedColor octad.Color
 	vsBot         bool
 	public        bool
+	// blindColor marks a random-color creation so the concrete seat colors are
+	// hidden from the pre-game views and the open-challenge listing until the
+	// game begins (see room.Params.BlindColor).
+	blindColor bool
 	// raceTo makes the room a race-to match (see room.Params.RaceTo); zero is
 	// the classic single-game-with-rematches experience.
 	raceTo int
@@ -107,6 +112,17 @@ func RoomHandler(c fiber.Ctx) error {
 	// get template payload for user
 	payload := roomInstance.GenTemplatePayload(uid)
 
+	// decorate the match timeline with the two accounts' all-time head-to-head
+	// score (skipped — no DB round-trip — unless both seats are distinct accounts
+	// that have met before; a pre-game room's open seat is nil, so this no-ops
+	// there too)
+	wUID, bUID := roomInstance.SeatUserIDs()
+	if h := db.HeadToHead(wUID, bUID); h.Games > 0 {
+		payload.H2HWhite = h.AScore
+		payload.H2HBlack = h.BScore
+		payload.H2HShow = true
+	}
+
 	if asPlayer { // user is player
 		// if game waiting state, enable waiting room / join room templates
 		// but only if both players are humans
@@ -143,8 +159,16 @@ func RoomJoinHandler(c fiber.Ctx) error {
 		return redirect(c, "/#errJoin")
 	}
 
+	// a rated room needs a logged-in opponent; send anonymous joiners back to
+	// the room page (which prompts them to log in) rather than through the
+	// generic join-failed path. room.Join enforces this authoritatively too.
+	joiner := identityOf(c)
+	if roomInstance.IsRated() && joiner.UserID == nil {
+		return redirect(c, "/"+roomInstance.ID+"#loginToPlay")
+	}
+
 	// attempt to join room, stamping the joiner's account identity onto the seat
-	if roomInstance.Join(identityOf(c), joinPayload.Token) {
+	if roomInstance.Join(joiner, joinPayload.Token) {
 		// broadcast message to waiting player(s)
 		go roomInstance.NotifyWaiting()
 		// redirect player to game room
@@ -194,6 +218,9 @@ func NewQuickRoomVsHuman(c fiber.Ctx) error {
 		variant:       variant.HalfOneBlitzDeploy,
 		selectedColor: util.RandomColor(),
 		public:        true,
+		// a quick game never lets the creator pick a color, so it is always
+		// blind — the color is revealed only when the game begins
+		blindColor: true,
 	})
 }
 
@@ -254,6 +281,10 @@ func NewCustomRoom(c fiber.Ctx) error {
 	}
 
 	var selectedColor octad.Color
+	// blindColor hides the resolved color from both players' pre-game views (and
+	// the open-challenge listing) until the game begins — only "random" blinds;
+	// an explicitly chosen color is shown up front.
+	blindColor := payload.Color == "r"
 	switch payload.Color {
 	case "w":
 		selectedColor = octad.White
@@ -282,8 +313,9 @@ func NewCustomRoom(c fiber.Ctx) error {
 		selectedColor: selectedColor,
 		vsBot:         vsBot,
 		// bot games are never public open challenges
-		public: payload.Public && !vsBot,
-		raceTo: raceTo,
+		public:     payload.Public && !vsBot,
+		blindColor: blindColor,
+		raceTo:     raceTo,
 	})
 }
 
@@ -330,7 +362,16 @@ func newRoom(payload newRoomPayload) error {
 	// establish room parameters
 	params := room.NewParams(creator, payload.variant)
 	params.Public = payload.public
+	params.BlindColor = payload.blindColor
 	params.RaceTo = payload.raceTo
+	// Ratings are implicit (no opt-in): a competitive (non-casual) human game
+	// created by a logged-in player is rated. Bot games, casual (untimed) games,
+	// and anonymous creators are always unrated — an anonymous creator's
+	// competitive human game still plays, just without ratings, so anonymous
+	// timed play (incl. quick match) keeps working. The room.Join guard then
+	// requires the opponent of a rated room to be logged in too.
+	params.Rated = !payload.vsBot &&
+		creator.UserID != nil && !payload.variant.Casual
 
 	// set creating player in players map, stamping their account identity
 	params.Players[payload.selectedColor] = &player.Player{

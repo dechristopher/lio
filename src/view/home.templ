@@ -80,7 +80,10 @@ templ openChallenges(challenges []message.OpenChallenge) {
 	</div>
 }
 
-// colorDot is the white/black/random piece-color indicator on a challenge.
+// colorDot is the white/black/random piece-color indicator on a challenge and
+// the pre-game summary. The random case is a hard half-white/half-black split
+// (not a gradient), so it reads unmistakably as "either color" while keeping a
+// player from preemptively learning their side.
 templ colorDot(color string) {
 	switch color {
 		case "w":
@@ -88,7 +91,7 @@ templ colorDot(color string) {
 		case "b":
 			<span class="inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-stone-900" title="Black" aria-label="plays Black"></span>
 		default:
-			<span class="inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-gradient-to-br from-white to-stone-900" title="Random" aria-label="random color"></span>
+			<span class="inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-[linear-gradient(90deg,#ffffff_0_50%,#1c1917_50%_100%)]" title="Random" aria-label="random color"></span>
 	}
 }
 
@@ -104,7 +107,7 @@ templ octadAbout() {
 		<h2 class="font-display text-lg font-bold text-fg">What is Octad?</h2>
 		<p class="prose mt-2">
 			Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side.
-			All the chess you know — check, checkmate, promotion, en passant — but with a twist: the king
+			All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king
 			can castle with <em>any</em> of its starting pieces.
 		</p>
 		<div class="home-demo mt-3">

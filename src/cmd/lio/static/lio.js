@@ -354,15 +354,36 @@ window.handlers.set("id", () => {
 	try { sessionStorage.removeItem(identityReloadKey); } catch (e) { /* noop */ }
 });
 
+// Follow a server redirect target. When it points at the page we are already
+// on — a closed room resolving to its own permalink, which RoomHandler serves
+// as the socket-less archive view — a plain same-URL assignment can no-op
+// against a page restored from the back/forward cache (bfcache). reload()
+// bypasses bfcache and forces a fresh GET, so the server re-serves the URL as
+// the archive view instead of the client bouncing home. A different target
+// (e.g. the game-ready redirect, or the home fallback for an unplayed room) is
+// a normal navigation.
+window.navigateTo = (target) => {
+	let samePath = false;
+	try {
+		samePath = new URL(target, window.location.origin).pathname === window.location.pathname;
+	} catch (e) { /* malformed target — fall through to a plain navigation */ }
+	if (samePath) {
+		window.location.reload();
+	} else {
+		window.location = target;
+	}
+};
+
 // Default redirect handler: the server sends this when the room a socket is
-// bound to no longer exists (e.g. an open challenge dropped by a server
-// restart) — navigate instead of reconnect-looping against a dead room. The
-// waiting page (lio-room-create.js, loaded after this file) overrides it with
-// its own version that also plays the game-ready notification sound.
+// bound to no longer exists — a finished match (routed to its permalink, i.e.
+// the archive view) or an unplayed waiting room (sent home). Navigate instead
+// of reconnect-looping against a dead room. The waiting page
+// (lio-room-create.js, loaded after this file) overrides it with its own
+// version that also plays the game-ready notification sound.
 window.handlers.set("e", (message) => {
 	if (message.d && message.d.l) {
 		disconnected = true; // don't fight the navigation with a reconnect
-		window.location = message.d.l;
+		window.navigateTo(message.d.l);
 	}
 });
 

@@ -46,9 +46,13 @@ func Wire(g fiber.Router) {
 	g.Post("/login", LoginHandler)
 	g.Post("/logout", LogoutHandler)
 	g.Get("/username-available", UsernameAvailableHandler)
+	g.Get("/ratings", RatingsHandler)
 
 	// logged-in account administration (password / sessions / logout-all)
 	wireAdmin(g)
+
+	// MFA: login-time second factor + management (arch Phase 4)
+	wireMFA(g)
 }
 
 // RegisterHandler creates an account and logs the visitor in by upgrading
@@ -155,11 +159,37 @@ func LoginHandler(c fiber.Ctx) error {
 		}
 	}
 
+	// second factor (arch/ACCOUNTS_AUTH_RATINGS.md Phase 4): password is only
+	// the first factor here. If the account has TOTP or a passkey enrolled, the
+	// visitor is NOT logged in yet — issue a short-lived pending token and let
+	// them complete a factor via the /login/{totp,recovery,webauthn/*} routes.
+	if methods, hasMFA := loginMFAMethods(rec.ID, rec.TOTPConfirmed); hasMFA {
+		return c.Status(fiber.StatusOK).JSON(mfaChallengeBody{
+			MFA:     true,
+			Pending: auth.NewPending(rec.ID, rec.Username),
+			Methods: methods,
+		})
+	}
+
 	if err := auth.Login(c, auth.FromRequest(c), rec.ID, rec.Username); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "login failed"})
 	}
 	return c.Status(fiber.StatusOK).JSON(okBody{Username: rec.Username})
+}
+
+// loginMFAMethods reports which second factors an account offers (and whether it
+// has any). recovery is only advertised alongside a real factor — a
+// recovery-only account can't exist.
+func loginMFAMethods(userID int64, totpConfirmed bool) (mfaMethodsBody, bool) {
+	passkeys, _ := db.CountWebAuthnCredentials(userID)
+	recovery, _ := db.CountUnusedRecoveryCodes(userID)
+	m := mfaMethodsBody{
+		TOTP:     totpConfirmed,
+		Passkey:  passkeys > 0,
+		Recovery: recovery > 0,
+	}
+	return m, m.TOTP || m.Passkey
 }
 
 // LogoutHandler revokes the current session. Works even when accounts are

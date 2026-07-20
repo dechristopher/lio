@@ -24,6 +24,9 @@ const (
 	GameOverTag PayloadTag = "g"
 	// RematchUpdateTag is the message type tag for the RematchUpdatePayload
 	RematchUpdateTag PayloadTag = "ru"
+	// RatingUpdateTag is the message type tag for the RatingUpdatePayload, sent
+	// after a rated game archives to surface each seat's rating change.
+	RatingUpdateTag PayloadTag = "rc"
 	// DrawOfferTag is the message type tag for the DrawOfferPayload
 	DrawOfferTag PayloadTag = "do"
 	// RoomTag is the message type tag for the RoomMessage
@@ -247,6 +250,23 @@ type CrowdPayload struct {
 	Black bool `json:"b"`
 	White bool `json:"w"`
 	Spec  int  `json:"s"`
+}
+
+// RatingChange is one seat's Glicko-2 rating change after a rated game: the new
+// display rating ("1658" / "1500?") and the signed integer delta (+8 / -8).
+type RatingChange struct {
+	Rating string `json:"r"`
+	Delta  int    `json:"d"`
+}
+
+// RatingUpdatePayload carries both seats' rating changes, broadcast to a room
+// after a rated game archives (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). The
+// client maps White/Black to clocks by the finished game's color orientation —
+// the same mapping the clocks already use — so the new ratings persist into a
+// rematch, and fills the game-over card's per-player delta.
+type RatingUpdatePayload struct {
+	White RatingChange `json:"w"`
+	Black RatingChange `json:"b"`
 }
 
 // GameOverPayload contains data regarding the outcome of the game

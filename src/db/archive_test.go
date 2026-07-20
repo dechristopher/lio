@@ -196,7 +196,7 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 	})
 
 	gamesBefore := TotalGames()
-	if err := ArchiveGame(ctx, rec, plies); err != nil {
+	if _, err := ArchiveGame(ctx, rec, plies); err != nil {
 		t.Fatalf("archive: %v", err)
 	}
 	if got := TotalGames(); got != gamesBefore+1 {
@@ -250,7 +250,7 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 	rec2.GameID = uuid.NewString()
 	rec2.RoomID = "testroom2"
 	rec2.PGNObjectKey = "test/key2.pgn" // distinct key (pgn_object_key is now UNIQUE)
-	if err := ArchiveGame(ctx, rec2, plies); err != nil {
+	if _, err := ArchiveGame(ctx, rec2, plies); err != nil {
 		t.Fatalf("archive dup: %v", err)
 	}
 	if after := countPositions(t, ctx); after != before {

@@ -45,6 +45,7 @@ let currentGameID = null;
 
 const moveTag = "m";
 const gameOverTag = "g";
+const ratingUpdateTag = "rc";
 const rematchUpdateTag = "ru";
 const drawOfferTag = "do";
 const deployTag = "d";
@@ -595,6 +596,7 @@ const resultCardEl = resultOverlayEl
 const resultHeadlineEl = document.getElementById('result-headline');
 const resultReasonEl = document.getElementById('result-reason');
 const resultScoreEl = document.getElementById('result-score');
+const resultRatingsEl = document.getElementById('result-ratings');
 const resultCountdownEl = document.getElementById('result-countdown');
 const rematchBtn = document.getElementById('result-rematch');
 const homeBtn = document.getElementById('result-home');
@@ -1058,6 +1060,11 @@ const showResult = (message) => {
 	setRematchButtonsNewMatch(!!message.d.mo);
 	setRematchButtonsDefault();
 
+	// clear any rating deltas from a previous game; the rated-game rating-update
+	// broadcast (handleRatingUpdate) fills them in a beat later, before the card
+	// finishes its delayed fade-in. A casual game leaves this empty.
+	if (resultRatingsEl) { resultRatingsEl.innerHTML = ''; }
+
 	const winner = message.d.w; // "w", "b", or "d"
 
 	let outcome, headline;
@@ -1162,6 +1169,73 @@ const showResult = (message) => {
 		// scrolled down at the moves panel when the game ends
 		snapViewToBoard();
 	}, resultShowDelayMs);
+};
+
+// setClockRating updates one clock's rating number in place (building the span
+// if a rated clock somehow rendered without one). The clocks are not re-rendered
+// between games, so setting it here makes the new rating persist into a rematch.
+const setClockRating = (clockEl, rating) => {
+	if (!clockEl || !rating) { return; }
+	let num = clockEl.querySelector('.clockRatingNumber');
+	if (!num) {
+		const wrap = document.createElement('span');
+		wrap.className = 'clockRating';
+		num = document.createElement('span');
+		num.className = 'clockRatingNumber';
+		wrap.appendChild(num);
+		const nameEl = clockEl.querySelector('.clockName');
+		if (nameEl && nameEl.parentNode) {
+			nameEl.parentNode.insertBefore(wrap, nameEl.nextSibling);
+		} else {
+			clockEl.appendChild(wrap);
+		}
+	}
+	num.textContent = rating;
+};
+
+// renderResultRatings fills the game-over card with a per-player rating row —
+// name, new rating, and a green/red +/- delta — player (bottom) first, then
+// opponent (top). Built via the DOM (names are user-controlled).
+const renderResultRatings = (d) => {
+	if (!resultRatingsEl) { return; }
+	resultRatingsEl.innerHTML = '';
+	// bottom clock holds white iff playerWhite this game; map each seat's change
+	const rows = [
+		{ el: clockPlayerEl, c: playerWhite ? d.w : d.b },
+		{ el: clockOpponentEl, c: playerWhite ? d.b : d.w },
+	];
+	rows.forEach(({ el, c }) => {
+		if (!c) { return; }
+		const nameEl = el ? el.querySelector('.clockName') : null;
+		const row = document.createElement('div');
+		row.className = 'rr-row';
+		const name = document.createElement('span');
+		name.className = 'rr-name';
+		name.textContent = nameEl ? nameEl.textContent : '';
+		const rating = document.createElement('span');
+		rating.className = 'rr-rating';
+		rating.textContent = c.r || '';
+		const delta = document.createElement('span');
+		delta.className = 'rr-delta ' + (c.d > 0 ? 'win' : (c.d < 0 ? 'loss' : ''));
+		delta.textContent = (c.d > 0 ? '+' : '') + c.d;
+		row.append(name, rating, delta);
+		resultRatingsEl.appendChild(row);
+	});
+};
+
+// handleRatingUpdate applies a rated game's rating change (server "rc" frame,
+// sent once the game archives — typically before the result card's delayed
+// fade-in): refresh both clocks (mapped to seats by the finished game's color
+// orientation, so values land on the right player and survive a rematch flip)
+// and fill the game-over card's delta rows.
+const handleRatingUpdate = (message) => {
+	const d = message.d;
+	if (!d || (!d.w && !d.b)) { return; }
+	const whiteClock = playerWhite ? clockPlayerEl : clockOpponentEl;
+	const blackClock = playerWhite ? clockOpponentEl : clockPlayerEl;
+	if (d.w) { setClockRating(whiteClock, d.w.r); }
+	if (d.b) { setClockRating(blackClock, d.b.r); }
+	renderResultRatings(d);
 };
 
 /**
@@ -4068,6 +4142,7 @@ const handleIdentity = (message) => {
 
 window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
+window.handlers.set(ratingUpdateTag, handleRatingUpdate);
 window.handlers.set(rematchUpdateTag, handleRematchUpdate);
 window.handlers.set(drawOfferTag, handleDrawOffer);
 window.handlers.set(deployTag, handleDeploy);

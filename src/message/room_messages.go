@@ -39,6 +39,18 @@ type RoomTemplatePayload struct {
 	WhiteName   string
 	BlackName   string
 	CreatorName string
+	// WhiteRating / BlackRating are each seat's Glicko-2 display rating
+	// ("1650" / "1500?") in a rated game, captured at seat-claim
+	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Empty for anonymous/bot seats and
+	// for every casual (unrated) game — the clock then shows no rating.
+	WhiteRating string
+	BlackRating string
+	// CreatorRating is the creator's rating display for a rated room, shown in
+	// the joiner's pre-game view and the OG card ("Challenge from drew (1650?)").
+	CreatorRating string
+	// Rated reports whether the room's games affect ratings (drives the
+	// "Rated"/"Casual" pre-game + in-game label).
+	Rated       bool
 	VariantName string
 	Variant     variant.Variant
 	IsCreator   bool
@@ -46,11 +58,25 @@ type RoomTemplatePayload struct {
 	// Public reports whether the challenge is listed in the home-page Open
 	// Challenges feed (vs a private, link-only challenge).
 	Public bool
+	// BlindColor marks a random-color room: the viewer's concrete PlayerColor is
+	// still set (the board needs it once the game starts), but the pre-game
+	// summary hides it behind a half/half "random" indicator so neither the
+	// creator nor the joiner learns their color before the first move.
+	BlindColor bool
 	// RaceTo is the room's match length (room.Params.RaceTo): the points target
 	// of a race-to match, or zero for a classic single game with rematches. The
 	// room views label the match with it ("Race to 3") on both the pre-game and
 	// in-game pages.
-	RaceTo      int
+	RaceTo int
+	// H2HWhite / H2HBlack are each seat's all-time head-to-head score (win = 1,
+	// draw = ½) against the current opponent, shown beside the match-timeline
+	// names with the leader greened. H2HShow gates rendering: set only when both
+	// seats are distinct accounts with at least one prior game together (bot and
+	// anonymous seats have no durable rivalry). The values are keyed by color and
+	// mapped onto the timeline rows by the same rules as the names/ratings.
+	H2HWhite    float64
+	H2HBlack    float64
+	H2HShow     bool
 	CancelToken string
 	JoinToken   string
 }

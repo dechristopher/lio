@@ -29,14 +29,14 @@ window.addEventListener('load', () => {
 		requestRoomUpdate();
 	}, 5000);
 
-	// listen for redirect messages
+	// listen for redirect messages (game-ready → the game URL, or a gone room →
+	// its archive permalink / home). Play the ready chime, then navigate — via
+	// the shared helper so a same-URL target forces a fresh GET (bfcache-safe)
+	// rather than a no-op.
 	window.handlers.set(redirectTag, (message) => {
-		window.notification.play();
-		// reload page
-		if (window.location === message.d.l) {
-			window.location.reload();
-		} else {
-			window.location = message.d.l;
+		if (message.d && message.d.l) {
+			window.notification.play();
+			window.navigateTo(message.d.l);
 		}
 	});
 

@@ -6,6 +6,7 @@ package view
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v3"
@@ -79,6 +80,9 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	challenger := "anonymous player"
 	if payload.CreatorName != "" {
 		challenger = payload.CreatorName
+		if payload.CreatorRating != "" {
+			challenger += " (" + payload.CreatorRating + ")"
+		}
 	}
 	challenge := group + " (" + payload.Variant.Name +
 		") " + mode + " octad • Challenge from " + challenger
@@ -184,6 +188,82 @@ func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot boo
 		return "You"
 	}
 	return "Anonymous"
+}
+
+// ratingDeltaClass / ratingDeltaText render a per-game rating change beside the
+// archive clock's rating: green (win) for a gain, red (loss) for a loss, and
+// the signed number ("+8" / "-8"). Zero is never rendered (the clock omits the
+// delta span), so it needs no class.
+func ratingDeltaClass(d int) string {
+	if d > 0 {
+		return "win"
+	}
+	if d < 0 {
+		return "loss"
+	}
+	return ""
+}
+
+func ratingDeltaText(d int) string {
+	if d > 0 {
+		return "+" + strconv.Itoa(d)
+	}
+	return strconv.Itoa(d) // negatives carry their own '-'
+}
+
+// seatColorRating resolves one seat's clock rating display (by "w"/"b" color),
+// or "" when the seat has none (anonymous/bot, or an unrated game).
+func seatColorRating(payload message.RoomTemplatePayload, color string) string {
+	switch color {
+	case "w":
+		return payload.WhiteRating
+	case "b":
+		return payload.BlackRating
+	}
+	return ""
+}
+
+// topClockRating / bottomClockRating label each clock with the seat's rating,
+// resolved by the same color/anchor rules as the names.
+func topClockRating(payload message.RoomTemplatePayload) string {
+	return seatColorRating(payload, topClockColor(payload))
+}
+
+func bottomClockRating(payload message.RoomTemplatePayload) string {
+	return seatColorRating(payload, bottomClockColor(payload))
+}
+
+// h2hText formats a head-to-head score for display, matching the timeline
+// totals' ½ convention (2 → "2", 1.5 → "1½", 0.5 → "½"). Scores are always
+// non-negative multiples of ½ (win = 1, draw = ½).
+func h2hText(score float64) string {
+	whole := int(score) // floor for the non-negative scores here
+	if score-float64(whole) >= 0.5 {
+		if whole == 0 {
+			return "½"
+		}
+		return strconv.Itoa(whole) + "½"
+	}
+	return strconv.Itoa(whole)
+}
+
+// seatH2H resolves one seat's head-to-head score by "w"/"b" color from the
+// payload's color-keyed values.
+func seatH2H(payload message.RoomTemplatePayload, color string) float64 {
+	if color == "w" {
+		return payload.H2HWhite
+	}
+	return payload.H2HBlack
+}
+
+// topH2HScore / bottomH2HScore map the head-to-head score onto the two timeline
+// rows by the same color/anchor rules as the names and ratings.
+func topH2HScore(payload message.RoomTemplatePayload) float64 {
+	return seatH2H(payload, topClockColor(payload))
+}
+
+func bottomH2HScore(payload message.RoomTemplatePayload) float64 {
+	return seatH2H(payload, bottomClockColor(payload))
 }
 
 // otherColorStr flips a "w"/"b" color string (passthrough for anything else).

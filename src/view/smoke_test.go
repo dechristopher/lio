@@ -234,6 +234,75 @@ func TestRenderRoomUsernames(t *testing.T) {
 	mustContain(t, out, "Challenge from drewtest")
 }
 
+// TestRenderRoomRated locks the Phase-5 rating display: in-game each seat's
+// rating shows on its clock and the OG/room title carries the creator's rating;
+// the pre-game summary carries a "Rated" badge and the creator's rating. A
+// casual game shows none of it.
+func TestRenderRoomRated(t *testing.T) {
+	// in-game render: clocks + OG title
+	p := message.RoomTemplatePayload{
+		RoomID:        "abc",
+		PlayerColor:   "w",
+		OpponentColor: "b",
+		WhiteName:     "drewtest",
+		BlackName:     "cdpplayer",
+		CreatorName:   "drewtest",
+		WhiteRating:   "1650",
+		BlackRating:   "1500?",
+		CreatorRating: "1650",
+		Rated:         true,
+		VariantName:   "Half One blitz",
+		Variant:       variant.HalfOneBlitz,
+	}
+	out := renderSmoke(t, Room(RoomMeta(p), p))
+	mustContain(t, out, "1650")  // white clock rating
+	mustContain(t, out, "1500?") // black clock rating (provisional)
+	mustContain(t, out, "Challenge from drewtest (1650)")
+	mustContain(t, out, `id="result-ratings"`) // game-over delta slot (JS-filled)
+
+	// pre-game joiner render: the "Rated" badge + creator rating in the summary
+	joiner := p
+	joiner.IsJoining = true
+	joiner.JoinToken = "tok"
+	outJ := renderSmoke(t, Room(RoomMeta(joiner), joiner))
+	mustContain(t, outJ, ">Rated</span>")
+	mustContain(t, outJ, "(1650)") // creator rating beside their name
+
+	// a casual game carries no ratings and no badge
+	casual := message.RoomTemplatePayload{
+		RoomID: "abc", PlayerColor: "w", OpponentColor: "b",
+		WhiteName: "drewtest", BlackName: "cdpplayer",
+		VariantName: "Half One blitz", Variant: variant.HalfOneBlitz,
+	}
+	outC := renderSmoke(t, Room(RoomMeta(casual), casual))
+	mustNotContain(t, outC, ">Rated</span>")
+	mustNotContain(t, outC, "clockRatingNumber")
+}
+
+// TestRenderClockRatingDelta locks the archive clock's "rating + change"
+// rendering: a gain is a green +N, a loss a red -N, a zero delta shows only the
+// rating (live clocks), and no rating shows nothing at all.
+func TestRenderClockRatingDelta(t *testing.T) {
+	gain := renderSmoke(t, clock("drewtest", "1650", 8))
+	mustContain(t, gain, ">1650</span>")
+	mustContain(t, gain, "clockRatingDelta win")
+	mustContain(t, gain, "+8")
+
+	loss := renderSmoke(t, clock("cdpplayer", "1500?", -8))
+	mustContain(t, loss, "1500?")
+	mustContain(t, loss, "clockRatingDelta loss")
+	mustContain(t, loss, "-8")
+
+	// zero delta (the live clocks): rating shown, no delta span
+	none := renderSmoke(t, clock("drewtest", "1650", 0))
+	mustContain(t, none, ">1650</span>")
+	mustNotContain(t, none, "clockRatingDelta")
+
+	// no rating (casual/anon/bot): no rating block at all
+	empty := renderSmoke(t, clock("You", "", 0))
+	mustNotContain(t, empty, "clockRating")
+}
+
 func TestRenderRoomCreator(t *testing.T) {
 	p := message.RoomTemplatePayload{
 		RoomID:      "abc",
@@ -315,6 +384,13 @@ func TestRenderHeaderViewerStates(t *testing.T) {
 	mustNotContain(t, loggedOut, `id="profilePopover"`)
 	mustNotContain(t, loggedOut, "disabled")
 
+	// Phase 4 login-time second-factor step + method controls
+	mustContain(t, loggedOut, `id="mfaStep"`)
+	mustContain(t, loggedOut, `id="mfaCodeForm"`)
+	mustContain(t, loggedOut, `id="mfaPasskeyBtn"`)
+	mustContain(t, loggedOut, `data-mfa-alt="passkey"`)
+	mustContain(t, loggedOut, `data-mfa-alt="recovery"`)
+
 	loggedIn := renderSmokeViewer(t,
 		Viewer{UID: "uid123", LoggedIn: true, Username: "drew",
 			AccountsEnabled: true}, page)
@@ -331,6 +407,13 @@ func TestRenderHeaderViewerStates(t *testing.T) {
 	mustContain(t, loggedIn, `id="sessionsDetails"`)
 	mustContain(t, loggedIn, `id="sessionsBody"`)
 	mustContain(t, loggedIn, `id="logoutAllButton"`)
+
+	// Phase 4 security surface: the popover button opens the (logged-in-only)
+	// two-factor & passkey modal
+	mustContain(t, loggedIn, `id="securityButton"`)
+	mustContain(t, loggedIn, `id="modalSecurity"`)
+	mustContain(t, loggedIn, `id="securityModalBody"`)
+	mustNotContain(t, loggedIn, "arrive soon") // old Phase-3 placeholder gone
 }
 
 // TestRenderSessionList covers the active-sessions fragment: the current

@@ -286,7 +286,10 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 	})
 }
 
-// colorDot is the white/black/random piece-color indicator on a challenge.
+// colorDot is the white/black/random piece-color indicator on a challenge and
+// the pre-game summary. The random case is a hard half-white/half-black split
+// (not a gradient), so it reads unmistakably as "either color" while keeping a
+// player from preemptively learning their side.
 func colorDot(color string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -320,7 +323,7 @@ func colorDot(color string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-gradient-to-br from-white to-stone-900\" title=\"Random\" aria-label=\"random color\"></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"inline-block h-3.5 w-3.5 rounded-full border border-line-strong bg-[linear-gradient(90deg,#ffffff_0_50%,#1c1917_50%_100%)]\" title=\"Random\" aria-label=\"random color\"></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -357,7 +360,7 @@ func octadAbout() templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"card\"><h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know — check, checkmate, promotion, en passant — but with a twist: the king can castle with <em>any</em> of its starting pieces.</p><div class=\"home-demo mt-3\"><div class=\"gcon\"><div class=\"gwrap\"><div id=\"home-demo-board\" class=\"og-wrap\"></div><div id=\"home-demo-overlay\" class=\"end-annotation\" aria-hidden=\"true\"></div></div></div></div><div class=\"btn-seg mt-3\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Learn more</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"card\"><h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king can castle with <em>any</em> of its starting pieces.</p><div class=\"home-demo mt-3\"><div class=\"gcon\"><div class=\"gwrap\"><div id=\"home-demo-board\" class=\"og-wrap\"></div><div id=\"home-demo-overlay\" class=\"end-annotation\" aria-hidden=\"true\"></div></div></div></div><div class=\"btn-seg mt-3\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Learn more</a></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -436,7 +439,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 150, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 153, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -449,7 +452,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(item.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 151, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 154, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -462,7 +465,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 153, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 156, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {

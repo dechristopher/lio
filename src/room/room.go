@@ -199,6 +199,14 @@ type Instance struct {
 	// and the creator opts in to public listing at creation time. Set once in
 	// Create and never mutated, so it needs no lock.
 	public bool
+
+	// blindColor reports that the creator chose a random color, so neither the
+	// creator's nor the joiner's concrete color is revealed in the pre-game
+	// views or the open-challenge listing — the board orientation reveals it
+	// only once the game begins. The seat colors are still resolved at creation
+	// (util.RandomColor); this flag only hides them from view. Set once in
+	// Create and never mutated, so it needs no lock.
+	blindColor bool
 }
 
 // Params for room Instance creation
@@ -216,6 +224,11 @@ type Params struct {
 	// Public lists an open human challenge in the home-page Open Challenges
 	// feed. Defaults to false (private, link-only); the creator opts in.
 	Public bool
+	// BlindColor marks a room whose creator chose a random color: the concrete
+	// seat colors (still resolved at creation) are hidden from the pre-game
+	// views and the open-challenge listing until the game begins. Defaults to
+	// false (an explicitly chosen color is shown up front).
+	BlindColor bool
 	// Rated makes the game affect both players' Glicko-2 ratings
 	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Requires both seats logged in
 	// and a non-casual variant; the rating update runs in the archive
@@ -275,6 +288,23 @@ func NewParams(creator player.Identity, variant variant.Variant) Params {
 	}
 }
 
+// ratingCategory is the Glicko-2 category string for the room's variant — the
+// same value archiveGame keys the rating update by (variant speed group).
+func (params Params) ratingCategory() string {
+	return string(params.GameConfig.Variant.Group)
+}
+
+// captureSeatRating snapshots a seat's Glicko-2 display rating at seat-claim so
+// page renders never hit the DB (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). No-op
+// for casual games, bots, and anonymous seats; an unrated logged-in player
+// shows the provisional default ("1500?").
+func captureSeatRating(p *player.Player, rated bool, category string) {
+	if !rated || p == nil || p.IsBot || p.UserID == nil {
+		return
+	}
+	p.RatingDisplay = db.RatingOrDefault(*p.UserID, category).Display()
+}
+
 // Create a room instance from the given parameters
 func Create(params Params) (*Instance, error) {
 	// no new rooms once the shutdown drain has begun
@@ -294,6 +324,14 @@ func Create(params Params) (*Instance, error) {
 		return params.Players[c].IsBot
 	}) {
 		return nil, ErrBadParamsTwoBots{}
+	}
+
+	// capture the creating seat's rating for a rated room (the other seat is the
+	// yet-to-join placeholder — captured on Join).
+	if params.Rated {
+		cat := params.ratingCategory()
+		captureSeatRating(params.Players[octad.White], true, cat)
+		captureSeatRating(params.Players[octad.Black], true, cat)
 	}
 
 	roomId := config.GenerateCode(7, config.Base58)
@@ -344,7 +382,8 @@ func Create(params Params) (*Instance, error) {
 		draw:      player.Agreement{},
 		drawOffer: octad.NoColor,
 
-		public: params.Public,
+		public:     params.Public,
+		blindColor: params.BlindColor,
 
 		cancelToken: config.GenerateCode(12),
 	}
@@ -664,6 +703,20 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 
 	// if second player joining
 	if !hasPlayers && missing != octad.NoColor {
+		// rated games (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5) require a logged-in
+		// opponent who is a different account than the creator — a rating between
+		// an anonymous seat or one account playing itself is meaningless. This is
+		// the authoritative gate; the handler pre-checks only for friendlier UX.
+		if r.params.Rated {
+			if seat.UserID == nil {
+				return false
+			}
+			if other := r.players[missing.Other()]; other != nil &&
+				other.UserID != nil && *other.UserID == *seat.UserID {
+				return false
+			}
+		}
+
 		// set missing player, stamping the joiner's account identity onto the
 		// seat (nil/empty for an anonymous joiner)
 		r.players[missing] = &player.Player{
@@ -672,12 +725,24 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 			Username: seat.Username,
 		}
 
-		// set internal game instance state
+		// set internal game instance state. Also stamp the uid onto the game
+		// config: a deploy-mode room rebuilds r.game from GameConfig at the end
+		// of the deploy phase (deployAndStart), so leaving the joiner's uid only
+		// on r.game would let that rebuild wipe it — the first game would then
+		// archive an empty seat uid and render the joiner as "BOT". Rematches
+		// escaped this because flipBoardLocked repopulates GameConfig from the
+		// seated players; the first game had no such repopulation until now.
 		if missing == octad.White {
 			r.game.White = seat.UID
+			r.params.GameConfig.White = seat.UID
 		} else {
 			r.game.Black = seat.UID
+			r.params.GameConfig.Black = seat.UID
 		}
+
+		// snapshot the joiner's rating for a rated room (the creating seat was
+		// captured at Create)
+		captureSeatRating(r.players[missing], r.params.Rated, r.params.ratingCategory())
 
 		// joined properly
 		return true
@@ -728,6 +793,13 @@ func (r *Instance) State() State {
 // IsCreator returns true if the given player by ID is the creator of the room
 func (r *Instance) IsCreator(id string) bool {
 	return r.creator == id
+}
+
+// IsRated reports whether the room's games affect Glicko-2 ratings
+// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Set once at creation; safe to read
+// without the lock.
+func (r *Instance) IsRated() bool {
+	return r.params.Rated
 }
 
 // HasBot returns true if the room is configured with a bot player
@@ -1823,9 +1895,50 @@ func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string, end t
 
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	if err := db.ArchiveGame(ctx, rec, plies); err != nil {
+	res, err := db.ArchiveGame(ctx, rec, plies)
+	if err != nil {
 		util.Error(str.CDB, "archive failed error=%s", err.Error())
+		return
 	}
+	// a rated game moved both players' ratings: refresh the live room's seat
+	// ratings and tell its clients (the game-over popup delta + the clocks,
+	// which must update in place for a rematch). No-op if the room is already
+	// gone — its clients are gone too.
+	if res != nil {
+		if v, ok := rooms.Load(rec.RoomID); ok {
+			if inst, ok := v.(*Instance); ok && inst != nil {
+				inst.applyRatingResult(*res)
+			}
+		}
+	}
+}
+
+// applyRatingResult updates each seat's displayed rating after a rated game
+// archived and broadcasts the change to the room's clients. Called from the
+// storeGame goroutine. The stored RatingDisplay refresh keeps a later page load
+// / reconnect / spectator-join in sync; the broadcast drives the live game-over
+// popup deltas and the in-place clock refresh for the rematch. Seats are matched
+// by uid, so a rematch's color flip does not misassign the values.
+func (r *Instance) applyRatingResult(res db.RatingResult) {
+	r.stateMu.Lock()
+	for _, sr := range []db.SeatRating{res.White, res.Black} {
+		if sr.UID == "" {
+			continue
+		}
+		for _, c := range []octad.Color{octad.White, octad.Black} {
+			if p := r.players[c]; p != nil && p.ID == sr.UID {
+				p.RatingDisplay = sr.Display
+			}
+		}
+	}
+	r.stateMu.Unlock()
+
+	msg := proto.RatingUpdatePayload{
+		White: proto.RatingChange{Rating: res.White.Display, Delta: res.White.Delta},
+		Black: proto.RatingChange{Rating: res.Black.Display, Delta: res.Black.Delta},
+	}
+	// broadcast outside the lock (I/O); the room channel is keyed by room id
+	channel.Broadcast(msg.Marshal(), channel.SocketContext{Channel: r.ID})
 }
 
 // GameState returns the outcome of the current game, or NoOutcome if still in progress
@@ -1833,6 +1946,21 @@ func (r *Instance) GameState() octad.Outcome {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	return r.game.Outcome()
+}
+
+// SeatUserIDs returns the two seats' account ids (nil for an anonymous human or
+// a bot seat), for the head-to-head lookup that decorates the match timeline.
+// Locks stateMu (reads players).
+func (r *Instance) SeatUserIDs() (white, black *int64) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	if p := r.players[octad.White]; p != nil {
+		white = p.UserID
+	}
+	if p := r.players[octad.Black]; p != nil {
+		black = p.UserID
+	}
+	return white, black
 }
 
 // GenTemplatePayload generates a RoomTemplatePayload for the given player by id.
@@ -1878,6 +2006,25 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		blackName = p.DisplayName()
 	}
 
+	// per-seat rating display for the clocks in a rated game, captured at
+	// seat-claim (RatingDisplay); empty for anon/bot seats and casual games
+	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5).
+	whiteRating, blackRating, creatorRating := "", "", ""
+	if r.params.Rated {
+		if p := r.players[octad.White]; p != nil {
+			whiteRating = p.RatingDisplay
+			if p.ID == r.creator {
+				creatorRating = p.RatingDisplay
+			}
+		}
+		if p := r.players[octad.Black]; p != nil {
+			blackRating = p.RatingDisplay
+			if p.ID == r.creator {
+				creatorRating = p.RatingDisplay
+			}
+		}
+	}
+
 	// display name of the variant: time control + speed group for a timed
 	// game ("½ + 1 blitz"), just the ∞ for a casual one — the views append
 	// the Casual/Competitive mode label themselves, so "∞ unlimited" would
@@ -1898,10 +2045,15 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		AnchorID:      anchorID,
 		WhiteName:     whiteName,
 		BlackName:     blackName,
+		WhiteRating:   whiteRating,
+		BlackRating:   blackRating,
+		CreatorRating: creatorRating,
+		Rated:         r.params.Rated,
 		CreatorName:   r.params.CreatorName,
 		VariantName:   variantName,
 		Variant:       r.game.Variant,
 		Public:        r.public,
+		BlindColor:    r.blindColor,
 		RaceTo:        r.params.RaceTo,
 	}
 }

@@ -81,10 +81,26 @@ type ArchiveModel struct {
 	// the engine, "PLAYER" otherwise.
 	TopName    string
 	BottomName string
-	// Top/BottomIsBot mark the engine's seat (empty archived uid) so the
+	// Top/BottomRating are each seat's rating "at the time of this game" (the
+	// display it held going into the game, "1650"/"1500?"), and Top/BottomRatingDelta
+	// the signed change that game applied (+8/-8). Empty/zero for casual/anon/bot
+	// games and rows archived before ratings were tracked — the clock then shows
+	// no rating (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5).
+	TopRating         string
+	BottomRating      string
+	TopRatingDelta    int
+	BottomRatingDelta int
+	// Top/BottomIsBot mark the engine's seat (no uid and no account) so the
 	// archive clock cards can show the CPU glyph exactly like the live page.
 	TopIsBot    bool
 	BottomIsBot bool
+	// Top/BottomH2H are the two seats' all-time head-to-head score (win = 1,
+	// draw = ½) against each other, shown beside the timeline names with the
+	// leader greened. H2HShow gates it: set only when both seats are distinct
+	// accounts with at least one game on record together.
+	TopH2H    float64
+	BottomH2H float64
+	H2HShow   bool
 	// TCCenti is the game's full starting clock budget in centiseconds,
 	// resolved from the variant registry (the archived row stores only the
 	// variant's display name). It renders into the board's data-tc — the

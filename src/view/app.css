@@ -419,6 +419,11 @@
 	}
 	.clockRating { flex: none; font-size: 0.7rem; color: var(--text-subtle); }
 	.clockRatingNumber { font-weight: 600; }
+	/* per-game rating change beside the rating on the archive clocks (green gain
+	   / red loss); live clocks never render it — the delta lives in the popup */
+	.clockRatingDelta { margin-left: 0.25rem; font-weight: 700; }
+	.clockRatingDelta.win { color: var(--win); }
+	.clockRatingDelta.loss { color: var(--loss); }
 	/* material-difference icons (lichess-style), filled by lio-game.js from the
 	   viewed position: one .mat-group per piece type this seat is up (same-type
 	   icons overlap like a fanned stack), then a +N point score when this seat
@@ -566,6 +571,21 @@
 		min-width: 0;
 		max-width: 9rem;
 	}
+	/* all-time head-to-head score, left of each name. The leader (.ahead) is
+	   greened; the trailer stays muted grey. Server-rendered and static — the JS
+	   timeline rebuild only touches .tl-total, never this. */
+	.tl-h2h {
+		flex: none;
+		order: -1;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--text-subtle);
+		min-width: 1ch;
+		text-align: center;
+	}
+	.tl-h2h.ahead { color: var(--win); }
 	.tl-total {
 		flex: none;
 		margin-left: auto;
@@ -1155,6 +1175,18 @@
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
 	}
+	/* per-player rating change under the score (rated games only): a row per
+	   player — name · new rating · signed delta (green gain / red loss). Filled
+	   by lio-game.js; :empty collapses it for casual games. */
+	.result-ratings { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.5rem; }
+	.result-ratings:empty { display: none; }
+	.rr-row { display: flex; align-items: baseline; justify-content: center; gap: 0.5rem; font-size: 0.9rem; }
+	.rr-name { font-weight: 600; color: var(--text); max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.rr-rating { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted); }
+	.rr-delta { font-family: var(--font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+	.rr-delta.win { color: var(--win); }
+	.rr-delta.loss { color: var(--loss); }
+
 	/* "opponent wants a rematch" note above the actions */
 	.result-note { margin-top: 0.5rem; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
 	.result-actions { display: flex; gap: 0.6rem; justify-content: center; margin-top: 1rem; }
@@ -1538,6 +1570,110 @@
 	.session-revoke:hover { background: var(--loss); color: #fff; border-color: transparent; }
 	.session-revoke:disabled { opacity: 0.5; cursor: default; }
 
+	/* --- MFA (Phase 4): login second-factor step + security modal --- */
+	/* wider modal box for the security dialog (QR + code lists need room) */
+	.modal-wide { width: min(94vw, 26rem); }
+
+	/* alt-method text buttons under the login MFA step */
+	.auth-alt {
+		background: none;
+		border: none;
+		padding: 0.15rem 0.25rem;
+		font-size: 0.76rem;
+		font-weight: 600;
+		color: var(--accent);
+		cursor: pointer;
+	}
+	.auth-alt:hover { text-decoration: underline; }
+
+	/* security modal: one bordered block per factor group */
+	.mfa-section {
+		border: 1px solid var(--border);
+		border-radius: 0.6rem;
+		background: var(--surface-2);
+		padding: 0.7rem 0.8rem;
+		margin-top: 0.7rem;
+	}
+	.mfa-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
+	.mfa-title { font-size: 0.86rem; font-weight: 700; color: var(--text); }
+	.mfa-desc { margin-top: 0.15rem; font-size: 0.72rem; font-weight: 500; color: var(--text-subtle); }
+	.mfa-on { font-size: 0.7rem; font-weight: 700; color: var(--win); white-space: nowrap; }
+	.mfa-off { font-size: 0.7rem; font-weight: 700; color: var(--text-subtle); white-space: nowrap; }
+
+	/* passkey list inside the security modal */
+	.pk-list { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.55rem; }
+	.pk-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.4rem 0.55rem;
+		border: 1px solid var(--border);
+		border-radius: 0.45rem;
+		background: var(--surface);
+	}
+	.pk-name { font-size: 0.8rem; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.pk-meta { font-size: 0.66rem; color: var(--text-subtle); }
+	.pk-del {
+		flex: none;
+		padding: 0.2rem 0.5rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 0.35rem;
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.pk-del:hover { background: var(--loss); color: #fff; border-color: transparent; }
+
+	/* TOTP enroll: QR + copyable secret */
+	.qr-frame { display: flex; justify-content: center; margin: 0.6rem 0 0.4rem; }
+	.qr-frame img { width: 200px; height: 200px; border-radius: 0.5rem; background: #fff; padding: 0.4rem; }
+	.totp-secret {
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		letter-spacing: 0.06em;
+		text-align: center;
+		word-break: break-all;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 0.4rem;
+		padding: 0.45rem;
+		color: var(--text);
+		user-select: all;
+	}
+
+	/* one-time recovery codes */
+	.recovery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; margin: 0.7rem 0; }
+	.recovery-code {
+		font-family: var(--font-mono);
+		font-size: 0.82rem;
+		text-align: center;
+		padding: 0.35rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 0.35rem;
+		color: var(--text);
+		user-select: all;
+	}
+	.recovery-warn { font-size: 0.74rem; font-weight: 600; color: var(--warn); }
+
+	/* profile popover ratings summary (Phase 5): compact per-category chips */
+	.rating-summary { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+	.rating-chip {
+		display: flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		padding: 0.3rem 0.55rem;
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		background: var(--surface-2);
+	}
+	.rating-cat { font-size: 0.66rem; font-weight: 600; text-transform: capitalize; color: var(--text-subtle); }
+	.rating-val { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+
 	/* the create-game modal is a wider, richer, horizontal two-panel dialog; it
 	   reuses the shared .modal-shade/.modal-close chrome but overrides the box */
 	.cg-modal {
@@ -1738,6 +1874,23 @@
 		filter: grayscale(0.5);
 		pointer-events: none;
 	}
+	/* rated is implicit (no toggle): a passive note for logged-in creators that a
+	   timed human game counts toward their rating. Always visible (no layout
+	   shift); dimmed when the current pick can't be rated (bot or casual). */
+	.cg-rated-note {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.15rem 0.1rem;
+		font-size: 0.72rem;
+		font-weight: 500;
+		color: var(--text-subtle);
+		transition: opacity 150ms var(--ease-snappy);
+	}
+	.cg-rated-note strong { color: var(--text); font-weight: 700; }
+	.cg-rated-star { color: var(--accent); }
+	.cg:has(#opp-computer:checked) .cg-rated-note,
+	.cg:has(.cg-casual-box:checked) .cg-rated-note { opacity: 0.4; }
 	.cg-toggle-box { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 	.cg-toggle-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
 	.cg-toggle-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }

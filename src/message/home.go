@@ -12,10 +12,11 @@ type LiveGame struct {
 }
 
 // OpenChallenge is a snapshot of a human-vs-human room waiting for an
-// opponent, shown as a joinable seek on the home page. Color is the side the
-// creator chose; whoever joins takes the other. RaceTo is the room's match
-// length (zero for a classic single game), surfaced so a joiner knows they are
-// accepting a race-to match.
+// opponent, shown as a joinable seek on the home page. Color is the side a
+// joiner would take (the still-open seat), so a browser sees the color they'd
+// play — or "r" when the challenge is random-color, so they don't preemptively
+// learn it. RaceTo is the room's match length (zero for a classic single game),
+// surfaced so a joiner knows they are accepting a race-to match.
 type OpenChallenge struct {
 	RoomID  string
 	Variant variant.Variant

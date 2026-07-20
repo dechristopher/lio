@@ -10,31 +10,36 @@ import (
 )
 
 type Game struct {
-	ID            int32
-	GameID        uuid.UUID
-	StartTs       pgtype.Timestamptz
-	EndTs         pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	RaceTo        int32
-	WhiteScore    float32
-	BlackScore    float32
-	Method        int16
-	Casual        bool
-	RoomID        string
-	CreatorUid    string
-	WhiteUid      string
-	BlackUid      string
-	VariantName   string
-	VariantGroup  string
-	Outcome       string
-	Reason        string
-	StartingOfen  string
-	Moves         []byte
-	PgnObjectKey  string
-	GameIndex     int16
-	WhiteUserID   *int64
-	BlackUserID   *int64
-	CreatorUserID *int64
+	ID               int32
+	GameID           uuid.UUID
+	StartTs          pgtype.Timestamptz
+	EndTs            pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	RaceTo           int32
+	WhiteScore       float32
+	BlackScore       float32
+	Method           int16
+	Casual           bool
+	RoomID           string
+	CreatorUid       string
+	WhiteUid         string
+	BlackUid         string
+	VariantName      string
+	VariantGroup     string
+	Outcome          string
+	Reason           string
+	StartingOfen     string
+	Moves            []byte
+	PgnObjectKey     string
+	GameIndex        int16
+	WhiteUserID      *int64
+	BlackUserID      *int64
+	CreatorUserID    *int64
+	Rated            bool
+	WhiteRating      *string
+	BlackRating      *string
+	WhiteRatingDelta *int16
+	BlackRatingDelta *int16
 }
 
 type Move struct {
@@ -54,6 +59,24 @@ type Position struct {
 	EvalDepth   *int16
 	BestMove    *int16
 	EvaluatedAt pgtype.Timestamptz
+}
+
+type Rating struct {
+	UserID     int64
+	Category   string
+	Rating     float64
+	Rd         float64
+	Volatility float64
+	Games      int32
+	UpdatedAt  pgtype.Timestamptz
+}
+
+type RecoveryCode struct {
+	ID        int64
+	UserID    int64
+	CodeHash  []byte
+	UsedAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
 }
 
 type Room struct {
@@ -76,6 +99,7 @@ type Room struct {
 	WhiteUserID   *int64
 	BlackUserID   *int64
 	CreatorUserID *int64
+	Rated         bool
 }
 
 type Session struct {
@@ -90,9 +114,29 @@ type Session struct {
 }
 
 type User struct {
-	ID           int64
-	CreatedAt    pgtype.Timestamptz
-	Username     string
-	Email        *string
-	PasswordHash string
+	ID                 int64
+	CreatedAt          pgtype.Timestamptz
+	Username           string
+	Email              *string
+	PasswordHash       string
+	TotpSecretEnc      []byte
+	TotpConfirmedAt    pgtype.Timestamptz
+	WebauthnUserHandle []byte
+}
+
+type WebauthnCredential struct {
+	ID              int64
+	UserID          int64
+	CredentialID    []byte
+	PublicKey       []byte
+	AttestationType string
+	Aaguid          []byte
+	SignCount       int64
+	Transports      string
+	BackupEligible  bool
+	BackupState     bool
+	Discoverable    bool
+	Nickname        string
+	CreatedAt       pgtype.Timestamptz
+	LastUsedAt      pgtype.Timestamptz
 }

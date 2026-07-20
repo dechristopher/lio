@@ -127,6 +127,35 @@ func GetGameByUUID(id string) (gen.Game, bool, error) {
 	return g, true, nil
 }
 
+// H2H is the all-time head-to-head record between two accounts: each side's
+// cumulative score (win = 1, draw = ½) across every game they've played against
+// each other, and the total game count. A zero record (Games == 0) means there
+// is no rivalry to show.
+type H2H struct {
+	AScore float64
+	BScore float64
+	Games  int64
+}
+
+// HeadToHead returns the all-time head-to-head record between two accounts (by
+// user id), the score keyed A/B to the argument order. Both ids must be non-nil
+// distinct accounts — a nil id (an anonymous or bot seat), a self-match, or an
+// unconfigured Postgres yields a zero record, which callers read as "nothing to
+// show" (only persistent accounts have a durable rivalry).
+func HeadToHead(a, b *int64) H2H {
+	if Pool == nil || a == nil || b == nil || *a == *b {
+		return H2H{}
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	row, err := gen.New(Pool).HeadToHead(ctx, gen.HeadToHeadParams{UserA: a, UserB: b})
+	if err != nil {
+		util.Error(str.CDB, "head-to-head lookup failed: %s", err.Error())
+		return H2H{}
+	}
+	return H2H{AScore: row.AScore, BScore: row.BScore, Games: row.Games}
+}
+
 // ListGameMoveTimes returns an archived game's per-ply timing in ply order,
 // nil when the game predates per-move timing (or Postgres is unconfigured).
 // Plies are timed all-or-nothing at archive time (BuildPlies), so a NULL on

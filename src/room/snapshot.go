@@ -41,7 +41,7 @@ func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge,
 				challenges = append(challenges, message.OpenChallenge{
 					RoomID:  s.id,
 					Variant: s.variant,
-					Color:   s.creatorColor,
+					Color:   s.joinerColor,
 					RaceTo:  s.raceTo,
 				})
 				stats.OpenChallenges++
@@ -68,15 +68,19 @@ func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge,
 // roomSnapshot is an immutable read of a room's display-relevant state,
 // captured atomically under stateMu.
 type roomSnapshot struct {
-	id           string
-	state        State
-	variant      variant.Variant
-	vsBot        bool
-	moves        int
-	openSeat     bool
-	public       bool
-	creatorColor string
-	raceTo       int
+	id       string
+	state    State
+	variant  variant.Variant
+	vsBot    bool
+	moves    int
+	openSeat bool
+	public   bool
+	// joinerColor is the side a visitor would take by joining (the still-open
+	// seat) — the color shown on the home-page open challenge so a browser sees
+	// the color they'd play, not the creator's. It is "r" (random) for a blind
+	// room so the joiner doesn't preemptively learn their color.
+	joinerColor string
+	raceTo      int
 }
 
 // snapshot reads the room's display-relevant state under stateMu so the home
@@ -98,12 +102,14 @@ func (r *Instance) snapshot() roomSnapshot {
 	hasTwo, missing := r.players.HasTwoPlayers()
 	s.openSeat = !hasTwo && missing != octad.NoColor
 
-	// the creator holds the seat opposite the open one; surface their color so
-	// a joiner knows which side they'll take
-	if missing == octad.White {
-		s.creatorColor = octad.Black.String()
-	} else if missing == octad.Black {
-		s.creatorColor = octad.White.String()
+	// surface the still-open seat's color — the side a joiner would take — so a
+	// browser sees the color they'd play. A blind (random-color) room hides it
+	// behind "r" so the joiner doesn't preemptively learn their color; the board
+	// reveals it once they join and the game begins.
+	if r.blindColor {
+		s.joinerColor = "r"
+	} else if missing != octad.NoColor {
+		s.joinerColor = missing.String()
 	}
 
 	return s

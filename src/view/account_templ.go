@@ -50,7 +50,50 @@ func profilePopover(username string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p><!-- ratings summary slot (Phase 5) --><div class=\"mt-3 flex flex-col gap-1.5 border-t border-line pt-3\"><details class=\"account-section\"><summary class=\"account-summary\">Change password</summary><form id=\"passwordForm\" class=\"account-body flex flex-col gap-2\" novalidate><label class=\"auth-label\">Current password <input class=\"auth-input\" name=\"current\" type=\"password\" autocomplete=\"current-password\" required></label> <label class=\"auth-label\">New password <input class=\"auth-input\" name=\"new\" type=\"password\" autocomplete=\"new-password\" required minlength=\"8\" maxlength=\"128\"></label> <label class=\"auth-label\">Confirm new password <input class=\"auth-input\" name=\"confirm\" type=\"password\" autocomplete=\"new-password\" required></label><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><p class=\"auth-ok hidden\" data-auth-ok role=\"status\">Password changed. Other sessions were signed out.</p><button type=\"submit\" class=\"btn btn-primary w-full justify-center py-1.5 text-sm\">Update password</button></form></details> <details id=\"sessionsDetails\" class=\"account-section\"><summary class=\"account-summary\">Active sessions</summary><div id=\"sessionsBody\" class=\"account-body\" data-loaded=\"false\"><p class=\"auth-hint\">Loading…</p></div></details> <details class=\"account-section\"><summary class=\"account-summary\">Security</summary><div class=\"account-body\"><p class=\"auth-hint\">Two-factor authentication and passkeys arrive soon.</p></div></details></div><div class=\"mt-3 flex items-center gap-2 border-t border-line pt-3\"><button type=\"button\" id=\"logoutButton\" class=\"btn btn-ghost flex-1 justify-center py-1.5 text-sm\">Log out</button> <button type=\"button\" id=\"logoutAllButton\" class=\"btn btn-ghost flex-1 justify-center py-1.5 text-sm text-loss\">Log out everywhere</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p><!-- ratings summary (Phase 5): lazy-loaded from GET /api/auth/ratings by\n\t\t     lio-auth.js on first popover open --><div id=\"ratingsSummary\" class=\"mt-2\" data-loaded=\"false\"></div><div class=\"mt-3 flex flex-col gap-1.5 border-t border-line pt-3\"><details class=\"account-section\"><summary class=\"account-summary\">Change password</summary><form id=\"passwordForm\" class=\"account-body flex flex-col gap-2\" novalidate><label class=\"auth-label\">Current password <input class=\"auth-input\" name=\"current\" type=\"password\" autocomplete=\"current-password\" required></label> <label class=\"auth-label\">New password <input class=\"auth-input\" name=\"new\" type=\"password\" autocomplete=\"new-password\" required minlength=\"8\" maxlength=\"128\"></label> <label class=\"auth-label\">Confirm new password <input class=\"auth-input\" name=\"confirm\" type=\"password\" autocomplete=\"new-password\" required></label><p class=\"auth-error hidden\" data-auth-error role=\"alert\"></p><p class=\"auth-ok hidden\" data-auth-ok role=\"status\">Password changed. Other sessions were signed out.</p><button type=\"submit\" class=\"btn btn-primary w-full justify-center py-1.5 text-sm\">Update password</button></form></details> <details id=\"sessionsDetails\" class=\"account-section\"><summary class=\"account-summary\">Active sessions</summary><div id=\"sessionsBody\" class=\"account-body\" data-loaded=\"false\"><p class=\"auth-hint\">Loading…</p></div></details> <button type=\"button\" id=\"securityButton\" class=\"account-section account-summary w-full\">Two-factor &amp; passkeys</button></div><div class=\"mt-3 flex items-center gap-2 border-t border-line pt-3\"><button type=\"button\" id=\"logoutButton\" class=\"btn btn-ghost flex-1 justify-center py-1.5 text-sm\">Log out</button> <button type=\"button\" id=\"logoutAllButton\" class=\"btn btn-ghost flex-1 justify-center py-1.5 text-sm text-loss\">Log out everywhere</button></div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// securityModal is the MFA management dialog (arch/ACCOUNTS_AUTH_RATINGS.md
+// Phase 4), opened from the profile popover's "Two-factor & passkeys" button.
+// Its body is rendered client-side by lio-auth.js from GET /api/auth/mfa/status
+// and swapped through the enroll ceremonies (authenticator-app QR, passkey add,
+// one-time recovery codes) — a modal, not the popover, so the QR and code lists
+// have room and can't be dismissed by an outside click mid-ceremony.
+func securityModal() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div id=\"modalSecurity\" class=\"modal-shade\"><div class=\"modal modal-wide card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = iconClose().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</button><h2>Two-factor &amp; passkeys</h2><div id=\"securityModalBody\" class=\"mt-1 text-left\"><p class=\"auth-hint\">Loading…</p></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -77,87 +120,87 @@ func SessionList(sessions []SessionView) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(sessions) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"auth-hint\">No active sessions.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"auth-hint\">No active sessions.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<ul class=\"session-list\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<ul class=\"session-list\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, s := range sessions {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<li class=\"session-row\"><div class=\"session-meta\"><span class=\"session-device\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(s.Device)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 68, Col: 17}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " ")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				if s.Current {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<span class=\"session-current\">This device</span>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</span> <span class=\"session-seen\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<li class=\"session-row\"><div class=\"session-meta\"><span class=\"session-device\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(s.LastSeen)
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(s.Device)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 73, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 85, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</span></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				if s.Current {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span class=\"session-current\">This device</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span> <span class=\"session-seen\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 string
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(s.LastSeen)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 90, Col: 45}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if !s.Current {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<button type=\"button\" class=\"session-revoke\" data-session-id=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<button type=\"button\" class=\"session-revoke\" data-session-id=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var6 string
-					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(s.ID, 10))
+					var templ_7745c5c3_Var7 string
+					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(s.ID, 10))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 76, Col: 96}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 93, Col: 96}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\" title=\"Revoke this session\">Revoke</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" title=\"Revoke this session\">Revoke</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</li>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</ul>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</ul>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

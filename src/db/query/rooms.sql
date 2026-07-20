@@ -6,9 +6,10 @@
 INSERT INTO rooms (
     room_id, first_game_ts, last_game_ts, race_to, game_count, casual,
     creator_uid, white_uid, black_uid, white_score, black_score,
-    variant_name, variant_group, creator_user_id, white_user_id, black_user_id
+    variant_name, variant_group, creator_user_id, white_user_id, black_user_id,
+    rated
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 )
 ON CONFLICT (room_id) DO UPDATE SET
     last_game_ts  = EXCLUDED.last_game_ts,

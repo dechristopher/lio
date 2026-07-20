@@ -112,9 +112,12 @@ func BuildPlies(g *octad.Game, times []game.MoveTime) ([]byte, []PlyRecord) {
 // is unconfigured — local dev without lio_pg_dsn degrades to object-storage
 // archival only, exactly like store. Callers run this off the hot path (the
 // storeGame background goroutine), so the transaction never gates game play.
-func ArchiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord) error {
-	_, err := archiveGame(ctx, rec, plies, false)
-	return err
+// The returned *RatingResult is non-nil only when the game was rated and moved
+// both players' ratings — the room broadcasts it so the game-over popup shows
+// each side's delta and the clocks refresh for a rematch.
+func ArchiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord) (*RatingResult, error) {
+	_, res, err := archiveGame(ctx, rec, plies, false)
+	return res, err
 }
 
 // ArchiveGameIfNew archives a game only when no row with the same
@@ -122,25 +125,26 @@ func ArchiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord) error {
 // the archive backfill's idempotency key: it both skips games already recorded
 // by the live seam and makes a partial backfill safe to re-run.
 func ArchiveGameIfNew(ctx context.Context, rec GameRecord, plies []PlyRecord) (bool, error) {
-	return archiveGame(ctx, rec, plies, true)
+	inserted, _, err := archiveGame(ctx, rec, plies, true)
+	return inserted, err
 }
 
 // archiveGame is the shared transactional core. When ifNew is set, the game
 // insert is a no-op on a pgn_object_key conflict (returning inserted=false); a
 // conflicting game contributes neither its row nor its moves.
-func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew bool) (bool, error) {
+func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew bool) (bool, *RatingResult, error) {
 	if Pool == nil {
-		return false, nil
+		return false, nil, nil
 	}
 
 	gameUUID, err := uuid.Parse(rec.GameID)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	tx, err := Pool.Begin(ctx)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }() // no-op once Commit succeeds
 
@@ -155,34 +159,60 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 	if rec.RoomID != "" {
 		gameIndex, err = q.NextGameIndex(ctx, rec.RoomID)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 	}
 
+	// Glicko-2 rating update for a finished rated game, in the same transaction
+	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Only the live archive path applies
+	// ratings — the backfill (ifNew) replays history and must never mutate them.
+	// Run before the game insert so the per-seat rating-at-game + delta snapshot
+	// onto the row (the archive's "rating at the time of the game").
+	var ratingRes *RatingResult
+	if !ifNew {
+		ratingRes, err = applyRatingUpdate(ctx, q, rec)
+		if err != nil {
+			return false, nil, err
+		}
+	}
+	var whiteRating, blackRating *string
+	var whiteRatingDelta, blackRatingDelta *int16
+	if ratingRes != nil {
+		wr, br := ratingRes.White.AtGame, ratingRes.Black.AtGame
+		wd, bd := int16(ratingRes.White.Delta), int16(ratingRes.Black.Delta)
+		whiteRating, blackRating = &wr, &br
+		whiteRatingDelta, blackRatingDelta = &wd, &bd
+	}
+
 	params := gen.InsertGameParams{
-		GameID:        gameUUID,
-		StartTs:       ts(rec.StartTs),
-		EndTs:         ts(rec.EndTs),
-		RaceTo:        int32(rec.RaceTo),
-		WhiteScore:    float32(rec.WhiteScore),
-		BlackScore:    float32(rec.BlackScore),
-		Method:        rec.Method,
-		Casual:        rec.Casual,
-		RoomID:        rec.RoomID,
-		CreatorUid:    rec.Creator,
-		WhiteUid:      rec.WhiteUID,
-		BlackUid:      rec.BlackUID,
-		VariantName:   rec.VariantName,
-		VariantGroup:  rec.VariantGroup,
-		Outcome:       rec.Outcome,
-		Reason:        rec.Reason,
-		StartingOfen:  rec.StartingOFEN,
-		Moves:         rec.Moves,
-		PgnObjectKey:  rec.PGNObjectKey,
-		GameIndex:     gameIndex,
-		WhiteUserID:   rec.WhiteUserID,
-		BlackUserID:   rec.BlackUserID,
-		CreatorUserID: rec.CreatorUserID,
+		GameID:           gameUUID,
+		StartTs:          ts(rec.StartTs),
+		EndTs:            ts(rec.EndTs),
+		RaceTo:           int32(rec.RaceTo),
+		WhiteScore:       float32(rec.WhiteScore),
+		BlackScore:       float32(rec.BlackScore),
+		Method:           rec.Method,
+		Casual:           rec.Casual,
+		RoomID:           rec.RoomID,
+		CreatorUid:       rec.Creator,
+		WhiteUid:         rec.WhiteUID,
+		BlackUid:         rec.BlackUID,
+		VariantName:      rec.VariantName,
+		VariantGroup:     rec.VariantGroup,
+		Outcome:          rec.Outcome,
+		Reason:           rec.Reason,
+		StartingOfen:     rec.StartingOFEN,
+		Moves:            rec.Moves,
+		PgnObjectKey:     rec.PGNObjectKey,
+		GameIndex:        gameIndex,
+		WhiteUserID:      rec.WhiteUserID,
+		BlackUserID:      rec.BlackUserID,
+		CreatorUserID:    rec.CreatorUserID,
+		Rated:            rec.Rated,
+		WhiteRating:      whiteRating,
+		BlackRating:      blackRating,
+		WhiteRatingDelta: whiteRatingDelta,
+		BlackRatingDelta: blackRatingDelta,
 	}
 
 	var gameRef int32
@@ -191,13 +221,13 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 		// generated param structs are identical and convert directly.
 		gameRef, err = q.InsertGameIfNew(ctx, gen.InsertGameIfNewParams(params))
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, nil // already archived under this pgn_object_key
+			return false, nil, nil // already archived under this pgn_object_key
 		}
 	} else {
 		gameRef, err = q.InsertGame(ctx, params)
 	}
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	// keep the room (match) row current in the same transaction: inserted on
@@ -222,8 +252,9 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 			CreatorUserID: rec.CreatorUserID,
 			WhiteUserID:   rec.WhiteUserID,
 			BlackUserID:   rec.BlackUserID,
+			Rated:         rec.Rated,
 		}); err != nil {
-			return false, err
+			return false, nil, err
 		}
 	}
 
@@ -233,7 +264,7 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 			Ofen: p.PosOFEN,
 		})
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		if err := q.InsertMove(ctx, gen.InsertMoveParams{
 			GameRef:    gameRef,
@@ -243,15 +274,15 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 			Ply:        p.Ply,
 			Mv:         p.Mv,
 		}); err != nil {
-			return false, err
+			return false, nil, err
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	gamesTotal.Add(1)
-	return true, nil
+	return true, ratingRes, nil
 }
 
 // ts wraps a time.Time as a valid pgtype.Timestamptz.

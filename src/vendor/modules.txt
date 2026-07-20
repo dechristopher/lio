@@ -11,6 +11,11 @@ github.com/andybalholm/brotli/matchfinder
 # github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 ## explicit
 github.com/asaskevich/EventBus
+# github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc
+## explicit
+github.com/boombuler/barcode
+github.com/boombuler/barcode/qr
+github.com/boombuler/barcode/utils
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -23,6 +28,24 @@ github.com/dustin/go-humanize
 # github.com/fasthttp/websocket v1.5.12
 ## explicit; go 1.21
 github.com/fasthttp/websocket
+# github.com/fxamacker/cbor/v2 v2.9.2
+## explicit; go 1.20
+github.com/fxamacker/cbor/v2
+# github.com/go-viper/mapstructure/v2 v2.5.0
+## explicit; go 1.18
+github.com/go-viper/mapstructure/v2
+github.com/go-viper/mapstructure/v2/internal/errors
+# github.com/go-webauthn/webauthn v0.17.4
+## explicit; go 1.25.0
+github.com/go-webauthn/webauthn/metadata
+github.com/go-webauthn/webauthn/protocol
+github.com/go-webauthn/webauthn/protocol/webauthncbor
+github.com/go-webauthn/webauthn/protocol/webauthncose
+github.com/go-webauthn/webauthn/webauthn
+# github.com/go-webauthn/x v0.2.6
+## explicit; go 1.25.0
+github.com/go-webauthn/x/encoding/asn1
+github.com/go-webauthn/x/revoke
 # github.com/gofiber/contrib/v3/websocket v1.2.1
 ## explicit; go 1.25.0
 github.com/gofiber/contrib/v3/websocket
@@ -55,6 +78,16 @@ github.com/gofiber/utils/v2/bytes
 github.com/gofiber/utils/v2/internal/caseconv
 github.com/gofiber/utils/v2/internal/unsafeconv
 github.com/gofiber/utils/v2/strings
+# github.com/golang-jwt/jwt/v5 v5.3.1
+## explicit; go 1.21
+github.com/golang-jwt/jwt/v5
+# github.com/google/go-tpm v0.9.8
+## explicit; go 1.22
+github.com/google/go-tpm/legacy/tpm2
+github.com/google/go-tpm/tpm2
+github.com/google/go-tpm/tpm2/transport
+github.com/google/go-tpm/tpmutil
+github.com/google/go-tpm/tpmutil/tbs
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
@@ -145,6 +178,12 @@ github.com/minio/minio-go/v7/pkg/tags
 # github.com/philhofer/fwd v1.2.0
 ## explicit; go 1.20
 github.com/philhofer/fwd
+# github.com/pquerna/otp v1.5.0
+## explicit; go 1.12
+github.com/pquerna/otp
+github.com/pquerna/otp/hotp
+github.com/pquerna/otp/internal
+github.com/pquerna/otp/totp
 # github.com/pressly/goose/v3 v3.27.2
 ## explicit; go 1.25.7
 github.com/pressly/goose/v3
@@ -215,6 +254,9 @@ github.com/valyala/fasthttp/tcplisten
 ## explicit; go 1.24
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
+# github.com/x448/float16 v0.8.4
+## explicit; go 1.11
+github.com/x448/float16
 # github.com/zeebo/xxh3 v1.1.0
 ## explicit; go 1.22
 github.com/zeebo/xxh3
@@ -233,6 +275,7 @@ golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
+golang.org/x/crypto/ocsp
 # golang.org/x/image v0.44.0
 ## explicit; go 1.25.0
 golang.org/x/image/colornames

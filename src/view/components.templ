@@ -73,6 +73,9 @@ templ header(width string) {
 	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
 		@accountModal()
 	}
+	if viewer(ctx).LoggedIn {
+		@securityModal()
+	}
 	@navScript()
 	@connScript()
 	@updateNoticeScript()
@@ -245,7 +248,7 @@ templ accountModal() {
 		<div class="modal card">
 			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
 			<h2>Welcome</h2>
-			<div class="mt-3 grid grid-cols-2 gap-1" role="tablist" aria-label="Log in or sign up">
+			<div id="authTabs" class="mt-3 grid grid-cols-2 gap-1" role="tablist" aria-label="Log in or sign up">
 				<button type="button" class="theme-btn is-active" data-auth-tab="login" role="tab">Log in</button>
 				<button type="button" class="theme-btn" data-auth-tab="register" role="tab">Sign up</button>
 			</div>
@@ -282,6 +285,28 @@ templ accountModal() {
 				<p class="auth-error hidden" data-auth-error role="alert"></p>
 				<button type="submit" class="btn btn-primary w-full justify-center py-2">Create account</button>
 			</form>
+			<!-- second-factor step: shown by lio-auth.js when login returns
+			     mfa:true. The tabs + login/register forms are hidden while it is
+			     up. The single code field serves TOTP or recovery-code entry
+			     depending on the chosen method; the alt buttons switch methods
+			     and trigger passkey verification. -->
+			<div id="mfaStep" class="mt-4 hidden flex-col gap-3 text-left" data-auth-form="mfa">
+				<p class="auth-hint" data-mfa-prompt>Enter the 6-digit code from your authenticator app.</p>
+				<form id="mfaCodeForm" class="flex flex-col gap-3" novalidate>
+					<label class="auth-label">
+						<span data-mfa-label>Authentication code</span>
+						<input class="auth-input" name="code" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" required/>
+					</label>
+					<button type="submit" class="btn btn-primary w-full justify-center py-2">Verify</button>
+				</form>
+				<button type="button" id="mfaPasskeyBtn" class="btn btn-primary w-full justify-center py-2 hidden">Verify with a passkey</button>
+				<p class="auth-error hidden" data-auth-error role="alert"></p>
+				<div class="flex flex-col items-center gap-1 pt-1">
+					<button type="button" class="auth-alt hidden" data-mfa-alt="passkey">Use a passkey instead</button>
+					<button type="button" class="auth-alt hidden" data-mfa-alt="recovery">Use a recovery code</button>
+					<button type="button" class="auth-alt hidden" data-mfa-alt="totp">Use your authenticator app</button>
+				</div>
+			</div>
 		</div>
 	</div>
 }
@@ -471,7 +496,7 @@ templ footerContent(meta Meta) {
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://github.com/dechristopher/lio">{ meta.Version }</a>
 	</nav>
-	<p class="m-0">© 2021-2026 lioctad.org</p>
+	<p class="m-0">© 2021-2026 li<span class="text-accent/70">octad</span>.org</p>
 }
 
 // footer is the shared, full-width page footer with nav links and the build
@@ -606,6 +631,10 @@ templ board(payload message.RoomTemplatePayload) {
 						<div id="result-headline" class="result-headline"></div>
 						<div id="result-reason" class="result-reason"></div>
 						<div id="result-score" class="result-score"></div>
+						<!-- per-player rating change (rated games only): filled by
+						     lio-game.js from the rating-update frame, empty (and
+						     collapsed) otherwise -->
+						<div id="result-ratings" class="result-ratings"></div>
 						<div id="result-note" class="result-note hidden"></div>
 						<div class="result-actions">
 							<button id="result-rematch" type="button" class="result-btn result-rematch" title={ controlTitle(payload, "Play again") } data-rematch-url={ botRematchURL(payload) } disabled?={ payload.IsSpectator }>Rematch</button>
@@ -633,7 +662,7 @@ templ board(payload message.RoomTemplatePayload) {
 // the big time on its own full-width line. Stacking decouples the time from the
 // name so a long name only ellipsizes within its row and never compresses the
 // clock horizontally.
-templ clock(name string) {
+templ clock(name string, rating string, ratingDelta int) {
 	<div class="clock">
 		<div class="clockProgress">
 			<div class="clockProgressBg"></div>
@@ -649,7 +678,14 @@ templ clock(name string) {
 					@iconCpu("h-3.5 w-3.5")
 				</span>
 				<span class="clockName">{ name }</span>
-				<span class="clockRating"><span class="clockRatingNumber">0</span></span>
+				if rating != "" {
+					<span class="clockRating">
+						<span class="clockRatingNumber">{ rating }</span>
+						if ratingDelta != 0 {
+							<span class={ "clockRatingDelta " + ratingDeltaClass(ratingDelta) }>{ ratingDeltaText(ratingDelta) }</span>
+						}
+					</span>
+				}
 				<!-- material-difference icons (lichess-style): lio-game.js fills this
 				     with <piece> sprites for the piece types this seat is up, plus a
 				     +N point score when this seat leads; empty (and collapsed via

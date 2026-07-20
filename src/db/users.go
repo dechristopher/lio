@@ -27,6 +27,11 @@ type UserRecord struct {
 	Email        *string
 	PasswordHash string
 	CreatedAt    time.Time
+	// TOTPConfirmed reports whether the account has an active TOTP factor
+	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 4). Read off the user row the login
+	// path already fetches, so the MFA decision costs no extra query for the
+	// common (password + TOTP) case; passkeys are counted separately.
+	TOTPConfirmed bool
 }
 
 // CreateUser inserts a registration row, returning the new user's id. A
@@ -62,11 +67,12 @@ func GetUserByID(id int64) (UserRecord, bool, error) {
 		return UserRecord{}, false, err
 	}
 	return UserRecord{
-		ID:           u.ID,
-		Username:     u.Username,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		CreatedAt:    u.CreatedAt.Time,
+		ID:            u.ID,
+		Username:      u.Username,
+		Email:         u.Email,
+		PasswordHash:  u.PasswordHash,
+		CreatedAt:     u.CreatedAt.Time,
+		TOTPConfirmed: u.TotpConfirmedAt.Valid,
 	}, true, nil
 }
 
@@ -83,11 +89,12 @@ func GetUserByUsername(username string) (UserRecord, bool, error) {
 		return UserRecord{}, false, err
 	}
 	return UserRecord{
-		ID:           u.ID,
-		Username:     u.Username,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		CreatedAt:    u.CreatedAt.Time,
+		ID:            u.ID,
+		Username:      u.Username,
+		Email:         u.Email,
+		PasswordHash:  u.PasswordHash,
+		CreatedAt:     u.CreatedAt.Time,
+		TOTPConfirmed: u.TotpConfirmedAt.Valid,
 	}, true, nil
 }
 

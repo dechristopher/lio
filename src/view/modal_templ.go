@@ -69,95 +69,105 @@ func createGameModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>Computer</span></label></div></div><div class=\"cg-field\"><span class=\"cg-label\">Mode</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Mode\"><input id=\"mode-classic\" class=\"seg-input\" type=\"radio\" name=\"mode\" value=\"classic\"> <label class=\"seg-btn\" for=\"mode-classic\"><span>Classic</span></label> <input id=\"mode-deploy\" class=\"seg-input\" type=\"radio\" name=\"mode\" value=\"deploy\" checked> <label class=\"seg-btn\" for=\"mode-deploy\"><span>Deploy</span> <span class=\"seg-tag\">blind</span></label></div><span class=\"cg-hint cg-mode-desc\" aria-live=\"polite\"><span class=\"cg-mode-desc-opt\" data-mode=\"classic\"><strong>Classic:</strong> the standard Octad opening position — play begins the moment your opponent joins.</span> <span class=\"cg-mode-desc-opt\" data-mode=\"deploy\"><strong>Deploy:</strong> privately arrange your home rank before play begins, then the position is revealed.</span></span></div><label class=\"cg-toggle cg-casual\"><input type=\"checkbox\" class=\"cg-toggle-box cg-casual-box\" name=\"casual\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Casual mode</span> <span class=\"cg-toggle-hint\">Infinite time — no clocks, no pressure<br>Think as long as you like</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label> <label class=\"cg-toggle cg-public\"><input type=\"checkbox\" class=\"cg-toggle-box cg-public-box\" name=\"public\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Open challenge</span> <span class=\"cg-toggle-hint\">On = anyone can join the game<br>Off = only your link works</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label></div><div class=\"cg-panel cg-panel-hero\"><div class=\"cg-field cg-race\"><span class=\"cg-label\">Race to</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Race to (match length)\"><input id=\"race-0\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"0\" checked> <label class=\"seg-btn\" for=\"race-0\"><span>Off</span></label> <input id=\"race-3\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"3\"> <label class=\"seg-btn\" for=\"race-3\"><span>3</span></label> <input id=\"race-5\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"5\"> <label class=\"seg-btn\" for=\"race-5\"><span>5</span></label> <input id=\"race-7\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"7\"> <label class=\"seg-btn\" for=\"race-7\"><span>7</span></label></div><span class=\"cg-hint\"><strong>Race:</strong> games run back-to-back until a player reaches the target score — draws count ½. Human opponents only.</span></div><div class=\"cg-field cg-tc\"><span class=\"cg-label\">Time control</span><div class=\"tc-select\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>Computer</span></label></div></div><div class=\"cg-field\"><span class=\"cg-label\">Mode</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Mode\"><input id=\"mode-deploy\" class=\"seg-input\" type=\"radio\" name=\"mode\" value=\"deploy\" checked> <label class=\"seg-btn\" for=\"mode-deploy\"><span>Deploy</span> <span class=\"seg-tag\">blind</span></label> <input id=\"mode-classic\" class=\"seg-input\" type=\"radio\" name=\"mode\" value=\"classic\"> <label class=\"seg-btn\" for=\"mode-classic\"><span>Classic</span></label></div><span class=\"cg-hint cg-mode-desc\" aria-live=\"polite\"><span class=\"cg-mode-desc-opt\" data-mode=\"deploy\"><strong>Deploy:</strong> privately arrange your home rank before play begins, then the position is revealed.</span> <span class=\"cg-mode-desc-opt\" data-mode=\"classic\"><strong>Classic:</strong> the standard Octad opening position — play begins the moment your opponent joins.</span></span></div><label class=\"cg-toggle cg-casual\"><input type=\"checkbox\" class=\"cg-toggle-box cg-casual-box\" name=\"casual\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Casual mode</span> <span class=\"cg-toggle-hint\">Unrated game & unlimited time<br>Think as long as you like</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if viewer(ctx).LoggedIn {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<!-- rated is implicit: a timed game against another player counts\n\t\t\t\t\t\t\t     toward your rating (no opt-in). Casual or vs-computer games\n\t\t\t\t\t\t\t     never do. Shown to logged-in creators, so the behavior is\n\t\t\t\t\t\t\t     understood; kept always-visible to avoid layout shift. --> <p class=\"cg-rated-note\"><span class=\"cg-rated-star\" aria-hidden=\"true\">★</span>Timed games against another player are <strong>RATED</strong></p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<label class=\"cg-toggle cg-public\"><input type=\"checkbox\" class=\"cg-toggle-box cg-public-box\" name=\"public\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Open challenge</span> <span class=\"cg-toggle-hint\">On = anyone can join the game<br>Off = only your link works</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label></div><div class=\"cg-panel cg-panel-hero\"><div class=\"cg-field cg-race\"><span class=\"cg-label\">Race to</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Race to (match length)\"><input id=\"race-0\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"0\" checked> <label class=\"seg-btn\" for=\"race-0\"><span>Off</span></label> <input id=\"race-3\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"3\"> <label class=\"seg-btn\" for=\"race-3\"><span>3</span></label> <input id=\"race-5\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"5\"> <label class=\"seg-btn\" for=\"race-5\"><span>5</span></label> <input id=\"race-7\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"7\"> <label class=\"seg-btn\" for=\"race-7\"><span>7</span></label></div><span class=\"cg-hint\"><strong>Race:</strong> games run back-to-back until a player reaches the target score — draws count ½. Human opponents only.</span></div><div class=\"cg-field cg-tc\"><span class=\"cg-label\">Time control</span><div class=\"tc-select\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, ctrl := range pools.CreateControls {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<input id=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<input id=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Classic.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 108, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 115, Col: 36}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"tc-input\" type=\"radio\" name=\"tc-choice\" data-classic=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"tc-input\" type=\"radio\" name=\"tc-choice\" data-classic=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Classic.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 112, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 119, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" data-deploy=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" data-deploy=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 113, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 120, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" required> <label class=\"tc-label\" for=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" required> <label class=\"tc-label\" for=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Classic.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 116, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 123, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><span class=\"tc-box\"><span class=\"tc-name\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"><span class=\"tc-box\"><span class=\"tc-name\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 118, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 125, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span> <span class=\"tc-pool\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span> <span class=\"tc-pool\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Group.String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 119, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 126, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span></span></label>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span></span></label>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div><div class=\"cg-field\"><span class=\"cg-label\">Play as</span><div class=\"submit-row\"><button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"w\" title=\"Play the white pieces first\"><span class=\"piece-button wk\"></span></button> <button type=\"submit\" class=\"submit-btn large\" name=\"color\" value=\"r\" title=\"Play either color first\"><span class=\"piece-button random\"></span></button> <button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"b\" title=\"Play the black pieces first\"><span class=\"piece-button bk\"></span></button></div><span class=\"cg-gate-hint\">Pick a time control, then choose your color to start.</span></div></div></div><input type=\"hidden\" name=\"time-control\" id=\"cg-variant\" value=\"\"></form></div></div><script>\n\t\t(function () {\n\t\t\tconst modal = document.getElementById(\"modalCreateGame\");\n\t\t\tconst closeBtn = modal.querySelector(\".modal-close\");\n\t\t\tconst publicBox = modal.querySelector(\".cg-public-box\");\n\t\t\tconst humanOpp = modal.querySelector(\"#opp-human\");\n\t\t\tconst open = () => modal.classList.add(\"open\");\n\t\t\tconst close = () => modal.classList.remove(\"open\");\n\t\t\t// Delegated open: any [data-open-create-game] element opens the modal,\n\t\t\t// including buttons that htmx swaps into the live home-activity region\n\t\t\t// after the initial page load. A trigger carrying [data-prefill-public]\n\t\t\t// (the Open Challenges \"+ New\" / \"create one\" affordances) pre-selects an\n\t\t\t// Open Challenge: force a human opponent (public requires it) and check\n\t\t\t// the toggle so the modal opens already set up to publish a seek.\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst trigger = e.target.closest(\"[data-open-create-game]\");\n\t\t\t\tif (!trigger) return;\n\t\t\t\tif (trigger.hasAttribute(\"data-prefill-public\") && publicBox) {\n\t\t\t\t\tif (humanOpp) humanOpp.checked = true;\n\t\t\t\t\tpublicBox.checked = true;\n\t\t\t\t}\n\t\t\t\topen();\n\t\t\t});\n\t\t\tif (closeBtn) closeBtn.addEventListener(\"click\", close);\n\t\t\tmodal.addEventListener(\"click\", (e) => { if (e.target === modal) close(); });\n\t\t\tdocument.addEventListener(\"keydown\", (e) => { if (e.key === \"Escape\") close(); });\n\n\t\t\t// Resolve the chosen time control (classic vs its deploy twin) into the\n\t\t\t// hidden field the form submits. Runs whenever the time control or the\n\t\t\t// Classic/Deploy mode changes, so the value is current before the color\n\t\t\t// submit buttons (gated until a time control is picked) are clickable.\n\t\t\tconst variantField = modal.querySelector(\"#cg-variant\");\n\t\t\tconst modeInput = () => modal.querySelector(\"input[name=mode]:checked\");\n\t\t\tconst modeOf = () => modeInput().value;\n\t\t\tconst syncVariant = () => {\n\t\t\t\t// :enabled — a card disabled by casual mode is not a choice, so\n\t\t\t\t// the submitted field goes empty (the server ignores it anyway)\n\t\t\t\tconst tc = modal.querySelector(\".tc-input:checked:enabled\");\n\t\t\t\tvariantField.value = tc\n\t\t\t\t\t? (modeOf() === \"deploy\" ? tc.dataset.deploy : tc.dataset.classic)\n\t\t\t\t\t: \"\";\n\t\t\t};\n\n\t\t\t// The mode description under the toggle is pure CSS: both variants are\n\t\t\t// stacked in one grid cell (.cg-mode-desc) and the checked mode's copy\n\t\t\t// is made visible, so no JS swap — and no layout shift — is needed.\n\n\t\t\tmodal.querySelectorAll(\".tc-input\").forEach((el) => el.addEventListener(\"change\", syncVariant));\n\t\t\tmodal.querySelectorAll(\"input[name=mode]\").forEach((el) => el.addEventListener(\"change\", syncVariant));\n\n\t\t\t// Casual (untimed, any opponent) makes the time-control choice moot:\n\t\t\t// disable the cards while it is on so their `required` can't block\n\t\t\t// submission with none picked (CSS fades the section and opens the\n\t\t\t// color-submit gate). The server resolves the untimed casual variant\n\t\t\t// from the mode toggle instead. Race To is unaffected — a casual\n\t\t\t// human match can still race.\n\t\t\tconst casualBox = modal.querySelector(\".cg-casual-box\");\n\t\t\tconst syncCasual = () => {\n\t\t\t\tconst on = !!casualBox && casualBox.checked;\n\t\t\t\tmodal.querySelectorAll(\".tc-input\").forEach((el) => { el.disabled = on; });\n\t\t\t\tsyncVariant();\n\t\t\t};\n\t\t\tif (casualBox) casualBox.addEventListener(\"change\", syncCasual);\n\n\t\t\t// Bot games are never public open challenges nor race-to matches: clear\n\t\t\t// both when the computer is chosen (each control is faded + disabled in\n\t\t\t// place via CSS — nothing is removed, so switching opponents never\n\t\t\t// shifts the layout — and the server forces bot games private /\n\t\t\t// single-game regardless).\n\t\t\tmodal.querySelectorAll(\"input[name=opponent]\").forEach((el) =>\n\t\t\t\tel.addEventListener(\"change\", () => {\n\t\t\t\t\tif (!modal.querySelector(\"#opp-computer\").checked) return;\n\t\t\t\t\tif (publicBox) publicBox.checked = false;\n\t\t\t\t\tconst raceOff = modal.querySelector(\"#race-0\");\n\t\t\t\t\tif (raceOff) raceOff.checked = true;\n\t\t\t\t}));\n\t\t})();\n\t</script><link rel=\"prefetch\" href=\"/res/img/cburnett/wK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/bK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/wbK.svg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div><div class=\"cg-field\"><span class=\"cg-label\">Play as</span><div class=\"submit-row\"><button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"w\" title=\"Play the white pieces first\"><span class=\"piece-button wk\"></span></button> <button type=\"submit\" class=\"submit-btn large\" name=\"color\" value=\"r\" title=\"Play either color first\"><span class=\"piece-button random\"></span></button> <button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"b\" title=\"Play the black pieces first\"><span class=\"piece-button bk\"></span></button></div><span class=\"cg-gate-hint\">Pick a time control, then choose your color to start.</span></div></div></div><input type=\"hidden\" name=\"time-control\" id=\"cg-variant\" value=\"\"></form></div></div><script>\n\t\t(function () {\n\t\t\tconst modal = document.getElementById(\"modalCreateGame\");\n\t\t\tconst closeBtn = modal.querySelector(\".modal-close\");\n\t\t\tconst publicBox = modal.querySelector(\".cg-public-box\");\n\t\t\tconst humanOpp = modal.querySelector(\"#opp-human\");\n\t\t\tconst open = () => modal.classList.add(\"open\");\n\t\t\tconst close = () => modal.classList.remove(\"open\");\n\t\t\t// Delegated open: any [data-open-create-game] element opens the modal,\n\t\t\t// including buttons that htmx swaps into the live home-activity region\n\t\t\t// after the initial page load. A trigger carrying [data-prefill-public]\n\t\t\t// (the Open Challenges \"+ New\" / \"create one\" affordances) pre-selects an\n\t\t\t// Open Challenge: force a human opponent (public requires it) and check\n\t\t\t// the toggle so the modal opens already set up to publish a seek.\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst trigger = e.target.closest(\"[data-open-create-game]\");\n\t\t\t\tif (!trigger) return;\n\t\t\t\tif (trigger.hasAttribute(\"data-prefill-public\") && publicBox) {\n\t\t\t\t\tif (humanOpp) humanOpp.checked = true;\n\t\t\t\t\tpublicBox.checked = true;\n\t\t\t\t}\n\t\t\t\topen();\n\t\t\t});\n\t\t\tif (closeBtn) closeBtn.addEventListener(\"click\", close);\n\t\t\tmodal.addEventListener(\"click\", (e) => { if (e.target === modal) close(); });\n\t\t\tdocument.addEventListener(\"keydown\", (e) => { if (e.key === \"Escape\") close(); });\n\n\t\t\t// Resolve the chosen time control (classic vs its deploy twin) into the\n\t\t\t// hidden field the form submits. Runs whenever the time control or the\n\t\t\t// Classic/Deploy mode changes, so the value is current before the color\n\t\t\t// submit buttons (gated until a time control is picked) are clickable.\n\t\t\tconst variantField = modal.querySelector(\"#cg-variant\");\n\t\t\tconst modeInput = () => modal.querySelector(\"input[name=mode]:checked\");\n\t\t\tconst modeOf = () => modeInput().value;\n\t\t\tconst syncVariant = () => {\n\t\t\t\t// :enabled — a card disabled by casual mode is not a choice, so\n\t\t\t\t// the submitted field goes empty (the server ignores it anyway)\n\t\t\t\tconst tc = modal.querySelector(\".tc-input:checked:enabled\");\n\t\t\t\tvariantField.value = tc\n\t\t\t\t\t? (modeOf() === \"deploy\" ? tc.dataset.deploy : tc.dataset.classic)\n\t\t\t\t\t: \"\";\n\t\t\t};\n\n\t\t\t// The mode description under the toggle is pure CSS: both variants are\n\t\t\t// stacked in one grid cell (.cg-mode-desc) and the checked mode's copy\n\t\t\t// is made visible, so no JS swap — and no layout shift — is needed.\n\n\t\t\tmodal.querySelectorAll(\".tc-input\").forEach((el) => el.addEventListener(\"change\", syncVariant));\n\t\t\tmodal.querySelectorAll(\"input[name=mode]\").forEach((el) => el.addEventListener(\"change\", syncVariant));\n\n\t\t\t// Casual (untimed, any opponent) makes the time-control choice moot:\n\t\t\t// disable the cards while it is on so their `required` can't block\n\t\t\t// submission with none picked (CSS fades the section and opens the\n\t\t\t// color-submit gate). The server resolves the untimed casual variant\n\t\t\t// from the mode toggle instead. Race To is unaffected — a casual\n\t\t\t// human match can still race.\n\t\t\tconst casualBox = modal.querySelector(\".cg-casual-box\");\n\t\t\tconst syncCasual = () => {\n\t\t\t\tconst on = !!casualBox && casualBox.checked;\n\t\t\t\tmodal.querySelectorAll(\".tc-input\").forEach((el) => { el.disabled = on; });\n\t\t\t\tsyncVariant();\n\t\t\t};\n\t\t\tif (casualBox) casualBox.addEventListener(\"change\", syncCasual);\n\n\t\t\t// Bot games are never public open challenges nor race-to matches: clear\n\t\t\t// both when the computer is chosen (each control is faded + disabled in\n\t\t\t// place via CSS — nothing is removed, so switching opponents never\n\t\t\t// shifts the layout — and the server forces bot games private /\n\t\t\t// single-game regardless).\n\t\t\tmodal.querySelectorAll(\"input[name=opponent]\").forEach((el) =>\n\t\t\t\tel.addEventListener(\"change\", () => {\n\t\t\t\t\tif (!modal.querySelector(\"#opp-computer\").checked) return;\n\t\t\t\t\tif (publicBox) publicBox.checked = false;\n\t\t\t\t\tconst raceOff = modal.querySelector(\"#race-0\");\n\t\t\t\t\tif (raceOff) raceOff.checked = true;\n\t\t\t\t}));\n\t\t})();\n\t</script><link rel=\"prefetch\" href=\"/res/img/cburnett/wK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/bK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/wbK.svg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
