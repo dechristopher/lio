@@ -17,6 +17,29 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Games that count",
+		Date:  "Jul 20, 2026",
+		Body: "Timed games against another player are now rated. Win, lose, or draw and your rating " +
+			"shifts, shown right next to your name on the clocks — with a separate rating for each " +
+			"speed, from bullet to rapid. A brand-new rating wears a \"?\" until it settles, and after " +
+			"each game a small +/- shows exactly how it moved. Casual and computer games never count.",
+	},
+	{
+		Title: "Extra locks for your account",
+		Date:  "Jul 20, 2026",
+		Body: "Add a second step to your login: pair an authenticator app by scanning a QR code, or " +
+			"set up a passkey and sign in with Face ID, Touch ID, or a security key. Tuck away a set " +
+			"of one-time recovery codes in case you're ever locked out. It's all optional and lives " +
+			"in your account settings.",
+	},
+	{
+		Title: "Settle the rivalry",
+		Date:  "Jul 20, 2026",
+		Body: "Sit down across from someone you've played before and the match timeline now keeps " +
+			"your all-time score against each other beside your names — whoever's ahead shown in " +
+			"green. It follows you from live games to the archives.",
+	},
+	{
 		Title: "Games with your name on them",
 		Date:  "Jul 20, 2026",
 		Body: "You can now sign up and play under a username, which shows on your clocks, match " +
