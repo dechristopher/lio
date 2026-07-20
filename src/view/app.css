@@ -1378,6 +1378,42 @@
 	}
 	.modal-close:hover { background: var(--loss); color: #fff; border-color: transparent; }
 
+	/* the auth modal's form primitives (login/register in modalAccount, and
+	   reused by the profile popover's account admin forms in later phases) */
+	.auth-label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--text-muted);
+	}
+	.auth-input {
+		width: 100%;
+		padding: 0.5rem 0.65rem;
+		font-size: 0.9rem;
+		font-weight: 500;
+		color: var(--text);
+		background: var(--surface-2);
+		border: 2px solid var(--border);
+		border-radius: 0.5rem;
+		transition: border-color 150ms var(--ease-snappy);
+	}
+	.auth-input:focus {
+		outline: none;
+		border-color: var(--accent);
+	}
+	.auth-hint {
+		font-size: 0.72rem;
+		font-weight: 500;
+		color: var(--text-subtle);
+	}
+	.auth-error {
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--loss);
+	}
+
 	/* the create-game modal is a wider, richer, horizontal two-panel dialog; it
 	   reuses the shared .modal-shade/.modal-close chrome but overrides the box */
 	.cg-modal {

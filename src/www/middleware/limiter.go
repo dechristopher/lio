@@ -30,6 +30,35 @@ func RoomCreateLimiter() fiber.Handler {
 	})
 }
 
+// authAPIMax is the per-client budget for the /api/auth group per window —
+// register/login/logout plus the signup form's availability probe (which
+// fires per keystroke, debounced client-side). The keyed per-username login
+// limiter inside the auth package is the credential-stuffing defense; this
+// one just bounds bulk abuse of the endpoints themselves.
+const authAPIMax = 30
+
+// authAPIWindow is the rolling window authAPIMax is measured over.
+const authAPIWindow = time.Minute
+
+// AuthAPILimiter rate-limits the /api/auth routes per client IP.
+func AuthAPILimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:          authAPIMax,
+		Expiration:   authAPIWindow,
+		KeyGenerator: clientIP,
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).
+				JSON(fiber.Map{"error": "too many requests - slow down"})
+		},
+	})
+}
+
+// ClientIP exposes the resolved client address to handlers outside this
+// package (the login rate limiter keys off it).
+func ClientIP(c fiber.Ctx) string {
+	return clientIP(c)
+}
+
 // clientIP resolves the real client address behind the Cloudflare tunnel. The
 // app's only ingress is cloudflared over loopback, so fiber's own c.IP() sees
 // 127.0.0.1 for every request — useless as a rate-limit key. Cloudflare sets

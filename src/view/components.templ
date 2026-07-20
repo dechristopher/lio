@@ -7,11 +7,12 @@ import (
 )
 
 // header is the site wordmark + account/preferences/theme controls shown at the
-// top of every page. Accounts are not built yet, so "Log in" opens a
-// coming-soon dialog; the preferences popover exposes the working theme control
-// and stubs the rest. width is the caller's complete sizing class list (base
-// width + caps), so a page whose content uses a different width formula (the
-// room game grid's min(96vw,…)) can align the header edges exactly to it.
+// top of every page. A logged-in viewer sees their username, which opens the
+// profile popover (account admin); a logged-out viewer sees "Log in", which
+// opens the auth modal (login/register). width is the caller's complete sizing
+// class list (base width + caps), so a page whose content uses a different
+// width formula (the room game grid's min(96vw,…)) can align the header edges
+// exactly to it.
 templ header(width string) {
 	<header class={ "flex items-center justify-between gap-4 pt-1 pb-3 " + width }>
 		<div class="flex flex-col items-start leading-none">
@@ -29,7 +30,14 @@ templ header(width string) {
 			</div>
 		</div>
 		<div class="relative flex items-center gap-2">
-			<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm">Log in</button>
+			if viewer(ctx).LoggedIn {
+				<button type="button" id="profileButton" class="btn btn-ghost max-w-40 truncate whitespace-nowrap px-3 py-1.5 text-sm font-semibold">{ viewer(ctx).Username }</button>
+			} else if viewer(ctx).AccountsEnabled {
+				<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm">Log in</button>
+			} else {
+				// PG-less local dev: accounts have no backing store
+				<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm opacity-50" disabled title="Accounts are unavailable in this environment">Log in</button>
+			}
 			<button
 				type="button"
 				id="prefsButton"
@@ -50,9 +58,14 @@ templ header(width string) {
 				@iconSun()
 			</button>
 			@prefsPopover()
+			if viewer(ctx).LoggedIn {
+				@profilePopover(viewer(ctx).Username)
+			}
 		</div>
 	</header>
-	@accountModal()
+	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
+		@accountModal()
+	}
 	@navScript()
 	@connScript()
 	@updateNoticeScript()
@@ -217,34 +230,98 @@ templ prefStub(label string) {
 	</div>
 }
 
-// accountModal is the "coming soon" dialog shown when Log in is clicked, reusing
-// the shared .modal-shade/.modal styling.
+// accountModal is the login/register dialog shown when Log in is clicked,
+// reusing the shared .modal-shade/.modal styling. The two forms swap via the
+// tab buttons (lio-auth.js); submission is fetch-driven against /api/auth.
 templ accountModal() {
 	<div id="modalAccount" class="modal-shade">
 		<div class="modal card">
 			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
-			<h2>Accounts are coming</h2>
-			<p class="prose text-center text-sm">
-				Octad is playable right now with no sign-up. Accounts, ratings
-				and saved preferences are on the way.
-			</p>
+			<h2>Welcome</h2>
+			<div class="mt-3 grid grid-cols-2 gap-1" role="tablist" aria-label="Log in or sign up">
+				<button type="button" class="theme-btn is-active" data-auth-tab="login" role="tab">Log in</button>
+				<button type="button" class="theme-btn" data-auth-tab="register" role="tab">Sign up</button>
+			</div>
+			<form id="loginForm" class="mt-4 flex flex-col gap-3 text-left" data-auth-form="login" novalidate>
+				<label class="auth-label">
+					Username
+					<input class="auth-input" name="username" type="text" autocomplete="username" required minlength="3" maxlength="20"/>
+				</label>
+				<label class="auth-label">
+					Password
+					<input class="auth-input" name="password" type="password" autocomplete="current-password" required/>
+				</label>
+				<p class="auth-error hidden" data-auth-error role="alert"></p>
+				<button type="submit" class="btn btn-primary w-full justify-center py-2">Log in</button>
+			</form>
+			<form id="registerForm" class="mt-4 hidden flex-col gap-3 text-left" data-auth-form="register" novalidate>
+				<label class="auth-label">
+					Username
+					<input class="auth-input" name="username" type="text" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{2,19}"/>
+					<span class="auth-hint" data-auth-avail></span>
+				</label>
+				<label class="auth-label">
+					Password
+					<input class="auth-input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128"/>
+				</label>
+				<label class="auth-label">
+					Email <span class="text-fg-subtle">(optional)</span>
+					<input class="auth-input" name="email" type="email" autocomplete="email"/>
+				</label>
+				<p class="auth-hint">
+					Email is only used to recover your account. Skipping it means a
+					forgotten password can't be reset.
+				</p>
+				<p class="auth-error hidden" data-auth-error role="alert"></p>
+				<button type="submit" class="btn btn-primary w-full justify-center py-2">Create account</button>
+			</form>
 		</div>
 	</div>
 }
 
-// navScript wires the header's Log in dialog and preferences popover. It is
-// self-contained (only touches its own elements) so it is safe on every page.
+// profilePopover is the logged-in account menu anchored under the username
+// button, mirroring the prefsPopover pattern. Phase 1 is minimal — identity +
+// log out; account administration (password, sessions, MFA, ratings) lands
+// here in later phases (arch/ACCOUNTS_AUTH_RATINGS.md).
+templ profilePopover(username string) {
+	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-64 rounded-lg border border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Account</p>
+		<p class="mt-1 truncate text-sm font-semibold text-fg">{ username }</p>
+		<div class="mt-3 border-t border-line pt-3">
+			<button type="button" id="logoutButton" class="btn btn-ghost w-full justify-center py-1.5 text-sm">Log out</button>
+		</div>
+	</div>
+}
+
+// navScript wires the header's auth modal, profile popover and preferences
+// popover. It is self-contained (only touches its own elements, all optional
+// — the modal only exists logged-out, the profile popover only logged-in) so
+// it is safe on every page.
 templ navScript() {
 	<script>
 		(function () {
 			const modal = document.getElementById("modalAccount");
 			const loginBtn = document.getElementById("loginButton");
-			const closeBtn = modal.querySelector(".modal-close");
-			const openModal = () => modal.classList.add("open");
-			const closeModal = () => modal.classList.remove("open");
-			if (loginBtn) loginBtn.addEventListener("click", openModal);
-			if (closeBtn) closeBtn.addEventListener("click", closeModal);
-			modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+			const closeModal = () => { if (modal) modal.classList.remove("open"); };
+			if (modal) {
+				const closeBtn = modal.querySelector(".modal-close");
+				if (loginBtn) loginBtn.addEventListener("click", () => modal.classList.add("open"));
+				if (closeBtn) closeBtn.addEventListener("click", closeModal);
+				modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+			}
+
+			// profile popover (logged-in): same open/close pattern as prefs below
+			const profileBtn = document.getElementById("profileButton");
+			const profilePop = document.getElementById("profilePopover");
+			if (profileBtn && profilePop) {
+				profileBtn.addEventListener("click", (e) => {
+					e.stopPropagation();
+					profilePop.classList.toggle("hidden");
+				});
+				document.addEventListener("click", (e) => {
+					if (!profilePop.contains(e.target) && e.target !== profileBtn) profilePop.classList.add("hidden");
+				});
+			}
 
 			const prefsBtn = document.getElementById("prefsButton");
 			const popover = document.getElementById("prefsPopover");
@@ -295,7 +372,11 @@ templ navScript() {
 				if (!popover.contains(e.target) && e.target !== prefsBtn) popover.classList.add("hidden");
 			});
 			document.addEventListener("keydown", (e) => {
-				if (e.key === "Escape") { closeModal(); popover.classList.add("hidden"); }
+				if (e.key === "Escape") {
+					closeModal();
+					popover.classList.add("hidden");
+					if (profilePop) profilePop.classList.add("hidden");
+				}
 			});
 		})();
 	</script>

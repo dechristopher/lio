@@ -12,6 +12,7 @@ import (
 	"github.com/dechristopher/lio/crypt"
 	"github.com/joho/godotenv"
 
+	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/backfill"
 	"github.com/dechristopher/lio/cache"
 	"github.com/dechristopher/lio/config"
@@ -125,6 +126,10 @@ func main() {
 	// optional background position evaluator (fills the deduped positions eval
 	// cache off the game path; no-op unless Postgres + the evaluator are enabled)
 	db.UpEvaluator()
+
+	// hourly expired-session sweep for the unified session system
+	// (arch/ACCOUNTS_AUTH_RATINGS.md)
+	auth.UpSweeper()
 
 	// serve primary http endpoints
 	www.Serve(static)

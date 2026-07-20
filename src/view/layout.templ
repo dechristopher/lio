@@ -21,6 +21,10 @@ templ head(meta Meta) {
 		<!-- build version this page was rendered by; compared against the
 		     server's socket version hello to prompt a refresh after a deploy -->
 		<meta name="lio-version" content={ config.VersionString() }/>
+		<!-- the viewer's session uid (the seat/socket identity). This replaced
+		     the old JS-readable uid cookie: lio.js myUid() reads it for turn/
+		     seat checks, with the WS identity echo as the dynamic authority -->
+		<meta name="lio-uid" content={ viewer(ctx).UID }/>
 		<script>
 			// Resolve and apply the color theme, board theme, and piece set
 			// before first paint to avoid a flash of the wrong appearance:
@@ -113,6 +117,9 @@ templ head(meta Meta) {
 		// defer: htmx self-initializes on DOMContentLoaded, so it need not block
 		// first paint. defer preserves execution order and runs after parse.
 		<script defer src={ asset("htmx.min.js") }></script>
+		// account/auth wiring (login/register forms, profile popover actions);
+		// on every page because the header's account controls are
+		<script defer src={ asset("lio-auth.js") }></script>
 		// Plausible analytics (self-hosted), prod only. The instance host comes
 		// from PLAUSIBLE_DOMAIN (kept out of VCS; unset disables analytics), and
 		// the CSP allows it in script-src and connect-src

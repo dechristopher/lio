@@ -24,11 +24,14 @@ import (
 // year that content-hashed assets safely get. See immutableIfHashed.
 const staticShortMaxAge = 3600
 
-const logFormatProd = "[${cookie:uid}] ${ip} ${reqHeader:x-forwarded-for} ${reqHeader:x-real-ip} " +
+// The leading identity field is the session uid, stashed in locals by
+// auth.SessionMiddleware — the old plaintext uid cookie no longer exists
+// (asset requests, which skip session resolution, log it empty).
+const logFormatProd = "[${locals:uid}] ${ip} ${reqHeader:x-forwarded-for} ${reqHeader:x-real-ip} " +
 	"[${time}] ${pid} ${locals:requestid} \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency} \"${referer}\" \"${ua}\"\n"
 
-const logFormatDev = "[${cookie:uid}] ${ip} [${time}] \"${method} ${path} ${protocol}\" " +
+const logFormatDev = "[${locals:uid}] ${ip} [${time}] \"${method} ${path} ${protocol}\" " +
 	"${status} ${latency}\n"
 
 // Wire attaches all middleware to the given router

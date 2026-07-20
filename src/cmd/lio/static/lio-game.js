@@ -384,7 +384,7 @@ const isPlayerWhite = (message) => {
 		// no anchor (degenerate un-started room): fall back to white-on-bottom
 		return anchorId === '' || message.d.w === anchorId;
 	}
-	return message.d.w === getCookie('uid');
+	return message.d.w === myUid();
 };
 
 /**
@@ -1379,7 +1379,7 @@ const handleDrawOffer = (message) => {
 	if (!d.by) {
 		return;
 	}
-	if (d.by === getCookie('uid')) {
+	if (d.by === myUid()) {
 		// our own offer, echoed by the server: reflect the pending state
 		drawOfferedByMe = true;
 		if (drawBtn) {
@@ -1691,7 +1691,7 @@ const renderLivePosition = (message, ofenParts) => {
 		} : {
 			free: false,
 			dests: gameOver ? new Map() : allMoves(message.d.v),
-			color: message.d.w === getCookie('uid') ? 'white' : 'black',
+			color: message.d.w === myUid() ? 'white' : 'black',
 		}
 	});
 	updateMaterial(ofenParts[0]);
@@ -1704,7 +1704,7 @@ const renderLivePosition = (message, ofenParts) => {
  * @param message - move message carrying white/black player ids
  */
 const isPlayerParticipant = (message) => {
-	const uid = getCookie('uid');
+	const uid = myUid();
 	return message.d.w === uid || message.d.b === uid;
 };
 
@@ -2763,24 +2763,22 @@ const playNavSound = (san) => {
 };
 
 /**
- * Get cookie by name
- * @param cname
+ * The viewer's session uid (the seat identity move payloads reference as
+ * w/b). Server-rendered into the lio-uid meta tag — the old plaintext uid
+ * cookie no longer exists (identity lives in the HttpOnly sid session
+ * cookie) — and corrected by the socket identity echo should they ever
+ * disagree (handleIdentity).
+ */
+let sessionUid = (() => {
+	const meta = document.querySelector('meta[name="lio-uid"]');
+	return (meta && meta.content) || '';
+})();
+
+/**
+ * Current viewer uid for seat/turn checks
  * @returns {string}
  */
-const getCookie = (cname) => {
-	let name = cname + "=";
-	let ca = document.cookie.split(';');
-	for (let i = 0; i < ca.length; i++) {
-		let c = ca[i];
-		while (c.charAt(0) === ' ') {
-			c = c.substring(1);
-		}
-		if (c.indexOf(name) === 0) {
-			return c.substring(name.length, c.length);
-		}
-	}
-	return "";
-};
+const myUid = () => sessionUid;
 
 /**
  * Handle a rematch-window update: the server retimed the human rematch window
@@ -2808,7 +2806,7 @@ const handleRematchUpdate = (message) => {
 	// a rematch-request signal ({rq: requester id}): surface it to the opponent
 	// only (our own click already shows "Waiting…"), and don't retime the window
 	if (message.d.rq) {
-		if (message.d.rq !== getCookie('uid')) {
+		if (message.d.rq !== myUid()) {
 			showOpponentRematchRequest();
 		}
 		return;
@@ -2897,7 +2895,7 @@ const handleDeploy = (message) => {
 		return;
 	}
 
-	const uid = getCookie('uid');
+	const uid = myUid();
 	const seconds = d.s ? d.s : 30;
 	// derive our side from the message's player ids rather than the DOM
 	// orientation class, which is stale after a rematch swaps colors. A spectator
@@ -4058,6 +4056,11 @@ const handleIdentity = (message) => {
 	if (!isSpec && seatedSpectator) {
 		forceIdentityReload('player page on spectator socket');
 		return;
+	}
+	// the socket's authenticated uid is the dynamic authority for seat/turn
+	// checks; adopt it if it ever disagrees with the page-rendered meta uid
+	if (message.d && message.d.u) {
+		sessionUid = message.d.u;
 	}
 	// identity is consistent with the page; re-arm the one-shot reload recovery
 	try { sessionStorage.removeItem(identityReloadKey); } catch (e) { /* noop */ }

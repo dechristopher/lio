@@ -22,6 +22,18 @@ func renderSmoke(t *testing.T, c templ.Component) string {
 	return sb.String()
 }
 
+// renderSmokeViewer renders with an explicit Viewer in the context, the way
+// view.Render injects the request identity.
+func renderSmokeViewer(t *testing.T, v Viewer, c templ.Component) string {
+	t.Helper()
+	var sb strings.Builder
+	ctx := context.WithValue(context.Background(), viewerKey{}, v)
+	if err := c.Render(ctx, &sb); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return sb.String()
+}
+
 func mustContain(t *testing.T, s, sub string) {
 	t.Helper()
 	if !strings.Contains(s, sub) {
@@ -52,8 +64,11 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "Open challenges")         // challenges section
 	mustContain(t, out, "/seek456")                // joinable challenge link
 	mustContain(t, out, "What is Octad?")          // explainer
-	mustContain(t, out, "Accounts are coming")     // login stub modal
-	mustContain(t, out, ">Log in<")                // nav stub
+	// zero Viewer (no session, accounts disabled): the login button renders
+	// disabled and the auth modal is omitted entirely
+	mustContain(t, out, ">Log in<")
+	mustNotContain(t, out, `id="modalAccount"`)
+	mustNotContain(t, out, `id="profilePopover"`)
 
 	// "What is Octad?" self-playing demo board: the octadground mount + result
 	// pill and its animator script, replacing the old static diagram SVGs
@@ -240,4 +255,32 @@ func TestRenderAboutAndNotFound(t *testing.T) {
 	mustContain(t, renderSmoke(t, About(PageMeta("About"), "notation")), "ppkn/4/4/NKPP w NCFncf - 0 1")
 	mustContain(t, renderSmoke(t, NotFound(PageMeta("404"))), "404")
 	mustContain(t, renderSmoke(t, DB(PageMeta("Game Database"))), "Game Database")
+}
+
+// TestRenderHeaderViewerStates covers the header's three account states: a
+// logged-out viewer with accounts enabled (live login button + auth modal), a
+// logged-in viewer (username button + profile popover, no modal), and the
+// zero-Viewer disabled state exercised in TestRenderIndex.
+func TestRenderHeaderViewerStates(t *testing.T) {
+	page := NotFound(PageMeta("404")) // any page carrying the header
+
+	loggedOut := renderSmokeViewer(t,
+		Viewer{AccountsEnabled: true}, page)
+	mustContain(t, loggedOut, `id="loginButton"`)
+	mustContain(t, loggedOut, `id="modalAccount"`)
+	mustContain(t, loggedOut, `id="loginForm"`)
+	mustContain(t, loggedOut, `id="registerForm"`)
+	mustNotContain(t, loggedOut, `id="profilePopover"`)
+	mustNotContain(t, loggedOut, "disabled")
+
+	loggedIn := renderSmokeViewer(t,
+		Viewer{UID: "uid123", LoggedIn: true, Username: "drew",
+			AccountsEnabled: true}, page)
+	mustContain(t, loggedIn, `id="profileButton"`)
+	mustContain(t, loggedIn, ">drew</button>")
+	mustContain(t, loggedIn, `id="profilePopover"`)
+	mustContain(t, loggedIn, `id="logoutButton"`)
+	mustContain(t, loggedIn, `content="uid123"`) // lio-uid meta
+	mustNotContain(t, loggedIn, `id="modalAccount"`)
+	mustNotContain(t, loggedIn, `id="loginButton"`)
 }

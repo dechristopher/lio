@@ -71,3 +71,22 @@ type Room struct {
 	VariantName  string
 	VariantGroup string
 }
+
+type Session struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	LastSeen  pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+	UserID    *int64
+	TokenHash []byte
+	Uid       string
+	UserAgent string
+}
+
+type User struct {
+	ID           int64
+	CreatedAt    pgtype.Timestamptz
+	Username     string
+	Email        *string
+	PasswordHash string
+}

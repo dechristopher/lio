@@ -13,8 +13,10 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/assets"
+	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/variant"
 )
 
@@ -87,17 +89,55 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	}
 }
 
+// Viewer is the render-scoped identity components read via viewer(ctx): who
+// is looking at the page. It is the only request-derived value that crosses
+// into templ (see Render); every field is a plain value copied out of the
+// session-resolved user.Context (DB-owned strings — nothing referencing
+// fasthttp's pooled buffers survives into the render).
+type Viewer struct {
+	UID             string // session uid ("" when no session resolved)
+	LoggedIn        bool
+	Username        string // display-case username, empty when anonymous
+	AccountsEnabled bool   // false only in PG-less local dev
+}
+
+// viewerKey keys the Viewer in the render context.
+type viewerKey struct{}
+
+// viewerFrom snapshots the request's identity for the render context.
+func viewerFrom(c fiber.Ctx) Viewer {
+	v := Viewer{AccountsEnabled: auth.Enabled()}
+	if uc := user.GetContext(c); uc != nil {
+		v.UID = uc.ID
+		if uc.Account != nil {
+			v.LoggedIn = true
+			v.Username = uc.Account.Username
+		}
+	}
+	return v
+}
+
+// viewer returns the rendering request's Viewer; the zero Viewer outside a
+// Render call (component smoke tests).
+func viewer(ctx context.Context) Viewer {
+	if v, ok := ctx.Value(viewerKey{}).(Viewer); ok {
+		return v
+	}
+	return Viewer{}
+}
+
 // Render writes a templ component to the fiber response as UTF-8 HTML.
 // It is the templ replacement for the old util.HandleTemplate helper.
 //
-// We deliberately render with context.Background() rather than c.Context():
-// user.ContextMiddleware overwrites the fiber user-context with a *user.Context
-// whose embedded context.Context is nil for returning users, so templ's
-// ctx.Err() check would nil-panic. The view components use no request-scoped
-// context values, so a background context is both correct and safe here.
+// We deliberately render on a fresh background-derived context rather than
+// c.Context(): the session middleware overwrites the fiber user-context with a
+// *user.Context, and templ only needs the Viewer value — request-scoped
+// deadlines/values have no business in the render. The Viewer is injected
+// explicitly; components must never reach for the fiber ctx.
 func Render(c fiber.Ctx, status int, component templ.Component) error {
 	c.Status(status).Type("html", "utf-8")
-	return component.Render(context.Background(), c.Response().BodyWriter())
+	ctx := context.WithValue(context.Background(), viewerKey{}, viewerFrom(c))
+	return component.Render(ctx, c.Response().BodyWriter())
 }
 
 // IsHTMXFragment reports whether a request should be answered with a bare HTMX

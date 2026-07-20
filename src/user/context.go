@@ -2,49 +2,32 @@ package user
 
 import (
 	"context"
-	"encoding/json"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
-
-	"github.com/dechristopher/lio/config"
-	"github.com/dechristopher/lio/crypt"
 )
 
-// Context for authenticated users
+// Context is the request-scoped identity, resolved per request from the sid
+// session cookie by auth.SessionMiddleware (arch/ACCOUNTS_AUTH_RATINGS.md).
+// It replaced the old encrypted-cookie identity: nothing here is serialized
+// to the client anymore — the cookie carries only an opaque session token.
 type Context struct {
 	context.Context
-	ID        string    `json:"id"`
-	Anonymous bool      `json:"an"`
-	LastLogin time.Time `json:"ll"`
+	// ID is the session's uid: the seat/socket identity rooms, sockets and
+	// the games archive key off (16-char base58).
+	ID string
+	// Account is the attached account, nil for anonymous sessions.
+	Account *Account
 }
 
-// MarshalJSON returns the user context as valid, encrypted JSON
-func (c *Context) MarshalJSON() ([]byte, error) {
-	data := struct {
-		ID        string    `json:"id"`
-		Anonymous bool      `json:"an"`
-		LastLogin time.Time `json:"ll"`
-	}{
-		ID:        c.ID,
-		Anonymous: c.Anonymous,
-		LastLogin: c.LastLogin,
-	}
-
-	// marshal and encrypt the context data
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	encryptedJson, err := crypt.Encrypt(jsonData)
-	if err != nil {
-		return nil, err
-	}
-
-	return encryptedJson, nil
+// Account identifies a logged-in user. Defined here (not in auth) so the auth
+// package can depend on user without a cycle.
+type Account struct {
+	ID       int64
+	Username string
 }
 
-// GetID is a helper to return the user ID from the request context
+// GetID is a helper to return the session uid from the request context.
+// Empty when no session resolved (cookie-less WS upgrades).
 func GetID(ctx fiber.Ctx) string {
 	c := GetContext(ctx)
 	if c == nil {
@@ -53,7 +36,7 @@ func GetID(ctx fiber.Ctx) string {
 	return c.ID
 }
 
-// GetContext returns the decrypted Context from within the fiber.Context
+// GetContext returns the resolved identity Context from the fiber context.
 func GetContext(ctx fiber.Ctx) *Context {
 	c, ok := ctx.Context().(*Context)
 	if ok {
@@ -63,12 +46,12 @@ func GetContext(ctx fiber.Ctx) *Context {
 	return nil
 }
 
-// Anonymous returns a new anonymous user context
-func Anonymous() *Context {
-	return &Context{
-		Context:   context.Background(),
-		ID:        config.GenerateCode(16, config.Base58),
-		Anonymous: true,
-		LastLogin: time.Now(),
+// GetAccount returns the logged-in account for the request, or nil for
+// anonymous visitors.
+func GetAccount(ctx fiber.Ctx) *Account {
+	c := GetContext(ctx)
+	if c == nil {
+		return nil
 	}
+	return c.Account
 }

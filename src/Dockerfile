@@ -62,7 +62,7 @@ COPY cmd/lio/static ./cmd/lio/static
 RUN mkdir -p /out \
     && tailwindcss -i view/app.css -o /out/app.css --minify \
     && cat cmd/lio/static/res/themes/board/*.css cmd/lio/static/res/themes/piece/*.css > /out/themes.css \
-    && for f in lio lio-game lio-tv lio-room-create lio-home-demo lio-about; do \
+    && for f in lio lio-game lio-tv lio-room-create lio-home-demo lio-about lio-auth; do \
          esbuild "cmd/lio/static/$f.js" --minify --outfile="/out/$f.js"; \
        done
 

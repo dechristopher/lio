@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
 	"github.com/dechristopher/lio/assets"
+	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/demo"
@@ -21,7 +22,6 @@ import (
 	"github.com/dechristopher/lio/og"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
-	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/www/handlers"
 	"github.com/dechristopher/lio/www/handlers/api"
@@ -133,9 +133,9 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
 	}))
 
-	// evaluate / set user context
-	// TODO rebuild this every time someone logs in
-	r.Use(user.ContextMiddleware)
+	// resolve (or mint) the visitor's session and attach the identity to the
+	// request — the unified session system (arch/ACCOUNTS_AUTH_RATINGS.md)
+	r.Use(auth.SessionMiddleware)
 
 	// websocket upgrade middleware
 	r.Use("/socket", ws.UpgradeHandler)
