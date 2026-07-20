@@ -17,22 +17,26 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Games with your name on them",
+		Date:  "Jul 20, 2026",
+		Body: "You can now sign up and play under a username, which shows on your clocks, match " +
+			"timelines, and shared game links. A new profile menu keeps your account in one place — " +
+			"change your password, and review or sign out the devices you're logged in on. " +
+			"Anonymous play is unchanged; an account is entirely optional.",
+	},
+	{
 		Title: "It's that time already?",
 		Date:  "Jul 19, 2026",
-		Body: "Time taken per move is now tracked in the database, and can be seen in the move list " +
-			"UI. We also added a play/pause button in the archived game UI that can be used to " +
-			"play back the game in realtime as it happened. Additional fixes include unifying header " +
-			"navigation styles and sharpening the move list UI across all viewports.",
+		Body: "Finished games can now be replayed at their original pace — a new play button in the " +
+			"archive steps through the moves with the real timing between them, and the move list " +
+			"shows how long each move took.",
 	},
 	{
 		Title: "Matches that outlive the room",
 		Date:  "Jul 19, 2026",
-		Body: "Game links used to go dead once a room closed. No more: every finished match now " +
-			"lives on at its original link, with the final position on the board, the full move " +
-			"list, and the whole match timeline ready to replay. Each game of a match has its own " +
-			"link too — add /2 to a room link to jump straight to game two — and every game gets " +
-			"a permanent address for sharing a finish worth studying. Links you've already shared " +
-			"are covered, and previews of ended matches now show how the board ended up.",
+		Body: "Game links no longer go dead when a room closes — every finished match lives on at " +
+			"its original link, ready to replay in full, and each game of a match gets its own " +
+			"permanent address to share.",
 	},
 	{
 		Title: "A timeline you can click through",
