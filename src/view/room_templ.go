@@ -439,14 +439,14 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"><svg class=\"icon-copy\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg> <svg class=\"icon-check\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></button></span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div></div><!--\n\t\t\t\t\t\tIn-game controls. During play these are Resign / Draw (.play-ctrl);\n\t\t\t\t\t\tonce the game is over lio-game.js adds .controls-over, swapping in a\n\t\t\t\t\t\tRematch button (.over-ctrl) so a player reviewing the finished game\n\t\t\t\t\t\tcan rematch without the result overlay. The rematch button reuses the\n\t\t\t\t\t\tresult overlay's data-rematch-url bot fallback and shared enable/disable\n\t\t\t\t\t\tstate (perpetual vs a bot, disabled once a human opponent leaves).\n\t\t\t\t\t--><!--\n\t\t\t\t\t\tSpectators see the same control set, permanently disabled: the\n\t\t\t\t\t\tbuttons communicate what players can do without offering it.\n\t\t\t\t\t\tlio-game.js never wires their handlers or state helpers while\n\t\t\t\t\t\tspectating, and the server drops the frames regardless.\n\t\t\t\t\t--><div id=\"game-controls\" class=\"controls\"><button type=\"button\" id=\"btn-resign\" class=\"ctrl-btn play-ctrl\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"><svg class=\"icon-copy\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg> <svg class=\"icon-check\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></button></span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div><!-- free-exploration nudge, revealed when lio-game.js arms the\n\t\t\t\t\t\t     board for alternate lines (post-game bot analysis) --><div id=\"explore-hint\" class=\"explore-hint hidden\">Play moves on the board to explore alternate lines</div></div><!--\n\t\t\t\t\t\tIn-game controls. During play these are Resign / Draw (.play-ctrl);\n\t\t\t\t\t\tonce the game is over lio-game.js adds .controls-over, swapping in a\n\t\t\t\t\t\tRematch button (.over-ctrl) so a player reviewing the finished game\n\t\t\t\t\t\tcan rematch without the result overlay. The rematch button reuses the\n\t\t\t\t\t\tresult overlay's data-rematch-url bot fallback and shared enable/disable\n\t\t\t\t\t\tstate (perpetual vs a bot, disabled once a human opponent leaves).\n\t\t\t\t\t--><!--\n\t\t\t\t\t\tSpectators see the same control set, permanently disabled: the\n\t\t\t\t\t\tbuttons communicate what players can do without offering it.\n\t\t\t\t\t\tlio-game.js never wires their handlers or state helpers while\n\t\t\t\t\t\tspectating, and the server drops the frames regardless.\n\t\t\t\t\t--><div id=\"game-controls\" class=\"controls\"><button type=\"button\" id=\"btn-resign\" class=\"ctrl-btn play-ctrl\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Resign the game"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 166, Col: 119}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 169, Col: 119}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -469,7 +469,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Offer a draw"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 167, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 170, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {
@@ -492,7 +492,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Play again"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 168, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 171, Col: 128}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -505,7 +505,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 168, Col: 172}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 171, Col: 172}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {

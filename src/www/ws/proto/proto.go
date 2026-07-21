@@ -138,17 +138,24 @@ const MovePayloadVersion = 5
 // MovePayload contains all data necessary to represent a single
 // move during a live game and update game ui accordingly
 type MovePayload struct {
-	Clock      ClockPayload        `json:"c,omitempty"` // clock state
-	OFEN       string              `json:"o,omitempty"` // (position, toMove)
-	SAN        string              `json:"s,omitempty"`
-	UOI        string              `json:"u,omitempty"`
-	MoveNum    int                 `json:"n,omitempty"`
-	Check      bool                `json:"k,omitempty"`
-	Moves      []string            `json:"m,omitempty"`  // UOI move per ply, len == plies
-	SANs       []string            `json:"sm,omitempty"` // SAN per ply, len == plies (parallel to Moves)
-	OFENs      []string            `json:"om,omitempty"` // OFEN per position; OFENs[0] = start, OFENs[i] = after ply i, len == plies+1
-	MoveTimes  []int64             `json:"mt,omitempty"` // think time ms per ply as charged, parallel to Moves; absent when unrecorded
-	ClockTimes []int64             `json:"ct,omitempty"` // remaining clock ms after each ply (post-increment), parallel to Moves
+	Clock      ClockPayload `json:"c,omitempty"` // clock state
+	OFEN       string       `json:"o,omitempty"` // (position, toMove)
+	SAN        string       `json:"s,omitempty"`
+	UOI        string       `json:"u,omitempty"`
+	MoveNum    int          `json:"n,omitempty"`
+	Check      bool         `json:"k,omitempty"`
+	Moves      []string     `json:"m,omitempty"`  // UOI move per ply, len == plies
+	SANs       []string     `json:"sm,omitempty"` // SAN per ply, len == plies (parallel to Moves)
+	OFENs      []string     `json:"om,omitempty"` // OFEN per position; OFENs[0] = start, OFENs[i] = after ply i, len == plies+1
+	MoveTimes  []int64      `json:"mt,omitempty"` // think time ms per ply as charged, parallel to Moves; absent when unrecorded
+	ClockTimes []int64      `json:"ct,omitempty"` // remaining clock ms after each ply (post-increment), parallel to Moves
+	// Evals are cached engine evals (white-positive centipawns) per ply,
+	// parallel to Moves: Evals[i] scores the position after ply i+1, null where
+	// the background evaluator hasn't reached it. Archive-page-only (the
+	// server-rendered #archive-data blob drives the eval bar); never sent on
+	// the live wire or the immutable-cacheable game JSON endpoint, whose
+	// responses must not change as evals lazily fill in.
+	Evals      []*int16            `json:"ev,omitempty"`
 	ValidMoves map[string][]string `json:"v,omitempty"`
 	Latency    clock.CTime         `json:"l,omitempty"`  // player latency indicator
 	Ack        int                 `json:"a,omitempty"`  // move ack from player

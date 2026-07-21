@@ -22,7 +22,7 @@ const maxReconcileAttempts = 3;
 // reviewing an earlier ply it stays put and only the move list grows.
 // lastLiveMessage caches the most recent live board-state so returning to the
 // tip can restore full interactivity (dests, turn, orientation).
-let history = { uois: [], sans: [], ofens: [], times: [], clocks: [] };
+let history = { uois: [], sans: [], ofens: [], times: [], clocks: [], evals: [] };
 let currentPly = 0;
 let viewPly = 0;
 let followingLive = true;
@@ -259,6 +259,13 @@ let og = Octadground(document.getElementById('game'), {
 	},
 	events: {
 		move: (orig, dest, capturedPiece) => {
+			// free exploration (armed on archive pages and in post-game bot
+			// analysis, incl. archive "spectator" boards): moves grow the
+			// alternate line instead of going on the wire
+			if (canExplore()) {
+				exploreMove(orig, dest);
+				return;
+			}
 			if (isSpec) {
 				return; // never reachable with input disabled; belt and braces
 			}
@@ -1490,6 +1497,12 @@ const restoreResultBtn = document.getElementById('result-restore');
  * modal never blocks stepping through the finished game.
  */
 const dismissResultForAnalysis = () => {
+	// entering analysis is the eval-bar trigger for a finished bot game (any
+	// path in: the Analyze button or direct review navigation). Internally
+	// guarded — one fetch per finished game, bot rooms only. Arming unlocks
+	// the board itself for free exploration.
+	requestLiveEvals();
+	armExplore();
 	if (!resultOverlayEl
 		|| resultOverlayEl.classList.contains('result-dismissed')
 		|| resultOverlayEl.classList.contains('result-closing')) {
@@ -1649,14 +1662,20 @@ const handleMove = (message) => {
 	lastPly = serverPly;
 	currentPly = serverPly;
 
-	// capture the authoritative per-ply history for the move list + navigation
+	// capture the authoritative per-ply history for the move list + navigation.
+	// Evals never ride the live wire: the array resets empty (hiding the bar —
+	// a rematch's new game must never show the old game's evals) and the fetch
+	// guard resets with it, so re-entering analysis after a reconnect refetches.
 	history = {
 		uois: message.d.m || [],
 		sans: message.d.sm || [],
 		ofens: message.d.om || [],
 		times: message.d.mt || [],
 		clocks: message.d.ct || [],
+		evals: [],
 	};
+	liveEvalsN = 0;
+	updateEvalBar();
 
 	if (!message.d.m) {
 		move = 1;
@@ -1679,6 +1698,15 @@ const handleMove = (message) => {
 		}
 		// a new game invalidates any move left unconfirmed from the prior one
 		clearPending();
+		// analysis leftovers die with the old game: drop any exploration line
+		// and restore the premove behavior analysis arming disabled (arming
+		// only ever happens once a game is over, so this can't fight the live
+		// config mid-game)
+		clearExplore();
+		if (exploreArmedOnce) {
+			exploreArmedOnce = false;
+			og.set({ premovable: { enabled: !isSpec } });
+		}
 	} else if (!gameOver && !followingLive && message.d.m
 		&& isPlayerParticipant(message) && isPlayerTurn(message, ofenParts)) {
 		// snap a reviewing player back to the live board the moment it becomes
@@ -2213,6 +2241,8 @@ const applyBrowsedGame = (data) => {
 		};
 	}
 	browsing = data.n;
+	// a browsed game is a different context: any exploration line dies here
+	clearExplore();
 	// the result card, if up, hands the board over to browsing
 	dismissResultForAnalysis();
 
@@ -2221,7 +2251,7 @@ const applyBrowsedGame = (data) => {
 	browseOrientWhite = uid ? b.w === uid : true;
 	history = {
 		uois: b.m || [], sans: b.sm || [], ofens: b.om || [],
-		times: b.mt || [], clocks: b.ct || [],
+		times: b.mt || [], clocks: b.ct || [], evals: [],
 	};
 	currentPly = history.uois.length;
 	viewPly = currentPly;
@@ -2233,6 +2263,15 @@ const applyBrowsedGame = (data) => {
 	renderMoveList();
 	updateEndAnnotation();
 	refreshTimelineSelection();
+
+	// bot rooms: pull the browsed game's cached evals too (its positions are
+	// long archived; the async guard drops a stale response if the viewer has
+	// already browsed elsewhere). Human rooms never fetch.
+	updateEvalBar();
+	armExplore();
+	if (!isArchive && botClockEl) {
+		fetchEvalsInto(data.n, () => browsing === data.n);
+	}
 };
 
 /**
@@ -2275,6 +2314,8 @@ const exitBrowse = () => {
 	}
 	browsing = 0;
 	browseOrientWhite = null;
+	// the browsed game's exploration line (if any) dies with the context
+	clearExplore();
 	if (liveReview) {
 		history = liveReview.history;
 		currentPly = liveReview.currentPly;
@@ -2292,6 +2333,9 @@ const exitBrowse = () => {
 	renderMoveList();
 	updateEndAnnotation();
 	refreshTimelineSelection();
+	// the restored live-game history carries whatever evals were fetched for it
+	updateEvalBar();
+	armExplore();
 };
 
 // previous match score (raw white/black), so updateScore can flash only the side
@@ -3537,6 +3581,408 @@ const renderReviewPosition = (ply) => {
 	updateMaterial(parts[0]);
 };
 
+// ---- engine evaluation bar ----
+const evalBarEl = document.getElementById('eval-bar');
+
+/**
+ * updateEvalBar renders the eval bar for the viewed ply from the cached
+ * per-ply evals in history.evals (white-positive centipawns; null = the
+ * background evaluator hasn't reached that position yet). A pure bar — no
+ * numbers. It stays hidden until the history carries at least one eval; an
+ * individual unevaluated ply dims it at 50/50 instead. The light fill anchors
+ * to white's end of the board per the current orientation.
+ */
+const updateEvalBar = () => {
+	if (!evalBarEl) {
+		return;
+	}
+	const evals = history.evals || [];
+	const nonNull = (e) => e !== null && e !== undefined;
+	// an active exploration line always carries evals (the analysis endpoint
+	// returns one per move), so the bar shows while exploring even when the
+	// played game has none cached
+	const lineHasEvals = inLine && explore && explore.evals.some(nonNull);
+	if (!evals.some(nonNull) && !lineHasEvals) {
+		evalBarEl.hidden = true;
+		return;
+	}
+	evalBarEl.hidden = false;
+
+	// black-oriented board: white's fill anchors to the top instead
+	const gcon = document.getElementById('gcon-xx');
+	const blackBottom = !!(gcon && gcon.classList.contains('b'));
+	evalBarEl.classList.toggle('flip', blackBottom);
+
+	const fill = evalBarEl.querySelector('.eval-fill');
+	const cp = inLine && explore
+		? explore.evals[exploreView - 1]
+		: (viewPly === 0 ? 0 : evals[viewPly - 1]);
+	if (cp === null || cp === undefined) {
+		evalBarEl.classList.add('eval-unknown');
+		return;
+	}
+	evalBarEl.classList.remove('eval-unknown');
+
+	// centipawns -> white winning chances (logistic squash); short of a
+	// mate-ish score a sliver of the losing side's color always remains
+	const mateish = Math.abs(cp) >= 31000;
+	let pct = 50 + 50 * (2 / (1 + Math.exp(-0.004 * cp)) - 1);
+	pct = mateish ? (cp > 0 ? 100 : 0) : Math.max(4, Math.min(96, pct));
+	if (fill) { fill.style.height = pct + '%'; }
+};
+
+/**
+ * fetchEvalsInto pulls a finished game's cached evals from the server and
+ * applies them to the current history when the view still shows that game
+ * (stillCurrent guards the async race). Resolves true when any ply had an
+ * eval — false lets the caller schedule a retry for the evaluator's next
+ * batch.
+ * @param n - 1-based match game ordinal
+ * @param stillCurrent - () => boolean; whether the fetched game is still shown
+ */
+const fetchEvalsInto = async (n, stillCurrent) => {
+	try {
+		const res = await fetch('/api/room/' + location.pathname.split('/')[1] +
+			'/game/' + n + '/evals');
+		if (!res.ok) {
+			return false;
+		}
+		const ev = (await res.json()).ev || [];
+		if (stillCurrent() && ev.length === history.uois.length) {
+			history.evals = ev;
+			updateEvalBar();
+		}
+		return ev.some((e) => e !== null && e !== undefined);
+	} catch (err) {
+		return false;
+	}
+};
+
+// requestLiveEvals arms the eval bar on the live page: once a *bot* game is
+// over and the player enters analysis, fetch the finished game's cached evals
+// (the archive write + background evaluator fill them out-of-band). One fetch
+// per finished game, with a single delayed retry to catch the evaluator's
+// next batch when nothing was cached yet. Human-vs-human rooms never fetch —
+// their games get the bar on the archive page only.
+let liveEvalsN = 0;
+const requestLiveEvals = () => {
+	if (isArchive || !botClockEl || !gameOver || browsing) {
+		return;
+	}
+	const n = tlGameCount || 1;
+	if (liveEvalsN === n) {
+		return;
+	}
+	liveEvalsN = n;
+	const current = () => gameOver && !browsing && liveEvalsN === n;
+	fetchEvalsInto(n, current).then((any) => {
+		if (!any) {
+			setTimeout(() => {
+				if (current()) {
+					fetchEvalsInto(n, current);
+				}
+			}, 35000);
+		}
+	});
+};
+
+// ---- free exploration (study-style analysis) ----
+// On archive pages and in post-game bot-room analysis the board unlocks for
+// alternate lines: the viewer plays any legal move from any ply and a single
+// active exploration line grows from that branch point (playing a different
+// move mid-line replaces the tail — lichess quick-analysis style). The client
+// has no octad rules engine, so every explored move round-trips through
+// POST /api/analysis, which returns the resulting position, its legal-move
+// map, terminal state, and an eval that drives the eval bar along the line.
+// Lines are ephemeral: any game/context switch discards them.
+let explore = null;    // { basePly, uois, sans, ofens, checks, overs, evals, dests }
+let exploreView = 0;   // line ply on the board (>= 1 while inLine)
+let inLine = false;    // whether the board currently shows the line
+let exploreSeq = 0;    // async guard: only the latest explored move applies
+let exploreArmedOnce = false; // premovable was disabled for analysis (restore on new game)
+let analysisOff = false;      // endpoint unavailable: stop offering exploration
+const destsCache = new Map(); // ofen -> /api/analysis describe response
+
+/**
+ * canExplore reports whether free exploration is available in the current
+ * context: any archive page, or a finished bot game viewed by a player.
+ * Human-vs-human rooms never unlock live — their games get analysis on the
+ * archive page.
+ */
+const canExplore = () => !analysisOff && !deployMode && !deploySpectating
+	&& (isArchive || (gameOver && !!botClockEl && !isSpec));
+
+/** destsMapFromObj converts the wire's {orig: [dests]} into octadground's Map. */
+const destsMapFromObj = (v) => new Map(Object.entries(v || {}));
+
+/** sideToMove returns octadground's color string for an OFEN's turn field. */
+const sideToMove = (ofen) => ofen.split(' ')[1] === 'w' ? 'white' : 'black';
+
+/**
+ * clearExplore drops the active line (context switches: new game, browsing
+ * hops, discard).
+ */
+const clearExplore = () => {
+	explore = null;
+	inLine = false;
+	exploreView = 0;
+	exploreSeq++;
+};
+
+/**
+ * armExplore unlocks the board at the currently viewed *game* ply: fetches
+ * (or serves from cache) the position's legal moves via the analysis
+ * endpoint, then enables movement for the side to move. No-op while the line
+ * itself is on the board (renderLinePosition arms from line state).
+ */
+const armExplore = () => {
+	if (!canExplore() || inLine) {
+		return;
+	}
+	const ofen = history.ofens[viewPly];
+	if (!ofen) {
+		return;
+	}
+	const cached = destsCache.get(ofen);
+	if (cached) {
+		applyArm(ofen, cached);
+		return;
+	}
+	fetch('/api/analysis', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ ofen: ofen }),
+	}).then(async (res) => {
+		if (!res.ok) {
+			if (res.status === 404) { analysisOff = true; }
+			return;
+		}
+		const d = await res.json();
+		destsCache.set(ofen, d);
+		// only arm if the board still shows the position we asked about
+		if (!inLine && history.ofens[viewPly] === ofen) {
+			applyArm(ofen, d);
+		}
+	}).catch(() => { /* leave the board read-only; next nav retries */ });
+};
+
+/**
+ * applyArm enables board movement for a described game position and
+ * opportunistically backfills the eval bar for plies the background
+ * evaluator hasn't reached (the describe response carries a fresh eval).
+ */
+const applyArm = (ofen, d) => {
+	og.set({
+		draggable: { enabled: true },
+		selectable: { enabled: window.isMobile },
+		premovable: { enabled: false },
+		movable: {
+			free: false,
+			color: sideToMove(ofen),
+			dests: destsMapFromObj(d.v),
+		},
+	});
+	exploreArmedOnce = true;
+	const hint = document.getElementById('explore-hint');
+	if (hint) {
+		hint.classList.remove('hidden');
+	}
+	if (viewPly > 0 && typeof d.cp === 'number'
+		&& (history.evals[viewPly - 1] === null || history.evals[viewPly - 1] === undefined)) {
+		history.evals[viewPly - 1] = d.cp;
+		updateEvalBar();
+	}
+};
+
+/**
+ * renderLinePosition puts line ply i (>= 1) on the board, movable for the
+ * side to move unless the line reached a terminal position.
+ */
+const renderLinePosition = (i) => {
+	const ofen = explore.ofens[i - 1];
+	const parts = ofen.split(' ');
+	const uoi = explore.uois[i - 1];
+	og.set({
+		orientation: playerColor(),
+		ofen: parts[0],
+		lastMove: [uoi.substring(0, 2), uoi.substring(2, 4)],
+		turnColor: parts[1] === 'w' ? 'white' : 'black',
+		check: explore.checks[i - 1],
+		draggable: { enabled: true },
+		selectable: { enabled: window.isMobile },
+		movable: {
+			free: false,
+			color: parts[1] === 'w' ? 'white' : 'black',
+			dests: explore.overs[i - 1] ? new Map() : destsMapFromObj(explore.dests[i - 1]),
+		},
+	});
+	updateMaterial(parts[0]);
+};
+
+/**
+ * rerenderCurrent snaps the board back to the authoritative current view —
+ * used when an explored move is rejected (octadground already moved the
+ * piece optimistically).
+ */
+const rerenderCurrent = () => {
+	if (inLine) {
+		renderLinePosition(exploreView);
+	} else {
+		renderReviewPosition(viewPly);
+		armExplore();
+	}
+};
+
+/**
+ * lineGo navigates within the exploration line: i >= 1 shows line ply i,
+ * i == 0 returns to the branch-point game ply (the line stays available in
+ * the move list for re-entry).
+ * @param i - target line ply, clamped to [0, line length]
+ */
+const lineGo = (i) => {
+	if (!explore) {
+		return;
+	}
+	if (i < 0) {
+		i = 0;
+	}
+	if (i > explore.uois.length) {
+		i = explore.uois.length;
+	}
+	const moved = inLine ? i !== exploreView : true;
+	if (i === 0) {
+		inLine = false;
+		goToPly(explore.basePly);
+		return;
+	}
+	inLine = true;
+	exploreView = i;
+	renderLinePosition(i);
+	renderMoveList();
+	updateEvalBar();
+	if (moved) {
+		playNavSound(explore.sans[i - 1]);
+	}
+};
+
+/**
+ * exploreApply plays one explored move through the analysis endpoint and
+ * grows (or branches/replaces) the active line with the server's authoritative
+ * result. A rejected or superseded response snaps the board back.
+ * @param uoi - the move in UOI form, promotion suffix included
+ */
+const exploreApply = async (uoi) => {
+	if (!canExplore()) {
+		rerenderCurrent();
+		return;
+	}
+	const fromOfen = inLine ? explore.ofens[exploreView - 1] : history.ofens[viewPly];
+	const branchPly = inLine ? null : viewPly;
+	const seq = ++exploreSeq;
+	try {
+		const res = await fetch('/api/analysis', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ ofen: fromOfen, uoi: uoi }),
+		});
+		if (!res.ok) {
+			if (res.status === 404) { analysisOff = true; }
+			rerenderCurrent();
+			return;
+		}
+		const d = await res.json();
+		if (seq !== exploreSeq) {
+			return; // a newer explored move superseded this one
+		}
+		if (branchPly !== null) {
+			// branching from a game ply replaces any previous line entirely
+			explore = { basePly: branchPly, uois: [], sans: [], ofens: [], checks: [], overs: [], evals: [], dests: [] };
+			exploreView = 0;
+		} else if (exploreView < explore.uois.length) {
+			// rewound mid-line: the new move replaces the tail
+			['uois', 'sans', 'ofens', 'checks', 'overs', 'evals', 'dests']
+				.forEach((k) => { explore[k].length = exploreView; });
+		}
+		explore.uois.push(uoi);
+		explore.sans.push(d.s || uoi);
+		explore.ofens.push(d.o);
+		explore.checks.push(!!d.k);
+		explore.overs.push(d.over || '');
+		explore.evals.push(typeof d.cp === 'number' ? d.cp : null);
+		explore.dests.push(d.v || {});
+		inLine = true;
+		exploreView = explore.uois.length;
+		renderLinePosition(exploreView);
+		renderMoveList();
+		updateEvalBar();
+		playNavSound(explore.sans[exploreView - 1]);
+	} catch (err) {
+		rerenderCurrent();
+	}
+};
+
+/**
+ * exploreMove is the board's move callback while exploration is armed:
+ * detect a promotion push (octadground has already placed the pawn on the
+ * final rank) and prompt for the piece, else apply the plain move.
+ */
+const exploreMove = (orig, dest) => {
+	const piece = og.state.pieces.get(dest);
+	if (piece && piece.role === 'pawn'
+		&& ((piece.color === 'white' && dest[1] === '4')
+			|| (piece.color === 'black' && dest[1] === '1'))) {
+		explorePromo(orig, dest, piece.color);
+		return;
+	}
+	exploreApply(orig + dest);
+};
+
+/**
+ * explorePromo shows the promotion picker for an explored promotion push.
+ * The picker buttons are clone-replaced first to strip any listeners a live
+ * game's promotion left behind (doMove attaches per-open); without picker
+ * markup the move auto-queens.
+ */
+const explorePromo = (orig, dest, color) => {
+	const shade = document.getElementById('promo-shade');
+	const bar = document.getElementById('promo-select');
+	if (!shade || !bar) {
+		exploreApply(orig + dest + 'q');
+		return;
+	}
+	shade.classList.remove('hidden');
+	bar.classList.remove('hidden');
+	bar.classList.add('f' + dest[0]);
+	const stale = bar.getElementsByTagName('piece');
+	for (let i = stale.length - 1; i >= 0; i--) {
+		stale[i].replaceWith(stale[i].cloneNode(true));
+	}
+	const pieces = bar.getElementsByTagName('piece');
+	for (let i = 0; i < pieces.length; i++) {
+		const el = pieces[i];
+		el.classList.add(color);
+		const promo = el.classList.contains('queen') ? 'q'
+			: el.classList.contains('rook') ? 'r'
+				: el.classList.contains('bishop') ? 'b' : 'n';
+		el.addEventListener('click', () => {
+			hideExplorePromo(bar, shade, dest);
+			exploreApply(orig + dest + promo);
+		});
+	}
+};
+
+/** hideExplorePromo tears the promotion picker back down. */
+const hideExplorePromo = (bar, shade, dest) => {
+	shade.classList.add('hidden');
+	bar.classList.add('hidden');
+	bar.classList.remove('f' + dest[0]);
+	const pieces = bar.getElementsByTagName('piece');
+	for (let i = 0; i < pieces.length; i++) {
+		pieces[i].classList.remove('white');
+		pieces[i].classList.remove('black');
+	}
+};
+
 /**
  * goToPly moves the on-screen board to the given ply, clamped to
  * [0, currentPly]. Landing on the live tip restores the authoritative live board
@@ -3548,6 +3994,21 @@ const goToPly = (ply) => {
 	// navigation is meaningless during the blind deploy phase
 	if (deployMode || deploySpectating) {
 		return;
+	}
+	// exploration line navigation: while the line is on the board, single
+	// steps move within it (the branch point is line index 0); jumps (⏮/⏭,
+	// move-list clicks) and realtime playback exit to the played game
+	if (explore && inLine) {
+		const delta = ply - viewPly;
+		if (!playbackStepping && delta === 1) {
+			lineGo(exploreView + 1);
+			return;
+		}
+		if (!playbackStepping && delta === -1) {
+			lineGo(exploreView - 1);
+			return;
+		}
+		inLine = false; // fall through to normal game navigation
 	}
 	// any manual navigation pauses an in-flight realtime playback (playback's
 	// own steps come through with playbackStepping set)
@@ -3580,6 +4041,9 @@ const goToPly = (ply) => {
 	renderMoveList();
 	// archive pages carry live-style clock cards; keep them at the viewed ply
 	renderArchiveClocks(ply);
+	updateEvalBar();
+	// analysis contexts: unlock the board at this ply for exploration
+	armExplore();
 	// sound the move we traversed onto — the move leading into the ply we landed
 	// on, which is also the last-move the board now highlights. Only when the ply
 	// actually changed, so a clamped no-op (e.g. ▶ at the live tip) stays silent.
@@ -3592,8 +4056,12 @@ const goToPly = (ply) => {
  * updateNavButtons enables/disables the ⏮◀▶⏭ controls based on the viewed ply.
  */
 const updateNavButtons = () => {
-	const atStart = viewPly <= 0;
-	const atLive = viewPly >= currentPly;
+	// while the exploration line is on the board, ◀ always has the branch
+	// point to return to and ▶ runs out at the line's tip
+	const atStart = inLine ? false : viewPly <= 0;
+	const atLive = inLine
+		? exploreView >= explore.uois.length
+		: viewPly >= currentPly;
 	if (navFirstBtn) { navFirstBtn.disabled = atStart; }
 	if (navPrevBtn) { navPrevBtn.disabled = atStart; }
 	if (navNextBtn) { navNextBtn.disabled = atLive; }
@@ -3622,6 +4090,37 @@ const formatMoveTime = (ms) => {
  * full move (number, white, black). The cell at the viewed ply is highlighted
  * and scrolled into view; ply 0 (start) highlights the panel via .at-start.
  */
+/**
+ * exploreLineHTML renders the active exploration line as a variation block
+ * for the move list: "↳" + numbered SANs (each clickable, the viewed one
+ * highlighted) + a discard button.
+ */
+const exploreLineHTML = () => {
+	if (!explore || explore.sans.length === 0) {
+		return '';
+	}
+	let h = '<div class="move-var" role="group" aria-label="Exploration line">';
+	h += '<span class="var-tag" aria-hidden="true">↳</span>';
+	for (let i = 0; i < explore.sans.length; i++) {
+		const ply = explore.basePly + i + 1; // absolute ply of this line move
+		const num = Math.ceil(ply / 2);
+		const isWhite = ply % 2 === 1;
+		let prefix = '';
+		if (i === 0) {
+			prefix = num + (isWhite ? '. ' : '… ');
+		} else if (isWhite) {
+			prefix = num + '. ';
+		}
+		h += '<span class="vmove' + (inLine && exploreView === i + 1 ? ' active' : '')
+			+ '" data-line-idx="' + (i + 1) + '" role="listitem">'
+			+ prefix + escapeHtml(explore.sans[i]) + '</span>';
+	}
+	h += '<button type="button" class="var-discard" data-line-discard'
+		+ ' title="Discard this line" aria-label="Discard this line">×</button>';
+	h += '</div>';
+	return h;
+};
+
 const renderMoveList = () => {
 	if (!moveListEl) {
 		return;
@@ -3636,24 +4135,34 @@ const renderMoveList = () => {
 	const timeCell = (ply) => showTimes
 		? '<span class="move-time">' + formatMoveTime(times[ply - 1]) + '</span>'
 		: '';
+	// the active exploration line renders as an indented variation block right
+	// after the move-row containing its branch point (before all rows when the
+	// line branches from the start position)
+	const varRow = explore ? Math.ceil(explore.basePly / 2) : -1;
 	let html = '';
+	if (explore && explore.basePly === 0) {
+		html += exploreLineHTML();
+	}
 	for (let i = 0; i < sans.length; i += 2) {
 		const num = (i / 2) + 1;
 		const wPly = i + 1;
 		const bPly = i + 2;
 		html += '<div class="move-row">';
 		html += '<span class="move-num">' + num + '.</span>';
-		html += '<span class="move' + (viewPly === wPly ? ' active' : '')
+		html += '<span class="move' + (!inLine && viewPly === wPly ? ' active' : '')
 			+ '" data-ply="' + wPly + '" role="listitem">' + escapeHtml(sans[i])
 			+ timeCell(wPly) + '</span>';
 		if (sans[i + 1] !== undefined) {
-			html += '<span class="move' + (viewPly === bPly ? ' active' : '')
+			html += '<span class="move' + (!inLine && viewPly === bPly ? ' active' : '')
 				+ '" data-ply="' + bPly + '" role="listitem">' + escapeHtml(sans[i + 1])
 				+ timeCell(bPly) + '</span>';
 		} else {
 			html += '<span class="move move-empty"></span>';
 		}
 		html += '</div>';
+		if (num === varRow) {
+			html += exploreLineHTML();
+		}
 	}
 	moveListEl.innerHTML = html;
 	moveListEl.classList.toggle('at-start', viewPly === 0);
@@ -3684,12 +4193,35 @@ if (navNextBtn) { navNextBtn.addEventListener('click', () => goToPly(viewPly + 1
 if (navLastBtn) { navLastBtn.addEventListener('click', () => goToPly(currentPly)); }
 if (moveListEl) {
 	moveListEl.addEventListener('click', (e) => {
+		// exploration line: discard button drops the line; its moves navigate
+		// within it (re-entering the line from a game-ply view)
+		if (e.target.closest('[data-line-discard]')) {
+			const basePly = explore ? explore.basePly : viewPly;
+			const wasInLine = inLine;
+			clearExplore();
+			if (wasInLine) {
+				goToPly(basePly);
+			} else {
+				renderMoveList();
+			}
+			return;
+		}
+		const vmove = e.target.closest('.vmove[data-line-idx]');
+		if (vmove) {
+			const idx = parseInt(vmove.getAttribute('data-line-idx'), 10);
+			if (!isNaN(idx)) {
+				lineGo(idx);
+			}
+			return;
+		}
 		const cell = e.target.closest('.move[data-ply]');
 		if (!cell) {
 			return;
 		}
 		const ply = parseInt(cell.getAttribute('data-ply'), 10);
 		if (!isNaN(ply)) {
+			// clicking a played move always exits the line (kept for re-entry)
+			inLine = false;
 			goToPly(ply);
 		}
 	});
@@ -4038,6 +4570,9 @@ const hydrateArchive = () => {
 	history = {
 		uois: b.m || [], sans: b.sm || [], ofens: b.om || [],
 		times: b.mt || [], clocks: b.ct || [],
+		// cached engine evals (white-positive centipawns per ply; null where
+		// the background evaluator hasn't reached a position yet)
+		evals: b.ev || [],
 	};
 	currentPly = history.uois.length;
 	viewPly = currentPly;
@@ -4048,6 +4583,10 @@ const hydrateArchive = () => {
 	// enables movement)
 	renderReviewPosition(currentPly);
 	renderMoveList();
+	updateEvalBar();
+	// archive pages are analysis surfaces from the first paint: unlock the
+	// board for free exploration
+	armExplore();
 
 	// the clock cards open frozen at their end-of-game values, and the score
 	// chips carry the final match score, mirroring a just-finished live game

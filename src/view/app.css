@@ -352,7 +352,52 @@
 		width: 100%;
 		display: flex;
 		justify-content: center;
+		gap: 0.5rem;
 	}
+
+	/* ---- engine evaluation bar ----
+	   A thin vertical advantage column flush beside the board: the light fill is
+	   white's winning chances (bottom-anchored when white is the bottom seat,
+	   .flip re-anchors it top for black-oriented boards). A pure bar — no
+	   numbers; the engine's centipawn scale means little in octad. Piece-literal
+	   fills (not theme tokens) so the bar reads as White-vs-Black in both site
+	   themes; align-self stretch matches the board's height for free. Shown on
+	   archive replays and after bot games once analysis begins (lio-game.js);
+	   .eval-unknown marks an individual unevaluated ply. */
+	.eval-bar {
+		flex: none;
+		position: relative;
+		width: 0.8rem;
+		align-self: stretch;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: #46423e; /* black's side of the bar */
+		overflow: hidden;
+		transition: opacity 150ms var(--ease-snappy);
+	}
+	.eval-bar[hidden] { display: none; }
+	.eval-fill {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 50%;
+		background: #e8e6e3; /* white's side */
+		transition: height 300ms var(--ease-snappy);
+	}
+	.eval-bar.flip .eval-fill { bottom: auto; top: 0; }
+	/* midline tick: the 50/50 reference */
+	.eval-bar::after {
+		content: "";
+		position: absolute;
+		top: 50%;
+		left: 0;
+		right: 0;
+		height: 1px;
+		background: color-mix(in srgb, var(--accent) 75%, transparent);
+	}
+	.eval-bar.eval-unknown { opacity: 0.4; }
+	.eval-bar.eval-unknown .eval-fill { height: 50% !important; }
 
 	/* outer container around the board + controls cluster; an extension point
 	   for future surrounding UI (toolbars, analysis, etc.) */
@@ -874,6 +919,54 @@
 		color: var(--text-subtle);
 	}
 	.move.active .move-time { color: color-mix(in srgb, var(--accent-contrast) 78%, transparent); }
+	/* ---- free-exploration variation block (study-style analysis) ----
+	   The single active alternate line renders as an indented, accent-edged
+	   inline flow directly after its branch-point row; its moves navigate the
+	   line and the trailing × discards it. */
+	.move-var {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.1rem 0.25rem;
+		margin: 0.1rem 0.2rem 0.2rem 0.9rem;
+		padding: 0.25rem 0.4rem;
+		border-left: 2px solid var(--accent);
+		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+		background: color-mix(in srgb, var(--accent) 7%, transparent);
+		font-size: 0.78rem;
+	}
+	.var-tag { color: var(--accent); font-weight: 700; margin-right: 0.15rem; }
+	.vmove {
+		padding: 0.05rem 0.3rem;
+		border-radius: var(--radius-sm);
+		color: var(--text-muted);
+		cursor: pointer;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.vmove:hover { background: var(--surface-2); color: var(--text); }
+	.vmove.active { background: var(--accent); color: var(--accent-contrast); }
+	.var-discard {
+		margin-left: auto;
+		width: 1.15rem;
+		height: 1.15rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-sm);
+		color: var(--text-subtle);
+		font-size: 0.8rem;
+		line-height: 1;
+	}
+	.var-discard:hover { color: var(--loss); background: color-mix(in srgb, var(--loss) 12%, transparent); }
+	/* free-exploration nudge under the move nav, revealed on arming */
+	.explore-hint {
+		margin-top: 0.35rem;
+		font-size: 0.68rem;
+		line-height: 1.35;
+		text-align: center;
+		color: var(--text-subtle);
+	}
 	/* the ⏵/⏸ realtime-playback control renders its glyph slightly larger so it
 	   reads at the same optical weight as the ◀▶ steppers */
 	.nav-play { font-size: 1.05rem; }
@@ -2161,24 +2254,91 @@
 		color: var(--text);
 	}
 	.wait-sub { margin: 0.3rem 0 0; font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); }
-	/* creator hero: mobile stacks share column → QR fold → cancel; from 34rem
-	   the QR spans the left column with the share content and trailing cancel
-	   as the right column's rows (1fr row pins cancel to the QR's bottom edge) */
-	.wait-hero { display: grid; gap: 1rem; grid-template-areas: "share" "qr" "actions"; }
+	/* logged-in creator's identity confirmation in the head ("Playing as drew
+	   ‹1650?›") */
+	.wait-identity {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin: 0.45rem 0 0;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+	/* creator hero, share-first: the invite link is the full-width lead row (the
+	   thing the creator came to do); below it the small QR tile sits beside the
+	   match summary, with the quiet cancel pinned to the bottom-right. Mobile
+	   stacks invite → summary → QR fold → cancel. */
+	.wait-hero { display: grid; gap: 1rem; grid-template-areas: "invite" "summary" "qr" "actions"; }
 	@media (min-width: 34rem) {
 		.wait-hero {
 			grid-template-columns: auto minmax(0, 1fr);
-			grid-template-rows: 1fr auto;
+			grid-template-rows: auto auto 1fr;
 			grid-template-areas:
-				"qr share"
-				"qr actions";
+				"invite invite"
+				"qr     summary"
+				"qr     actions";
 			column-gap: 1.5rem;
 			align-items: start;
 		}
+		.wait-actions { justify-self: end; align-self: end; }
 	}
-	.wait-share { grid-area: share; display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+	.wait-invite { grid-area: invite; min-width: 0; }
+	.wait-summary { grid-area: summary; min-width: 0; }
 	.wait-actions { grid-area: actions; }
 	.wait-note { font-size: 0.72rem; line-height: 1.4; color: var(--text-subtle); }
+	/* the cancel action: deliberately quiet (a waiting room's loudest element
+	   should never be the destructive one), loss-tinted on hover */
+	.cancel-ghost { padding: 0.4rem 0.9rem; font-size: 0.8rem; color: var(--text-muted); }
+	.cancel-ghost:hover { color: var(--loss); border-color: var(--loss); }
+	/* challenger identity card (joiner view): initial-letter avatar chip +
+	   username + rating + the side they play — who is challenging you should be
+	   unmissable */
+	.challenger-card {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1.1rem;
+		padding: 0.65rem 0.85rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+	}
+	.avatar-chip {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.4rem;
+		height: 2.4rem;
+		border-radius: 9999px;
+		font-weight: 700;
+		font-size: 1.05rem;
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+	}
+	.challenger-meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+	.challenger-name {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-weight: 600;
+		color: var(--text);
+		min-width: 0;
+	}
+	.challenger-sub { font-size: 0.72rem; color: var(--text-subtle); }
+	/* small pill for a Glicko display rating beside a name ("1650" / "1500?") */
+	.rating-chip {
+		display: inline-block;
+		padding: 0.05rem 0.5rem;
+		border: 1px solid var(--border-strong);
+		border-radius: 9999px;
+		background: var(--surface-2);
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--text);
+	}
 	/* the QR fold: a <details> that renders open (QR visible without JS and on
 	   desktop, where the summary toggle is hidden). lio-room-create.js closes it
 	   on load below the 34rem breakpoint so phones lead with the invite link. */
@@ -2245,6 +2405,10 @@
 		height: 10rem;
 		shape-rendering: crispEdges;
 	}
+	/* the share-first creator hero demotes the QR to a compact side tile — the
+	   invite link leads, the code stays comfortably scannable at this size */
+	.qr-tile-sm { padding: 0.5rem; }
+	.qr-tile-sm .invite-qr { width: 8.5rem; height: 8.5rem; }
 
 	/* ---- home-page "What is Octad?" self-playing demo board ----
 	   lio-home-demo.js mounts an octadground board on #home-demo-board, reusing

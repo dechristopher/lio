@@ -35,6 +35,42 @@ func (q *Queries) InsertMove(ctx context.Context, arg InsertMoveParams) error {
 	return err
 }
 
+const listGameMoveEvals = `-- name: ListGameMoveEvals :many
+SELECT m.ply, p.eval_cp FROM moves m
+JOIN positions p ON p.id = m.position_id
+WHERE m.game_ref = $1
+ORDER BY m.ply
+`
+
+type ListGameMoveEvalsRow struct {
+	Ply    int16
+	EvalCp *int16
+}
+
+// Cached engine evals for one game's per-ply positions (white-positive
+// centipawns), in ply order. eval_cp is NULL for positions the background
+// evaluator (lio_pg_evaluator) has not reached yet — the archive eval bar
+// renders those plies as unevaluated.
+func (q *Queries) ListGameMoveEvals(ctx context.Context, gameRef int32) ([]ListGameMoveEvalsRow, error) {
+	rows, err := q.db.Query(ctx, listGameMoveEvals, gameRef)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGameMoveEvalsRow
+	for rows.Next() {
+		var i ListGameMoveEvalsRow
+		if err := rows.Scan(&i.Ply, &i.EvalCp); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGameMoveTimes = `-- name: ListGameMoveTimes :many
 SELECT ply, clock_ms, move_ms FROM moves WHERE game_ref = $1 ORDER BY ply
 `

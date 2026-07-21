@@ -99,6 +99,23 @@ func evalBatchOnce() {
 	}
 }
 
+// CachedEvalByHash reads a position's cached eval (white-positive centipawns)
+// by its clock-independent Position.Hash(), returning nil on a miss, an
+// unevaluated row, or an unconfigured Postgres. The analysis endpoint reads
+// through this before paying for a live engine search.
+func CachedEvalByHash(hash []byte) *int16 {
+	if Pool == nil {
+		return nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	p, err := gen.New(Pool).GetPositionByHash(ctx, hash)
+	if err != nil {
+		return nil
+	}
+	return p.EvalCp
+}
+
 // clampEval converts an engine eval into saturated int16 centipawns: mate-ish
 // scores clamp to ±evalCap so they fit the column.
 func clampEval(cp float64) int16 {

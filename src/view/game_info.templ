@@ -54,5 +54,13 @@ templ gameSummary(payload message.RoomTemplatePayload) {
 				<span class="font-semibold text-accent">Rated</span>
 			}
 		</div>
+		<!-- plain-language decode of the clock notation + the deploy pre-game,
+		     so newcomers know exactly what they're signing up for -->
+		<p class="wait-note -mt-1.5">
+			{ humanClock(payload.Variant) }
+			if payload.Variant.Deploy {
+				{ " · arrange your pieces before play" }
+			}
+		</p>
 	</div>
 }

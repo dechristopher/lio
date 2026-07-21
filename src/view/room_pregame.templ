@@ -2,15 +2,17 @@ package view
 
 import "github.com/dechristopher/lio/message"
 
-// roomCreator is the creator's pre-game waiting view: a single horizontal share
-// hero. The QR sits on the left; the match summary, copyable invite link, and
-// cancel action stack on the right, so no column is taller than its content.
-// On narrow viewports everything stacks and the QR collapses behind a
-// "Show QR code" fold (lio-room-create.js closes #qrFold on load below the
-// 34rem breakpoint; it renders open so the QR stays visible without JS and on
-// desktop). It waits over the websocket for an opponent. lio-room-create.js
-// wires #copyInviteButton (toggling .copied) and reads #gameInviteLink, so
-// those hooks are preserved.
+// roomCreator is the creator's pre-game waiting view, laid out share-first:
+// the invite link + copy button lead as a full-width hero row (the thing the
+// creator actually came here to do), with the QR demoted to a small side tile
+// beside the match summary and the cancel action as a quiet ghost button in
+// the bottom corner. A logged-in creator sees a "Playing as …" identity line
+// in the head. On narrow viewports everything stacks and the QR collapses
+// behind a "Show QR code" fold (lio-room-create.js closes #qrFold on load
+// below the 34rem breakpoint; it renders open so the QR stays visible without
+// JS and on desktop). It waits over the websocket for an opponent.
+// lio-room-create.js wires #copyInviteButton (toggling .copied) and reads
+// #gameInviteLink, so those hooks are preserved.
 templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 	<main class="wait card mt-2 mb-4">
 		<div class="wait-head">
@@ -24,25 +26,30 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 				<h1 class="wait-title">Waiting for an opponent…</h1>
 			</div>
 			if payload.Public {
-				<p class="wait-sub">Your challenge is listed on the home page — anyone can join, or share the link directly.</p>
+				<p class="wait-sub">Your challenge is listed on the home page — anyone can join, or share the link below.</p>
 			} else {
-				<p class="wait-sub">Your challenge is unlisted — share the link to bring someone in.</p>
+				<p class="wait-sub">Your challenge is unlisted — only someone with the link can join.</p>
+			}
+			if payload.CreatorName != "" {
+				<p class="wait-identity">
+					Playing as <strong class="font-semibold text-fg">{ payload.CreatorName }</strong>
+					if payload.CreatorRating != "" {
+						<span class="rating-chip">{ payload.CreatorRating }</span>
+					}
+				</p>
 			}
 		</div>
 		<div class="wait-hero">
-			<div class="wait-share">
-				@gameSummary(payload)
-				<div>
-					<label class="sr-only" for="gameInviteLink">Invite link</label>
-					<div class="invite-row">
-						<input type="text" id="gameInviteLink" class="invite-field" onClick="this.select();" value={ meta.SiteURL + payload.RoomID } readonly/>
-						<button type="button" id="copyInviteButton" class="btn btn-ghost copy-btn" title="Copy invite URL" aria-label="Copy invite URL">
-							@iconCopy()
-							@iconCheck()
-						</button>
-					</div>
-					<p class="wait-note mt-2">Anyone who opens this link can take the open seat.</p>
+			<div class="wait-invite">
+				<label class="sr-only" for="gameInviteLink">Invite link</label>
+				<div class="invite-row">
+					<input type="text" id="gameInviteLink" class="invite-field" onClick="this.select();" value={ meta.SiteURL + payload.RoomID } readonly/>
+					<button type="button" id="copyInviteButton" class="btn btn-ghost copy-btn" title="Copy invite URL" aria-label="Copy invite URL">
+						@iconCopy()
+						@iconCheck()
+					</button>
 				</div>
+				<p class="wait-note mt-2">Anyone who opens this link can take the open seat.</p>
 			</div>
 			<details id="qrFold" class="qr-fold" open>
 				<summary>
@@ -50,16 +57,19 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 					<span class="qr-hide">Hide QR code</span>
 				</summary>
 				<div class="qr-fold-body">
-					<div class="qr-tile">
+					<div class="qr-tile qr-tile-sm">
 						@inviteQR(meta.SiteURL + payload.RoomID)
 					</div>
 					<p class="wait-note">Scan to join from another device</p>
 				</div>
 			</details>
+			<div class="wait-summary">
+				@gameSummary(payload)
+			</div>
 			<div class="wait-actions">
 				<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
 					<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
-					<button type="submit" class="btn btn-danger btn-block" title="Cancel the game">× Cancel game</button>
+					<button type="submit" class="btn btn-ghost cancel-ghost" title="Cancel the game">× Cancel game</button>
 				</form>
 			</div>
 		</div>
@@ -67,9 +77,11 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 }
 
 // roomJoiner is the joining player's pre-game view: the same head treatment as
-// the creator over a single compact row — the match summary (showing the open
-// seat they would take) beside the join call-to-action. The row stacks on
-// narrow viewports.
+// the creator, then a challenger identity card — initial-letter avatar chip,
+// username (or "Anonymous player"), rating chip, and the side they'll play —
+// so who is challenging you is unmissable. Below it, the match summary sits
+// beside the join call-to-action (stacking on narrow viewports). A rated room
+// swaps the Join button for a "Log in to play" prompt for anonymous viewers.
 templ roomJoiner(payload message.RoomTemplatePayload) {
 	<main class="wait card mt-2 mb-4">
 		<div class="wait-head">
@@ -78,17 +90,23 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 				<span class="waiting-dot" aria-hidden="true"></span>
 				<h1 class="wait-title">An opponent is waiting for you</h1>
 			</div>
-			if payload.CreatorName != "" {
-				<p class="wait-sub">
-					<strong class="text-fg">{ payload.CreatorName }</strong>
-					if payload.CreatorRating != "" {
-						<span class="text-fg-subtle">({ payload.CreatorRating })</span>
+			<p class="wait-sub">The game starts the moment you take the seat.</p>
+		</div>
+		<div class="challenger-card">
+			<span class="avatar-chip" aria-hidden="true">{ challengerInitial(payload.CreatorName) }</span>
+			<div class="challenger-meta">
+				<span class="challenger-name">
+					if payload.CreatorName != "" {
+						{ payload.CreatorName }
+						if payload.CreatorRating != "" {
+							<span class="rating-chip">{ payload.CreatorRating }</span>
+						}
+					} else {
+						Anonymous player
 					}
-					set up this game — it starts the moment you take the seat.
-				</p>
-			} else {
-				<p class="wait-sub">An anonymous player set up this game — it starts the moment you take the seat.</p>
-			}
+				</span>
+				<span class="challenger-sub">Challenger · plays { challengerColorName(payload) }</span>
+			</div>
 		</div>
 		<div class="wait-join">
 			@gameSummary(payload)

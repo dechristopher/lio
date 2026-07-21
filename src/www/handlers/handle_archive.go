@@ -134,6 +134,29 @@ func ArchiveGameJSONHandler(c fiber.Ctx) error {
 	})
 }
 
+// ArchiveGameEvalsHandler serves GET /api/room/:id/game/:num/evals — the
+// cached per-ply engine evals for a finished game of a live room, fetched by
+// lio-game.js when the player enters analysis after a bot game (the archive
+// write and the background evaluator fill the cache out-of-band). Unlike the
+// immutable game JSON endpoint this is served uncacheable: the evaluator fills
+// evals lazily, so the response legitimately changes over time. ev is omitted
+// entirely while no ply has an eval yet.
+func ArchiveGameEvalsHandler(c fiber.Ctx) error {
+	id := c.Params("id")
+	n, err := strconv.Atoi(c.Params("num"))
+	if err != nil || n < 1 || !db.Ready() {
+		return fiber.ErrNotFound
+	}
+	g, found, err := db.GetRoomGameByIndex(id, int16(n))
+	if err != nil || !found {
+		return fiber.ErrNotFound
+	}
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	return c.JSON(struct {
+		Evals []*int16 `json:"ev,omitempty"`
+	}{Evals: db.ListGameMoveEvals(g.ID)})
+}
+
 // loadRoomGames fetches a room's archived games in match order, reporting
 // ok=false when the archive is unavailable, the room is untracked, or it has
 // no games.
@@ -343,6 +366,14 @@ func buildArchiveData(games []gen.Game, selected gen.Game, og *game.OctadGame) v
 		Winner:  winnerFromOutcome(selected.Outcome),
 		Reason:  selected.Reason,
 		Outcome: selected.Outcome,
+	}
+
+	// cached per-ply engine evals drive the archive eval bar. Only on this
+	// server-rendered page payload (always fresh as the evaluator fills the
+	// cache) — never on the immutable-cacheable game JSON endpoint. Nil when
+	// nothing is evaluated yet; the client renders no bar then.
+	if evals := db.ListGameMoveEvals(selected.ID); len(evals) == len(data.Board.Moves) {
+		data.Board.Evals = evals
 	}
 
 	if selected.RoomID == "" {

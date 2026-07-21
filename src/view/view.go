@@ -7,6 +7,7 @@ package view
 import (
 	"context"
 	"strconv"
+	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v3"
@@ -162,6 +163,67 @@ func IsHTMXFragment(c fiber.Ctx) bool {
 // in the pre-game summary.
 func groupTitle(g variant.Group) string {
 	return cases.Title(language.English).String(g.String())
+}
+
+// humanClock renders a variant's clock in plain language for the pre-game
+// summary ("30 seconds each + 1 second per move") so newcomers don't have to
+// decode the "½ + 1" notation to know what they're signing up for. Casual
+// variants read "Unlimited time"; the delay-only ulti control reads
+// "5 second delay per move".
+func humanClock(v variant.Variant) string {
+	if v.Casual {
+		return "Unlimited time"
+	}
+	var parts []string
+	if base := v.Control.Time.Milli() / 1000; base > 0 {
+		parts = append(parts, humanSeconds(base)+" each")
+	}
+	if inc := v.Control.Increment.Milli() / 1000; inc > 0 {
+		parts = append(parts, humanSeconds(inc)+" per move")
+	}
+	if delay := v.Control.Delay.Milli() / 1000; delay > 0 {
+		parts = append(parts, humanSeconds(delay)+" delay per move")
+	}
+	return strings.Join(parts, " + ")
+}
+
+// humanSeconds renders a second count as prose, preferring whole minutes
+// ("30 seconds", "1 minute", "3 minutes").
+func humanSeconds(n int64) string {
+	if n >= 60 && n%60 == 0 {
+		m := n / 60
+		if m == 1 {
+			return "1 minute"
+		}
+		return strconv.FormatInt(m, 10) + " minutes"
+	}
+	if n == 1 {
+		return "1 second"
+	}
+	return strconv.FormatInt(n, 10) + " seconds"
+}
+
+// challengerInitial is the single-letter avatar chip for the joiner's
+// challenger card ("?" for an anonymous creator).
+func challengerInitial(name string) string {
+	if name == "" {
+		return "?"
+	}
+	return strings.ToUpper(string([]rune(name)[0]))
+}
+
+// challengerColorName names the side the challenger will play in the joiner's
+// pre-game card. The joiner's PlayerColor is the open seat, so the challenger
+// holds the other color; a blind-color (random) room hides both until the
+// board reveals them.
+func challengerColorName(payload message.RoomTemplatePayload) string {
+	if payload.BlindColor {
+		return "a random color"
+	}
+	if payload.PlayerColor == "w" {
+		return "Black"
+	}
+	return "White"
 }
 
 // seatColorLabel resolves one seat's clock/timeline label from the payload:

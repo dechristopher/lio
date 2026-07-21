@@ -53,6 +53,28 @@ func AuthAPILimiter() fiber.Handler {
 	})
 }
 
+// analysisMax is the per-client budget for the /api/analysis exploration
+// endpoint per window. Each cache-missing request costs a real (budgeted)
+// engine search, so this bounds a single client's CPU draw while staying
+// generous for a human stepping through lines (~1-2 requests/second).
+const analysisMax = 90
+
+// analysisWindow is the rolling window analysisMax is measured over.
+const analysisWindow = time.Minute
+
+// AnalysisLimiter rate-limits the /api/analysis endpoint per client IP.
+func AnalysisLimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:          analysisMax,
+		Expiration:   analysisWindow,
+		KeyGenerator: clientIP,
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).
+				JSON(fiber.Map{"error": "too many requests - slow down"})
+		},
+	})
+}
+
 // ClientIP exposes the resolved client address to handlers outside this
 // package (the login rate limiter keys off it).
 func ClientIP(c fiber.Ctx) string {

@@ -182,3 +182,37 @@ func ListGameMoveTimes(gameRef int32) ([]game.MoveTime, error) {
 	}
 	return times, nil
 }
+
+// ListGameMoveEvals returns an archived game's cached per-ply engine evals
+// (white-positive centipawns, indexed ply-1), sparse: nil entries are
+// positions the background evaluator hasn't reached. Returns nil (no error)
+// when Postgres is unconfigured, no ply has an eval yet, or the rows don't
+// line up with a contiguous 1..N ply sequence — the archive eval bar simply
+// doesn't render then.
+func ListGameMoveEvals(gameRef int32) []*int16 {
+	if Pool == nil {
+		return nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	rows, err := gen.New(Pool).ListGameMoveEvals(ctx, gameRef)
+	if err != nil {
+		util.Error(str.CDB, "move evals lookup failed game=%d: %s", gameRef, err.Error())
+		return nil
+	}
+	evals := make([]*int16, len(rows))
+	any := false
+	for i, r := range rows {
+		if int(r.Ply) != i+1 {
+			return nil // non-contiguous plies: don't guess at alignment
+		}
+		if r.EvalCp != nil {
+			evals[i] = r.EvalCp
+			any = true
+		}
+	}
+	if !any {
+		return nil
+	}
+	return evals
+}

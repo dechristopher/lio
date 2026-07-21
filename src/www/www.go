@@ -207,6 +207,15 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// ArchiveGameJSONHandler)
 	r.Get("/api/room/:id/game/:num", handlers.ArchiveGameJSONHandler)
 
+	// cached per-ply engine evals for a finished game (uncacheable — the
+	// background evaluator fills them lazily; see ArchiveGameEvalsHandler)
+	r.Get("/api/room/:id/game/:num/evals", handlers.ArchiveGameEvalsHandler)
+
+	// free-exploration analysis (archive pages + post-game bot analysis): the
+	// study-style seam that applies/evaluates one explored position per
+	// request. Rate-limited because a cache-missing eval is real engine CPU.
+	r.Post("/api/analysis", middleware.AnalysisLimiter(), handlers.AnalysisHandler)
+
 	// room handlers. /:id serves the live room while its actor exists and
 	// falls back to the archived match view once it's gone; /:id/:num is the
 	// permanent per-game permalink (1-based match ordinal)

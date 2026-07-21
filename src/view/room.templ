@@ -147,6 +147,9 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<button type="button" id="nav-next" class="nav-btn" title="Next move (→)" aria-label="Next move">▶</button>
 							<button type="button" id="nav-last" class="nav-btn" title="Jump to live (↓)" aria-label="Jump to live">⏭</button>
 						</div>
+						<!-- free-exploration nudge, revealed when lio-game.js arms the
+						     board for alternate lines (post-game bot analysis) -->
+						<div id="explore-hint" class="explore-hint hidden">Play moves on the board to explore alternate lines</div>
 					</div>
 					<!--
 						In-game controls. During play these are Resign / Draw (.play-ctrl);

@@ -89,6 +89,9 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 							<button type="button" id="nav-next" class="nav-btn" title="Next move (→)" aria-label="Next move">▶</button>
 							<button type="button" id="nav-last" class="nav-btn" title="Jump to end (↓)" aria-label="Jump to end">⏭</button>
 						</div>
+						<!-- free-exploration nudge, revealed when lio-game.js arms the
+						     board for alternate lines -->
+						<div id="explore-hint" class="explore-hint hidden">Play moves on the board to explore alternate lines</div>
 					</div>
 				</div>
 			</aside>
@@ -122,12 +125,29 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 // watch-only mode, so the board never accepts input.
 templ archiveBoard(m ArchiveModel) {
 	<div class="board-shell">
+		<!-- engine evaluation bar: a thin white-vs-black advantage column beside
+		     the board, driven per viewed ply by lio-game.js (updateEvalBar) from
+		     the cached evals in #archive-data. Hidden until the payload carries
+		     any evals (the background evaluator fills them lazily). -->
+		<div id="eval-bar" class="eval-bar" hidden title="Engine evaluation">
+			<div class="eval-fill"></div>
+		</div>
 		<div id="gcon-xx" class={ "gcon " + m.Orientation } data-spectator="true" data-archive="true" data-tc={ strconv.FormatInt(m.TCCenti, 10) } data-casual={ strconv.FormatBool(m.Casual) } data-deploy="false">
 			<div class="gwrap">
 				<div id="game" class="og-wrap"></div>
 				<!-- endgame annotation: the mid-board pill naming the game's result
 				     while its final position is on the board -->
 				<div id="end-annotation" class="end-annotation" aria-hidden="true"></div>
+				<!-- promotion picker for explored promotion pushes (free
+				     exploration replays promotions too; same markup as the live
+				     board's picker) -->
+				<div id="promo-shade" class="promo-shade hidden"></div>
+				<div id="promo-select" class="promo hidden">
+					<piece class="promo queen"></piece>
+					<piece class="promo rook"></piece>
+					<piece class="promo bishop"></piece>
+					<piece class="promo knight"></piece>
+				</div>
 			</div>
 		</div>
 	</div>

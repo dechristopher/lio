@@ -149,6 +149,10 @@ func TestRenderRoomGame(t *testing.T) {
 	mustContain(t, out, `id="btn-resign" class="ctrl-btn play-ctrl" title="Resign the game">`)
 	mustContain(t, out, `id="btn-draw" class="ctrl-btn play-ctrl" title="Offer a draw">`)
 	mustNotContain(t, out, "Watching as a spectator")
+
+	// the live board ships the eval bar hidden; lio-game.js reveals it only
+	// after a bot game ends and analysis begins (requestLiveEvals)
+	mustContain(t, out, `id="eval-bar"`)
 }
 
 // TestRenderRoomAnonCta locks the anonymous "create account" shim: it renders
@@ -354,6 +358,25 @@ func TestRenderRoomCreator(t *testing.T) {
 	mustContain(t, out, `class="invite-qr"`)       // server-rendered QR svg
 	mustContain(t, out, "<path d=")                // QR has dark modules
 	mustContain(t, out, "You play")                // game summary
+	// the live board ships the (hidden) eval bar for the post-bot-game
+	// analysis reveal — checked here via the shared Room render path
+	// (roomGame's board() carries it; pregame views don't)
+	mustNotContain(t, out, `id="eval-bar"`) // creator pregame has no board
+	// share-first hero: quiet ghost cancel (never the loud danger button) and
+	// the plain-language clock decode in the summary
+	mustContain(t, out, "cancel-ghost")
+	mustNotContain(t, out, "btn-danger")
+	mustContain(t, out, "30 seconds each + 1 second per move")
+	// anonymous creator: no identity line
+	mustNotContain(t, out, "Playing as")
+
+	// logged-in creator: "Playing as" identity line with the rating chip
+	p.CreatorName = "drewtest"
+	p.CreatorRating = "1650?"
+	named := renderSmoke(t, Room(RoomMeta(p), p))
+	mustContain(t, named, "Playing as")
+	mustContain(t, named, "drewtest")
+	mustContain(t, named, `class="rating-chip"`)
 }
 
 func TestRenderRoomJoiner(t *testing.T) {
@@ -370,6 +393,56 @@ func TestRenderRoomJoiner(t *testing.T) {
 	mustContain(t, out, `name="join_token"`)
 	mustContain(t, out, "You've been challenged")
 	mustContain(t, out, "Black") // open-seat color shown in the summary
+
+	// challenger card, anonymous creator: "?" avatar chip + fallback name +
+	// the side the challenger plays (joiner takes black → challenger is white)
+	mustContain(t, out, `class="challenger-card"`)
+	mustContain(t, out, ">?</span>")
+	mustContain(t, out, "Anonymous player")
+	mustContain(t, out, "Challenger · plays White")
+
+	// named + rated challenger: initial-letter chip, username, rating chip
+	p.CreatorName = "pregametest"
+	p.CreatorRating = "1500?"
+	named := renderSmoke(t, Room(RoomMeta(p), p))
+	mustContain(t, named, ">P</span>") // initial-letter avatar chip
+	mustContain(t, named, "pregametest")
+	mustContain(t, named, `class="rating-chip"`)
+
+	// random-color room: the challenger's side is hidden
+	p.BlindColor = true
+	blind := renderSmoke(t, Room(RoomMeta(p), p))
+	mustContain(t, blind, "Challenger · plays a random color")
+}
+
+// TestRenderRoomArchive locks the archived-game page: the archive board mount
+// with its data attributes, the inline #archive-data hydration payload, and
+// the engine eval bar (rendered hidden; lio-game.js reveals it only when the
+// payload carries cached evals).
+func TestRenderRoomArchive(t *testing.T) {
+	m := ArchiveModel{
+		RoomID:      "abc",
+		VariantName: "½ + 1",
+		N:           1,
+		Count:       1,
+		Orientation: "w",
+		TopName:     "PLAYER",
+		BottomName:  "PLAYER",
+		EndedDate:   "Jan 1, 2026",
+		Data:        ArchiveData{GameID: "g-uuid", N: 1, Count: 1},
+	}
+	out := renderSmoke(t, RoomArchive(ArchiveMeta(m), m))
+	mustContain(t, out, `data-archive="true"`)
+	mustContain(t, out, `id="archive-data"`)
+	mustContain(t, out, `id="eval-bar"`)
+	mustContain(t, out, `class="eval-fill"`)
+	mustContain(t, out, "hidden")      // bar ships hidden until evals hydrate
+	mustNotContain(t, out, "eval-num") // pure bar — no numbers
+
+	// free exploration: the archive board carries the promotion picker (for
+	// explored promotion pushes) and the hidden explore nudge
+	mustContain(t, out, `id="promo-select"`)
+	mustContain(t, out, `id="explore-hint"`)
 }
 
 // TestRenderNews locks the paginated news page: the full page shell, the first
