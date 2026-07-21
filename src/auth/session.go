@@ -306,6 +306,19 @@ func CurrentSession(c fiber.Ctx) *Session {
 	return FromRequest(c)
 }
 
+// DropSessionCache invalidates the request session's ≤cacheTTL cached
+// resolution so the next resolve reads fresh account fields from the DB. Used
+// after an in-place account edit that changes what the session carries (e.g. a
+// username casing change) so the header re-renders the new value immediately
+// instead of serving the stale cache entry. No-op when there is no cookie.
+func DropSessionCache(c fiber.Ctx) {
+	if token := c.Cookies(SessionCookie); token != "" {
+		if hash, ok := hashToken(token); ok {
+			cacheDrop(hash)
+		}
+	}
+}
+
 // LogoutAll revokes every session the user holds — including the current one —
 // and clears the cookie. The current session's cache entry is dropped so the
 // revocation is immediate for this device (the others lapse within cacheTTL).

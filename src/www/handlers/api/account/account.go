@@ -1,6 +1,7 @@
 package account
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -40,6 +41,22 @@ func unavailable(c fiber.Ctx) error {
 		JSON(errBody{Error: "accounts are unavailable"})
 }
 
+// parseEmail normalizes and lightly validates an optional email, shared by
+// registration and the profile email edit. Empty → nil (unset / cleared).
+// There is no email infrastructure yet, so this is a shape check, not a
+// deliverability check.
+func parseEmail(raw string) (*string, error) {
+	e := strings.TrimSpace(raw)
+	if e == "" {
+		return nil, nil
+	}
+	if len(e) > 254 || strings.Count(e, "@") != 1 ||
+		strings.HasPrefix(e, "@") || strings.HasSuffix(e, "@") {
+		return nil, errors.New("that email address doesn't look right")
+	}
+	return &e, nil
+}
+
 // Wire attaches the auth API handlers to the given /api/auth router group.
 func Wire(g fiber.Router) {
 	g.Post("/register", RegisterHandler)
@@ -50,6 +67,9 @@ func Wire(g fiber.Router) {
 
 	// logged-in account administration (password / sessions / logout-all)
 	wireAdmin(g)
+
+	// logged-in profile edits (email + one-time casing-only username change)
+	wireProfile(g)
 
 	// MFA: login-time second factor + management (arch Phase 4)
 	wireMFA(g)
@@ -77,14 +97,10 @@ func RegisterHandler(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnprocessableEntity).
 			JSON(errBody{Error: err.Error()})
 	}
-	var email *string
-	if e := strings.TrimSpace(req.Email); e != "" {
-		if len(e) > 254 || strings.Count(e, "@") != 1 ||
-			strings.HasPrefix(e, "@") || strings.HasSuffix(e, "@") {
-			return c.Status(fiber.StatusUnprocessableEntity).
-				JSON(errBody{Error: "that email address doesn't look right"})
-		}
-		email = &e
+	email, err := parseEmail(req.Email)
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).
+			JSON(errBody{Error: err.Error()})
 	}
 
 	phc, err := auth.HashPassword(req.Password)

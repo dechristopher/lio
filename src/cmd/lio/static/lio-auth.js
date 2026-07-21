@@ -213,6 +213,9 @@
 	// --- two-factor & passkey management modal -----------------------------
 	initSecurityModal();
 
+	// --- edit profile modal (email + one-time casing-only username change) --
+	initEditProfileModal();
+
 	// --- logged-out: auth modal --------------------------------------------
 	const modal = document.getElementById('modalAccount');
 	if (!modal) { return; }
@@ -431,6 +434,142 @@
 				showError(form, 'Network error — try again.');
 			}
 		});
+	}
+
+	// --- room anonymous "create account" shim ------------------------------
+	// The thin room-page banner (view/room.templ roomAnonCta). Create-account
+	// opens this modal straight to the register tab; × dismisses the shim and
+	// persists it so the head no-flash script keeps it hidden on future loads.
+	const ctaCreate = document.getElementById('roomCtaCreate');
+	if (ctaCreate) {
+		ctaCreate.addEventListener('click', () => {
+			resetAuthModal();
+			activateTab('register');
+			modal.classList.add('open');
+			const first = forms.register && forms.register.querySelector('input');
+			if (first) { first.focus(); }
+		});
+	}
+	const ctaDismiss = document.getElementById('roomCtaDismiss');
+	if (ctaDismiss) {
+		ctaDismiss.addEventListener('click', () => {
+			try { localStorage.setItem('roomCtaDismissed', '1'); } catch (e) { /* private mode */ }
+			document.documentElement.dataset.roomcta = 'off';
+		});
+	}
+
+	// ========================================================================
+	// Edit profile modal (logged in): the optional account email and the one
+	// allowed casing-only username change. The username is prefilled by the
+	// server; on open we fetch GET /api/auth/profile to fill the email and lock
+	// the username controls once the single change has been used.
+	// ========================================================================
+	function initEditProfileModal() {
+		const epModal = document.getElementById('modalEditProfile');
+		const openBtn = document.getElementById('editProfileButton');
+		if (!epModal || !openBtn) { return; }
+
+		const usernameForm = document.getElementById('usernameForm');
+		const emailForm = document.getElementById('emailForm');
+
+		// reset a form's transient error/success lines back to hidden
+		const resetForm = (form) => {
+			if (!form) { return; }
+			showError(form);
+			const ok = form.querySelector('[data-auth-ok]');
+			if (ok) { ok.classList.add('hidden'); }
+		};
+
+		// pull current email + username-change availability into the modal
+		const loadProfile = async () => {
+			try {
+				const res = await fetch('/api/auth/profile');
+				if (!res.ok) { throw new Error('profile'); }
+				const p = await res.json();
+				if (emailForm) { emailForm.email.value = p.email || ''; }
+				if (usernameForm) {
+					if (p.username) { usernameForm.username.value = p.username; }
+					const hint = usernameForm.querySelector('[data-username-hint]');
+					const submit = usernameForm.querySelector('[data-username-submit]');
+					const avail = !!p.usernameChangeAvailable;
+					usernameForm.username.disabled = !avail;
+					if (submit) { submit.disabled = !avail; }
+					if (hint) {
+						hint.textContent = avail
+							? 'You can change your username once, and only to change its capitalization.'
+							: 'You have already used your one username change.';
+					}
+				}
+			} catch (e) { /* leave the server-prefilled username; email stays blank */ }
+		};
+
+		const open = () => {
+			resetForm(usernameForm);
+			resetForm(emailForm);
+			epModal.classList.add('open');
+			loadProfile();
+		};
+		const close = () => { epModal.classList.remove('open'); };
+
+		openBtn.addEventListener('click', () => {
+			// dismiss the profile popover (and its scrim) before opening
+			const pp = document.getElementById('profilePopover');
+			if (pp) { pp.classList.add('hidden'); }
+			const scrim = document.getElementById('menuScrim');
+			if (scrim) { scrim.classList.remove('is-open'); }
+			open();
+		});
+		const closeBtn = epModal.querySelector('.modal-close');
+		if (closeBtn) { closeBtn.addEventListener('click', close); }
+		epModal.addEventListener('click', (e) => { if (e.target === epModal) { close(); } });
+
+		// username: casing-only, once. On success reload so the header (and any
+		// live-game clocks) re-render the new capitalization.
+		if (usernameForm) {
+			const okEl = usernameForm.querySelector('[data-auth-ok]');
+			usernameForm.addEventListener('submit', async (e) => {
+				e.preventDefault();
+				resetForm(usernameForm);
+				const submit = usernameForm.querySelector('[data-username-submit]');
+				if (submit) { submit.disabled = true; }
+				try {
+					const { status, data } = await post('/api/auth/username', {
+						username: usernameForm.username.value.trim(),
+					});
+					if (status === 200) {
+						if (okEl) { okEl.classList.remove('hidden'); }
+						setTimeout(() => window.location.reload(), 700);
+						return;
+					}
+					showError(usernameForm, data.error || 'Could not change username.');
+					if (submit) { submit.disabled = false; }
+				} catch (err) {
+					showError(usernameForm, 'Network error — try again.');
+					if (submit) { submit.disabled = false; }
+				}
+			});
+		}
+
+		// email: set / change / clear
+		if (emailForm) {
+			const okEl = emailForm.querySelector('[data-auth-ok]');
+			emailForm.addEventListener('submit', async (e) => {
+				e.preventDefault();
+				resetForm(emailForm);
+				try {
+					const { status, data } = await post('/api/auth/email', {
+						email: emailForm.email.value.trim(),
+					});
+					if (status === 200) {
+						if (okEl) { okEl.classList.remove('hidden'); }
+						return;
+					}
+					showError(emailForm, data.error || 'Could not save email.');
+				} catch (err) {
+					showError(emailForm, 'Network error — try again.');
+				}
+			});
+		}
 	}
 
 	// ========================================================================

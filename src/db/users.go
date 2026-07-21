@@ -32,6 +32,10 @@ type UserRecord struct {
 	// path already fetches, so the MFA decision costs no extra query for the
 	// common (password + TOTP) case; passkeys are counted separately.
 	TOTPConfirmed bool
+	// UsernameChanged reports whether the account has used its one allowed
+	// (casing-only) username change (arch polish pass). Drives the Edit Profile
+	// UI's availability state; the change itself is enforced atomically in SQL.
+	UsernameChanged bool
 }
 
 // CreateUser inserts a registration row, returning the new user's id. A
@@ -67,12 +71,13 @@ func GetUserByID(id int64) (UserRecord, bool, error) {
 		return UserRecord{}, false, err
 	}
 	return UserRecord{
-		ID:            u.ID,
-		Username:      u.Username,
-		Email:         u.Email,
-		PasswordHash:  u.PasswordHash,
-		CreatedAt:     u.CreatedAt.Time,
-		TOTPConfirmed: u.TotpConfirmedAt.Valid,
+		ID:              u.ID,
+		Username:        u.Username,
+		Email:           u.Email,
+		PasswordHash:    u.PasswordHash,
+		CreatedAt:       u.CreatedAt.Time,
+		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
+		UsernameChanged: u.UsernameChangedAt.Valid,
 	}, true, nil
 }
 
@@ -89,12 +94,13 @@ func GetUserByUsername(username string) (UserRecord, bool, error) {
 		return UserRecord{}, false, err
 	}
 	return UserRecord{
-		ID:            u.ID,
-		Username:      u.Username,
-		Email:         u.Email,
-		PasswordHash:  u.PasswordHash,
-		CreatedAt:     u.CreatedAt.Time,
-		TOTPConfirmed: u.TotpConfirmedAt.Valid,
+		ID:              u.ID,
+		Username:        u.Username,
+		Email:           u.Email,
+		PasswordHash:    u.PasswordHash,
+		CreatedAt:       u.CreatedAt.Time,
+		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
+		UsernameChanged: u.UsernameChangedAt.Valid,
 	}, true, nil
 }
 
@@ -131,4 +137,35 @@ func UpdatePasswordHash(id int64, phc string) error {
 		ID:           id,
 		PasswordHash: phc,
 	})
+}
+
+// UpdateEmail sets, replaces, or clears (email == nil) a user's optional email.
+func UpdateEmail(id int64, email *string) error {
+	ctx, cancel := Ctx()
+	defer cancel()
+	return gen.New(Pool).UpdateEmail(ctx, gen.UpdateEmailParams{
+		ID:    id,
+		Email: email,
+	})
+}
+
+// UpdateUsernameCasing applies the one-time casing-only username change. It
+// returns ok=false (no error) when the change was refused by the SQL guard —
+// the account already renamed, or the lowercased identity did not match (a
+// non-casing change slipped past the caller). The caller validates the
+// casing-only rule first; this is the atomic once-only backstop.
+func UpdateUsernameCasing(id int64, username string) (ok bool, err error) {
+	ctx, cancel := Ctx()
+	defer cancel()
+	_, err = gen.New(Pool).UpdateUsernameCasing(ctx, gen.UpdateUsernameCasingParams{
+		ID:       id,
+		Username: username,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

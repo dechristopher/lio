@@ -10,7 +10,12 @@ import "strconv"
 // actions. lio-auth.js drives the forms/sections.
 templ profilePopover(username string) {
 	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] rounded-lg border border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
-		<p class="mt-1 truncate text-md font-semibold text-fg">{ username }</p>
+		<div class="mt-1 flex items-center gap-2">
+			<p class="min-w-0 flex-1 truncate text-md font-semibold text-fg">{ username }</p>
+			<button type="button" id="editProfileButton" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:border-line-strong hover:text-fg" aria-label="Edit profile" title="Edit profile">
+				@iconPencil()
+			</button>
+		</div>
 		<!-- ratings summary (Phase 5): lazy-loaded from GET /api/auth/ratings by
 		     lio-auth.js on first popover open -->
 		<div id="ratingsSummary" class="mt-2" data-loaded="false"></div>
@@ -45,8 +50,11 @@ templ profilePopover(username string) {
 				Two-factor &amp; passkeys
 			</button>
 		</div>
-		<div class="mt-3 flex items-center gap-2 border-t border-line pt-3">
-			<button type="button" id="logoutButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm">Log out</button>
+		<!-- items-stretch keeps both logout buttons the same height even though
+		     "Log out everywhere" wraps to two lines; Log out gets the slightly
+		     larger label as the primary action. -->
+		<div class="mt-3 flex items-stretch gap-2 border-t border-line pt-3">
+			<button type="button" id="logoutButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-base">Log out</button>
 			<button type="button" id="logoutAllButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm text-loss">Log out everywhere</button>
 		</div>
 	</div>
@@ -65,6 +73,47 @@ templ securityModal() {
 			<h2>Two-factor &amp; passkeys</h2>
 			<div id="securityModalBody" class="mt-1 text-left">
 				<p class="auth-hint">Loading…</p>
+			</div>
+		</div>
+	</div>
+}
+
+// editProfileModal is the Edit Profile dialog (arch/ACCOUNTS_AUTH_RATINGS.md
+// polish pass), opened from the profile popover's pencil button. It holds two
+// low-stakes edits: the one allowed casing-only username change, and the
+// optional account email. The username is prefilled server-side; lio-auth.js
+// fetches GET /api/auth/profile on open to fill the email and lock the username
+// controls once the one change has been used. A modal (not the popover) so it
+// isn't dismissed by an outside click mid-edit.
+templ editProfileModal(username string) {
+	<div id="modalEditProfile" class="modal-shade">
+		<div class="modal card">
+			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
+			<h2>Edit profile</h2>
+			<div class="mt-1 flex flex-col gap-5 text-left">
+				<section>
+					<h3 class="text-xs font-semibold uppercase tracking-wide text-fg-muted">Username</h3>
+					<form id="usernameForm" class="mt-2 flex flex-col gap-2" novalidate>
+						<input class="auth-input" name="username" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" value={ username } minlength="3" maxlength="20"/>
+						<p class="auth-hint" data-username-hint>You can change your username once, and only to change its capitalization.</p>
+						<p class="auth-error hidden" data-auth-error role="alert"></p>
+						<p class="auth-ok hidden" data-auth-ok role="status">Username updated.</p>
+						<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm" data-username-submit>Save username</button>
+					</form>
+				</section>
+				<section class="border-t border-line pt-4">
+					<h3 class="text-xs font-semibold uppercase tracking-wide text-fg-muted">Email address</h3>
+					<form id="emailForm" class="mt-2 flex flex-col gap-2" novalidate>
+						<label class="auth-label">
+							<span class="font-normal text-fg-subtle">(optional)</span>
+							<input class="auth-input" name="email" type="email" autocomplete="email" placeholder="you@example.com" maxlength="254"/>
+						</label>
+						<p class="auth-hint">Used only for account recovery. There is no email delivery yet — set it now so recovery works once it lands, or leave it blank to remove it.</p>
+						<p class="auth-error hidden" data-auth-error role="alert"></p>
+						<p class="auth-ok hidden" data-auth-ok role="status">Email saved.</p>
+						<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm">Save email</button>
+					</form>
+				</section>
 			</div>
 		</div>
 	</div>

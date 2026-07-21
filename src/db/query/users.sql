@@ -24,3 +24,22 @@ SELECT EXISTS(SELECT 1 FROM users WHERE lower(username) = lower($1));
 -- name: UpdatePasswordHash :exec
 -- Password change and rehash-on-login (when stored PHC params lag current).
 UPDATE users SET password_hash = $2 WHERE id = $1;
+
+-- name: UpdateEmail :exec
+-- Set / replace / clear the account email ($2 NULL clears it). There is no
+-- email infrastructure yet, so this is a plain overwrite — no verification.
+UPDATE users SET email = $2 WHERE id = $1;
+
+-- name: UpdateUsernameCasing :one
+-- The one-time casing-only username change (arch polish pass): rewrite only the
+-- display case and stamp username_changed_at, but only when the account has not
+-- renamed before (username_changed_at IS NULL) and the lowercased identity is
+-- unchanged (casing-only — the caller enforces this too). Returns the new
+-- username; no row (pgx.ErrNoRows) means the change was refused (already
+-- renamed, or a raced update).
+UPDATE users
+SET username = $2, username_changed_at = now()
+WHERE id = $1
+  AND username_changed_at IS NULL
+  AND lower(username) = lower($2)
+RETURNING username;

@@ -79,6 +79,15 @@ templ head(meta Meta) {
 					d.dataset.piece = name;
 					try { localStorage.setItem("piece", name); } catch (e) {}
 				};
+
+				// Room "create account" shim: a persisted dismissal hides it
+				// before first paint (CSS html[data-roomcta="off"]) so it never
+				// flashes back after the anonymous viewer closes it.
+				try {
+					if (localStorage.getItem("roomCtaDismissed") === "1") {
+						d.dataset.roomcta = "off";
+					}
+				} catch (e) {}
 			})();
 		</script>
 		<title>{ meta.Title }</title>

@@ -364,6 +364,58 @@
 		width: 100%;
 	}
 
+	/* anonymous-viewer "create account" shim (room.templ roomAnonCta): a thin
+	   accent-tinted bar at the top of .game-room, matched to the grid width so it
+	   aligns with the board + rail and barely shifts them down. Dismissal is
+	   persisted; the head no-flash script sets html[data-roomcta="off"] so a
+	   closed shim never flashes back on reload. */
+	.room-cta {
+		width: min(96vw, 60rem);
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.4rem 0.75rem;
+		padding: 0.4rem 0.5rem 0.4rem 0.85rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+		font-size: 0.82rem;
+		line-height: 1.3;
+		color: var(--text-muted);
+	}
+	.room-cta-text { flex: 1 1 14rem; min-width: 0; }
+	.room-cta-text strong { color: var(--text); font-weight: 600; }
+	.room-cta-btn {
+		flex: 0 0 auto;
+		padding: 0.3rem 0.85rem;
+		border-radius: var(--radius-sm);
+		background: var(--accent);
+		color: var(--accent-contrast);
+		font-weight: 600;
+		font-size: 0.8rem;
+		transition: background-color 150ms var(--ease-snappy);
+	}
+	.room-cta-btn:hover { background: var(--accent-hover); }
+	.room-cta-x {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		border-radius: var(--radius-sm);
+		color: var(--text-muted);
+		transition: color 150ms var(--ease-snappy), background-color 150ms var(--ease-snappy);
+	}
+	.room-cta-x:hover {
+		color: var(--text);
+		background: color-mix(in srgb, var(--text) 8%, transparent);
+	}
+	@media (min-width: 900px) {
+		.room-cta { width: min(96vw, 48rem); }
+	}
+	html[data-roomcta="off"] .room-cta { display: none; }
+
 	/* ---- clocks ---- */
 	.clock {
 		position: relative;

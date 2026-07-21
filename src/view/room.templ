@@ -40,6 +40,28 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 	}
 }
 
+// roomAnonCta is the thin "create a free account" shim above the game grid,
+// shown only to anonymous viewers when accounts are available. It sits at the
+// top of .game-room (matched to the grid width) and barely shifts the board
+// down. The Create-account button opens the header's login modal on its
+// register tab (lio-auth.js #roomCtaCreate); the × dismisses it and persists
+// that in localStorage, so the head no-flash script (layout.templ) hides it on
+// future loads before first paint — once closed it never comes back.
+templ roomAnonCta() {
+	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
+		<div id="roomCta" class="room-cta" role="region" aria-label="Create a free account">
+			<span class="room-cta-text">
+				<strong>Playing anonymously.</strong>
+				Sign up for a username and rated games — it's free.
+			</span>
+			<button type="button" id="roomCtaCreate" class="room-cta-btn">Create account</button>
+			<button type="button" id="roomCtaDismiss" class="room-cta-x" aria-label="Dismiss" title="Dismiss">
+				@iconClose()
+			</button>
+		</div>
+	}
+}
+
 // roomGame is the active-game view: a board-centric grid (wrapped in .game-room
 // as an extension point for future surrounding UI) with the board as the hero
 // and a side rail (clocks, game info, reserved controls) that stacks on mobile.
@@ -47,6 +69,7 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 // desktop (via grid-template-areas). Time control + mode live in the rail.
 templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 	<div class="game-room mt-2">
+		@roomAnonCta()
 		<div class="game-grid">
 			<div id="clockOpponent" class="clockOpponent ga-opp" data-bot={ strconv.FormatBool(topClockIsBot(payload)) }>
 				@clock(topClockName(payload), topClockRating(payload), 0)

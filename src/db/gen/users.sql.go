@@ -36,7 +36,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle FROM users WHERE id = $1
+SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
@@ -51,12 +51,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.TotpSecretEnc,
 		&i.TotpConfirmedAt,
 		&i.WebauthnUserHandle,
+		&i.UsernameChangedAt,
 	)
 	return i, err
 }
 
 const getUserByUsernameLower = `-- name: GetUserByUsernameLower :one
-SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle FROM users WHERE lower(username) = lower($1)
+SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at FROM users WHERE lower(username) = lower($1)
 `
 
 // Login lookup: case-insensitive, served by the lower(username) unique index.
@@ -72,6 +73,7 @@ func (q *Queries) GetUserByUsernameLower(ctx context.Context, lower string) (Use
 		&i.TotpSecretEnc,
 		&i.TotpConfirmedAt,
 		&i.WebauthnUserHandle,
+		&i.UsernameChangedAt,
 	)
 	return i, err
 }
@@ -88,6 +90,22 @@ func (q *Queries) GetUsernameByID(ctx context.Context, id int64) (string, error)
 	return username, err
 }
 
+const updateEmail = `-- name: UpdateEmail :exec
+UPDATE users SET email = $2 WHERE id = $1
+`
+
+type UpdateEmailParams struct {
+	ID    int64
+	Email *string
+}
+
+// Set / replace / clear the account email ($2 NULL clears it). There is no
+// email infrastructure yet, so this is a plain overwrite — no verification.
+func (q *Queries) UpdateEmail(ctx context.Context, arg UpdateEmailParams) error {
+	_, err := q.db.Exec(ctx, updateEmail, arg.ID, arg.Email)
+	return err
+}
+
 const updatePasswordHash = `-- name: UpdatePasswordHash :exec
 UPDATE users SET password_hash = $2 WHERE id = $1
 `
@@ -101,6 +119,33 @@ type UpdatePasswordHashParams struct {
 func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error {
 	_, err := q.db.Exec(ctx, updatePasswordHash, arg.ID, arg.PasswordHash)
 	return err
+}
+
+const updateUsernameCasing = `-- name: UpdateUsernameCasing :one
+UPDATE users
+SET username = $2, username_changed_at = now()
+WHERE id = $1
+  AND username_changed_at IS NULL
+  AND lower(username) = lower($2)
+RETURNING username
+`
+
+type UpdateUsernameCasingParams struct {
+	ID       int64
+	Username string
+}
+
+// The one-time casing-only username change (arch polish pass): rewrite only the
+// display case and stamp username_changed_at, but only when the account has not
+// renamed before (username_changed_at IS NULL) and the lowercased identity is
+// unchanged (casing-only — the caller enforces this too). Returns the new
+// username; no row (pgx.ErrNoRows) means the change was refused (already
+// renamed, or a raced update).
+func (q *Queries) UpdateUsernameCasing(ctx context.Context, arg UpdateUsernameCasingParams) (string, error) {
+	row := q.db.QueryRow(ctx, updateUsernameCasing, arg.ID, arg.Username)
+	var username string
+	err := row.Scan(&username)
+	return username, err
 }
 
 const usernameTaken = `-- name: UsernameTaken :one

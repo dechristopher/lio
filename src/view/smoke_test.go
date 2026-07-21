@@ -151,6 +151,37 @@ func TestRenderRoomGame(t *testing.T) {
 	mustNotContain(t, out, "Watching as a spectator")
 }
 
+// TestRenderRoomAnonCta locks the anonymous "create account" shim: it renders
+// for an anonymous viewer only when accounts are available, carries the
+// register + dismiss hooks and rated/username copy, and is absent for a
+// logged-in viewer or when accounts are disabled.
+func TestRenderRoomAnonCta(t *testing.T) {
+	p := message.RoomTemplatePayload{
+		RoomID:        "abc",
+		PlayerColor:   "w",
+		OpponentColor: "b",
+		OpponentIsBot: true,
+		VariantName:   "Half One blitz",
+		Variant:       variant.HalfOneBlitz,
+	}
+	page := Room(RoomMeta(p), p)
+
+	anon := renderSmokeViewer(t, Viewer{UID: "u", AccountsEnabled: true}, page)
+	mustContain(t, anon, `id="roomCta"`)
+	mustContain(t, anon, `id="roomCtaCreate"`)
+	mustContain(t, anon, `id="roomCtaDismiss"`)
+	mustContain(t, anon, "username")
+	mustContain(t, anon, "rated")
+
+	loggedIn := renderSmokeViewer(t,
+		Viewer{UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true}, page)
+	mustNotContain(t, loggedIn, `id="roomCta"`)
+
+	// accounts unavailable (PG-less dev): no shim even for an anonymous viewer
+	disabled := renderSmokeViewer(t, Viewer{UID: "u"}, page)
+	mustNotContain(t, disabled, `id="roomCta"`)
+}
+
 // TestRenderRoomSpectator locks the watch-only room page: the spectator flag
 // lio-game.js keys off, the anchored board orientation and anchor id, identity-
 // labeled (BOT/Anonymous, or usernames) clocks and timeline rows, and every
@@ -417,6 +448,16 @@ func TestRenderHeaderViewerStates(t *testing.T) {
 	mustContain(t, loggedIn, `id="modalSecurity"`)
 	mustContain(t, loggedIn, `id="securityModalBody"`)
 	mustNotContain(t, loggedIn, "arrive soon") // old Phase-3 placeholder gone
+
+	// polish-pass Edit Profile surface: the popover pencil opens the
+	// (logged-in-only) modal with the email + one-time username-change forms,
+	// and the username is prefilled with the viewer's current display name
+	mustContain(t, loggedIn, `id="editProfileButton"`)
+	mustContain(t, loggedIn, `id="modalEditProfile"`)
+	mustContain(t, loggedIn, `id="usernameForm"`)
+	mustContain(t, loggedIn, `id="emailForm"`)
+	mustContain(t, loggedIn, `value="drew"`) // username prefill
+	mustNotContain(t, loggedOut, `id="modalEditProfile"`)
 }
 
 // TestRenderSessionList covers the active-sessions fragment: the current
