@@ -499,6 +499,22 @@
 		text-overflow: ellipsis;
 		min-width: 0;
 	}
+	/* player title badge (lichess-style "GM"/"WFM"/…), rendered to the left of a
+	   name wherever a name shows: header, live/archive clocks, match timeline,
+	   pre-game cards. Its color follows the current board theme's --accent, so it
+	   retints with the theme (the whole point of the feature). Font-size is left
+	   to inherit so the badge scales to whatever text it sits beside; flex:none
+	   keeps it from shrinking/ellipsizing inside the clock's flex meta row (where
+	   only .clockName flexes). The small right margin ties it tight to the name
+	   ("GM Hikaru"). */
+	.player-title {
+		flex: none;
+		margin-right: 0.3em;
+		font-weight: 800;
+		letter-spacing: 0.01em;
+		color: var(--accent);
+		white-space: nowrap;
+	}
 	.clockScore {
 		flex: none;
 		margin-left: auto;

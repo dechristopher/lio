@@ -119,7 +119,8 @@ func RegisterHandler(c fiber.Ctx) error {
 			JSON(errBody{Error: "registration failed"})
 	}
 
-	if err := auth.Login(c, auth.FromRequest(c), id, username); err != nil {
+	// a just-registered account has no title yet (assigned later, in the DB)
+	if err := auth.Login(c, auth.FromRequest(c), id, username, ""); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "registration succeeded but login failed - try logging in"})
 	}
@@ -182,12 +183,12 @@ func LoginHandler(c fiber.Ctx) error {
 	if methods, hasMFA := loginMFAMethods(rec.ID, rec.TOTPConfirmed); hasMFA {
 		return c.Status(fiber.StatusOK).JSON(mfaChallengeBody{
 			MFA:     true,
-			Pending: auth.NewPending(rec.ID, rec.Username),
+			Pending: auth.NewPending(rec.ID, rec.Username, rec.Title),
 			Methods: methods,
 		})
 	}
 
-	if err := auth.Login(c, auth.FromRequest(c), rec.ID, rec.Username); err != nil {
+	if err := auth.Login(c, auth.FromRequest(c), rec.ID, rec.Username, rec.Title); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "login failed"})
 	}

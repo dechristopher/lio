@@ -36,7 +36,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 			     viewed ply, draining in realtime during playback. .archive-clock
 			     hides the live-only presence dot. -->
 			<div id="clockOpponent" class="clockOpponent ga-opp archive-clock" data-bot={ strconv.FormatBool(m.TopIsBot) }>
-				@clock(m.TopName, m.TopGlyph, m.TopRating, m.TopRatingDelta)
+				@clock(m.TopTitle, m.TopName, m.TopGlyph, m.TopRating, m.TopRatingDelta)
 			</div>
 			<div class="ga-board">
 				@archiveBoard(m)
@@ -48,6 +48,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 								<span class={ "tl-h2h", templ.KV("ahead", m.TopH2H > m.BottomH2H) } title="All-time head-to-head score">{ h2hText(m.TopH2H) }</span>
 							}
 							@seatBotMarker(m.TopIsBot, m.TopGlyph)
+							@playerTitle(m.TopTitle)
 							<span class="tl-name">{ m.TopName }</span>
 							<span class="tl-total">0</span>
 						</div>
@@ -56,6 +57,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 								<span class={ "tl-h2h", templ.KV("ahead", m.BottomH2H > m.TopH2H) } title="All-time head-to-head score">{ h2hText(m.BottomH2H) }</span>
 							}
 							@seatBotMarker(m.BottomIsBot, m.BottomGlyph)
+							@playerTitle(m.BottomTitle)
 							<span class="tl-name">{ m.BottomName }</span>
 							<span class="tl-total">0</span>
 						</div>
@@ -64,7 +66,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 				}
 			</div>
 			<div id="clockPlayer" class="clockPlayer ga-you archive-clock" data-bot={ strconv.FormatBool(m.BottomIsBot) }>
-				@clock(m.BottomName, m.BottomGlyph, m.BottomRating, m.BottomRatingDelta)
+				@clock(m.BottomTitle, m.BottomName, m.BottomGlyph, m.BottomRating, m.BottomRatingDelta)
 			</div>
 			<aside class="ga-rail">
 				<div class="rail-stack">

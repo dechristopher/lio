@@ -22,10 +22,11 @@ import (
 const pendingTTL = 5 * time.Minute
 
 // Pending is a resolved pending-login record: which account passed the first
-// factor and the display name to carry into the session on completion.
+// factor and the display name/title to carry into the session on completion.
 type Pending struct {
 	UserID   int64
 	Username string
+	Title    string
 	expires  time.Time
 }
 
@@ -36,8 +37,9 @@ var pendingStore = struct {
 
 // NewPending issues a pending token for a user who just passed the password
 // factor. The token is a fresh opaque 256-bit value (the same minter sessions
-// use), but it is stored only here, never as a session.
-func NewPending(userID int64, username string) string {
+// use), but it is stored only here, never as a session. title rides along so
+// the completed login carries it into the session like username.
+func NewPending(userID int64, username, title string) string {
 	token, _ := NewToken()
 	now := time.Now()
 	pendingStore.Lock()
@@ -50,6 +52,7 @@ func NewPending(userID int64, username string) string {
 	pendingStore.m[token] = Pending{
 		UserID:   userID,
 		Username: username,
+		Title:    title,
 		expires:  now.Add(pendingTTL),
 	}
 	pendingStore.Unlock()

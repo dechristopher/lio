@@ -34,7 +34,10 @@ templ header(width string) {
 		// page is dimmed/blurred behind an open popover.
 		<div class="relative z-50 flex items-center gap-2">
 			if viewer(ctx).LoggedIn {
-				<button type="button" id="profileButton" class="btn btn-ghost max-w-40 truncate whitespace-nowrap px-3 py-1.5 text-sm font-semibold">{ viewer(ctx).Username }</button>
+				<button type="button" id="profileButton" class="btn btn-ghost max-w-40 truncate whitespace-nowrap px-3 py-1.5 text-sm font-semibold">
+					@playerTitle(viewer(ctx).Title)
+					<span class="min-w-0 truncate">{ viewer(ctx).Username }</span>
+				</button>
 			} else if viewer(ctx).AccountsEnabled {
 				<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm">Log in</button>
 			} else {
@@ -702,7 +705,19 @@ templ board(payload message.RoomTemplatePayload) {
 // the big time on its own full-width line. Stacking decouples the time from the
 // name so a long name only ellipsizes within its row and never compresses the
 // clock horizontally.
-templ clock(name string, botGlyph string, rating string, ratingDelta int) {
+// playerTitle renders a player's optional account display title as a compact
+// accent-colored badge to the left of their name (lichess-style "GM"/"WFM"/…).
+// Its color follows the current board theme's --accent (see app.css
+// .player-title), so it retints with the theme. Renders nothing when title is
+// empty — anonymous/bot seats and untitled accounts — so it can be dropped in
+// unconditionally before any name. Set directly in the DB (no assignment UI).
+templ playerTitle(title string) {
+	if title != "" {
+		<span class="player-title" title="Player title">{ title }</span>
+	}
+}
+
+templ clock(title string, name string, botGlyph string, rating string, ratingDelta int) {
 	<div class="clock">
 		<div class="clockProgress">
 			<div class="clockProgressBg"></div>
@@ -720,6 +735,7 @@ templ clock(name string, botGlyph string, rating string, ratingDelta int) {
 				if botGlyph != "" {
 					<span class="clockBotGlyph" aria-hidden="true">{ botGlyph }</span>
 				}
+				@playerTitle(title)
 				<span class="clockName">{ name }</span>
 				if rating != "" {
 					<span class="clockRating">

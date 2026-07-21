@@ -28,6 +28,7 @@ func identityOf(c fiber.Ctx) player.Identity {
 		uid := acct.ID
 		id.UserID = &uid
 		id.Username = acct.Username
+		id.Title = acct.Title
 	}
 	return id
 }
@@ -413,6 +414,7 @@ func newRoom(payload newRoomPayload) error {
 		ID:       creator.UID,
 		UserID:   creator.UserID,
 		Username: creator.Username,
+		Title:    creator.Title,
 	}
 
 	// configure room with player to join via URL

@@ -31,9 +31,13 @@ type Player struct {
 	UserID        *int64
 	Username      string
 	RatingDisplay string
-	scorePoints   int
-	scoreHalf     int
-	results       []GameResult
+	// Title is the seat's optional account display title ("" for anon/bot),
+	// rendered to the left of the name in the theme accent color. Captured at
+	// seat-claim like Username so page renders never read the DB.
+	Title       string
+	scorePoints int
+	scoreHalf   int
+	results     []GameResult
 	// sendLatency bool // TODO send server latency stats if enabled
 }
 
@@ -45,6 +49,7 @@ type Identity struct {
 	UID      string
 	UserID   *int64
 	Username string
+	Title    string
 }
 
 // DisplayName returns the seat's account username, or "" for an anonymous
@@ -76,19 +81,24 @@ type Snapshot struct {
 	IsBot         bool         `json:"bot,omitempty"`
 	UserID        *int64       `json:"uid,omitempty"`
 	Username      string       `json:"un,omitempty"`
+	Title         string       `json:"tt,omitempty"`
 	RatingDisplay string       `json:"rd,omitempty"`
 	ScorePoints   int          `json:"sp,omitempty"`
 	ScoreHalf     int          `json:"sh,omitempty"`
 	Results       []GameResult `json:"res,omitempty"`
 }
 
-// Snapshot captures the player's persistable state.
+// Snapshot captures the player's persistable state. Title is an additive
+// omitempty field: an older snapshot without it simply restores an empty title
+// (a purely cosmetic gap for the rest of that one restored game — the title
+// never affects game logic or archival), so it needs no persistVersion bump.
 func (p *Player) Snapshot() Snapshot {
 	return Snapshot{
 		ID:            p.ID,
 		IsBot:         p.IsBot,
 		UserID:        p.UserID,
 		Username:      p.Username,
+		Title:         p.Title,
 		RatingDisplay: p.RatingDisplay,
 		ScorePoints:   p.scorePoints,
 		ScoreHalf:     p.scoreHalf,
@@ -103,6 +113,7 @@ func RestorePlayer(s Snapshot) *Player {
 		IsBot:         s.IsBot,
 		UserID:        s.UserID,
 		Username:      s.Username,
+		Title:         s.Title,
 		RatingDisplay: s.RatingDisplay,
 		scorePoints:   s.ScorePoints,
 		scoreHalf:     s.ScoreHalf,

@@ -27,6 +27,10 @@ type UserRecord struct {
 	Email        *string
 	PasswordHash string
 	CreatedAt    time.Time
+	// Title is the account's optional display title ("" when unset), shown to
+	// the left of the username wherever the name renders. Carried into the
+	// session/Viewer and stamped onto seats at claim time.
+	Title string
 	// TOTPConfirmed reports whether the account has an active TOTP factor
 	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 4). Read off the user row the login
 	// path already fetches, so the MFA decision costs no extra query for the
@@ -76,6 +80,7 @@ func GetUserByID(id int64) (UserRecord, bool, error) {
 		Email:           u.Email,
 		PasswordHash:    u.PasswordHash,
 		CreatedAt:       u.CreatedAt.Time,
+		Title:           strOrEmpty(u.Title),
 		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
 		UsernameChanged: u.UsernameChangedAt.Valid,
 	}, true, nil
@@ -99,6 +104,7 @@ func GetUserByUsername(username string) (UserRecord, bool, error) {
 		Email:           u.Email,
 		PasswordHash:    u.PasswordHash,
 		CreatedAt:       u.CreatedAt.Time,
+		Title:           strOrEmpty(u.Title),
 		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
 		UsernameChanged: u.UsernameChangedAt.Valid,
 	}, true, nil
@@ -126,6 +132,32 @@ func UsernameForID(id *int64) string {
 		return ""
 	}
 	return name
+}
+
+// UserDisplayForID resolves a (nullable) user id to its display-case username
+// and optional title, both "" for a nil id (anon/bot seat), a miss, or an
+// unconfigured Postgres. Used by the archive page, which has no live player
+// record to read the seat's account fields from.
+func UserDisplayForID(id *int64) (username, title string) {
+	if id == nil || Pool == nil {
+		return "", ""
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	row, err := gen.New(Pool).GetUserDisplayByID(ctx, *id)
+	if err != nil {
+		return "", ""
+	}
+	return row.Username, strOrEmpty(row.Title)
+}
+
+// strOrEmpty dereferences a nullable text column into a plain string ("" for
+// NULL), the shape the auth/view layers want.
+func strOrEmpty(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // UpdatePasswordHash swaps a user's stored PHC string — password changes and

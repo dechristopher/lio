@@ -43,6 +43,7 @@ type PersistedRoom struct {
 	Creator       string `json:"creator"`
 	CreatorUserID *int64 `json:"creatorUid,omitempty"`
 	CreatorName   string `json:"creatorName,omitempty"`
+	CreatorTitle  string `json:"creatorTitle,omitempty"`
 	State         State  `json:"state"`
 	Public        bool   `json:"public,omitempty"`
 	Rated         bool   `json:"rated,omitempty"`
@@ -122,6 +123,7 @@ func (r *Instance) Persist() ([]byte, bool) {
 		Creator:       r.creator,
 		CreatorUserID: r.params.CreatorUserID,
 		CreatorName:   r.params.CreatorName,
+		CreatorTitle:  r.params.CreatorTitle,
 		Public:        r.public,
 		Rated:         r.params.Rated,
 		JoinToken:     r.joinToken,
@@ -210,6 +212,7 @@ func Rehydrate(data []byte) (*Instance, error) {
 		Creator:       p.Creator,
 		CreatorUserID: p.CreatorUserID,
 		CreatorName:   p.CreatorName,
+		CreatorTitle:  p.CreatorTitle,
 		Players:       players,
 		GameConfig: game.OctadGameConfig{
 			White:   p.White.ID,

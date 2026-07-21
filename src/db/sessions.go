@@ -22,6 +22,7 @@ type SessionRecord struct {
 	UID       string
 	UserID    *int64
 	Username  string // empty for anonymous sessions
+	Title     string // account's optional display title, empty for anon
 	LastSeen  time.Time
 	ExpiresAt time.Time
 }
@@ -56,6 +57,7 @@ func GetSessionByTokenHash(tokenHash []byte) (SessionRecord, bool, error) {
 		ID:        s.ID,
 		UID:       s.Uid,
 		UserID:    s.UserID,
+		Title:     strOrEmpty(s.Title),
 		LastSeen:  s.LastSeen.Time,
 		ExpiresAt: s.ExpiresAt.Time,
 	}

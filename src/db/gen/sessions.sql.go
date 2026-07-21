@@ -107,7 +107,7 @@ func (q *Queries) DeleteSessionsForUserExcept(ctx context.Context, arg DeleteSes
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT s.id, s.uid, s.user_id, s.expires_at, s.last_seen,
-       u.username AS username
+       u.username AS username, u.title AS title
 FROM sessions s
 LEFT JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = $1
@@ -120,9 +120,12 @@ type GetSessionByTokenHashRow struct {
 	ExpiresAt pgtype.Timestamptz
 	LastSeen  pgtype.Timestamptz
 	Username  *string
+	Title     *string
 }
 
-// The per-request identity lookup: session + account (username NULL for anon).
+// The per-request identity lookup: session + account (username/title NULL for
+// anon). title is the account's optional display title, carried into the
+// render Viewer so the header (and the viewer's own seat) show it.
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (GetSessionByTokenHashRow, error) {
 	row := q.db.QueryRow(ctx, getSessionByTokenHash, tokenHash)
 	var i GetSessionByTokenHashRow
@@ -133,6 +136,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.ExpiresAt,
 		&i.LastSeen,
 		&i.Username,
+		&i.Title,
 	)
 	return i, err
 }

@@ -57,6 +57,9 @@ func OGRoomHandler(c fiber.Ctx) error {
 		challenger := "an anonymous player"
 		if payload.CreatorName != "" {
 			challenger = payload.CreatorName
+			if payload.CreatorTitle != "" {
+				challenger = payload.CreatorTitle + " " + payload.CreatorName
+			}
 			if payload.CreatorRating != "" {
 				challenger += " (" + payload.CreatorRating + ")"
 			}

@@ -426,7 +426,7 @@ func MFAStatusHandler(c fiber.Ctx) error {
 // finishPendingLogin performs the real session upgrade after a second factor
 // succeeds, consuming the pending token.
 func finishPendingLogin(c fiber.Ctx, pending string, p auth.Pending) error {
-	if err := auth.Login(c, auth.FromRequest(c), p.UserID, p.Username); err != nil {
+	if err := auth.Login(c, auth.FromRequest(c), p.UserID, p.Username, p.Title); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "login failed"})
 	}
 	auth.ConsumePending(pending)

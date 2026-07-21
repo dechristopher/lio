@@ -24,6 +24,10 @@ type Context struct {
 type Account struct {
 	ID       int64
 	Username string
+	// Title is the account's optional display title ("" when unset), rendered
+	// to the left of the username in the theme accent color. Set directly in
+	// the DB (no in-app assignment UI); flows here from the session.
+	Title string
 }
 
 // GetID is a helper to return the session uid from the request context.

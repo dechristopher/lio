@@ -124,6 +124,7 @@ type User struct {
 	TotpConfirmedAt    pgtype.Timestamptz
 	WebauthnUserHandle []byte
 	UsernameChangedAt  pgtype.Timestamptz
+	Title              *string
 }
 
 type WebauthnCredential struct {

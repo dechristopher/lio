@@ -65,6 +65,26 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Fatalf("account not attached: %+v", rec)
 	}
 
+	// the account's optional title must ride through the sessions↔users join
+	// (regression: GetSessionByTokenHash once selected u.title but dropped it in
+	// the struct mapping, so a re-resolved session lost the title until re-login)
+	if rec.Title != "" {
+		t.Fatalf("unexpected title before assignment: %q", rec.Title)
+	}
+	func() {
+		ctx, cancel := Ctx()
+		defer cancel()
+		if _, err := Pool.Exec(ctx,
+			"UPDATE users SET title = $2 WHERE id = $1", userID, "GM"); err != nil {
+			t.Fatalf("set title: %v", err)
+		}
+	}()
+	if rec, found, err = GetSessionByTokenHash(newHash[:]); err != nil || !found ||
+		rec.Title != "GM" {
+		t.Fatalf("title not carried through session join: found=%v err=%v rec=%+v",
+			found, err, rec)
+	}
+
 	if err := TouchSession(id, time.Now().Add(3*time.Hour)); err != nil {
 		t.Fatalf("touch: %v", err)
 	}

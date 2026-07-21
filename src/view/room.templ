@@ -72,7 +72,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 		@roomAnonCta()
 		<div class="game-grid">
 			<div id="clockOpponent" class="clockOpponent ga-opp" data-bot={ strconv.FormatBool(topClockIsBot(payload)) }>
-				@clock(topClockName(payload), topClockBotGlyph(payload), topClockRating(payload), 0)
+				@clock(topClockTitle(payload), topClockName(payload), topClockBotGlyph(payload), topClockRating(payload), 0)
 			</div>
 			<div class="ga-board">
 				@board(payload)
@@ -99,6 +99,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<span class={ "tl-h2h", templ.KV("ahead", topH2HScore(payload) > bottomH2HScore(payload)) } title="All-time head-to-head score">{ h2hText(topH2HScore(payload)) }</span>
 						}
 						@seatBotMarker(topClockIsBot(payload), topClockBotGlyph(payload))
+						@playerTitle(topClockTitle(payload))
 						<span class="tl-name">{ topClockName(payload) }</span>
 						<span class="tl-total">0</span>
 					</div>
@@ -107,6 +108,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<span class={ "tl-h2h", templ.KV("ahead", bottomH2HScore(payload) > topH2HScore(payload)) } title="All-time head-to-head score">{ h2hText(bottomH2HScore(payload)) }</span>
 						}
 						@seatBotMarker(bottomClockIsBot(payload), bottomClockBotGlyph(payload))
+						@playerTitle(bottomClockTitle(payload))
 						<span class="tl-name">{ bottomClockName(payload) }</span>
 						<span class="tl-total">0</span>
 					</div>
@@ -114,7 +116,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 				</div>
 			</div>
 			<div id="clockPlayer" class="clockPlayer ga-you" data-bot={ strconv.FormatBool(bottomClockIsBot(payload)) }>
-				@clock(bottomClockName(payload), bottomClockBotGlyph(payload), bottomClockRating(payload), 0)
+				@clock(bottomClockTitle(payload), bottomClockName(payload), bottomClockBotGlyph(payload), bottomClockRating(payload), 0)
 			</div>
 			<aside class="ga-rail">
 				<div class="rail-stack">

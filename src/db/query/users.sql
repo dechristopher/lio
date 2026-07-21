@@ -16,6 +16,11 @@ SELECT * FROM users WHERE lower(username) = lower($1);
 -- Resolve a user id to its display-case username (archive page seat labels).
 SELECT username FROM users WHERE id = $1;
 
+-- name: GetUserDisplayByID :one
+-- Resolve a user id to its display-case username plus optional title, for the
+-- archive page's seat labels (which have no live player record to read).
+SELECT username, title FROM users WHERE id = $1;
+
 -- name: UsernameTaken :one
 -- Signup-form availability probe (also covers the reserved-word check's DB
 -- side; the in-code reserved list is checked first).

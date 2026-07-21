@@ -32,7 +32,10 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 			}
 			if payload.CreatorName != "" {
 				<p class="wait-identity">
-					Playing as <strong class="font-semibold text-fg">{ payload.CreatorName }</strong>
+					Playing as <strong class="font-semibold text-fg">
+						@playerTitle(payload.CreatorTitle)
+						{ payload.CreatorName }
+					</strong>
 					if payload.CreatorRating != "" {
 						<span class="rating-chip">{ payload.CreatorRating }</span>
 					}
@@ -97,6 +100,7 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 			<div class="challenger-meta">
 				<span class="challenger-name">
 					if payload.CreatorName != "" {
+						@playerTitle(payload.CreatorTitle)
 						{ payload.CreatorName }
 						if payload.CreatorRating != "" {
 							<span class="rating-chip">{ payload.CreatorRating }</span>

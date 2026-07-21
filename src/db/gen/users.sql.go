@@ -36,7 +36,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at FROM users WHERE id = $1
+SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at, title FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
@@ -52,12 +52,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.TotpConfirmedAt,
 		&i.WebauthnUserHandle,
 		&i.UsernameChangedAt,
+		&i.Title,
 	)
 	return i, err
 }
 
 const getUserByUsernameLower = `-- name: GetUserByUsernameLower :one
-SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at FROM users WHERE lower(username) = lower($1)
+SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at, title FROM users WHERE lower(username) = lower($1)
 `
 
 // Login lookup: case-insensitive, served by the lower(username) unique index.
@@ -74,7 +75,26 @@ func (q *Queries) GetUserByUsernameLower(ctx context.Context, lower string) (Use
 		&i.TotpConfirmedAt,
 		&i.WebauthnUserHandle,
 		&i.UsernameChangedAt,
+		&i.Title,
 	)
+	return i, err
+}
+
+const getUserDisplayByID = `-- name: GetUserDisplayByID :one
+SELECT username, title FROM users WHERE id = $1
+`
+
+type GetUserDisplayByIDRow struct {
+	Username string
+	Title    *string
+}
+
+// Resolve a user id to its display-case username plus optional title, for the
+// archive page's seat labels (which have no live player record to read).
+func (q *Queries) GetUserDisplayByID(ctx context.Context, id int64) (GetUserDisplayByIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserDisplayByID, id)
+	var i GetUserDisplayByIDRow
+	err := row.Scan(&i.Username, &i.Title)
 	return i, err
 }
 

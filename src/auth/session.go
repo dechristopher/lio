@@ -58,6 +58,7 @@ type Session struct {
 	UID       string
 	UserID    *int64
 	Username  string
+	Title     string // account's optional display title, empty for anon
 	tokenHash [32]byte
 	lastSeen  time.Time
 	expiresAt time.Time
@@ -227,6 +228,7 @@ func FromRequest(c fiber.Ctx) *Session {
 			UID:       rec.UID,
 			UserID:    rec.UserID,
 			Username:  rec.Username,
+			Title:     rec.Title,
 			tokenHash: hash,
 			lastSeen:  rec.LastSeen,
 			expiresAt: rec.ExpiresAt,
@@ -267,8 +269,10 @@ func FromRequest(c fiber.Ctx) *Session {
 // token rotated (fixation defense), account attached, authed expiry applied,
 // uid preserved. sess may be nil (a login POST with no live session — e.g.
 // cookies cleared mid-flow); a fresh authenticated session is minted instead.
-// Requires Enabled(); callers gate on it.
-func Login(c fiber.Ctx, sess *Session, userID int64, username string) error {
+// title is the account's optional display title (carried alongside username so
+// the just-logged-in render shows it without waiting for the ≤30s cache to
+// expire and re-resolve the join). Requires Enabled(); callers gate on it.
+func Login(c fiber.Ctx, sess *Session, userID int64, username, title string) error {
 	token, hash := NewToken()
 	now := time.Now()
 
@@ -290,6 +294,7 @@ func Login(c fiber.Ctx, sess *Session, userID int64, username string) error {
 
 	sess.UserID = &userID
 	sess.Username = username
+	sess.Title = title
 	sess.tokenHash = hash
 	sess.lastSeen = now
 	sess.expiresAt = now.Add(authedTTL)
@@ -395,7 +400,7 @@ func clearCookie(c fiber.Ctx, name string) {
 func UserContext(s *Session) *user.Context {
 	ctx := &user.Context{Context: context.Background(), ID: s.UID}
 	if s.LoggedIn() {
-		ctx.Account = &user.Account{ID: *s.UserID, Username: s.Username}
+		ctx.Account = &user.Account{ID: *s.UserID, Username: s.Username, Title: s.Title}
 	}
 	return ctx
 }

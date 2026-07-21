@@ -202,14 +202,14 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		orientation = "b"
 	}
 
-	// resolve each seat's account username (empty for anon/bot); the archive
-	// has no live player records, so it reads them off the games row's user-id
-	// FKs (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2)
-	whiteName := db.UsernameForID(selected.WhiteUserID)
-	blackName := db.UsernameForID(selected.BlackUserID)
+	// resolve each seat's account username + optional display title (both empty
+	// for anon/bot); the archive has no live player records, so it reads them off
+	// the games row's user-id FKs (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2)
+	whiteName, whiteTitle := db.UserDisplayForID(selected.WhiteUserID)
+	blackName, blackTitle := db.UserDisplayForID(selected.BlackUserID)
 
-	bottomUID, bottomName, bottomUserID := selected.WhiteUid, whiteName, selected.WhiteUserID
-	topUID, topName, topUserID := selected.BlackUid, blackName, selected.BlackUserID
+	bottomUID, bottomName, bottomTitle, bottomUserID := selected.WhiteUid, whiteName, whiteTitle, selected.WhiteUserID
+	topUID, topName, topTitle, topUserID := selected.BlackUid, blackName, blackTitle, selected.BlackUserID
 	// rating "at the time of the game" + that game's +/- change, per seat
 	// (empty/zero for casual/anon/bot and pre-tracking rows)
 	bottomRating, bottomDelta := derefStr(selected.WhiteRating), derefInt16(selected.WhiteRatingDelta)
@@ -217,6 +217,7 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 	if orientation == "b" {
 		bottomUID, topUID = topUID, bottomUID
 		bottomName, topName = topName, bottomName
+		bottomTitle, topTitle = topTitle, bottomTitle
 		bottomUserID, topUserID = topUserID, bottomUserID
 		bottomRating, topRating = topRating, bottomRating
 		bottomDelta, topDelta = topDelta, bottomDelta
@@ -246,6 +247,8 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		Orientation:       orientation,
 		TopName:           seatLabel(topUID, topName, topUserID, uid, derefStr(selected.BotPersona)),
 		BottomName:        seatLabel(bottomUID, bottomName, bottomUserID, uid, derefStr(selected.BotPersona)),
+		TopTitle:          topTitle,
+		BottomTitle:       bottomTitle,
 		TopRating:         topRating,
 		BottomRating:      bottomRating,
 		TopRatingDelta:    topDelta,

@@ -39,6 +39,13 @@ type RoomTemplatePayload struct {
 	WhiteName   string
 	BlackName   string
 	CreatorName string
+	// WhiteTitle / BlackTitle / CreatorTitle are each account's optional display
+	// title ("GM", "WFM", …), rendered to the left of the corresponding name in
+	// the theme accent color. Empty for anonymous/bot seats and untitled
+	// accounts. Set directly in the DB (no in-app assignment).
+	WhiteTitle   string
+	BlackTitle   string
+	CreatorTitle string
 	// WhiteRating / BlackRating are each seat's Glicko-2 display rating
 	// ("1650" / "1500?") in a rated game, captured at seat-claim
 	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Empty for anonymous/bot seats and

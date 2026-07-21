@@ -82,6 +82,9 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	challenger := "anonymous player"
 	if payload.CreatorName != "" {
 		challenger = payload.CreatorName
+		if payload.CreatorTitle != "" {
+			challenger = payload.CreatorTitle + " " + payload.CreatorName
+		}
 		if payload.CreatorRating != "" {
 			challenger += " (" + payload.CreatorRating + ")"
 		}
@@ -108,6 +111,7 @@ type Viewer struct {
 	UID             string // session uid ("" when no session resolved)
 	LoggedIn        bool
 	Username        string // display-case username, empty when anonymous
+	Title           string // optional account display title, empty when unset
 	AccountsEnabled bool   // false only in PG-less local dev
 }
 
@@ -122,6 +126,7 @@ func viewerFrom(c fiber.Ctx) Viewer {
 		if uc.Account != nil {
 			v.LoggedIn = true
 			v.Username = uc.Account.Username
+			v.Title = uc.Account.Title
 		}
 	}
 	return v
@@ -253,6 +258,30 @@ func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot boo
 		return "You"
 	}
 	return "Anonymous"
+}
+
+// seatColorTitle resolves one seat's optional account display title by "w"/"b"
+// color from the payload. Empty for anonymous/bot seats, untitled accounts, and
+// (harmlessly) whenever seatColorLabel resolves to You/Anonymous/BOT — those
+// seats carry no account title. The view renders it to the left of the name.
+func seatColorTitle(payload message.RoomTemplatePayload, color string) string {
+	switch color {
+	case "w":
+		return payload.WhiteTitle
+	case "b":
+		return payload.BlackTitle
+	}
+	return ""
+}
+
+// topClockTitle / bottomClockTitle label each clock's title badge, resolved by
+// the same color/anchor rules as the names and ratings.
+func topClockTitle(payload message.RoomTemplatePayload) string {
+	return seatColorTitle(payload, topClockColor(payload))
+}
+
+func bottomClockTitle(payload message.RoomTemplatePayload) string {
+	return seatColorTitle(payload, bottomClockColor(payload))
 }
 
 // ratingDeltaClass / ratingDeltaText render a per-game rating change beside the

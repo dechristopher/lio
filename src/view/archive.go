@@ -81,6 +81,11 @@ type ArchiveModel struct {
 	// the engine, "PLAYER" otherwise.
 	TopName    string
 	BottomName string
+	// Top/BottomTitle are each account seat's optional display title ("GM", …),
+	// rendered to the left of the name in the theme accent color. Empty for
+	// anon/bot seats and untitled accounts.
+	TopTitle    string
+	BottomTitle string
 	// Top/BottomRating are each seat's rating "at the time of this game" (the
 	// display it held going into the game, "1650"/"1500?"), and Top/BottomRatingDelta
 	// the signed change that game applied (+8/-8). Empty/zero for casual/anon/bot

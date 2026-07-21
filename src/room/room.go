@@ -220,8 +220,12 @@ type Params struct {
 	// anonymous creator.
 	CreatorUserID *int64
 	CreatorName   string
-	Players       player.Players
-	GameConfig    game.OctadGameConfig
+	// CreatorTitle is the creator's optional account display title ("" when
+	// anonymous or untitled), personalizing the joiner's pre-game view and the
+	// OG challenge card alongside CreatorName.
+	CreatorTitle string
+	Players      player.Players
+	GameConfig   game.OctadGameConfig
 	// Public lists an open human challenge in the home-page Open Challenges
 	// feed. Defaults to false (private, link-only); the creator opts in.
 	Public bool
@@ -272,6 +276,7 @@ func NewParams(creator player.Identity, variant variant.Variant) Params {
 		Creator:       creator.UID,
 		CreatorUserID: creator.UserID,
 		CreatorName:   creator.Username,
+		CreatorTitle:  creator.Title,
 		Players:       make(player.Players),
 		GameConfig: game.OctadGameConfig{
 			Variant: variant,
@@ -718,6 +723,7 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 			ID:       seat.UID,
 			UserID:   seat.UserID,
 			Username: seat.Username,
+			Title:    seat.Title,
 		}
 
 		// set internal game instance state. Also stamp the uid onto the game
@@ -2006,13 +2012,15 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 	// per-seat display names for the clocks/timeline: the account username, or
 	// "" for an anonymous human / bot (the view resolves "" to You/Anonymous
 	// and the bot flags to "BOT"). CreatorName personalizes the joiner view.
-	whiteName := ""
+	whiteName, whiteTitle := "", ""
 	if p := r.players[octad.White]; p != nil {
 		whiteName = p.DisplayName()
+		whiteTitle = p.Title
 	}
-	blackName := ""
+	blackName, blackTitle := "", ""
 	if p := r.players[octad.Black]; p != nil {
 		blackName = p.DisplayName()
+		blackTitle = p.Title
 	}
 
 	// per-seat rating display for the clocks in a rated game, captured at
@@ -2054,11 +2062,14 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		AnchorID:      anchorID,
 		WhiteName:     whiteName,
 		BlackName:     blackName,
+		WhiteTitle:    whiteTitle,
+		BlackTitle:    blackTitle,
 		WhiteRating:   whiteRating,
 		BlackRating:   blackRating,
 		CreatorRating: creatorRating,
 		Rated:         r.params.Rated,
 		CreatorName:   r.params.CreatorName,
+		CreatorTitle:  r.params.CreatorTitle,
 		VariantName:   variantName,
 		Variant:       r.game.Variant,
 		Public:        r.public,
