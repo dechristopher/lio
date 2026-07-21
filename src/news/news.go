@@ -17,6 +17,13 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "More bot personas",
+		Date:  "Jul 21, 2026",
+		Body: "We've added various bot difficulty levels, so players both new and veteran can face a " +
+			"proper challenge. We've also added study mode to analysis boards, so different lines of " +
+			"moves can be explored.",
+	},
+	{
 		Title: "Octad has arrived",
 		Date:  "Jul 21, 2026",
 		Body: "The first full release of Octad, the new chess variant, is now available. Play it " +
