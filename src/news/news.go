@@ -74,9 +74,8 @@ var Items = []Item{
 		Title: "Quick games go blind",
 		Date:  "Jul 18, 2026",
 		Body: "The quick-game buttons now deal deploy games by default: arrange your home rank in " +
-			"secret, then meet your opponent's setup at the reveal. Classic starts are still a " +
-			"click away in the custom game builder. Also fixed a brief flash of the standard " +
-			"starting position before the blind setup covered the board.",
+			"secret, then meet your opponent's setup at the reveal. Also fixed a brief flash of the " +
+			"standard starting position before the blind setup covered the board.",
 	},
 	{
 		Title: "The reveal gets a countdown",

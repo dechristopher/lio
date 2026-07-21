@@ -92,28 +92,31 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "lio-tv")               // scriptsTV client
 	mustContain(t, out, "octadground")          // scriptsTV board renderer
 
-	// create-game modal: opponent + Classic/Deploy toggles, unified POST target,
-	// and the hidden field the resolved variant is written into
+	// create-game modal: opponent toggle, unified POST target, and the hidden
+	// field the resolved variant is written into. There is no mode toggle — every
+	// game is the blind-deploy variant ("Octad" on the surface).
 	mustContain(t, out, `action="/new/game"`)
 	mustContain(t, out, `name="opponent" value="human"`)
 	mustContain(t, out, `name="opponent" value="computer"`)
-	mustContain(t, out, `name="mode" value="classic"`)
-	mustContain(t, out, `name="mode" value="deploy"`)
 	mustContain(t, out, `id="cg-variant"`)
+	mustNotContain(t, out, `name="mode"`) // the Classic/Deploy toggle is gone
 
-	// each time-control card carries both its classic and deploy variant name so
-	// the mode toggle can resolve one from the other; order is bullet->blitz->rapid
+	// each time-control card carries its (deploy) variant name; order is
+	// bullet->blitz->rapid
 	order := []string{
-		"quarter-zero-blitz", "half-one-blitz", "one-two-rapid", // classic
-		"quarter-zero-bullet-deploy", "half-one-blitz-deploy", "one-two-rapid-deploy", // deploy
+		"quarter-zero-bullet-deploy", "half-one-blitz-deploy", "one-two-rapid-deploy",
 	}
 	for _, name := range order {
 		mustContain(t, out, name)
 	}
-	// bullet card precedes rapid card (data-classic attribute order)
-	if strings.Index(out, `data-classic="quarter-zero-blitz"`) > strings.Index(out, `data-classic="one-two-rapid"`) {
+	// bullet card precedes rapid card (data-variant attribute order)
+	if strings.Index(out, `data-variant="quarter-zero-bullet-deploy"`) > strings.Index(out, `data-variant="one-two-rapid-deploy"`) {
 		t.Error("time-control cards out of order (bullet should precede rapid)")
 	}
+	// the rated status badge is gated on accounts being enabled; the smoke
+	// viewer is anonymous with accounts disabled, so it must not render (and the
+	// dangling "Log in" link is never emitted)
+	mustNotContain(t, out, `class="cg-rated`)
 }
 
 func TestRenderHomeActivityEmpty(t *testing.T) {

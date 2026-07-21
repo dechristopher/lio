@@ -16,12 +16,15 @@ type LiveGame struct {
 // joiner would take (the still-open seat), so a browser sees the color they'd
 // play — or "r" when the challenge is random-color, so they don't preemptively
 // learn it. RaceTo is the room's match length (zero for a classic single game),
-// surfaced so a joiner knows they are accepting a race-to match.
+// surfaced so a joiner knows they are accepting a race-to match. Rated marks a
+// members-only seek: anonymous visitors see it but must log in to join (an
+// unrated "open" seek is joinable by anyone).
 type OpenChallenge struct {
 	RoomID  string
 	Variant variant.Variant
 	Color   string
 	RaceTo  int
+	Rated   bool
 }
 
 // SiteStats holds the live counters shown above the home-page activity feed.

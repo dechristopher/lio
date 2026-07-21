@@ -41,18 +41,25 @@ type newRoomPayload struct {
 	// hidden from the pre-game views and the open-challenge listing until the
 	// game begins (see room.Params.BlindColor).
 	blindColor bool
+	// allowAnonymous opens a logged-in creator's competitive game to anonymous
+	// players — which makes it unrated (a rating needs two accounts). Off by
+	// default: a competitive game stays rated + logged-in-only. Moot (ignored)
+	// for casual and bot games, which are unrated regardless.
+	allowAnonymous bool
 	// raceTo makes the room a race-to match (see room.Params.RaceTo); zero is
 	// the classic single-game-with-rematches experience.
 	raceTo int
 }
 
 // casualVariant resolves the untimed casual variant for the given create-game
-// mode: the classic untimed game, or its blind-deploy twin.
+// mode. Every game is blind-deploy now (the create modal dropped its mode
+// toggle and submits no mode), so this defaults to the deploy twin; only an
+// explicit legacy "classic" mode selects the non-deploy untimed game.
 func casualVariant(mode string) variant.Variant {
-	if mode == "deploy" {
-		return variant.UnlimitedCasualDeploy
+	if mode == "classic" {
+		return variant.UnlimitedCasual
 	}
-	return variant.UnlimitedCasual
+	return variant.UnlimitedCasualDeploy
 }
 
 // raceToChoices is the allowlist of race-to targets offered by the create-game
@@ -225,10 +232,10 @@ func NewQuickRoomVsHuman(c fiber.Ctx) error {
 }
 
 // NewCustomRoom creates a custom game from the create-game modal: a time control
-// and color chosen by the creator, against either a human or the computer. The
-// resolved variant (classic or its blind-deploy twin) arrives in the
-// time-control field; the modal's Classic/Deploy toggle picks which. A human
-// game may be listed as a public open challenge; a bot game never is.
+// and color chosen by the creator, against either a human or the computer. Every
+// game is the blind-deploy variant now (the modal dropped its mode toggle), so
+// the deploy variant's HTMLName arrives in the time-control field. A human game
+// may be listed as a public open challenge; a bot game never is.
 func NewCustomRoom(c fiber.Ctx) error {
 	payload := struct {
 		TimeControl string `form:"time-control"`
@@ -246,9 +253,15 @@ func NewCustomRoom(c fiber.Ctx) error {
 		// the time-control choice entirely. Available against the computer and
 		// humans alike; timed games are "competitive" by contrast.
 		Casual bool `form:"casual"`
-		// Mode is the Classic/Deploy toggle. Normal games resolve it client-side
-		// into the time-control field; a casual game has no time-control
-		// choice, so the server resolves the casual variant from it instead.
+		// AllowAnon is the "Allow anonymous players" toggle (logged-in creators
+		// only, competitive games): when set it opens the game to anonymous
+		// joiners, which makes it unrated. Unchecked by default, so a competitive
+		// game stays rated + logged-in-only.
+		AllowAnon bool `form:"allow_anon"`
+		// Mode is a legacy field the modal no longer submits (every game is
+		// blind-deploy). It survives only so an old cached page or a "classic"
+		// value still resolves the right casual variant (casualVariant defaults
+		// to deploy); a normal game ignores it and reads the time-control field.
 		Mode string `form:"mode"`
 	}{}
 
@@ -313,9 +326,10 @@ func NewCustomRoom(c fiber.Ctx) error {
 		selectedColor: selectedColor,
 		vsBot:         vsBot,
 		// bot games are never public open challenges
-		public:     payload.Public && !vsBot,
-		blindColor: blindColor,
-		raceTo:     raceTo,
+		public:         payload.Public && !vsBot,
+		blindColor:     blindColor,
+		allowAnonymous: payload.AllowAnon,
+		raceTo:         raceTo,
 	})
 }
 
@@ -364,14 +378,16 @@ func newRoom(payload newRoomPayload) error {
 	params.Public = payload.public
 	params.BlindColor = payload.blindColor
 	params.RaceTo = payload.raceTo
-	// Ratings are implicit (no opt-in): a competitive (non-casual) human game
-	// created by a logged-in player is rated. Bot games, casual (untimed) games,
-	// and anonymous creators are always unrated — an anonymous creator's
-	// competitive human game still plays, just without ratings, so anonymous
-	// timed play (incl. quick match) keeps working. The room.Join guard then
-	// requires the opponent of a rated room to be logged in too.
+	// A competitive (non-casual) human game created by a logged-in player is
+	// rated by default. Bot games, casual (untimed) games, and anonymous creators
+	// are always unrated — an anonymous creator's competitive human game still
+	// plays, just without ratings, so anonymous timed play (incl. quick match)
+	// keeps working. The creator can opt OUT of rating via "Allow anonymous
+	// players" (allowAnonymous), which opens the game to anonymous joiners and so
+	// makes it unrated. The room.Join guard keys off Rated: it requires a
+	// logged-in opponent for a rated room, and allows anyone otherwise.
 	params.Rated = !payload.vsBot &&
-		creator.UserID != nil && !payload.variant.Casual
+		creator.UserID != nil && !payload.variant.Casual && !payload.allowAnonymous
 
 	// set creating player in players map, stamping their account identity
 	params.Players[payload.selectedColor] = &player.Player{

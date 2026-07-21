@@ -44,16 +44,18 @@ var RatingPools = map[variant.Group][]variant.Variant{
 	},
 }
 
-// CreateControl is one time control offered in the custom create-game modal, in
-// both its classic and blind-deploy forms. The two variants share a time control
-// (and thus a display Label) and differ only by the deploy pre-game, so the UI
-// presents a single time-control choice plus a Classic/Deploy mode toggle.
+// CreateControl is one time control offered in the custom create-game modal. It
+// carries both the non-deploy and blind-deploy variants that share this time
+// control (and thus a display Label). The modal now offers only the Deploy form
+// (every game is blind-deploy, surfaced as "Octad"); Classic is retained under
+// the hood for possible future modes and legacy rooms.
 type CreateControl struct {
 	// Label is the shared display name of the time control, e.g. "½ + 1".
 	Label string
-	// Group is the classic speed group (bullet/blitz/rapid) shown as a sublabel.
+	// Group is the speed group (bullet/blitz/rapid) shown as a sublabel.
 	Group variant.Group
-	// Classic and Deploy are the two variants this control resolves to.
+	// Classic and Deploy are the two variants this control resolves to. The modal
+	// uses Deploy; Classic is retained for legacy/future use.
 	Classic variant.Variant
 	Deploy  variant.Variant
 }

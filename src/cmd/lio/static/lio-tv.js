@@ -334,8 +334,9 @@
 			orientation: slot.orient === 'w' ? 'white' : 'black'
 		});
 
-		// caption: time control + game mode (the CSS uppercases it)
-		const caption = (g.vn || 'Octad') + ' · ' + (g.dp ? 'Deploy' : 'Classic');
+		// caption: time control name (the CSS uppercases it). Every game is the
+		// blind-deploy "Octad" mode now, so no mode suffix is shown.
+		const caption = g.vn || 'Octad';
 		slot.variantEl.textContent = caption;
 		slot.card.title = (g.vb ? 'vs Computer · ' : '') + caption;
 		setWatchers(slot, g.sp || 0);

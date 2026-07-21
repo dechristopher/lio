@@ -1738,15 +1738,8 @@
 		color: var(--text-muted);
 	}
 	.cg-hint { font-size: 0.7rem; line-height: 1.35; color: var(--text-subtle); }
-	/* mode description: the Classic and Deploy copies are stacked in the same
-	   grid cell so the block always reserves the taller one's height — toggling
-	   the mode swaps visibility only and never shifts the layout below. */
-	.cg-mode-desc { display: grid; }
-	.cg-mode-desc-opt { grid-area: 1 / 1; visibility: hidden; }
-	.cg:has(#mode-classic:checked) .cg-mode-desc-opt[data-mode="classic"],
-	.cg:has(#mode-deploy:checked) .cg-mode-desc-opt[data-mode="deploy"] { visibility: visible; }
 
-	/* segmented controls (opponent / mode) */
+	/* segmented controls (opponent) */
 	.seg {
 		position: relative;
 		display: grid;
@@ -1874,23 +1867,76 @@
 		filter: grayscale(0.5);
 		pointer-events: none;
 	}
-	/* rated is implicit (no toggle): a passive note for logged-in creators that a
-	   timed human game counts toward their rating. Always visible (no layout
-	   shift); dimmed when the current pick can't be rated (bot or casual). */
-	.cg-rated-note {
+	/* rated status (no toggle): a passive badge that lights when the current
+	   settings would produce a rated game — a logged-in player, a human opponent,
+	   and a competitive (non-casual) game — and dims otherwise. The badge + copy
+	   are always present (no layout shift); the two copy lines are grid-stacked so
+	   swapping them reserves the taller height. The anonymous variant (.cg-rated-
+	   locked) is static: rated play needs an account. */
+	.cg-rated {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
-		padding: 0.15rem 0.1rem;
-		font-size: 0.72rem;
-		font-weight: 500;
-		color: var(--text-subtle);
-		transition: opacity 150ms var(--ease-snappy);
+		gap: 0.5rem;
+		padding: 0.1rem 0.05rem;
 	}
-	.cg-rated-note strong { color: var(--text); font-weight: 700; }
-	.cg-rated-star { color: var(--accent); }
-	.cg:has(#opp-computer:checked) .cg-rated-note,
-	.cg:has(.cg-casual-box:checked) .cg-rated-note { opacity: 0.4; }
+	.cg-rated-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		flex: none;
+		padding: 0.22rem 0.55rem;
+		border-radius: 999px;
+		font-size: 0.7rem;
+		font-weight: 800;
+		letter-spacing: 0.09em;
+		/* lit by default: the common logged-in / human / competitive case */
+		background: var(--accent);
+		color: var(--accent-contrast);
+		box-shadow: var(--shadow-sm);
+		transition: background 150ms var(--ease-snappy), color 150ms var(--ease-snappy), box-shadow 150ms var(--ease-snappy);
+	}
+	.cg-rated-ico { width: 0.85rem; height: 0.85rem; }
+	/* dim the badge when the current pick can't be rated (bot, casual, or opened
+	   to anonymous players), and for the always-unrated anonymous (locked)
+	   variant */
+	.cg:has(#opp-computer:checked) .cg-rated-badge,
+	.cg:has(.cg-casual-box:checked) .cg-rated-badge,
+	.cg:has(.cg-allow-anon-box:checked) .cg-rated-badge,
+	.cg-rated-locked .cg-rated-badge {
+		background: var(--surface-3);
+		color: var(--text-subtle);
+		box-shadow: inset 0 0 0 1px var(--border);
+	}
+	.cg-rated-copy {
+		display: grid;
+		font-size: 0.72rem;
+		line-height: 1.3;
+		color: var(--text-subtle);
+	}
+	.cg-rated-copy a { color: var(--accent); font-weight: 600; }
+	.cg-rated-line { grid-area: 1 / 1; visibility: hidden; }
+	/* copy swap (all three lines stacked so the row height never changes):
+	   'on' (rated) by default, 'open' when the game is opened to anonymous
+	   players, 'off' (just for fun) for a casual or bot game. Casual/computer
+	   copy takes precedence over 'open' — those rules come last so they win at
+	   equal specificity. */
+	.cg-rated-line[data-state="on"] { visibility: visible; }
+	.cg:has(#opp-computer:checked) .cg-rated-line[data-state="on"],
+	.cg:has(.cg-casual-box:checked) .cg-rated-line[data-state="on"],
+	.cg:has(.cg-allow-anon-box:checked) .cg-rated-line[data-state="on"] { visibility: hidden; }
+	.cg:has(.cg-allow-anon-box:checked) .cg-rated-line[data-state="open"] { visibility: visible; }
+	.cg:has(#opp-computer:checked) .cg-rated-line[data-state="open"],
+	.cg:has(.cg-casual-box:checked) .cg-rated-line[data-state="open"] { visibility: hidden; }
+	.cg:has(#opp-computer:checked) .cg-rated-line[data-state="off"],
+	.cg:has(.cg-casual-box:checked) .cg-rated-line[data-state="off"] { visibility: visible; }
+	/* opening to anonymous players is moot for a casual (already unrated) or bot
+	   (no opponent) game: fade + disable the toggle in place (no layout shift) */
+	.cg:has(#opp-computer:checked) .cg-allow-anon,
+	.cg:has(.cg-casual-box:checked) .cg-allow-anon {
+		opacity: 0.4;
+		filter: grayscale(0.5);
+		pointer-events: none;
+	}
 	.cg-toggle-box { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 	.cg-toggle-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
 	.cg-toggle-title { font-size: 0.85rem; font-weight: 700; color: var(--text); }

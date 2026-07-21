@@ -43,6 +43,7 @@ func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge,
 					Variant: s.variant,
 					Color:   s.joinerColor,
 					RaceTo:  s.raceTo,
+					Rated:   s.rated,
 				})
 				stats.OpenChallenges++
 			}
@@ -81,6 +82,9 @@ type roomSnapshot struct {
 	// room so the joiner doesn't preemptively learn their color.
 	joinerColor string
 	raceTo      int
+	// rated marks a members-only (rated) seek vs an open (unrated) one — the
+	// home list labels it and gates anonymous joining on it.
+	rated bool
 }
 
 // snapshot reads the room's display-relevant state under stateMu so the home
@@ -97,6 +101,7 @@ func (r *Instance) snapshot() roomSnapshot {
 		moves:   len(r.game.MoveHistory()),
 		public:  r.public,
 		raceTo:  r.params.RaceTo,
+		rated:   r.params.Rated,
 	}
 
 	hasTwo, missing := r.players.HasTwoPlayers()

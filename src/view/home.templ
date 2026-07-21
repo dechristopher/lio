@@ -59,10 +59,19 @@ templ openChallenges(challenges []message.OpenChallenge) {
 				for _, c := range challenges {
 					<li>
 						<a href={ templ.SafeURL("/" + c.RoomID) } class="flex items-center justify-between gap-3 rounded-md border border-line bg-panel px-3 py-2.5 no-underline transition duration-150 ease-snappy hover:-translate-y-px hover:border-accent hover:shadow-md">
-							<span class="flex items-center gap-2.5">
+							<span class="flex min-w-0 items-center gap-2.5">
 								@colorDot(c.Color)
-								<span class="flex flex-col leading-tight">
-									<span class="text-sm font-semibold text-fg">{ c.Variant.Name }</span>
+								<span class="flex min-w-0 flex-col leading-tight">
+									<span class="flex items-center gap-1.5">
+										<span class="truncate text-sm font-semibold text-fg">{ c.Variant.Name }</span>
+										if c.Rated {
+											// rated seeks are members-only; anons see the tag and log in to join
+											<span class="inline-flex flex-none items-center gap-0.5 rounded-full border border-accent/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent">
+												@iconTrophy("h-2.5 w-2.5")
+												Rated
+											</span>
+										}
+									</span>
 									<span class="text-[11px] uppercase tracking-wide text-fg-subtle">
 										{ c.Variant.Group.String() }
 										if c.RaceTo > 0 {
@@ -71,7 +80,11 @@ templ openChallenges(challenges []message.OpenChallenge) {
 									</span>
 								</span>
 							</span>
-							<span class="btn btn-primary px-3 py-1.5 text-xs">Join</span>
+							if c.Rated && !viewer(ctx).LoggedIn {
+								<span class="btn btn-ghost flex-none px-3 py-1.5 text-xs">Log in</span>
+							} else {
+								<span class="btn btn-primary flex-none px-3 py-1.5 text-xs">Join</span>
+							}
 						</a>
 					</li>
 				}

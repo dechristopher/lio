@@ -3,18 +3,20 @@ package view
 import "github.com/dechristopher/lio/pools"
 
 // createGameModal is the custom-game dialog opened from the home page. It is a
-// horizontal two-panel layout: a left "setup" panel (opponent + mode toggles and
-// the open-challenge switch) and a right "time control" panel (the three shared
-// time-control cards and the play-as color submit). A single time-control choice
-// combined with the Classic/Deploy mode toggle resolves to a concrete variant —
-// each card carries both its classic and deploy HTMLName, and a small script
-// writes the resolved name into the hidden time-control field the form submits.
-// Choosing the computer as opponent fades + disables (never removes — settings
-// changes must not shift the layout) the open-challenge toggle and the race-to
-// picker; bot games are never public. The Casual (untimed) toggle sits under
-// the mode selection and applies to any opponent; turning it on fades the
-// then-moot time-control cards. Styling lives in app.css (.cg-* / .seg-* /
-// .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close
+// horizontal two-panel layout: a left "setup" panel (opponent toggle, casual
+// switch, rated status, and the open-challenge switch) and a right "time
+// control" panel (the shared time-control cards and the play-as color submit).
+// Every game is the blind-deploy variant — surfaced simply as "Octad", kept
+// "deploy" under the hood — so there is no mode toggle: each time-control card
+// carries its variant HTMLName and a small script writes the chosen one into the
+// hidden time-control field the form submits. Choosing the computer as opponent
+// fades + disables (never removes — settings changes must not shift the layout)
+// the open-challenge toggle and the race-to picker; bot games are never public.
+// The Casual (untimed) toggle applies to any opponent; turning it on fades the
+// then-moot time-control cards. The rated status (see cg-rated) is passive: it
+// lights when the current settings would produce a rated game (logged in, human
+// opponent, competitive) and dims otherwise. Styling lives in app.css (.cg-* /
+// .seg-* / .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close
 // chrome.
 templ createGameModal() {
 	<div id="modalCreateGame" class="modal-shade">
@@ -42,24 +44,6 @@ templ createGameModal() {
 								</label>
 							</div>
 						</div>
-						<div class="cg-field">
-							<span class="cg-label">Mode</span>
-							<div class="seg" role="radiogroup" aria-label="Mode">
-								<input id="mode-deploy" class="seg-input" type="radio" name="mode" value="deploy" checked/>
-                                <label class="seg-btn" for="mode-deploy">
-                                    <span>Deploy</span>
-                                    <span class="seg-tag">blind</span>
-                                </label>
-								<input id="mode-classic" class="seg-input" type="radio" name="mode" value="classic"/>
-								<label class="seg-btn" for="mode-classic">
-									<span>Classic</span>
-								</label>
-							</div>
-							<span class="cg-hint cg-mode-desc" aria-live="polite">
-								<span class="cg-mode-desc-opt" data-mode="deploy"><strong>Deploy:</strong> privately arrange your home rank before play begins, then the position is revealed.</span>
-								<span class="cg-mode-desc-opt" data-mode="classic"><strong>Classic:</strong> the standard Octad opening position — play begins the moment your opponent joins.</span>
-							</span>
-						</div>
 						<label class="cg-toggle cg-casual">
 							<input type="checkbox" class="cg-toggle-box cg-casual-box" name="casual" value="true"/>
 							<span class="cg-toggle-text">
@@ -68,12 +52,44 @@ templ createGameModal() {
 							</span>
 							<span class="cg-switch" aria-hidden="true"></span>
 						</label>
+						<!-- Rated status + control. A game is rated only when a logged-in
+						     player faces another real player in a competitive (non-casual)
+						     game. The badge lights for that case and dims (via :has() on the
+						     opponent/casual/allow-anon inputs) otherwise. The "Allow anonymous
+						     players" toggle below is the opt-out: it opens the game to anon
+						     joiners and so makes it unrated. An anonymous creator instead
+						     gets the locked variant, since rated play needs an account. Kept
+						     always-visible to avoid layout shift. -->
 						if viewer(ctx).LoggedIn {
-							<!-- rated is implicit: a timed game against another player counts
-							     toward your rating (no opt-in). Casual or vs-computer games
-							     never do. Shown to logged-in creators, so the behavior is
-							     understood; kept always-visible to avoid layout shift. -->
-							<p class="cg-rated-note"><span class="cg-rated-star" aria-hidden="true">★</span>Timed games against another player are <strong>RATED</strong></p>
+							<div class="cg-rated" aria-live="polite">
+								<span class="cg-rated-badge">
+									@iconTrophy("cg-rated-ico")
+									RATED
+								</span>
+								<span class="cg-rated-copy">
+									<span class="cg-rated-line" data-state="on">Counts toward your rating</span>
+									<span class="cg-rated-line" data-state="open">Open game — anyone can join, unrated</span>
+									<span class="cg-rated-line" data-state="off">Just for fun — unrated</span>
+								</span>
+							</div>
+							<label class="cg-toggle cg-allow-anon">
+								<input type="checkbox" class="cg-toggle-box cg-allow-anon-box" name="allow_anon" value="true"/>
+								<span class="cg-toggle-text">
+									<span class="cg-toggle-title">Allow anonymous players</span>
+									<span class="cg-toggle-hint">On = anyone can join (unrated)<br/>Off = logged-in players only (rated)</span>
+								</span>
+								<span class="cg-switch" aria-hidden="true"></span>
+							</label>
+						} else if viewer(ctx).AccountsEnabled {
+							<div class="cg-rated cg-rated-locked">
+								<span class="cg-rated-badge">
+									@iconLock("cg-rated-ico")
+									RATED
+								</span>
+								<span class="cg-rated-copy">
+									<a href="#" onclick="document.getElementById('modalAccount').classList.add('open');return false;">Log in</a> to play rated games
+								</span>
+							</div>
 						}
 						<label class="cg-toggle cg-public">
 							<input type="checkbox" class="cg-toggle-box cg-public-box" name="public" value="true"/>
@@ -112,15 +128,14 @@ templ createGameModal() {
 							<div class="tc-select">
 								for _, ctrl := range pools.CreateControls {
 									<input
-										id={ ctrl.Classic.HTMLName }
+										id={ ctrl.Deploy.HTMLName }
 										class="tc-input"
 										type="radio"
 										name="tc-choice"
-										data-classic={ ctrl.Classic.HTMLName }
-										data-deploy={ ctrl.Deploy.HTMLName }
+										data-variant={ ctrl.Deploy.HTMLName }
 										required
 									/>
-									<label class="tc-label" for={ ctrl.Classic.HTMLName }>
+									<label class="tc-label" for={ ctrl.Deploy.HTMLName }>
 										<span class="tc-box">
 											<span class="tc-name">{ ctrl.Label }</span>
 											<span class="tc-pool">{ ctrl.Group.String() }</span>
@@ -177,28 +192,20 @@ templ createGameModal() {
 			modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
 			document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
-			// Resolve the chosen time control (classic vs its deploy twin) into the
-			// hidden field the form submits. Runs whenever the time control or the
-			// Classic/Deploy mode changes, so the value is current before the color
-			// submit buttons (gated until a time control is picked) are clickable.
+			// Resolve the chosen time control into the hidden field the form
+			// submits. Every game is the blind-deploy variant now (no mode toggle),
+			// so each card carries a single data-variant. Runs on time-control change
+			// so the value is current before the color submit buttons (gated until a
+			// time control is picked) are clickable.
 			const variantField = modal.querySelector("#cg-variant");
-			const modeInput = () => modal.querySelector("input[name=mode]:checked");
-			const modeOf = () => modeInput().value;
 			const syncVariant = () => {
 				// :enabled — a card disabled by casual mode is not a choice, so
 				// the submitted field goes empty (the server ignores it anyway)
 				const tc = modal.querySelector(".tc-input:checked:enabled");
-				variantField.value = tc
-					? (modeOf() === "deploy" ? tc.dataset.deploy : tc.dataset.classic)
-					: "";
+				variantField.value = tc ? tc.dataset.variant : "";
 			};
 
-			// The mode description under the toggle is pure CSS: both variants are
-			// stacked in one grid cell (.cg-mode-desc) and the checked mode's copy
-			// is made visible, so no JS swap — and no layout shift — is needed.
-
 			modal.querySelectorAll(".tc-input").forEach((el) => el.addEventListener("change", syncVariant));
-			modal.querySelectorAll("input[name=mode]").forEach((el) => el.addEventListener("change", syncVariant));
 
 			// Casual (untimed, any opponent) makes the time-control choice moot:
 			// disable the cards while it is on so their `required` can't block
