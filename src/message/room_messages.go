@@ -68,6 +68,12 @@ type RoomTemplatePayload struct {
 	// room views label the match with it ("Race to 3") on both the pre-game and
 	// in-game pages.
 	RaceTo int
+	// BotPersona is the bot's difficulty key (room.Params.BotPersona) in a bot
+	// game: the view resolves it (engine.PersonaByKey — empty means the
+	// full-strength Queen) to label the bot seat with the persona's glyph and
+	// name, and the bot rematch fallback URL carries it so a fresh room keeps
+	// the same difficulty. Empty and unused for human games.
+	BotPersona string
 	// H2HWhite / H2HBlack are each seat's all-time head-to-head score (win = 1,
 	// draw = ½) against the current opponent, shown beside the match-timeline
 	// names with the leader greened. H2HShow gates rendering: set only when both

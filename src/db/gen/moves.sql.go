@@ -136,7 +136,7 @@ func (q *Queries) ListGameMoves(ctx context.Context, gameRef int32) ([]Move, err
 }
 
 const listGamesReachingPosition = `-- name: ListGamesReachingPosition :many
-SELECT DISTINCT g.id, g.game_id, g.start_ts, g.end_ts, g.created_at, g.race_to, g.white_score, g.black_score, g.method, g.casual, g.room_id, g.creator_uid, g.white_uid, g.black_uid, g.variant_name, g.variant_group, g.outcome, g.reason, g.starting_ofen, g.moves, g.pgn_object_key, g.game_index, g.white_user_id, g.black_user_id, g.creator_user_id, g.rated, g.white_rating, g.black_rating, g.white_rating_delta, g.black_rating_delta FROM games g
+SELECT DISTINCT g.id, g.game_id, g.start_ts, g.end_ts, g.created_at, g.race_to, g.white_score, g.black_score, g.method, g.casual, g.room_id, g.creator_uid, g.white_uid, g.black_uid, g.variant_name, g.variant_group, g.outcome, g.reason, g.starting_ofen, g.moves, g.pgn_object_key, g.game_index, g.white_user_id, g.black_user_id, g.creator_user_id, g.rated, g.white_rating, g.black_rating, g.white_rating_delta, g.black_rating_delta, g.bot_persona FROM games g
 JOIN moves m ON m.game_ref = g.id
 WHERE m.position_id = $1
 ORDER BY g.start_ts DESC
@@ -188,6 +188,7 @@ func (q *Queries) ListGamesReachingPosition(ctx context.Context, arg ListGamesRe
 			&i.BlackRating,
 			&i.WhiteRatingDelta,
 			&i.BlackRatingDelta,
+			&i.BotPersona,
 		); err != nil {
 			return nil, err
 		}

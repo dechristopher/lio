@@ -188,15 +188,16 @@ func TestRenderRoomAnonCta(t *testing.T) {
 
 // TestRenderRoomSpectator locks the watch-only room page: the spectator flag
 // lio-game.js keys off, the anchored board orientation and anchor id, identity-
-// labeled (BOT/Anonymous, or usernames) clocks and timeline rows, and every
-// game control rendered permanently disabled.
+// labeled (the bot's difficulty persona / Anonymous, or usernames) clocks and
+// timeline rows, and every game control rendered permanently disabled.
 func TestRenderRoomSpectator(t *testing.T) {
 	p := message.RoomTemplatePayload{
 		RoomID:      "abc",
 		PlayerColor: "-", // Lookup returns NoColor for a non-player
 		IsSpectator: true,
-		WhiteIsBot:  true, // bot seat may be either color for a spectator
-		AnchorColor: "b",  // the human anchors the bottom, currently black
+		WhiteIsBot:  true,     // bot seat may be either color for a spectator
+		BotPersona:  "knight", // the bot's chosen difficulty labels its seat
+		AnchorColor: "b",      // the human anchors the bottom, currently black
 		AnchorID:    "human-uid",
 		VariantName: "Half One blitz",
 		Variant:     variant.HalfOneBlitz,
@@ -213,10 +214,16 @@ func TestRenderRoomSpectator(t *testing.T) {
 
 	// clocks and timeline rows are labeled by identity, not You/Opponent or
 	// color; the anchor pins the human to the bottom, so the bot marker is
-	// always on the top clock whatever color the bot holds. The human seat has
-	// no account here, so it reads "Anonymous" (never "You" — the viewer is a
-	// spectator, not that player)
-	mustContain(t, out, ">BOT</span>")
+	// always on the top clock whatever color the bot holds. The bot seat shows
+	// its difficulty persona name ("Knight"), with the CPU icon plus the piece
+	// glyph beside it on both the clock (.clockBotGlyph) and the timeline row
+	// (.tl-seat / .tl-seat-glyph); the human seat has no account here, so it
+	// reads "Anonymous" (never "You" — the viewer is a spectator, not that
+	// player)
+	mustContain(t, out, "Knight</span>")
+	mustContain(t, out, `class="clockBotGlyph"`)
+	mustContain(t, out, `class="tl-seat"`)
+	mustContain(t, out, `class="tl-seat-glyph"`)
 	mustContain(t, out, ">Anonymous</span>")
 	mustNotContain(t, out, ">You</span>")
 	mustNotContain(t, out, ">PLAYER</span>")
@@ -321,24 +328,31 @@ func TestRenderRoomRated(t *testing.T) {
 // rendering: a gain is a green +N, a loss a red -N, a zero delta shows only the
 // rating (live clocks), and no rating shows nothing at all.
 func TestRenderClockRatingDelta(t *testing.T) {
-	gain := renderSmoke(t, clock("drewtest", "1650", 8))
+	gain := renderSmoke(t, clock("drewtest", "", "1650", 8))
 	mustContain(t, gain, ">1650</span>")
 	mustContain(t, gain, "clockRatingDelta win")
 	mustContain(t, gain, "+8")
 
-	loss := renderSmoke(t, clock("cdpplayer", "1500?", -8))
+	loss := renderSmoke(t, clock("cdpplayer", "", "1500?", -8))
 	mustContain(t, loss, "1500?")
 	mustContain(t, loss, "clockRatingDelta loss")
 	mustContain(t, loss, "-8")
 
 	// zero delta (the live clocks): rating shown, no delta span
-	none := renderSmoke(t, clock("drewtest", "1650", 0))
+	none := renderSmoke(t, clock("drewtest", "", "1650", 0))
 	mustContain(t, none, ">1650</span>")
 	mustNotContain(t, none, "clockRatingDelta")
 
 	// no rating (casual/anon/bot): no rating block at all
-	empty := renderSmoke(t, clock("You", "", 0))
+	empty := renderSmoke(t, clock("You", "", "", 0))
 	mustNotContain(t, empty, "clockRating")
+
+	// a bot seat: the persona glyph renders as the avatar and the generic CPU
+	// icon is not; a human seat (empty glyph) is the reverse
+	bot := renderSmoke(t, clock("Queen", "♛︎", "", 0))
+	mustContain(t, bot, `class="clockBotGlyph"`)
+	human := renderSmoke(t, clock("drewtest", "", "1650", 0))
+	mustNotContain(t, human, "clockBotGlyph")
 }
 
 func TestRenderRoomCreator(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
@@ -49,6 +50,10 @@ type newRoomPayload struct {
 	// raceTo makes the room a race-to match (see room.Params.RaceTo); zero is
 	// the classic single-game-with-rematches experience.
 	raceTo int
+	// botPersona is the requested bot difficulty key for a vsBot room; it is
+	// normalized through engine.PersonaByKey (empty/tampered values resolve to
+	// the full-strength Queen) and ignored for human games.
+	botPersona string
 }
 
 // casualVariant resolves the untimed casual variant for the given create-game
@@ -263,6 +268,10 @@ func NewCustomRoom(c fiber.Ctx) error {
 		// value still resolves the right casual variant (casualVariant defaults
 		// to deploy); a normal game ignores it and reads the time-control field.
 		Mode string `form:"mode"`
+		// Bot is the difficulty chosen in the bot-difficulty modal (an
+		// engine.Personas key) when the opponent is the computer; ignored for
+		// human games. Empty/tampered values resolve to the full-strength Queen.
+		Bot string `form:"bot"`
 	}{}
 
 	if err := c.Bind().Body(&payload); err != nil {
@@ -330,16 +339,20 @@ func NewCustomRoom(c fiber.Ctx) error {
 		blindColor:     blindColor,
 		allowAnonymous: payload.AllowAnon,
 		raceTo:         raceTo,
+		botPersona:     payload.Bot,
 	})
 }
 
 // NewRoomVsComputer creates a new game against a computer opponent. With no
-// query parameters it uses the default variant (½ + 1 deploy blitz) and a
+// parameters it uses the default variant (½ + 1 deploy blitz) and a
 // randomized color (the
 // home-page quick game). The optional tc (time-control HTMLName) and color
 // (w/b/r) query params let a finished game's client spin up a "same settings"
 // rematch into a fresh room — a bot game's rematch does not reuse its (possibly
-// already torn-down) room, so it navigates here instead.
+// already torn-down) room, so it navigates here instead. The bot difficulty
+// arrives as "bot" (an engine.Personas key) — a form field from the quick-game
+// difficulty modal, or a query param on the rematch fallback URL; unset/legacy
+// resolves to the full-strength Queen.
 func NewRoomVsComputer(c fiber.Ctx) error {
 	selectedVariant := variant.HalfOneBlitzDeploy
 	if tc := c.Query("tc"); tc != "" {
@@ -356,11 +369,17 @@ func NewRoomVsComputer(c fiber.Ctx) error {
 		selectedColor = octad.Black
 	}
 
+	botPersona := c.Query("bot")
+	if botPersona == "" {
+		botPersona = c.FormValue("bot")
+	}
+
 	return newRoom(newRoomPayload{
 		c:             c,
 		variant:       selectedVariant,
 		selectedColor: selectedColor,
 		vsBot:         true,
+		botPersona:    botPersona,
 	})
 }
 
@@ -400,9 +419,12 @@ func newRoom(payload newRoomPayload) error {
 	toJoin := player.ToJoin
 	params.Players[payload.selectedColor.Other()] = &toJoin
 
-	// set bot=true if game is configured with computer opponent
+	// set bot=true if game is configured with computer opponent, stamping the
+	// chosen difficulty (normalized: empty/tampered keys resolve to the
+	// full-strength Queen)
 	if payload.vsBot {
 		params.Players[payload.selectedColor.Other()].IsBot = true
+		params.BotPersona = engine.PersonaByKey(payload.botPersona).Key
 	}
 
 	// create room and handle resultant errors

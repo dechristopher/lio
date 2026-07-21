@@ -91,9 +91,13 @@ type ArchiveModel struct {
 	TopRatingDelta    int
 	BottomRatingDelta int
 	// Top/BottomIsBot mark the engine's seat (no uid and no account) so the
-	// archive clock cards can show the CPU glyph exactly like the live page.
+	// archive clock cards can show the bot avatar exactly like the live page.
 	TopIsBot    bool
 	BottomIsBot bool
+	// Top/BottomGlyph are the bot seat's difficulty-persona piece glyph, the
+	// clock's bot avatar (BotSeatGlyph). Empty for a human seat.
+	TopGlyph    string
+	BottomGlyph string
 	// Top/BottomH2H are the two seats' all-time head-to-head score (win = 1,
 	// draw = ½) against each other, shown beside the timeline names with the
 	// leader greened. H2HShow gates it: set only when both seats are distinct

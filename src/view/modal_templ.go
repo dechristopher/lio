@@ -23,9 +23,11 @@ import "github.com/dechristopher/lio/pools"
 // The Casual (untimed) toggle applies to any opponent; turning it on fades the
 // then-moot time-control cards. The rated status (see cg-rated) is passive: it
 // lights when the current settings would produce a rated game (logged in, human
-// opponent, competitive) and dims otherwise. Styling lives in app.css (.cg-* /
-// .seg-* / .tc-* / .modal-*); the modal reuses the shared .modal-shade/.modal-close
-// chrome.
+// opponent, competitive) and dims otherwise. When the computer is the opponent,
+// the color submit is intercepted by botDifficultyModal (botmodal.templ), which
+// asks for a bot difficulty before the form actually posts. Styling lives in
+// app.css (.cg-* / .seg-* / .tc-* / .modal-*); the modal reuses the shared
+// .modal-shade/.modal-close chrome.
 func createGameModal() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -55,7 +57,7 @@ func createGameModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</button><div class=\"cg-head\"><span class=\"cg-kicker\">New game</span><h2 class=\"cg-title\">Create a game</h2></div><form class=\"cg\" action=\"/new/game\" method=\"POST\" hx-post=\"/new/game\"><div class=\"cg-body\"><div class=\"cg-panel\"><div class=\"cg-field\"><span class=\"cg-label\">Opponent</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Opponent\"><input id=\"opp-human\" class=\"seg-input\" type=\"radio\" name=\"opponent\" value=\"human\" checked> <label class=\"seg-btn\" for=\"opp-human\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</button><div class=\"cg-head\"><span class=\"cg-kicker\">New game</span><h2 class=\"cg-title\">Create a game</h2></div><form class=\"cg\" action=\"/new/game\" method=\"POST\" hx-post=\"/new/game\" data-bot-difficulty=\"custom\"><div class=\"cg-body\"><div class=\"cg-panel\"><div class=\"cg-field\"><span class=\"cg-label\">Opponent</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Opponent\"><input id=\"opp-human\" class=\"seg-input\" type=\"radio\" name=\"opponent\" value=\"human\" checked> <label class=\"seg-btn\" for=\"opp-human\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -114,7 +116,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 131, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 133, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -127,7 +129,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 135, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 137, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -140,7 +142,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 138, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 140, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -153,7 +155,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 140, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 142, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -166,7 +168,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Group.String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 141, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 143, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {

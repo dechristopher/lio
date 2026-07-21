@@ -17,6 +17,7 @@ import (
 	"github.com/dechristopher/lio/assets"
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/variant"
@@ -227,12 +228,14 @@ func challengerColorName(payload message.RoomTemplatePayload) string {
 }
 
 // seatColorLabel resolves one seat's clock/timeline label from the payload:
-// "BOT" for the engine, the account username when the seat is logged in, "You"
-// for the anonymous viewer's own seat, and "Anonymous" for any other
-// anonymous human. color is "w"/"b"; isBot is that seat's bot flag.
+// the difficulty persona's name for the engine ("Queen" — the piece glyph is
+// rendered separately as the clock's bot avatar, see BotSeatGlyph), the account
+// username when the seat is logged in, "You" for the anonymous viewer's own
+// seat, and "Anonymous" for any other anonymous human. color is "w"/"b"; isBot
+// is that seat's bot flag.
 func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot bool) string {
 	if isBot {
-		return "BOT"
+		return BotSeatLabel(payload.BotPersona)
 	}
 	name := ""
 	switch color {
@@ -424,5 +427,41 @@ func botRematchURL(payload message.RoomTemplatePayload) string {
 	if payload.PlayerColor == "b" {
 		color = "b"
 	}
-	return "/new/computer?tc=" + payload.Variant.HTMLName + "&color=" + color
+	return "/new/computer?tc=" + payload.Variant.HTMLName + "&color=" + color +
+		"&bot=" + engine.PersonaByKey(payload.BotPersona).Key
+}
+
+// BotSeatLabel names a bot seat by its difficulty persona name ("Queen"). The
+// persona's piece glyph is rendered separately (BotSeatGlyph) as the clock's
+// bot avatar so it aligns in its own slot rather than sitting on the text
+// baseline. An empty/unknown key (every pre-persona room and archived game)
+// resolves to the full-strength Queen, which is exactly what those bots played
+// as.
+func BotSeatLabel(personaKey string) string {
+	return engine.PersonaByKey(personaKey).Name
+}
+
+// BotSeatGlyph is a bot seat's difficulty-persona piece glyph ("♛︎"), the
+// clock's bot avatar (rendered in the .clockBot slot in place of the generic
+// CPU icon). Empty/unknown keys resolve to the full-strength Queen.
+func BotSeatGlyph(personaKey string) string {
+	return engine.PersonaByKey(personaKey).Glyph
+}
+
+// topClockBotGlyph / bottomClockBotGlyph give the persona piece glyph for a
+// clock whose seat is the engine, else "" (the clock then renders the generic
+// CPU icon, kept hidden by CSS for a human seat). The bottom clock is never a
+// bot (the human is always anchored there), so it is always "".
+func topClockBotGlyph(payload message.RoomTemplatePayload) string {
+	if topClockIsBot(payload) {
+		return BotSeatGlyph(payload.BotPersona)
+	}
+	return ""
+}
+
+func bottomClockBotGlyph(payload message.RoomTemplatePayload) string {
+	if bottomClockIsBot(payload) {
+		return BotSeatGlyph(payload.BotPersona)
+	}
+	return ""
 }

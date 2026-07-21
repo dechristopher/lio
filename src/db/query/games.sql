@@ -4,10 +4,11 @@ INSERT INTO games (
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
     game_index, white_user_id, black_user_id, creator_user_id, rated,
-    white_rating, black_rating, white_rating_delta, black_rating_delta
+    white_rating, black_rating, white_rating_delta, black_rating_delta,
+    bot_persona
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
 )
 RETURNING id;
 
@@ -20,10 +21,11 @@ INSERT INTO games (
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
     game_index, white_user_id, black_user_id, creator_user_id, rated,
-    white_rating, black_rating, white_rating_delta, black_rating_delta
+    white_rating, black_rating, white_rating_delta, black_rating_delta,
+    bot_persona
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
 )
 ON CONFLICT (pgn_object_key) DO NOTHING
 RETURNING id;

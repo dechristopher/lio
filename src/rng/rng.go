@@ -30,3 +30,9 @@ func Intn(n int) int {
 func Bool() bool {
 	return Intn(2) == 1
 }
+
+// Float64 returns a uniformly distributed, cryptographically secure random
+// float64 in the half-open interval [0, 1).
+func Float64() float64 {
+	return float64(Intn(1<<53)) / (1 << 53)
+}

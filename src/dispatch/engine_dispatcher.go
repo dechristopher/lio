@@ -27,7 +27,12 @@ type EngineRequest struct {
 	// Budget bounds how long the search may run (0 = unbounded): the engine
 	// iteratively deepens toward Depth and returns the best move found when
 	// the budget expires, so the bot answers in time instead of flagging.
-	Budget          time.Duration
+	Budget time.Duration
+	// Persona is the bot's difficulty bundle (room.Params.BotPersona resolved):
+	// it caps Depth and applies the persona's imperfect move selection. The
+	// zero value plays full-strength (engine.SearchPersona treats it like the
+	// Queen), matching pre-persona behavior.
+	Persona         engine.Persona
 	ResponseChannel chan *message.RoomMove
 	// Done, if set, signals that the requesting room has been torn down so
 	// the worker can drop its result instead of blocking forever on the
@@ -180,7 +185,7 @@ func (d *EngineDispatcher) worker(r EngineRequest) {
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] request received, searching(%d)..", r.OFEN, r.Depth)
 
-	move := engine.Search(r.OFEN, r.History, r.Depth, r.Budget, engine.MinimaxAB)
+	move := engine.SearchPersona(r.OFEN, r.History, r.Depth, r.Budget, r.Persona)
 
 	util.DebugFlag("dispatch", str.CEng, "[%s] found move %s", r.OFEN, move.Move.String())
 

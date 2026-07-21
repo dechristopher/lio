@@ -40,6 +40,7 @@ type Game struct {
 	BlackRating      *string
 	WhiteRatingDelta *int16
 	BlackRatingDelta *int16
+	BotPersona       *string
 }
 
 type Move struct {

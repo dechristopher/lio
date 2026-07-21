@@ -45,6 +45,9 @@ func playTestMoves(t *testing.T, r *Instance, n int) {
 // restored room is primed to resume (state + resumeClockPending).
 func TestPersistRoundTripOngoing(t *testing.T) {
 	r := newTestInstance(t, "wp", "bp")
+	// a bot difficulty on the room; it must survive the snapshot so a restored
+	// bot game keeps playing at the same strength
+	r.params.BotPersona = "knight"
 	driveToOngoing(t, r)
 	r.game.Clock.Start()
 	defer r.game.Clock.Stop(false, true)
@@ -146,6 +149,10 @@ func TestPersistRoundTripOngoing(t *testing.T) {
 	if got, want := r2.params.GameConfig.Variant.Control.Time.Centi(),
 		r.params.GameConfig.Variant.Control.Time.Centi(); got != want {
 		t.Fatalf("variant time control = %d, want %d (CTime JSON round trip)", got, want)
+	}
+
+	if r2.params.BotPersona != "knight" {
+		t.Fatalf("bot persona = %q, want knight (lost in round trip)", r2.params.BotPersona)
 	}
 }
 

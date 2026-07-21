@@ -563,7 +563,7 @@ templ quickGameButtons() {
 				<span class="text-sm font-semibold text-fg">vs Human</span>
 			</button>
 		</form>
-		<form action="/new/computer" method="POST" class="contents">
+		<form action="/new/computer" method="POST" class="contents" data-bot-difficulty="quick">
 			<button type="submit" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="btn btn-ghost flex-col gap-1.5 py-3">
 				<span class="text-accent">
 					@iconCpu("h-7 w-7")
@@ -693,14 +693,16 @@ templ board(payload message.RoomTemplatePayload) {
 // the #clockPlayer/#clockOpponent id and the JS-toggled .active/.low/.playerWhite
 // state classes; lio-game.js reads the .clockScore/.clockTime/.clockProgressBar/
 // .clockMaterial/.thinking hooks inside. name is the static label ("You" /
-// "BOT" / "Opponent").
+// "Queen" / "Opponent"); botGlyph is a bot seat's difficulty-persona piece glyph
+// (rendered as the seat avatar in the .clockBot slot, in place of the generic
+// CPU icon), or "" for a human seat.
 //
 // Layout is vertically stacked: an identity row (bot glyph, name, rating,
 // thinking dots on the left; match-score chip pushed to the right) sits above
 // the big time on its own full-width line. Stacking decouples the time from the
 // name so a long name only ellipsizes within its row and never compresses the
 // clock horizontally.
-templ clock(name string, rating string, ratingDelta int) {
+templ clock(name string, botGlyph string, rating string, ratingDelta int) {
 	<div class="clock">
 		<div class="clockProgress">
 			<div class="clockProgressBg"></div>
@@ -715,6 +717,9 @@ templ clock(name string, rating string, ratingDelta int) {
 				<span class="clockBot" aria-label="Computer player" title="Computer player">
 					@iconCpu("h-3.5 w-3.5")
 				</span>
+				if botGlyph != "" {
+					<span class="clockBotGlyph" aria-hidden="true">{ botGlyph }</span>
+				}
 				<span class="clockName">{ name }</span>
 				if rating != "" {
 					<span class="clockRating">
@@ -735,4 +740,23 @@ templ clock(name string, rating string, ratingDelta int) {
 			<span class="clockTime">0:00.0</span>
 		</div>
 	</div>
+}
+
+// seatBotMarker renders a bot seat's identity badge for the match-timeline rows:
+// the generic CPU "computer" icon plus, when set, the difficulty-persona piece
+// glyph — the same pair the clock shows, in the compact timeline. Renders
+// nothing for a human seat. glyph is the persona piece (BotSeatGlyph), "" if
+// unknown/absent. Grouped in one .tl-seat flex box so the icon+glyph stay tight
+// (a single gap to the name). Styling lives in app.css (.tl-seat*).
+templ seatBotMarker(isBot bool, glyph string) {
+	if isBot {
+		<span class="tl-seat">
+			<span class="tl-seat-bot" aria-label="Computer player" title="Computer player">
+				@iconCpu("tl-seat-ico")
+			</span>
+			if glyph != "" {
+				<span class="tl-seat-glyph" aria-hidden="true">{ glyph }</span>
+			}
+		</span>
+	}
 }

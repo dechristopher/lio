@@ -54,6 +54,21 @@ var pub = bus.NewPublisher("engine", Channel)
 // with it, MinimaxAB scores any revisited position as the draw it leads to.
 // nil/empty history disables repetition scoring (Negamax and Random ignore it).
 func Search(ofen string, history []string, depth int, budget time.Duration, alg SearchAlg) MoveEval {
+	// the zero Persona is full-strength (no variety, no blunders), so search
+	// takes the untouched best-move path
+	return search(ofen, history, depth, budget, alg, Persona{})
+}
+
+// SearchPersona runs the production bot search with a persona's handicaps
+// applied: the depth is capped at the persona's ceiling and the move is picked
+// imperfectly (see searchPersonaAB). A full-strength persona (Queen) behaves
+// exactly like Search with MinimaxAB.
+func SearchPersona(ofen string, history []string, depth int, budget time.Duration, p Persona) MoveEval {
+	return search(ofen, history, p.capDepth(depth), budget, MinimaxAB, p)
+}
+
+// search is the shared core of Search and SearchPersona.
+func search(ofen string, history []string, depth int, budget time.Duration, alg SearchAlg, p Persona) MoveEval {
 	// establish the deadline before any parsing/setup so all engine-side
 	// overhead counts against the caller's budget
 	var deadline time.Time
@@ -95,7 +110,11 @@ func Search(ofen string, history []string, depth int, budget time.Duration, alg 
 
 	// run selected search algorithm
 	if alg == MinimaxAB {
-		eval = searchMinimaxAB(situation, depth, deadline, RepetitionHistory(history))
+		if p.fullStrength() {
+			eval = searchMinimaxAB(situation, depth, deadline, RepetitionHistory(history))
+		} else {
+			eval = searchPersonaAB(situation, depth, deadline, RepetitionHistory(history), p)
+		}
 	} else if alg == NegamaxAB {
 		eval = searchNegamaxAB(situation, depth)
 	} else if alg == Random {

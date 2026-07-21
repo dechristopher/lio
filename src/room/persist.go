@@ -52,13 +52,12 @@ type PersistedRoom struct {
 	// params: the full variant definition is embedded (rather than a registry
 	// key) so a snapshot never dangles on a renamed variant; clock.CTime
 	// round-trips via its Marshal/UnmarshalJSON pair
-	Variant         variant.Variant `json:"variant"`
-	ParamsOFEN      string          `json:"pofen,omitempty"`
-	RaceTo          int             `json:"raceTo,omitempty"`
-	Deploy          bool            `json:"deploy,omitempty"`
-	Casual          bool            `json:"casual,omitempty"`
-	BotTimeReserve  float64         `json:"botReserve,omitempty"`
-	BotRandomDeploy bool            `json:"botRandomDeploy,omitempty"`
+	Variant    variant.Variant `json:"variant"`
+	ParamsOFEN string          `json:"pofen,omitempty"`
+	RaceTo     int             `json:"raceTo,omitempty"`
+	Deploy     bool            `json:"deploy,omitempty"`
+	Casual     bool            `json:"casual,omitempty"`
+	BotPersona string          `json:"botPersona,omitempty"`
 
 	White player.Snapshot `json:"white"`
 	Black player.Snapshot `json:"black"`
@@ -128,13 +127,12 @@ func (r *Instance) Persist() ([]byte, bool) {
 		JoinToken:     r.joinToken,
 		CancelToken:   r.cancelToken,
 
-		Variant:         r.params.GameConfig.Variant,
-		ParamsOFEN:      r.params.GameConfig.OFEN,
-		RaceTo:          r.params.RaceTo,
-		Deploy:          r.params.Deploy,
-		Casual:          r.params.Casual,
-		BotTimeReserve:  r.params.BotTimeReserve,
-		BotRandomDeploy: r.params.BotRandomDeploy,
+		Variant:    r.params.GameConfig.Variant,
+		ParamsOFEN: r.params.GameConfig.OFEN,
+		RaceTo:     r.params.RaceTo,
+		Deploy:     r.params.Deploy,
+		Casual:     r.params.Casual,
+		BotPersona: r.params.BotPersona,
 
 		White: wp.Snapshot(),
 		Black: bp.Snapshot(),
@@ -219,13 +217,12 @@ func Rehydrate(data []byte) (*Instance, error) {
 			Variant: p.Variant,
 			OFEN:    p.ParamsOFEN,
 		},
-		Public:          p.Public,
-		Rated:           p.Rated,
-		Deploy:          p.Deploy,
-		RaceTo:          p.RaceTo,
-		Casual:          p.Casual,
-		BotTimeReserve:  p.BotTimeReserve,
-		BotRandomDeploy: p.BotRandomDeploy,
+		Public:     p.Public,
+		Rated:      p.Rated,
+		Deploy:     p.Deploy,
+		RaceTo:     p.RaceTo,
+		Casual:     p.Casual,
+		BotPersona: p.BotPersona,
 	}
 
 	var g *game.OctadGame

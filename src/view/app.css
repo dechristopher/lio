@@ -571,6 +571,23 @@
 	   wrapping clock element carries data-bot="true" (set in room.templ) */
 	.clockBot { display: none; flex: none; align-items: center; color: var(--text-subtle); transition: color 150ms var(--ease-snappy); }
 	[data-bot="true"] .clockBot { display: inline-flex; }
+	/* the difficulty-persona piece glyph, shown beside the name as the bot seat's
+	   badge (the generic CPU icon stays in .clockBot as the "computer" marker).
+	   It's a unicode chess piece in text presentation (U+FE0E): those glyphs sit
+	   low in their em box, so a plain line-box centering leaves them a few px
+	   below cap-height text. Give it its own flex box (line-height 1) and nudge
+	   up with translateY to optically center it against the name. Tinted like the
+	   name (accent) so glyph + name read as one unit. */
+	.clockBotGlyph {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1rem;
+		line-height: 1;
+		color: var(--accent);
+		transform: translateY(-0.18em);
+	}
 	/* seat presence: a dot left of the name, mirroring the header connection
 	   indicator — green while that seat's socket is connected (.presence-on is
 	   toggled on the clock wrapper by lio-game.js from crowd messages). A bot
@@ -667,6 +684,23 @@
 		text-overflow: ellipsis;
 		min-width: 0;
 		max-width: 9rem;
+	}
+	/* bot seat badge in the timeline rows (seatBotMarker): the generic CPU icon
+	   plus the difficulty-persona piece glyph, mirroring the clock. Grouped tight
+	   in .tl-seat so there's one gap to the name; the glyph is accent-tinted and
+	   nudged up (like .clockBotGlyph) to optically center the low-sitting piece
+	   against the name text. */
+	.tl-seat { flex: none; display: inline-flex; align-items: center; gap: 0.25rem; }
+	.tl-seat-bot { display: inline-flex; align-items: center; color: var(--text-subtle); }
+	.tl-seat-ico { width: 0.72rem; height: 0.72rem; display: block; }
+	.tl-seat-glyph {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.8rem;
+		line-height: 1;
+		color: var(--accent);
+		transform: translateY(-0.18em);
 	}
 	/* all-time head-to-head score, left of each name. The leader (.ahead) is
 	   greened; the trailer stays muted grey. Server-rendered and static — the JS
@@ -2145,6 +2179,87 @@
 	.piece-button.wk { background-image: url('/res/img/cburnett/wK.svg'); }
 	.piece-button.bk { background-image: url('/res/img/cburnett/bK.svg'); }
 	.piece-button.random { background-image: url('/res/img/cburnett/wbK.svg'); }
+
+	/* ---- bot difficulty modal (botDifficultyModal in botmodal.templ): the
+	   persona ladder picker shown before any vs-computer game. Reuses the
+	   .modal-shade/.modal-close chrome + .cg-head header; the shade layers
+	   above the create-game modal, which stays open underneath. ---- */
+	.bd-shade { z-index: 110; }
+	.bd-modal {
+		width: min(96vw, 52rem);
+		padding: 0 0 1.35rem;
+		overflow: hidden;
+		border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+		background:
+			radial-gradient(130% 90% at 100% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%),
+			var(--surface-3);
+		box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+	}
+	.bd-modal .modal-close { top: 0.85rem; right: 0.9rem; z-index: 2; }
+	.bd-grid {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 0.6rem;
+		padding: 0.5rem 1.35rem 0;
+	}
+	.bd-card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 1rem 0.6rem 0.85rem;
+		text-align: center;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface);
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.bd-card:hover {
+		transform: translateY(-2px);
+		border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+		box-shadow: var(--shadow-md);
+	}
+	.bd-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+	.bd-card.bd-last { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+	.bd-card.bd-last .bd-last-tag { display: block; }
+	.bd-last-tag {
+		display: none;
+		position: absolute;
+		top: 0.4rem;
+		right: 0.5rem;
+		font-size: 0.55rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+	/* the persona's unicode piece renders as text, tinted like any glyph */
+	.bd-glyph { font-size: 2.4rem; line-height: 1; color: var(--text); }
+	.bd-info { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+	.bd-name {
+		font-family: var(--font-display);
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.bd-pips { display: flex; gap: 0.3rem; }
+	.bd-pip {
+		width: 0.4rem;
+		height: 0.4rem;
+		border-radius: 999px;
+		background: var(--border-strong);
+	}
+	.bd-pip.on { background: var(--accent); }
+	.bd-blurb { font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); }
+	/* narrow screens: one card per row, glyph beside the copy */
+	@media (max-width: 47rem) {
+		.bd-modal { width: min(96vw, 26rem); }
+		.bd-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+		.bd-card { flex-direction: row; padding: 0.7rem 0.85rem; text-align: left; }
+		.bd-info { align-items: flex-start; }
+	}
 
 	/* ---- page wrapper + content pages (about, db, pre-game, 404) ---- */
 	.page {

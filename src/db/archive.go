@@ -39,6 +39,12 @@ type GameRecord struct {
 	WhiteName   string
 	BlackName   string
 
+	// BotPersona is the bot seat's difficulty stamp (engine.Personas key) for
+	// a bot game; "" (archived as NULL) for human games and for bot games that
+	// predate the persona ladder — those all played at full Queen strength, so
+	// the display layer resolves NULL to the Queen.
+	BotPersona string
+
 	// game-level (filled from the finished game copy in storeGame)
 	GameID       string
 	StartTs      time.Time
@@ -213,6 +219,9 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 		BlackRating:      blackRating,
 		WhiteRatingDelta: whiteRatingDelta,
 		BlackRatingDelta: blackRatingDelta,
+	}
+	if rec.BotPersona != "" {
+		params.BotPersona = &rec.BotPersona
 	}
 
 	var gameRef int32

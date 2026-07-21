@@ -17,6 +17,7 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/dispatch"
+	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/lag"
 	"github.com/dechristopher/lio/message"
@@ -255,18 +256,12 @@ type Params struct {
 	// the normal abandonTimeout in a human game (the same reconnect tolerance
 	// every human game gets).
 	Casual bool
-	// BotTimeReserve is the bot difficulty knob: the fraction of the initial
-	// clock the bot tries not to dip below when budgeting its searches. A low
-	// reserve lets the bot spend nearly its whole clock thinking (hardest); a
-	// high reserve makes it move quickly and search shallower (easier). Zero
-	// means "unset" and falls back to DefaultBotTimeReserve; use a small
-	// positive value for the hardest setting.
-	BotTimeReserve float64
-	// BotRandomDeploy makes the bot deploy a uniformly random home-rank
-	// arrangement instead of one scored by the engine — the easy-difficulty
-	// deploy (about a third of arrangements are materially inferior).
-	// Defaults to false (engine-scored deploy).
-	BotRandomDeploy bool
+	// BotPersona is the bot difficulty: an engine.Personas key selecting the
+	// search/selection handicap bundle for every engine move, deploy, and the
+	// clock-reserve pacing in a bot game (see engine.Persona). Empty resolves
+	// to the full-strength Queen — the pre-persona behavior of every legacy
+	// room and snapshot. Meaningless (and left empty) for human games.
+	BotPersona string
 }
 
 // NewParams returns a new parameters object configured using the given variant
@@ -1404,6 +1399,12 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	return true
 }
 
+// botPersona resolves the room's configured bot difficulty. Empty/unknown keys
+// resolve to the full-strength Queen — every pre-persona room and snapshot.
+func (r *Instance) botPersona() engine.Persona {
+	return engine.PersonaByKey(r.params.BotPersona)
+}
+
 // requestEngineMove requests an engine move for the current position. It is
 // called outside any stateMu critical section (by makeMove after it unlocks and
 // by handleGameReady), so it locks to read the game fields it needs.
@@ -1427,6 +1428,7 @@ func (r *Instance) requestEngineMove() {
 		History: r.game.OFENHistory(),
 		Depth:   depth,
 		Budget:  budget,
+		Persona: r.botPersona(),
 	}
 	r.stateMu.Unlock()
 
@@ -1442,7 +1444,7 @@ func (r *Instance) requestEngineMove() {
 func (r *Instance) requestEngineDeploy(botColor octad.Color, ch chan *message.RoomBotDeploy) {
 	go dispatch.SubmitDeploy(dispatch.DeployRequest{
 		Color:           botColor,
-		Random:          r.params.BotRandomDeploy,
+		Random:          r.botPersona().RandomDeploy,
 		ResponseChannel: ch,
 	})
 }
@@ -1494,9 +1496,11 @@ func (r *Instance) flipClock() clock.FlipAck {
 // the bot's strength degrades gracefully under time pressure instead of the
 // search running long and flagging.
 const (
-	// DefaultBotTimeReserve is the BotTimeReserve used when Params doesn't set
-	// one: the bot banks a fifth of its initial clock and paces its thinking
-	// with the rest.
+	// DefaultBotTimeReserve is the clock-reserve fraction used when the bot's
+	// persona doesn't set one (the full-strength Queen): the bot banks a fifth
+	// of its initial clock and paces its thinking with the rest. Weaker
+	// personas set higher reserves (engine.Persona.TimeReserve), moving fast
+	// and shallow.
 	DefaultBotTimeReserve = 0.2
 	// botMoveHorizon is the number of future bot moves the spendable time
 	// (remaining minus reserve) is spread across when budgeting one search.
@@ -1519,7 +1523,7 @@ const (
 // calcSearchLocked returns the depth ceiling and time budget for an engine
 // search on behalf of color. The depth ceiling comes from the time control;
 // the budget comes from the bot's remaining clock: time above the configured
-// reserve (the difficulty knob, see Params.BotTimeReserve) is spread across a
+// reserve (the persona's pacing knob, see engine.Persona.TimeReserve) is spread across a
 // horizon of future moves, plus any per-move increment/delay regain. The
 // caller must hold stateMu (it reads the game's variant and clock).
 func (r *Instance) calcSearchLocked(color octad.Color) (int, time.Duration) {
@@ -1553,7 +1557,7 @@ func (r *Instance) calcSearchLocked(color octad.Color) (int, time.Duration) {
 		remaining = time.Duration(clockState.BlackTime.Centi()) * clock.Centisecond
 	}
 
-	reserveFraction := r.params.BotTimeReserve
+	reserveFraction := r.botPersona().TimeReserve
 	if reserveFraction <= 0 {
 		reserveFraction = DefaultBotTimeReserve
 	}
@@ -1649,6 +1653,11 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 		BlackUserID: r.players[octad.Black].UserID,
 		WhiteName:   seatArchiveName(r.players[octad.White]),
 		BlackName:   seatArchiveName(r.players[octad.Black]),
+	}
+	// stamp the bot's difficulty on the archived game (games.bot_persona); ""
+	// (NULL) for human games
+	if r.players.HasBot() {
+		archiveRec.BotPersona = r.botPersona().Key
 	}
 
 	r.stateMu.Unlock()
@@ -2055,6 +2064,7 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 		Public:        r.public,
 		BlindColor:    r.blindColor,
 		RaceTo:        r.params.RaceTo,
+		BotPersona:    r.params.BotPersona,
 	}
 }
 

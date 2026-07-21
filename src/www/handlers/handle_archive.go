@@ -244,14 +244,16 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		Count:             len(games),
 		Standalone:        standalone,
 		Orientation:       orientation,
-		TopName:           seatLabel(topUID, topName, topUserID, uid),
-		BottomName:        seatLabel(bottomUID, bottomName, bottomUserID, uid),
+		TopName:           seatLabel(topUID, topName, topUserID, uid, derefStr(selected.BotPersona)),
+		BottomName:        seatLabel(bottomUID, bottomName, bottomUserID, uid, derefStr(selected.BotPersona)),
 		TopRating:         topRating,
 		BottomRating:      bottomRating,
 		TopRatingDelta:    topDelta,
 		BottomRatingDelta: bottomDelta,
 		TopIsBot:          isBotSeat(topUID, topUserID),
 		BottomIsBot:       isBotSeat(bottomUID, bottomUserID),
+		TopGlyph:          seatGlyph(isBotSeat(topUID, topUserID), derefStr(selected.BotPersona)),
+		BottomGlyph:       seatGlyph(isBotSeat(bottomUID, bottomUserID), derefStr(selected.BotPersona)),
 		TopH2H:            topH2H,
 		BottomH2H:         bottomH2H,
 		H2HShow:           h2hShow,
@@ -296,14 +298,16 @@ func isBotSeat(seatUID string, seatUserID *int64) bool {
 }
 
 // seatLabel names a timeline row's seat, mirroring the live-room rules: the
-// engine is "BOT" (no session uid and no account), a seat with an account shows
-// its username to everyone (including that player), the anonymous viewer's own
-// seat reads "You", and any other anonymous human is "Anonymous". A seat with an
-// account but a lost session uid (the deploy-rebuild bug) still resolves by its
-// username, never "BOT".
-func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID string) string {
+// engine shows its difficulty persona name ("Queen" — botPersona is the row's
+// games.bot_persona stamp, NULL/empty resolving to the full-strength Queen
+// every pre-persona bot played as; the piece glyph is the clock avatar, see
+// seatGlyph), a seat with an account shows its username to everyone (including
+// that player), the anonymous viewer's own seat reads "You", and any other
+// anonymous human is "Anonymous". A seat with an account but a lost session uid
+// (the deploy-rebuild bug) still resolves by its username, never as a bot.
+func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID, botPersona string) string {
 	if isBotSeat(seatUID, seatUserID) {
-		return "BOT"
+		return view.BotSeatLabel(botPersona)
 	}
 	if seatUsername != "" {
 		return seatUsername
@@ -312,6 +316,15 @@ func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID string
 		return "You"
 	}
 	return "Anonymous"
+}
+
+// seatGlyph is a bot seat's difficulty-persona piece glyph (the archive clock's
+// bot avatar), or "" for a human seat.
+func seatGlyph(isBot bool, botPersona string) string {
+	if !isBot {
+		return ""
+	}
+	return view.BotSeatGlyph(botPersona)
 }
 
 // replayArchivedGame rebuilds a finished game from its archived row, logging

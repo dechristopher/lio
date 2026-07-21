@@ -54,19 +54,7 @@ var noStop = new(atomic.Bool)
 // always answers in time instead of flagging on deep searches. repHist is the
 // real game's position occurrence counts (nil = repetition-blind).
 func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time, repHist map[string]int) MoveEval {
-	// sleep for a random amount of time to make the engine easier to beat,
-	// anywhere from a fraction of a second to 1.25 seconds — but never more
-	// than a quarter of the remaining budget, so the handicap can't eat the
-	// search time on a low clock
-	sleep := clock.Centisecond * 5 * time.Duration(rng.Intn(25))
-	if !deadline.IsZero() {
-		if maxSleep := time.Until(deadline) / 4; sleep > maxSleep {
-			sleep = maxSleep
-		}
-	}
-	if sleep > 0 {
-		time.Sleep(sleep)
-	}
+	handicapSleep(deadline)
 
 	// add a little opening variety: on the first move of the game the engine
 	// otherwise always plays its single best move (e.g. P-c2 as white), which
@@ -84,6 +72,22 @@ func searchMinimaxAB(situation *octad.Game, depth int, deadline time.Time, repHi
 		return pickVariety(situation, results)
 	}
 	return best
+}
+
+// handicapSleep pauses for a random moment to make the engine feel less
+// machine-instant, anywhere from a fraction of a second to 1.2 seconds — but
+// never more than a quarter of the remaining budget, so the handicap can't eat
+// the search time on a low clock.
+func handicapSleep(deadline time.Time) {
+	sleep := clock.Centisecond * 5 * time.Duration(rng.Intn(25))
+	if !deadline.IsZero() {
+		if maxSleep := time.Until(deadline) / 4; sleep > maxSleep {
+			sleep = maxSleep
+		}
+	}
+	if sleep > 0 {
+		time.Sleep(sleep)
+	}
 }
 
 // deepeningRoot runs the parallel root search with iterative deepening from
@@ -257,6 +261,18 @@ func pickOpeningMove(situation *octad.Game, depth int, repHist map[string]int) M
 // evaluations: a random pick from the top OpeningVarietyMoves within
 // OpeningVarietyMargin of the best (see pickOpeningMove).
 func pickVariety(situation *octad.Game, results []MoveEval) MoveEval {
+	return pickAmong(situation, results, OpeningVarietyMoves, OpeningVarietyMargin)
+}
+
+// pickAmong picks a random move from the top maxMoves root evaluations,
+// dropping any that trail the best move by more than margin. The best move
+// always qualifies, so a candidate is always returned; positions with a single
+// sensible move simply play it. It backs both the opening-variety pick and the
+// persona ladder's every-move imperfect selection (searchPersonaAB).
+func pickAmong(situation *octad.Game, results []MoveEval, maxMoves int, margin float64) MoveEval {
+	if maxMoves < 1 {
+		maxMoves = 1
+	}
 	isWhite := situation.Position().Turn() == octad.White
 
 	// sort best-first from the side-to-move's perspective
@@ -268,15 +284,15 @@ func pickVariety(situation *octad.Game, results []MoveEval) MoveEval {
 	})
 	best := results[0].Eval
 
-	// keep the top OpeningVarietyMoves, dropping any beyond the safety margin;
+	// keep the top maxMoves, dropping any beyond the safety margin;
 	// results are sorted, so we can stop at the first one that falls short
-	candidates := make([]MoveEval, 0, OpeningVarietyMoves)
+	candidates := make([]MoveEval, 0, maxMoves)
 	for _, r := range results {
-		if len(candidates) == OpeningVarietyMoves {
+		if len(candidates) == maxMoves {
 			break
 		}
-		within := (isWhite && r.Eval >= best-OpeningVarietyMargin) ||
-			(!isWhite && r.Eval <= best+OpeningVarietyMargin)
+		within := (isWhite && r.Eval >= best-margin) ||
+			(!isWhite && r.Eval <= best+margin)
 		if !within {
 			break
 		}
@@ -285,7 +301,7 @@ func pickVariety(situation *octad.Game, results []MoveEval) MoveEval {
 
 	choice := candidates[rng.Intn(len(candidates))]
 
-	util.DebugFlag("engine", str.CEval, "chose opening move: %s (%2f) from %d candidates for OFEN: %s",
+	util.DebugFlag("engine", str.CEval, "chose move: %s (%2f) from %d candidates for OFEN: %s",
 		choice.Move.String(), choice.Eval, len(candidates), situation.Position().String())
 
 	return choice
