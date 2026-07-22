@@ -154,6 +154,48 @@ func (q *Queries) HeadToHead(ctx context.Context, arg HeadToHeadParams) (HeadToH
 	return i, err
 }
 
+const headToHeadVsBot = `-- name: HeadToHeadVsBot :one
+SELECT
+    COALESCE(SUM(CASE
+        WHEN white_user_id = $1 AND outcome = '1-0' THEN 1.0
+        WHEN black_user_id = $1 AND outcome = '0-1' THEN 1.0
+        WHEN outcome = '1/2-1/2' THEN 0.5
+        ELSE 0.0 END), 0)::double precision AS user_score,
+    COALESCE(SUM(CASE
+        WHEN white_user_id = $1 AND outcome = '0-1' THEN 1.0
+        WHEN black_user_id = $1 AND outcome = '1-0' THEN 1.0
+        WHEN outcome = '1/2-1/2' THEN 0.5
+        ELSE 0.0 END), 0)::double precision AS bot_score,
+    COUNT(*)::bigint AS games
+FROM games
+WHERE bot_persona = $2
+  AND (white_user_id = $1 OR black_user_id = $1)
+`
+
+type HeadToHeadVsBotParams struct {
+	UserID  *int64
+	Persona *string
+}
+
+type HeadToHeadVsBotRow struct {
+	UserScore float64
+	BotScore  float64
+	Games     int64
+}
+
+// All-time record of one account against one bot persona: the human's
+// cumulative score (win = 1, draw = ½), the bot's, and the game count, across
+// every archived bot game the account played versus that persona. Powers the
+// historical score beside the match timeline for bot games. Only persona-stamped
+// games count (legacy pre-persona bot games have bot_persona NULL and are
+// excluded); the caller resolves a NULL/"" persona to the Queen's key first.
+func (q *Queries) HeadToHeadVsBot(ctx context.Context, arg HeadToHeadVsBotParams) (HeadToHeadVsBotRow, error) {
+	row := q.db.QueryRow(ctx, headToHeadVsBot, arg.UserID, arg.Persona)
+	var i HeadToHeadVsBotRow
+	err := row.Scan(&i.UserScore, &i.BotScore, &i.Games)
+	return i, err
+}
+
 const insertGame = `-- name: InsertGame :one
 INSERT INTO games (
     game_id, start_ts, end_ts, race_to, white_score, black_score, method,

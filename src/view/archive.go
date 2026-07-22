@@ -111,10 +111,12 @@ type ArchiveModel struct {
 	// clock's bot avatar (BotSeatGlyph). Empty for a human seat.
 	TopGlyph    string
 	BottomGlyph string
-	// Top/BottomH2H are the two seats' all-time head-to-head score (win = 1,
-	// draw = ½) against each other, shown beside the timeline names with the
-	// leader greened. H2HShow gates it: set only when both seats are distinct
-	// accounts with at least one game on record together.
+	// Top/BottomH2H are the all-time historical score (win = 1, draw = ½) shown
+	// beside the timeline names with the leader greened: for a bot game, the
+	// logged-in human's lifetime record against this bot persona; otherwise the
+	// two accounts' head-to-head. H2HShow gates it: set only when there's a
+	// persistent rivalry on record (both a bot game vs a logged-in human, or two
+	// distinct accounts that have met before).
 	TopH2H    float64
 	BottomH2H float64
 	H2HShow   bool

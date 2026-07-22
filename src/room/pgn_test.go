@@ -8,7 +8,9 @@ import (
 	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/variant"
 )
 
@@ -102,12 +104,13 @@ func TestBuildArchivePGNStandardStart(t *testing.T) {
 	}
 }
 
-// TestBuildArchivePGNSeatTags verifies the Phase-2 PGN seat tags: the standard
-// White/Black tags carry the display names (username / "BOT"), while the raw
-// session uids move to the dedicated WhiteUID/BlackUID tags. The split keeps
-// the PGN human-readable while the backfill still recovers machine identity
-// (see backfill.seatUID). An empty GameRecord falls back to the game's uids in
-// White/Black (covered by the other tests).
+// TestBuildArchivePGNSeatTags verifies the PGN seat tags: the standard
+// White/Black tags carry the display names (now including an account title
+// "OG drewtest" or the bot's persona "BOT ♟︎ Pawn"), while the raw session uids
+// move to the dedicated WhiteUID/BlackUID tags. The split keeps the PGN
+// human-readable while the backfill still recovers machine identity (see
+// backfill.seatUID). The names are bracket-free (space-separated title prefix)
+// so they re-import cleanly through octad's decoder.
 func TestBuildArchivePGNSeatTags(t *testing.T) {
 	g, err := game.NewOctadGame(game.OctadGameConfig{
 		Variant: variant.HalfOneBlitz,
@@ -117,11 +120,17 @@ func TestBuildArchivePGNSeatTags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewOctadGame failed: %v", err)
 	}
-	rec := db.GameRecord{WhiteName: "drewtest", BlackName: "BOT"}
+	for i := 0; i < 3; i++ {
+		moves := g.Game.ValidMoves()
+		if err := g.Game.Move(moves[0]); err != nil {
+			t.Fatalf("move %d failed: %v", i, err)
+		}
+	}
+	rec := db.GameRecord{WhiteName: "OG drewtest", BlackName: "BOT ♟︎ Pawn"}
 	pgn := buildArchivePGN(*g, rec, time.Now())
 
 	for _, want := range []string{
-		`[White "drewtest"]`, `[Black "BOT"]`,
+		`[White "OG drewtest"]`, `[Black "BOT ♟︎ Pawn"]`,
 		`[WhiteUID "uid_drew"]`, `[BlackUID ""]`,
 	} {
 		if !strings.Contains(pgn, want) {
@@ -129,8 +138,53 @@ func TestBuildArchivePGNSeatTags(t *testing.T) {
 		}
 	}
 	// the display name must not leak into the uid tag position
-	if strings.Contains(pgn, `[WhiteUID "drewtest"]`) {
+	if strings.Contains(pgn, `[WhiteUID "OG drewtest"]`) {
 		t.Errorf("display name leaked into WhiteUID tag:\n%s", pgn)
+	}
+
+	// the titled/glyph names round-trip through octad's own parser: the movetext
+	// is recovered move-for-move, and the White tag reads back exactly
+	sc := octad.NewScanner(strings.NewReader(pgn + "\n\n"))
+	if !sc.Scan() {
+		t.Fatalf("re-scanning PGN failed: %v", sc.Err())
+	}
+	replayed := sc.Next()
+	if got, want := len(replayed.Moves()), 3; got != want {
+		t.Errorf("re-imported %d moves, want %d", got, want)
+	}
+	var whiteTag string
+	for _, tp := range replayed.TagPairs() {
+		if tp.Key == "White" {
+			whiteTag = tp.Value
+		}
+	}
+	if whiteTag != "OG drewtest" {
+		t.Errorf("White tag round-tripped as %q, want %q", whiteTag, "OG drewtest")
+	}
+}
+
+// TestSeatArchiveName covers the seat-name formatter used for the PGN White/Black
+// tags: a bot shows "BOT <glyph> <persona>", a titled account "<title>
+// <username>", an untitled account its bare username, and an anonymous or nil
+// seat "Anonymous".
+func TestSeatArchiveName(t *testing.T) {
+	pawn := engine.PersonaByKey("pawn")
+	cases := []struct {
+		name    string
+		p       *player.Player
+		persona string
+		want    string
+	}{
+		{"bot", &player.Player{IsBot: true}, "pawn", "BOT " + pawn.Glyph + " " + pawn.Name},
+		{"titled", &player.Player{Username: "drewtest", Title: "OG"}, "", "OG drewtest"},
+		{"untitled", &player.Player{Username: "bob"}, "", "bob"},
+		{"anon", &player.Player{}, "", "Anonymous"},
+		{"nil", nil, "", "Anonymous"},
+	}
+	for _, tc := range cases {
+		if got := seatArchiveName(tc.p, tc.persona); got != tc.want {
+			t.Errorf("%s: seatArchiveName = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
 

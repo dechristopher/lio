@@ -156,6 +156,37 @@ func HeadToHead(a, b *int64) H2H {
 	return H2H{AScore: row.AScore, BScore: row.BScore, Games: row.Games}
 }
 
+// BotH2H is one account's all-time record against a single bot persona: the
+// user's cumulative score, the bot's, and the game count. A zero record
+// (Games == 0) means nothing to show.
+type BotH2H struct {
+	UserScore float64
+	BotScore  float64
+	Games     int64
+}
+
+// HeadToHeadVsBot returns a logged-in account's all-time record against a bot
+// persona (by resolved persona key). A nil user id (anonymous seat), an empty
+// persona, or unconfigured Postgres yields a zero record — only persistent
+// accounts accrue a bot rivalry. The caller resolves a NULL/"" bot_persona to
+// the Queen's key before calling, so legacy games tally under the right persona.
+func HeadToHeadVsBot(userID *int64, persona string) BotH2H {
+	if Pool == nil || userID == nil || persona == "" {
+		return BotH2H{}
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	row, err := gen.New(Pool).HeadToHeadVsBot(ctx, gen.HeadToHeadVsBotParams{
+		UserID:  userID,
+		Persona: &persona,
+	})
+	if err != nil {
+		util.Error(str.CDB, "bot head-to-head lookup failed: %s", err.Error())
+		return BotH2H{}
+	}
+	return BotH2H{UserScore: row.UserScore, BotScore: row.BotScore, Games: row.Games}
+}
+
 // ListGameMoveTimes returns an archived game's per-ply timing in ply order,
 // nil when the game predates per-move timing (or Postgres is unconfigured).
 // Plies are timed all-or-nothing at archive time (BuildPlies), so a NULL on

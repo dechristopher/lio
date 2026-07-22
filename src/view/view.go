@@ -341,6 +341,13 @@ func h2hText(score float64) string {
 	return strconv.Itoa(whole)
 }
 
+// h2hAttr renders a head-to-head score as a compact numeric string for a data
+// attribute (e.g. "2.5"), the machine-readable baseline lio-game.js reads to
+// keep the timeline's all-time score live after each game (renderH2H).
+func h2hAttr(score float64) string {
+	return strconv.FormatFloat(score, 'g', -1, 64)
+}
+
 // seatH2H resolves one seat's head-to-head score by "w"/"b" color from the
 // payload's color-keyed values.
 func seatH2H(payload message.RoomTemplatePayload, color string) float64 {
@@ -475,6 +482,14 @@ func BotSeatLabel(personaKey string) string {
 // CPU icon). Empty/unknown keys resolve to the full-strength Queen.
 func BotSeatGlyph(personaKey string) string {
 	return engine.PersonaByKey(personaKey).Glyph
+}
+
+// BotSeatKey canonicalizes a bot persona key, resolving an empty/unknown key
+// (every pre-persona room and archived game) to the Queen's key — so the
+// all-time score-vs-persona lookup tallies legacy Queen-strength bot games
+// under the right persona, matching the seat label/glyph.
+func BotSeatKey(personaKey string) string {
+	return engine.PersonaByKey(personaKey).Key
 }
 
 // topClockBotGlyph / bottomClockBotGlyph give the persona piece glyph for a

@@ -1910,6 +1910,26 @@ const handleGameOver = (message) => {
 		// serverPGN as-is or empty so buildPGN falls back to local assembly)
 		if (message.d.pgn) {
 			serverPGN = message.d.pgn;
+			// the same pgn presence marks the single live-finish broadcast (never
+			// a resync/reconnect redelivery), so the all-time head-to-head score
+			// advances exactly once per game — a decisive result adds 1 to the
+			// winner's seat, a draw ½ to each. Mapped to the bottom/top rows via
+			// this game's colors (the seats swap between games). A reload instead
+			// re-reads the authoritative server baseline, so this never double-counts.
+			if (h2hShow && message.d.r !== 'abandoned') {
+				if (message.d.w === 'd') {
+					h2hBottom += 0.5;
+					h2hTop += 0.5;
+				} else {
+					const bottomWon = (message.d.w === 'w') === playerWhite;
+					if (bottomWon) {
+						h2hBottom += 1;
+					} else {
+						h2hTop += 1;
+					}
+				}
+				renderH2H();
+			}
 		}
 		showResult(message);
 		// remember the result line for the mid-board analysis annotation (hidden
@@ -2030,6 +2050,44 @@ const playSounds = (message, ofenParts, newGame) => {
 const timelineEl = document.getElementById('match-timeline');
 const tlOpp = timelineEl ? timelineEl.querySelector('#tl-row-opponent') : null;
 const tlPly = timelineEl ? timelineEl.querySelector('#tl-row-player') : null;
+
+// all-time head-to-head score (bottom = the player/anchor row, top = opponent),
+// kept live: the server-rendered baseline in the #match-timeline data attributes
+// plus this session's finished games. Seat-oriented (not color-keyed), so it
+// stays correctly assigned as the two seats swap colors between games.
+let h2hShow = !!(timelineEl && timelineEl.dataset.h2hShow === 'true');
+let h2hBottom = timelineEl ? parseFloat(timelineEl.dataset.h2hBottom) || 0 : 0;
+let h2hTop = timelineEl ? parseFloat(timelineEl.dataset.h2hTop) || 0 : 0;
+
+/** h2hText mirrors the server's view.h2hText: whole score, ½ for a half point. */
+const h2hText = (score) => {
+	const whole = Math.floor(score);
+	if (score - whole >= 0.5) {
+		return whole === 0 ? '½' : whole + '½';
+	}
+	return String(whole);
+};
+
+/**
+ * renderH2H rewrites the two timeline head-to-head spans from the live
+ * bottom/top scores, greening the leader (.ahead). No-op when the timeline
+ * doesn't carry a head-to-head (a first meeting, an anonymous seat).
+ */
+const renderH2H = () => {
+	if (!h2hShow) {
+		return;
+	}
+	const paint = (row, score, ahead) => {
+		const el = row && row.querySelector('.tl-h2h');
+		if (!el) {
+			return;
+		}
+		el.textContent = h2hText(score);
+		el.classList.toggle('ahead', ahead);
+	};
+	paint(tlPly, h2hBottom, h2hBottom > h2hTop);
+	paint(tlOpp, h2hTop, h2hTop > h2hBottom);
+};
 
 // the two rows' game strips are separate overflow scrollers (the grid keeps
 // their columns aligned), so mirror scrollLeft between them — a swipe on either

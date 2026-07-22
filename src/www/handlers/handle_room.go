@@ -125,12 +125,21 @@ func RoomHandler(c fiber.Ctx) error {
 	// get template payload for user
 	payload := roomInstance.GenTemplatePayload(uid)
 
-	// decorate the match timeline with the two accounts' all-time head-to-head
-	// score (skipped — no DB round-trip — unless both seats are distinct accounts
-	// that have met before; a pre-game room's open seat is nil, so this no-ops
-	// there too)
+	// decorate the match timeline with the all-time historical score: for a bot
+	// room, the logged-in human's lifetime record against this bot persona;
+	// otherwise the two accounts' head-to-head. Skipped (no DB round-trip) unless
+	// there's a persistent rivalry to show — an anonymous or open seat no-ops.
 	wUID, bUID := roomInstance.SeatUserIDs()
-	if h := db.HeadToHead(wUID, bUID); h.Games > 0 {
+	if botIsWhite, humanUID, personaKey, isBot := roomInstance.BotSeat(); isBot {
+		if h := db.HeadToHeadVsBot(humanUID, view.BotSeatKey(personaKey)); h.Games > 0 {
+			if botIsWhite {
+				payload.H2HWhite, payload.H2HBlack = h.BotScore, h.UserScore
+			} else {
+				payload.H2HWhite, payload.H2HBlack = h.UserScore, h.BotScore
+			}
+			payload.H2HShow = true
+		}
+	} else if h := db.HeadToHead(wUID, bUID); h.Games > 0 {
 		payload.H2HWhite = h.AScore
 		payload.H2HBlack = h.BScore
 		payload.H2HShow = true

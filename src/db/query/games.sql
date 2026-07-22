@@ -75,3 +75,26 @@ SELECT
 FROM games
 WHERE (white_user_id = @user_a AND black_user_id = @user_b)
    OR (white_user_id = @user_b AND black_user_id = @user_a);
+
+-- name: HeadToHeadVsBot :one
+-- All-time record of one account against one bot persona: the human's
+-- cumulative score (win = 1, draw = ½), the bot's, and the game count, across
+-- every archived bot game the account played versus that persona. Powers the
+-- historical score beside the match timeline for bot games. Only persona-stamped
+-- games count (legacy pre-persona bot games have bot_persona NULL and are
+-- excluded); the caller resolves a NULL/"" persona to the Queen's key first.
+SELECT
+    COALESCE(SUM(CASE
+        WHEN white_user_id = @user_id AND outcome = '1-0' THEN 1.0
+        WHEN black_user_id = @user_id AND outcome = '0-1' THEN 1.0
+        WHEN outcome = '1/2-1/2' THEN 0.5
+        ELSE 0.0 END), 0)::double precision AS user_score,
+    COALESCE(SUM(CASE
+        WHEN white_user_id = @user_id AND outcome = '0-1' THEN 1.0
+        WHEN black_user_id = @user_id AND outcome = '1-0' THEN 1.0
+        WHEN outcome = '1/2-1/2' THEN 0.5
+        ELSE 0.0 END), 0)::double precision AS bot_score,
+    COUNT(*)::bigint AS games
+FROM games
+WHERE bot_persona = @persona
+  AND (white_user_id = @user_id OR black_user_id = @user_id);

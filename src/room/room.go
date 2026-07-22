@@ -1645,6 +1645,9 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// are final after updateScoreLocked, and the reason/race-to/room fields are
 	// not reachable from the game copy alone. The game-derived fields are filled
 	// later from gameCopy in storeGame (arch/STATE_PERSISTENCE_SCALING.md L3).
+	// The bot difficulty key drives both the bot seat's PGN name and the archived
+	// bot_persona column; only the bot seat consumes it (human games ignore it).
+	botPersonaKey := r.botPersona().Key
 	archiveRec := db.GameRecord{
 		RoomID:        r.ID,
 		Creator:       r.creator,
@@ -1659,13 +1662,13 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 		// only uids). WhiteName/BlackName render "BOT"/"Anonymous"/<username>.
 		WhiteUserID: r.players[octad.White].UserID,
 		BlackUserID: r.players[octad.Black].UserID,
-		WhiteName:   seatArchiveName(r.players[octad.White]),
-		BlackName:   seatArchiveName(r.players[octad.Black]),
+		WhiteName:   seatArchiveName(r.players[octad.White], botPersonaKey),
+		BlackName:   seatArchiveName(r.players[octad.Black], botPersonaKey),
 	}
 	// stamp the bot's difficulty on the archived game (games.bot_persona); ""
 	// (NULL) for human games
 	if r.players.HasBot() {
-		archiveRec.BotPersona = r.botPersona().Key
+		archiveRec.BotPersona = botPersonaKey
 	}
 
 	// build the canonical PGN once, under the lock, from the finished game copy
@@ -1744,22 +1747,23 @@ func (r *Instance) updateScoreLocked() {
 	}
 }
 
-// seatArchiveName resolves a seat's PGN display name: "BOT" for the engine,
-// the account username for a logged-in human, or "Anonymous" for an anonymous
-// human. Unlike the live-view DisplayName (which returns "" for anon so the
-// view can pick You/Anonymous), the archive has no viewer, so anon is spelled
-// out. A nil seat (shouldn't happen at game over) is "Anonymous".
-func seatArchiveName(p *player.Player) string {
+// seatArchiveName resolves a seat's PGN display name: "[BOT] <glyph> <persona>"
+// for the engine (personaKey is the room's difficulty stamp), "[<title>]
+// <username>" / "<username>" for a logged-in human, or "Anonymous" for an
+// anonymous human. Unlike the live-view DisplayName (which returns "" for anon
+// so the view can pick You/Anonymous), the archive has no viewer, so anon is
+// spelled out. A nil seat (shouldn't happen at game over) is "Anonymous". The
+// archive-page rebuild reproduces this exactly (see handlers.archiveSeatName)
+// so the White/Black PGN tags match.
+func seatArchiveName(p *player.Player, personaKey string) string {
 	if p == nil {
 		return "Anonymous"
 	}
 	if p.IsBot {
-		return "BOT"
+		persona := engine.PersonaByKey(personaKey)
+		return game.PGNSeatName("", "", persona.Glyph, persona.Name, true)
 	}
-	if p.Username != "" {
-		return p.Username
-	}
-	return "Anonymous"
+	return game.PGNSeatName(p.Username, p.Title, "", "", false)
 }
 
 // buildArchivePGN assembles the archival PGN for a finished game via the shared
@@ -1933,6 +1937,27 @@ func (r *Instance) SeatUserIDs() (white, black *int64) {
 		black = p.UserID
 	}
 	return white, black
+}
+
+// BotSeat reports a bot room's makeup for the timeline's score-vs-persona
+// lookup: whether the engine sits White, the opposing human's account id (nil
+// when that human is anonymous), and the bot's persona key. ok is false for a
+// human-vs-human room (or an incomplete one). Locks stateMu (reads players).
+func (r *Instance) BotSeat() (botIsWhite bool, humanUserID *int64, personaKey string, ok bool) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	white, black := r.players[octad.White], r.players[octad.Black]
+	if white == nil || black == nil {
+		return false, nil, "", false
+	}
+	switch {
+	case white.IsBot:
+		return true, black.UserID, r.botPersona().Key, true
+	case black.IsBot:
+		return false, white.UserID, r.botPersona().Key, true
+	default:
+		return false, nil, "", false
+	}
 }
 
 // GenTemplatePayload generates a RoomTemplatePayload for the given player by id.

@@ -227,15 +227,33 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		bottomDelta, topDelta = topDelta, bottomDelta
 	}
 
-	// all-time head-to-head score between the two seats' accounts (shown beside
-	// the timeline names). Keyed A=bottom, B=top to match the oriented rows;
-	// zero-Games means nothing to show (a bot/anonymous seat or a first meeting).
+	// all-time historical score shown beside the timeline names (keyed to the
+	// oriented bottom/top rows). Two flavors: account-vs-account head-to-head,
+	// or — for a bot game — the logged-in human's lifetime record against this
+	// bot persona. Zero-Games means nothing to show (an anonymous seat, or a
+	// first meeting).
 	var topH2H, bottomH2H float64
 	h2hShow := false
 	if !standalone {
-		if h := db.HeadToHead(bottomUserID, topUserID); h.Games > 0 {
-			bottomH2H, topH2H = h.AScore, h.BScore
-			h2hShow = true
+		botKey := view.BotSeatKey(derefStr(selected.BotPersona))
+		switch {
+		case isBotSeat(bottomUID, bottomUserID) && topUserID != nil:
+			// bottom is the engine; top is a logged-in human
+			if h := db.HeadToHeadVsBot(topUserID, botKey); h.Games > 0 {
+				topH2H, bottomH2H = h.UserScore, h.BotScore
+				h2hShow = true
+			}
+		case isBotSeat(topUID, topUserID) && bottomUserID != nil:
+			// top is the engine; bottom is a logged-in human
+			if h := db.HeadToHeadVsBot(bottomUserID, botKey); h.Games > 0 {
+				bottomH2H, topH2H = h.UserScore, h.BotScore
+				h2hShow = true
+			}
+		default:
+			if h := db.HeadToHead(bottomUserID, topUserID); h.Games > 0 {
+				bottomH2H, topH2H = h.AScore, h.BScore
+				h2hShow = true
+			}
 		}
 	}
 
@@ -397,13 +415,14 @@ func archivePGN(g gen.Game, og *game.OctadGame) string {
 		times = nil
 	}
 	white, black, matchup, _ := opening.Names(g.StartingOfen)
+	persona := derefStr(g.BotPersona)
 	return game.BuildPGN(game.PGNMeta{
 		Event:          "Lioctad Test Match",
 		Site:           "https://lioctad.org",
 		Variant:        g.VariantName,
 		Group:          g.VariantGroup,
-		White:          archiveSeatName(g.WhiteUid, g.WhiteUserID),
-		Black:          archiveSeatName(g.BlackUid, g.BlackUserID),
+		White:          archiveSeatName(g.WhiteUid, g.WhiteUserID, persona),
+		Black:          archiveSeatName(g.BlackUid, g.BlackUserID, persona),
 		WhiteUID:       g.WhiteUid,
 		BlackUID:       g.BlackUid,
 		Result:         g.Outcome,
@@ -418,17 +437,16 @@ func archivePGN(g gen.Game, og *game.OctadGame) string {
 }
 
 // archiveSeatName reproduces room.seatArchiveName from the archived row so the
-// rebuilt PGN's White/Black tags match what the live path wrote: "BOT" for the
-// engine seat (no uid and no account), the account username for a logged-in
-// human, else "Anonymous".
-func archiveSeatName(uid string, userID *int64) string {
+// rebuilt PGN's White/Black tags match what the live path wrote: "[BOT] <glyph>
+// <persona>" for the engine seat (no uid and no account; persona is the row's
+// bot_persona, NULL/"" resolving to the Queen), "[<title>] <username>" /
+// "<username>" for a logged-in human, else "Anonymous".
+func archiveSeatName(uid string, userID *int64, personaKey string) string {
 	if isBotSeat(uid, userID) {
-		return "BOT"
+		return game.PGNSeatName("", "", view.BotSeatGlyph(personaKey), view.BotSeatLabel(personaKey), true)
 	}
-	if name, _ := db.UserDisplayForID(userID); name != "" {
-		return name
-	}
-	return "Anonymous"
+	name, title := db.UserDisplayForID(userID)
+	return game.PGNSeatName(name, title, "", "", false)
 }
 
 // buildArchiveData assembles the client hydration payload for the selected

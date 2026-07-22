@@ -34,6 +34,36 @@ type PGNMeta struct {
 	WhiteFormation, BlackFormation, Matchup string
 }
 
+// PGNSeatName formats a seat's PGN display name, space-separated (no brackets):
+//   - bot:              "BOT <glyph> <persona>"  (e.g. "BOT ♟︎ Pawn")
+//   - titled account:   "<title> <username>"     (e.g. "OG drewtest")
+//   - untitled account: "<username>"
+//   - anonymous human:  "Anonymous"
+//
+// The space-separated title prefix follows the standard PGN convention (Lichess
+// writes [White "GM DrNykterstein"]). Brackets/parens/braces are deliberately
+// avoided: they are legal inside a PGN quoted string, but octad's own decoder
+// strips those sections when recovering movetext, so a bracketed value breaks
+// re-import (the --backfill path). The bot glyph/persona are resolved by the
+// caller (from engine.PersonaByKey) and passed in so this stays engine-free.
+// Both the live archival path and the archive-page rebuild call it with
+// equivalent inputs, so the White/Black tags are byte-identical across them.
+func PGNSeatName(username, title, botGlyph, botPersona string, isBot bool) string {
+	if isBot {
+		if botGlyph != "" {
+			return "BOT " + botGlyph + " " + botPersona
+		}
+		return "BOT " + botPersona
+	}
+	if username == "" {
+		return "Anonymous"
+	}
+	if title != "" {
+		return title + " " + username
+	}
+	return username
+}
+
 // BuildPGN assembles the full archival PGN for a finished game: the tag-pair
 // roster followed by numbered SAN movetext (with a { [%clk h:mm:ss.cc] } comment
 // per move when per-ply timing was recorded) ending in the result token.

@@ -92,11 +92,14 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 					or, once the game is over (.analyzing on the grid), beneath the
 					move list so the review nav sits directly under the board.
 				-->
-				<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline">
+				<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline" data-h2h-show={ strconv.FormatBool(payload.H2HShow) } data-h2h-bottom={ h2hAttr(bottomH2HScore(payload)) } data-h2h-top={ h2hAttr(topH2HScore(payload)) }>
 					<div class="tl-id" id="tl-row-opponent">
 						if payload.H2HShow {
-							// all-time head-to-head score; the leader is greened (see .tl-h2h)
+							// all-time head-to-head score; the leader is greened (see .tl-h2h).
+							// Kept live after each game by lio-game.js (renderH2H); the divider
+							// sets it off from the name.
 							<span class={ "tl-h2h", templ.KV("ahead", topH2HScore(payload) > bottomH2HScore(payload)) } title="All-time head-to-head score">{ h2hText(topH2HScore(payload)) }</span>
+							<span class="tl-divider" aria-hidden="true"></span>
 						}
 						@seatBotMarker(topClockIsBot(payload), topClockBotGlyph(payload))
 						@playerTitle(topClockTitle(payload))
@@ -106,6 +109,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 					<div class="tl-id" id="tl-row-player">
 						if payload.H2HShow {
 							<span class={ "tl-h2h", templ.KV("ahead", bottomH2HScore(payload) > topH2HScore(payload)) } title="All-time head-to-head score">{ h2hText(bottomH2HScore(payload)) }</span>
+							<span class="tl-divider" aria-hidden="true"></span>
 						}
 						@seatBotMarker(bottomClockIsBot(payload), bottomClockBotGlyph(payload))
 						@playerTitle(bottomClockTitle(payload))

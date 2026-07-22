@@ -729,20 +729,31 @@
 		transform: translateY(-0.18em);
 	}
 	/* all-time head-to-head score, left of each name. The leader (.ahead) is
-	   greened; the trailer stays muted grey. Server-rendered and static — the JS
-	   timeline rebuild only touches .tl-total, never this. */
+	   greened; the trailer stays muted grey. Server-rendered baseline, then kept
+	   live after each finished game by lio-game.js (renderH2H). */
 	.tl-h2h {
 		flex: none;
 		order: -1;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.78rem;
+		font-size: 0.82rem;
 		font-weight: 700;
 		color: var(--text-subtle);
 		min-width: 1ch;
 		text-align: center;
 	}
 	.tl-h2h.ahead { color: var(--win); }
+	/* thin vertical rule between the head-to-head score and the name group. Sits
+	   just right of .tl-h2h (both order: -1, DOM order) so the row reads
+	   "score | name". The flex row gap gives it breathing room on each side. */
+	.tl-divider {
+		flex: none;
+		order: -1;
+		width: 1px;
+		height: 0.85em;
+		background: var(--border);
+		align-self: center;
+	}
 	.tl-total {
 		flex: none;
 		margin-left: auto;

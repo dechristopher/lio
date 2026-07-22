@@ -11,14 +11,16 @@ import (
 	"github.com/dechristopher/lio/db/gen"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/variant"
+	"github.com/dechristopher/lio/view"
 )
 
 // TestArchivePGNRebuild verifies the archive-page PGN rebuild (archivePGN) maps
 // an archived games row to the shared game.BuildPGN correctly: the seat names
-// follow room.seatArchiveName ("BOT" for the engine, "Anonymous" for an anon
-// human), the deploy start becomes a SetUp/FEN tag, the opening/matchup names
-// come from the starting OFEN, and the result re-imports move-for-move. This is
-// the from-DB rebuild the copy button copies — no object-store fetch.
+// follow room.seatArchiveName ("[BOT] <glyph> <persona>" for the engine,
+// "Anonymous" for an anon human), the deploy start becomes a SetUp/FEN tag, the
+// opening/matchup names come from the starting OFEN, and the result re-imports
+// move-for-move. This is the from-DB rebuild the copy button copies — no
+// object-store fetch.
 func TestArchivePGNRebuild(t *testing.T) {
 	const startOFEN = "knpp/4/4/PNKP w NCFncf - 0 1"
 
@@ -41,6 +43,7 @@ func TestArchivePGNRebuild(t *testing.T) {
 		}
 	}
 
+	persona := "pawn"
 	start := time.Date(2026, 7, 22, 14, 5, 0, 0, time.UTC)
 	row := gen.Game{
 		StartingOfen: startOFEN,
@@ -48,6 +51,7 @@ func TestArchivePGNRebuild(t *testing.T) {
 		VariantGroup: "blitz",
 		WhiteUid:     "uid_drew",
 		BlackUid:     "", // bot seat: no uid + no account
+		BotPersona:   &persona,
 		Outcome:      string(og.Game.Outcome()),
 		Reason:       "checkmate",
 		StartTs:      pgtype.Timestamptz{Time: start, Valid: true},
@@ -56,8 +60,11 @@ func TestArchivePGNRebuild(t *testing.T) {
 
 	pgn := archivePGN(row, og)
 
+	// the bot seat carries its persona glyph + name; derive the expected string
+	// from the same helpers to avoid a fragile literal glyph in the test
+	wantBlack := `[Black "` + game.PGNSeatName("", "", view.BotSeatGlyph(persona), view.BotSeatLabel(persona), true) + `"]`
 	for _, want := range []string{
-		`[White "Anonymous"]`, `[Black "BOT"]`,
+		`[White "Anonymous"]`, wantBlack,
 		`[WhiteUID "uid_drew"]`, `[BlackUID ""]`,
 		`[SetUp "1"]`, `[FEN "` + startOFEN + `"]`,
 		// PNKP = The Citadel (white); knpp reversed = ppnk = The Bastion (black)

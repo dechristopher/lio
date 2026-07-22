@@ -44,8 +44,10 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 					<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline">
 						<div class="tl-id" id="tl-row-opponent">
 							if m.H2HShow {
-								// all-time head-to-head score; the leader is greened (see .tl-h2h)
+								// all-time head-to-head score; the leader is greened (see .tl-h2h).
+								// The divider sets it off from the name.
 								<span class={ "tl-h2h", templ.KV("ahead", m.TopH2H > m.BottomH2H) } title="All-time head-to-head score">{ h2hText(m.TopH2H) }</span>
+								<span class="tl-divider" aria-hidden="true"></span>
 							}
 							@seatBotMarker(m.TopIsBot, m.TopGlyph)
 							@playerTitle(m.TopTitle)
@@ -55,6 +57,7 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 						<div class="tl-id" id="tl-row-player">
 							if m.H2HShow {
 								<span class={ "tl-h2h", templ.KV("ahead", m.BottomH2H > m.TopH2H) } title="All-time head-to-head score">{ h2hText(m.BottomH2H) }</span>
+								<span class="tl-divider" aria-hidden="true"></span>
 							}
 							@seatBotMarker(m.BottomIsBot, m.BottomGlyph)
 							@playerTitle(m.BottomTitle)
