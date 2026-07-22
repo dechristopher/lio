@@ -2134,6 +2134,14 @@ const renderTimeline = (message) => {
 	const gamesEl = timelineEl.querySelector('.tl-games');
 	gamesEl.innerHTML = '';
 
+	// the blind deploy phase is a between-games interlude with the next game
+	// already pending: render it like an in-progress game (pulsing live column,
+	// non-interactive finished cells) rather than the post-game lull, so the
+	// timeline reads consistently whether a client joins mid-deploy (gameOver
+	// still false) or transitions into it from a finish (gameOver true). The
+	// board is covered by the arrange overlay, so in-place browsing is off here.
+	const inDeploy = deployMode || deploySpectating;
+
 	const entries = message.d.h || [];
 	tlGameCount = entries.length;
 	entries.forEach((e, i) => {
@@ -2147,7 +2155,7 @@ const renderTimeline = (message) => {
 					location.href = '/' + archiveData.roomId + '/' + n;
 				}
 			});
-		} else if (gameOver) {
+		} else if (gameOver && !inDeploy) {
 			// post-game lull on the live page: cells switch the board between
 			// the match's games in place (no navigation — the socket and any
 			// rematch window survive)
@@ -2157,8 +2165,8 @@ const renderTimeline = (message) => {
 		gamesEl.appendChild(cell);
 	});
 
-	// the in-progress game's column
-	if (!gameOver) {
+	// the in-progress game's column (also shown for the pending deploy game)
+	if (!gameOver || inDeploy) {
 		const cell = document.createElement('button');
 		cell.type = 'button';
 		cell.className = 'tl-game tl-live';
@@ -2183,8 +2191,11 @@ const refreshTimelineSelection = () => {
 	if (!timelineEl) {
 		return;
 	}
+	// no ring during the deploy interlude — the pulsing live column tells that
+	// story (same as mid-game), even though gameOver is still set
+	const inDeploy = deployMode || deploySpectating;
 	const sel = isArchive ? archiveData.n
-		: (browsing || (gameOver ? tlGameCount : 0));
+		: (browsing || ((gameOver && !inDeploy) ? tlGameCount : 0));
 	timelineEl.querySelectorAll('.tl-games .tl-game:not(.tl-live)')
 		.forEach((cell, i) => {
 			cell.classList.toggle('tl-selected', i + 1 === sel);
@@ -3012,6 +3023,13 @@ const handleDeploy = (message) => {
 		&& d.i && currentGameID && d.i !== currentGameID) {
 		return;
 	}
+
+	// hydrate the match score chips and timeline from the phase snapshot (the
+	// deploy payload now carries sc/h), so a spectator joining — or a player
+	// reconnecting — mid-deploy sees the standing match state immediately rather
+	// than an empty timeline until the reveal. No-ops on the lock-only delta
+	// handled above (it carries no sc), and on game 1 (no history yet).
+	updateScore(message);
 
 	const uid = myUid();
 	const seconds = d.s ? d.s : 30;

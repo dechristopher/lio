@@ -208,6 +208,52 @@ func deployGameIDFromMessage(raw []byte) string {
 	return fastjson.GetString(raw, "d", "i")
 }
 
+// TestDeploySnapshotsCarryMatchScore verifies the deploy phase-snapshot messages
+// carry the standing match score and per-game history (sc/h), so a client that
+// joins or reconnects during the blind deploy phase of a race-to match hydrates
+// the timeline immediately instead of waiting for the reveal. The lock-only
+// delta (lockMessage) is a per-submission indicator, not a phase snapshot, and
+// must not carry them.
+func TestDeploySnapshotsCarryMatchScore(t *testing.T) {
+	r := newTestInstance(t, "w", "b")
+
+	// one completed game of the match: white won, so the score is 1-0 and the
+	// history has a single entry
+	r.players.ScoreWin(octad.White, "checkmate")
+
+	driveToDeploy(t, r)
+
+	r.stateMu.Lock()
+	r.deployDeadline = time.Now().Add(30 * time.Second)
+	r.stateMu.Unlock()
+
+	snapshots := map[string][]byte{
+		"deployMessage":         r.deployMessage(30),
+		"deployAnnounceMessage": r.deployAnnounceMessage(),
+		"DeployStateMessage":    r.DeployStateMessage("w"),
+	}
+	for name, raw := range snapshots {
+		if got := fastjson.GetFloat64(raw, "d", "sc", "w"); got != 1 {
+			t.Errorf("%s white score = %v, want 1", name, got)
+		}
+		if got := fastjson.GetFloat64(raw, "d", "sc", "b"); got != 0 {
+			t.Errorf("%s black score = %v, want 0", name, got)
+		}
+		v, err := fastjson.ParseBytes(raw)
+		if err != nil {
+			t.Fatalf("%s parse: %v", name, err)
+		}
+		if hist := v.GetArray("d", "h"); len(hist) != 1 {
+			t.Errorf("%s history len = %d, want 1", name, len(hist))
+		}
+	}
+
+	// the lock-only delta reports a committed side, not match state
+	if fastjson.Exists(r.lockMessage(octad.White), "d", "sc") {
+		t.Error("lockMessage carries match score; it is a lock-only delta")
+	}
+}
+
 // TestDeployMessagesCarryPreDeployGameID verifies every outbound deploy-phase
 // message names the pre-deploy game it supersedes, and that the deployed game
 // carries a different id. The pair is what lets a client (a) recognize any

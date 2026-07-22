@@ -236,6 +236,8 @@ func (r *Instance) deployMessage(seconds int) []byte {
 	r.stateMu.Lock()
 	white, black := r.playerIDsLocked()
 	gid := r.game.ID
+	score := r.players.ScoreMap()
+	history := r.players.MatchHistory()
 	r.stateMu.Unlock()
 
 	msg := proto.Message{
@@ -246,6 +248,8 @@ func (r *Instance) deployMessage(seconds int) []byte {
 			White:   white,
 			Black:   black,
 			GameID:  gid,
+			Score:   score,
+			History: history,
 		},
 		ProtoVersion: proto.DeployPayloadVersion,
 	}
@@ -264,6 +268,8 @@ func (r *Instance) deployAnnounceMessage() []byte {
 	_, lockedWhite := r.deployed[octad.White]
 	_, lockedBlack := r.deployed[octad.Black]
 	gid := r.game.ID
+	score := r.players.ScoreMap()
+	history := r.players.MatchHistory()
 	r.stateMu.Unlock()
 
 	remaining := 0
@@ -281,6 +287,8 @@ func (r *Instance) deployAnnounceMessage() []byte {
 			LockedWhite: lockedWhite,
 			LockedBlack: lockedBlack,
 			GameID:      gid,
+			Score:       score,
+			History:     history,
 		},
 		ProtoVersion: proto.DeployPayloadVersion,
 	}
@@ -340,6 +348,8 @@ func (r *Instance) DeployStateMessage(uid string) []byte {
 	_, lockedWhite := r.deployed[octad.White]
 	_, lockedBlack := r.deployed[octad.Black]
 	gid := r.game.ID
+	score := r.players.ScoreMap()
+	history := r.players.MatchHistory()
 	r.stateMu.Unlock()
 
 	if deadline.IsZero() {
@@ -363,6 +373,8 @@ func (r *Instance) DeployStateMessage(uid string) []byte {
 			LockedWhite: lockedWhite,
 			LockedBlack: lockedBlack,
 			GameID:      gid,
+			Score:       score,
+			History:     history,
 		},
 		ProtoVersion: proto.DeployPayloadVersion,
 	}

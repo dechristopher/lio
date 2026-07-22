@@ -214,6 +214,13 @@ type DeployPayload struct {
 	// the reveal (its id no longer matches the game the client is showing),
 	// which would otherwise wedge it back into deploy mode over a live game.
 	GameID string `json:"i,omitempty"`
+	// Score / History carry the standing match state (same shape and keys as
+	// MovePayload's sc/h) on the phase-snapshot messages, so a client joining or
+	// reconnecting during the blind deploy phase hydrates the match timeline
+	// immediately instead of waiting for the deploy reveal or the next board
+	// update. Room-global (not per-recipient); absent from the lock-only delta.
+	Score   ScorePayload        `json:"sc,omitempty"` // match score
+	History MatchHistoryPayload `json:"h,omitempty"`  // per-game match history
 }
 
 // MessageDeploy contains a DeployPayload message
