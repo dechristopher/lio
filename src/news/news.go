@@ -17,6 +17,15 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "v1.3.1: Analysis board & UX improvements",
+		Date:  "Jul 21, 2026",
+		Body: "Today's release includes quality of live improvements to the analysis board, especially " +
+			"relating to the exploration of alternate lines. The board will now show annotations for " +
+			"alternate win conditions when reached. We've also improved the look and feel of the timeline " +
+			"and have enabled head-to-head stats in the timeline when facing bot opponents, so you can " +
+			"see how you fare over time.",
+	},
+	{
 		Title: "More bot personas",
 		Date:  "Jul 21, 2026",
 		Body: "We've added various bot difficulty levels, so players both new and veteran can face a " +
