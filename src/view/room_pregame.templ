@@ -34,7 +34,7 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 				<p class="wait-identity">
 					Playing as <strong class="font-semibold text-fg">
 						@playerTitle(payload.CreatorTitle)
-						{ payload.CreatorName }
+						<span class="ml-1">{ payload.CreatorName }</span>
 					</strong>
 					if payload.CreatorRating != "" {
 						<span class="rating-chip">{ payload.CreatorRating }</span>
