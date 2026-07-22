@@ -56,6 +56,11 @@ type analysisResponse struct {
 	// Over is the resulting position's terminal outcome ("w"/"b"/"d"), empty
 	// while the position is playable.
 	Over string `json:"over,omitempty"`
+	// Reason is the terminal method as a client result-reason key
+	// ("checkmate"/"stalemate"/"insufficient"/"repetition"/"moverule"), so an
+	// explored line that ends decisively shows the same "… by checkmate"
+	// annotation as a real game end. Empty while the position is playable.
+	Reason string `json:"rr,omitempty"`
 	// CP is the position's white-positive centipawn eval (cache read-through,
 	// else a budgeted live search; exact for terminal positions).
 	CP int16 `json:"cp"`
@@ -111,6 +116,9 @@ func AnalysisHandler(c fiber.Ctx) error {
 	resp.OFEN = pos.String()
 	resp.Check = pos.InCheck()
 	resp.Over = winnerFromOutcome(g.Outcome().String())
+	if resp.Over != "" {
+		resp.Reason = reasonFromMethod(g.Method())
+	}
 
 	// legal-move map of the resulting position (empty when terminal)
 	resp.Dests = map[string][]string{}
@@ -123,6 +131,28 @@ func AnalysisHandler(c fiber.Ctx) error {
 
 	resp.CP = analysisEval(resp.OFEN, pos, resp.Over)
 	return c.JSON(resp)
+}
+
+// reasonFromMethod maps octad's terminal Method to the client's result-reason
+// key (mirrors resultReasons in lio-game.js), so an explored line that ends
+// decisively shows the same annotation as a real game end. Only the
+// auto-detectable methods can arise from a bare explored position —
+// resignation/draw-offer never do; threefold needs game history the endpoint
+// doesn't carry — but the drawn methods are mapped for completeness.
+func reasonFromMethod(m octad.Method) string {
+	switch m {
+	case octad.Checkmate:
+		return "checkmate"
+	case octad.Stalemate:
+		return "stalemate"
+	case octad.InsufficientMaterial:
+		return "insufficient"
+	case octad.ThreefoldRepetition:
+		return "repetition"
+	case octad.TwentyFiveMoveRule:
+		return "moverule"
+	}
+	return ""
 }
 
 // analysisEval scores a position white-positive in centipawns: exact for

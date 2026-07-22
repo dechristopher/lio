@@ -93,6 +93,32 @@ func TestAnalysisApplyMove(t *testing.T) {
 	}
 }
 
+// TestAnalysisTerminalReason covers a decisive explored finish: applying the
+// mating move to a pre-mate position reports the winner and the terminal method
+// as the client's result-reason key (so the analysis board can show "Black wins:
+// by checkmate"), with an empty legal-move map and the exact mate eval.
+func TestAnalysisTerminalReason(t *testing.T) {
+	app := analysisTestApp()
+	// black queen on c1, white king boxed on d4; black plays Qd1#.
+	const preMate = "3K/1k2/n3/2q1 b - - 1 16"
+	status, out := postAnalysis(t, app, `{"ofen":"`+preMate+`","uoi":"c1d1"}`)
+	if status != fiber.StatusOK {
+		t.Fatalf("status = %d, want 200", status)
+	}
+	if out.SAN != "Qd1#" {
+		t.Errorf("san = %q, want %q", out.SAN, "Qd1#")
+	}
+	if out.Over != "b" {
+		t.Errorf("over = %q, want %q (black wins)", out.Over, "b")
+	}
+	if out.Reason != "checkmate" {
+		t.Errorf("reason = %q, want %q", out.Reason, "checkmate")
+	}
+	if len(out.Dests) != 0 {
+		t.Errorf("dests = %v, want none in a terminal position", out.Dests)
+	}
+}
+
 // TestAnalysisRejections covers the failure modes: malformed request, invalid
 // position, malformed and illegal moves.
 func TestAnalysisRejections(t *testing.T) {

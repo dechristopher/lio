@@ -834,6 +834,18 @@ const updateEndAnnotation = () => {
 	if (!endAnnotationEl) {
 		return;
 	}
+	// exploration: a line ply that reaches a decisive/drawn finish shows the
+	// same mid-board result pill as a real game end ("Black wins: by checkmate"),
+	// so the frozen, untouchable board still reads as a conclusion. Only while
+	// the line is on the board; any other ply falls through to the game logic.
+	if (inLine && explore) {
+		const over = explore.overs[exploreView - 1];
+		endAnnotationEl.textContent = over
+			? resultSummary({ w: over, r: explore.reasons[exploreView - 1] })
+			: '';
+		endAnnotationEl.classList.toggle('ea-show', !!over);
+		return;
+	}
 	const cardShowing = resultShowingOrPending()
 		&& !resultOverlayEl.classList.contains('result-dismissed');
 	const show = gameOver && !!endAnnotationText
@@ -3787,7 +3799,7 @@ const requestLiveEvals = () => {
 // POST /api/analysis, which returns the resulting position, its legal-move
 // map, terminal state, and an eval that drives the eval bar along the line.
 // Lines are ephemeral: any game/context switch discards them.
-let explore = null;    // { basePly, uois, sans, ofens, checks, overs, evals, dests }
+let explore = null;    // { basePly, uois, sans, ofens, checks, overs, reasons, evals, dests }
 let exploreView = 0;   // line ply on the board (>= 1 while inLine)
 let inLine = false;    // whether the board currently shows the line
 let exploreSeq = 0;    // async guard: only the latest explored move applies
@@ -3878,6 +3890,11 @@ const applyArm = (ofen, d) => {
 	const hint = document.getElementById('explore-hint');
 	if (hint) {
 		hint.classList.remove('hidden');
+		// revealing the hint shrinks the flex-sized archive move list, so the
+		// scroll renderMoveList computed against the taller list would strand
+		// the viewed (on load: final) move below the fold. Re-assert it now
+		// that the list has its post-hint height.
+		scrollActiveIntoView();
 	}
 	if (viewPly > 0 && typeof d.cp === 'number'
 		&& (history.evals[viewPly - 1] === null || history.evals[viewPly - 1] === undefined)) {
@@ -3988,11 +4005,11 @@ const exploreApply = async (uoi) => {
 		}
 		if (branchPly !== null) {
 			// branching from a game ply replaces any previous line entirely
-			explore = { basePly: branchPly, uois: [], sans: [], ofens: [], checks: [], overs: [], evals: [], dests: [] };
+			explore = { basePly: branchPly, uois: [], sans: [], ofens: [], checks: [], overs: [], reasons: [], evals: [], dests: [] };
 			exploreView = 0;
 		} else if (exploreView < explore.uois.length) {
 			// rewound mid-line: the new move replaces the tail
-			['uois', 'sans', 'ofens', 'checks', 'overs', 'evals', 'dests']
+			['uois', 'sans', 'ofens', 'checks', 'overs', 'reasons', 'evals', 'dests']
 				.forEach((k) => { explore[k].length = exploreView; });
 		}
 		explore.uois.push(uoi);
@@ -4000,6 +4017,7 @@ const exploreApply = async (uoi) => {
 		explore.ofens.push(d.o);
 		explore.checks.push(!!d.k);
 		explore.overs.push(d.over || '');
+		explore.reasons.push(d.rr || '');
 		explore.evals.push(typeof d.cp === 'number' ? d.cp : null);
 		explore.dests.push(d.v || {});
 		inLine = true;
@@ -4213,6 +4231,36 @@ const exploreLineHTML = () => {
 	return h;
 };
 
+/**
+ * scrollActiveIntoView nudges the move-list panel so the current move's cell is
+ * visible, using "nearest" semantics by hand (scrollIntoView would also scroll
+ * the page, yanking the viewport on mobile). Extracted so it can be re-run
+ * after a layout change that renderMoveList's own scroll couldn't foresee —
+ * notably the explore-hint being revealed (applyArm), which shrinks the
+ * flex-sized archive list *after* the initial render and would otherwise leave
+ * the final move parked just below the fold until the first nav step.
+ * The current move is a played-game cell (.move.active) or, while an alternate
+ * line is on the board, that line's active move (.vmove.active) — the two are
+ * mutually exclusive, so target whichever exists (an alternate line branched
+ * from a bottom-of-list ply renders its .move-var block below the fold).
+ */
+const scrollActiveIntoView = () => {
+	if (!moveListEl) {
+		return;
+	}
+	const active = moveListEl.querySelector('.move.active, .vmove.active');
+	if (!active) {
+		return;
+	}
+	const listRect = moveListEl.getBoundingClientRect();
+	const cellRect = active.getBoundingClientRect();
+	if (cellRect.top < listRect.top) {
+		moveListEl.scrollTop += cellRect.top - listRect.top;
+	} else if (cellRect.bottom > listRect.bottom) {
+		moveListEl.scrollTop += cellRect.bottom - listRect.bottom;
+	}
+};
+
 const renderMoveList = () => {
 	if (!moveListEl) {
 		return;
@@ -4259,19 +4307,7 @@ const renderMoveList = () => {
 	moveListEl.innerHTML = html;
 	moveListEl.classList.toggle('at-start', viewPly === 0);
 
-	const active = moveListEl.querySelector('.move.active');
-	if (active) {
-		// scroll only the move-list panel ("nearest" semantics by hand):
-		// scrollIntoView also scrolls the page itself, which on mobile yanks
-		// the viewport down to the move list on every move.
-		const listRect = moveListEl.getBoundingClientRect();
-		const cellRect = active.getBoundingClientRect();
-		if (cellRect.top < listRect.top) {
-			moveListEl.scrollTop += cellRect.top - listRect.top;
-		} else if (cellRect.bottom > listRect.bottom) {
-			moveListEl.scrollTop += cellRect.bottom - listRect.bottom;
-		}
-	}
+	scrollActiveIntoView();
 	updateNavButtons();
 	// every ply change funnels through here (nav buttons, keys, move-list
 	// clicks, live updates), so the last-move annotation stays in step
