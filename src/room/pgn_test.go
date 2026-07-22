@@ -51,6 +51,19 @@ func TestBuildArchivePGNDeployStart(t *testing.T) {
 		t.Errorf("deploy PGN missing %s:\n%s", want, pgn)
 	}
 
+	// the deploy's formation + matchup names are stamped from the starting OFEN:
+	// White plays PNKP (pnkp = The Citadel); Black's knpp home rank reversed to
+	// its own perspective is ppnk = The Bastion; Citadel-vs-Bastion = White Dwarf
+	for _, want := range []string{
+		`[WhiteFormation "The Citadel"]`,
+		`[BlackFormation "The Bastion"]`,
+		`[Matchup "White Dwarf"]`,
+	} {
+		if !strings.Contains(pgn, want) {
+			t.Errorf("deploy PGN missing %s:\n%s", want, pgn)
+		}
+	}
+
 	// the tagged FEN must actually drive reconstruction: re-importing the PGN has
 	// to reproduce the deployed starting position, not the standard start
 	sc := octad.NewScanner(strings.NewReader(pgn + "\n\n"))

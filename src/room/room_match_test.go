@@ -93,7 +93,7 @@ func TestMatchGameOverPayloadMidMatch(t *testing.T) {
 	r.stateMu.Lock()
 	r.game.Resign(octad.Black)
 	r.updateScoreLocked()
-	payload := r.gameOverMessageLocked(false)
+	payload := r.gameOverMessageLocked(false, "")
 	r.stateMu.Unlock()
 
 	msg := parseGameOver(t, payload)
@@ -122,7 +122,7 @@ func TestMatchGameOverPayloadMatchOver(t *testing.T) {
 	r.stateMu.Lock()
 	r.game.Resign(octad.Black)
 	r.updateScoreLocked()
-	payload := r.gameOverMessageLocked(false)
+	payload := r.gameOverMessageLocked(false, "")
 	r.stateMu.Unlock()
 
 	msg := parseGameOver(t, payload)
@@ -146,7 +146,7 @@ func TestClassicGameOverPayloadNoMatchFields(t *testing.T) {
 	r.stateMu.Lock()
 	r.game.Resign(octad.Black)
 	r.updateScoreLocked()
-	payload := r.gameOverMessageLocked(false)
+	payload := r.gameOverMessageLocked(false, "")
 	r.stateMu.Unlock()
 
 	msg := parseGameOver(t, payload)

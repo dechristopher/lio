@@ -35,6 +35,12 @@ let gameOver = false;
 // message and reset on each new game. Read by the analysis-mode copy-PGN button
 // (which is only visible once the game is over, so it's always final when read).
 let gameResult = '*';
+// serverPGN is the canonical PGN for the currently shown game, built server-side
+// (the game-over broadcast, the archive page's inline data, or a browsed game's
+// JSON) so the copy button copies exactly what was archived. Empty '' falls back
+// to client-side assembly (buildPGN). Tracks the shown game across browse/live
+// switches alongside gameResult.
+let serverPGN = '';
 // currentGameID tracks which game the board state we've applied belongs to
 // (MovePayload.i). Game-boundary transitions (rematch reset, deploy reveal) are
 // announced by single-shot broadcasts; if one is missed, the id changing on any
@@ -1899,6 +1905,12 @@ const handleGameOver = (message) => {
 			gameResult = message.d.w === 'w' ? '1-0'
 				: message.d.w === 'b' ? '0-1' : '1/2-1/2';
 		}
+		// the live-finish broadcast carries the canonical archived PGN; the copy
+		// button copies it verbatim (a resync/reconnect payload omits it, leaving
+		// serverPGN as-is or empty so buildPGN falls back to local assembly)
+		if (message.d.pgn) {
+			serverPGN = message.d.pgn;
+		}
 		showResult(message);
 		// remember the result line for the mid-board analysis annotation (hidden
 		// for now behind the result card; dismissing it hands over)
@@ -2248,7 +2260,7 @@ const applyBrowsedGame = (data) => {
 		// first hop off the live game: save its review state for the return
 		liveReview = {
 			history, currentPly, viewPly, followingLive,
-			gameResult, endAnnotationText,
+			gameResult, serverPGN, endAnnotationText,
 		};
 	}
 	browsing = data.n;
@@ -2268,6 +2280,9 @@ const applyBrowsedGame = (data) => {
 	viewPly = currentPly;
 	followingLive = false;
 	gameResult = data.outcome || '*';
+	// the browsed game's own canonical PGN, so a copy while browsing an earlier
+	// game of the match copies that game (not the live one)
+	serverPGN = data.pgn || '';
 	endAnnotationText = resultSummary({ w: data.w, r: data.r });
 
 	renderReviewPosition(currentPly);
@@ -2333,6 +2348,7 @@ const exitBrowse = () => {
 		viewPly = liveReview.viewPly;
 		followingLive = liveReview.followingLive;
 		gameResult = liveReview.gameResult;
+		serverPGN = liveReview.serverPGN;
 		endAnnotationText = liveReview.endAnnotationText;
 		liveReview = null;
 	}
@@ -4471,15 +4487,18 @@ const standardStartOFEN = 'ppkn/4/4/NKPP w NCFncf - 0 1';
 const pgnEscape = (s) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 
 /**
- * buildPGN assembles the finished game's PGN from the server-sent per-ply
- * history, mirroring the server's archival buildArchivePGN: a tag roster, a
- * SetUp/FEN pair when the game began off the standard start, and numbered SAN
- * movetext ending in the result token. Player names come from the match
- * timeline rows, mapped to colors via the bottom-is-white/player convention
- * that orients the whole page (see isPlayerWhite).
+ * buildPGN returns the finished game's PGN. The canonical form is built
+ * server-side (the game-over broadcast, the archive page, or a browsed game's
+ * JSON) and copied verbatim so it's byte-for-byte what was archived — including
+ * the opening/matchup name tags and per-move %clk comments. Only when that
+ * server PGN is absent (an older payload, a resync/reconnect) does it fall back
+ * to assembling a PGN from the per-ply history + timeline names.
  * @returns {string} the PGN text
  */
 const buildPGN = () => {
+	if (serverPGN) {
+		return serverPGN;
+	}
 	const sans = history.sans || [];
 	const startOFEN = (history.ofens && history.ofens[0]) || standardStartOFEN;
 
@@ -4585,6 +4604,9 @@ const hydrateArchive = () => {
 
 	gameOver = true;
 	gameResult = archiveData.outcome || '*';
+	// the archive page rebuilds the game's canonical PGN from the DB row and
+	// inlines it; the copy button copies it verbatim
+	serverPGN = archiveData.pgn || '';
 	history = {
 		uois: b.m || [], sans: b.sm || [], ofens: b.om || [],
 		times: b.mt || [], clocks: b.ct || [],

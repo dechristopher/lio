@@ -3,7 +3,6 @@ package room
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/lag"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/opening"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
@@ -1203,7 +1203,9 @@ func (r *Instance) GameOverStateMessage() []byte {
 		}
 	}
 
-	return r.buildGameOverMessageLocked(false, rematchWin, nextGameIn)
+	// resync/reconnect payload carries no PGN (the client falls back to local
+	// assembly); the canonical PGN rides only the live-finish broadcast
+	return r.buildGameOverMessageLocked(false, rematchWin, nextGameIn, "")
 }
 
 // currentGameStateMessageLocked builds the current board-state payload. The
@@ -1625,7 +1627,6 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	}
 
 	stateMsg := r.currentGameStateMessageLocked(true, false)
-	overMsg := r.gameOverMessageLocked(abandoned)
 	event := r.gameOverEventLocked()
 
 	// snapshot the terminal position for the TV stream; the room keeps its grid
@@ -1633,10 +1634,11 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// shown board on the final position
 	tvEnd := r.tvEventLocked(tv.End)
 
-	// shallow value-copy of the game taken under the lock. The room routine is
-	// the only writer and the game is now terminal, so subsequent storeGame
-	// mutations (AddTagPair) only ever grow the copy's slices via append and do
-	// not affect the live game that readers may still observe.
+	// shallow value-copy of the game taken under the lock: a consistent terminal
+	// snapshot for both the synchronous PGN build below and the async DB archival
+	// in storeGame. The room routine is the only writer and the game is now
+	// terminal; BuildPGN only reads this copy, so the live game readers may still
+	// observe is untouched.
 	gameCopy := *r.game
 
 	// capture the room-level archive context while still under the lock: scores
@@ -1666,6 +1668,16 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 		archiveRec.BotPersona = r.botPersona().Key
 	}
 
+	// build the canonical PGN once, under the lock, from the finished game copy
+	// and the archive record. The same string is archived to object storage and
+	// rides the game-over broadcast, so the client's copy button copies exactly
+	// what was archived, and the archive-page rebuild (from the DB row) matches
+	// it byte-for-byte (see buildArchivePGN / game.BuildPGN). end is the one
+	// finish time shared by the PGN and the DB row's end_ts.
+	end := time.Now()
+	pgn := buildArchivePGN(gameCopy, archiveRec, end)
+	overMsg := r.gameOverMessageLocked(abandoned, pgn)
+
 	r.stateMu.Unlock()
 
 	// send final game update to prevent further moves, then the game over
@@ -1673,8 +1685,8 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	channel.Broadcast(stateMsg, meta)
 	channel.Broadcast(overMsg, meta)
 
-	// archive the game off the hot path
-	go storeGame(gameCopy, archiveRec)
+	// archive the game off the hot path, reusing the PGN + finish time
+	go storeGame(gameCopy, archiveRec, pgn, end)
 
 	// stream the final position to home-page TV viewers
 	tv.Publish(tvEnd)
@@ -1750,24 +1762,17 @@ func seatArchiveName(p *player.Player) string {
 	return "Anonymous"
 }
 
-// buildArchivePGN assembles the archival PGN for a finished game: the standard
-// tag-pair roster plus, for games that don't begin from the standard octad start
-// (deploy-mode games start from a rearranged home rank), a SetUp/FEN tag pair
-// carrying the starting OFEN so the game can be replayed from the correct
-// initial position for analysis and database import. end is the game's finish
-// time, recorded as EndDate/EndTime so a later archive backfill can recover an
-// accurate end_ts rather than approximating it from the start.
+// buildArchivePGN assembles the archival PGN for a finished game via the shared
+// game.BuildPGN builder, so this live archival path and the archive-page rebuild
+// (www/handlers, from the DB row) produce byte-identical output — the guarantee
+// behind the copy button. It fills the tag inputs from the finished game copy
+// and the room-level record: seat display names and the DB-canonical reason
+// token come from rec, the opening/matchup names from the starting OFEN, and
+// everything else from the game. end is the finish time (EndDate/EndTime), so a
+// later archive backfill recovers an accurate end_ts.
 func buildArchivePGN(g game.OctadGame, rec db.GameRecord, end time.Time) string {
-	// the Result token is octad's outcome encoding ("1-0", "0-1", "1/2-1/2", "*")
-	result := string(g.Game.Outcome())
-
-	// get game state message for Reason field
-	_, state := genGameOverState(&g)
-
-	// seat display names for the standard White/Black tags (username / "BOT" /
-	// "Anonymous"); the raw session uids move to the WhiteUID/BlackUID tags, so
-	// the analytics/backfill path keeps machine identity while the PGN reads
-	// human. Fall back to the uid if a name wasn't captured (defensive).
+	// seat display names for the White/Black tags (username / "BOT" / "Anonymous");
+	// fall back to the uid if a name wasn't captured (defensive)
 	whiteName, blackName := rec.WhiteName, rec.BlackName
 	if whiteName == "" {
 		whiteName = g.White
@@ -1776,80 +1781,32 @@ func buildArchivePGN(g game.OctadGame, rec db.GameRecord, end time.Time) string 
 		blackName = g.Black
 	}
 
-	// encode PGN tag pairs
-	g.Game.AddTagPair("Event", "Lioctad Test Match")
-	g.Game.AddTagPair("Site", "https://lioctad.org")
-	g.Game.AddTagPair("Date", g.Start.Format("2006.01.02"))
-	g.Game.AddTagPair("Variant", g.Variant.Name)
-	g.Game.AddTagPair("Group", string(g.Variant.Group))
-	g.Game.AddTagPair("White", whiteName)
-	g.Game.AddTagPair("Black", blackName)
-	g.Game.AddTagPair("WhiteUID", g.White)
-	g.Game.AddTagPair("BlackUID", g.Black)
-	g.Game.AddTagPair("Result", result)
-	g.Game.AddTagPair("Reason", state)
-	g.Game.AddTagPair("Time", g.Start.Format("15:04:05"))
-	g.Game.AddTagPair("EndDate", end.Format("2006.01.02"))
-	g.Game.AddTagPair("EndTime", end.Format("15:04:05"))
+	// opening + matchup names, derived purely from the starting position so both
+	// the archived and copied PGN carry them consistently
+	startOFEN := g.Game.Positions()[0].String()
+	whiteFormation, blackFormation, matchup, _ := opening.Names(startOFEN)
 
-	// record a non-standard starting position (e.g. a deploy-mode game) as a
-	// SetUp/FEN tag pair so the movetext replays from the correct initial OFEN.
-	// The value is octad's OFEN, but the tag key must be the PGN-standard "FEN":
-	// that's the only key octad's own PGN decoder (and database Scanner) reads to
-	// seed a custom start — an "OFEN" key is silently ignored and the game would
-	// re-import from the standard position. See TestBuildArchivePGNDeployStart.
-	if start, serr := octad.StartingPosition(); serr == nil {
-		if startOFEN := g.Game.Positions()[0].String(); startOFEN != start.String() {
-			g.Game.AddTagPair("SetUp", "1")
-			g.Game.AddTagPair("FEN", startOFEN)
-		}
-	}
-
-	// compose the PGN here rather than via octad's Game.String so the movetext
-	// can carry per-ply %clk comments (octad's encoder has no comment support;
-	// its decoder strips comments, so the PGN replays/backfills identically)
-	var sb strings.Builder
-	for _, tag := range g.Game.TagPairs() {
-		fmt.Fprintf(&sb, "[%s \"%s\"]\n", tag.Key, tag.Value)
-	}
-	sb.WriteByte('\n')
-	sb.WriteString(archiveMovetext(&g.Game, g.MoveTimes))
-	sb.WriteString(" " + result)
-	return sb.String()
-}
-
-// archiveMovetext renders the numbered SAN movetext, with a { [%clk h:mm:ss] }
-// comment after each move — the mover's remaining clock, Lichess-style — when
-// per-ply timing was recorded (times parallel to the move list; an untimed or
-// desynced record emits plain movetext).
-func archiveMovetext(g *octad.Game, times []game.MoveTime) string {
-	positions := g.Positions()
-	moves := g.Moves()
-	timed := len(times) == len(moves)
-	var sb strings.Builder
-	for i, m := range moves {
-		if i > 0 {
-			sb.WriteByte(' ')
-		}
-		if i%2 == 0 {
-			fmt.Fprintf(&sb, "%d. ", i/2+1)
-		}
-		sb.WriteString(octad.AlgebraicNotation{}.Encode(positions[i], m))
-		if timed {
-			fmt.Fprintf(&sb, " { [%%clk %s] }", formatClk(times[i].ClockMs))
-		}
-	}
-	return sb.String()
-}
-
-// formatClk renders a remaining-clock milliseconds value in the PGN %clk
-// h:mm:ss.cc form (octad games are short enough that centis matter).
-func formatClk(ms int64) string {
-	if ms < 0 {
-		ms = 0
-	}
-	return fmt.Sprintf("%d:%02d:%02d.%02d",
-		ms/3600000, ms%3600000/60000, ms%60000/1000, ms%1000/10)
+	return game.BuildPGN(game.PGNMeta{
+		Event:    "Lioctad Test Match",
+		Site:     "https://lioctad.org",
+		Variant:  g.Variant.Name,
+		Group:    string(g.Variant.Group),
+		White:    whiteName,
+		Black:    blackName,
+		WhiteUID: g.White,
+		BlackUID: g.Black,
+		Result:   string(g.Game.Outcome()),
+		// the DB-canonical short method token, so an archive-page rebuild from
+		// games.reason reproduces this exact tag (the display sentence lives in
+		// the live status message, not the archive)
+		Reason:         rec.Reason,
+		Start:          g.Start,
+		End:            end,
+		StartOFEN:      startOFEN,
+		WhiteFormation: whiteFormation,
+		BlackFormation: blackFormation,
+		Matchup:        matchup,
+	}, &g.Game, g.MoveTimes)
 }
 
 // storeGame archives a finished game two ways, both off the hot path: the PGN
@@ -1857,11 +1814,11 @@ func formatClk(ms int64) string {
 // plus deduped move/position analytics to Postgres. rec carries the room-level
 // context captured under stateMu by the caller; the game-derived fields come
 // from g here. Both writes degrade gracefully when their store is unconfigured.
-func storeGame(g game.OctadGame, rec db.GameRecord) {
-	// one finish time, shared by the PGN (EndDate/EndTime) and the DB row (end_ts)
-	end := time.Now()
-	pgn := buildArchivePGN(g, rec, end)
-
+// pgn is the canonical PGN built once at game-over (see tryGameOver) and shared
+// with the live game-over broadcast, so the object-store archive, the DB row's
+// end_ts, and the client's copy button all describe the same instant. end is
+// that same finish time.
+func storeGame(g game.OctadGame, rec db.GameRecord, pgn string, end time.Time) {
 	util.DebugFlag("pgn", "PGN", "%s", pgn)
 
 	// year/month/day/HH:MM:SSTZ-(inserted-time-unix).pgn
@@ -2222,7 +2179,7 @@ func genBlackWinState(g *game.OctadGame) (int, string) {
 // GameOverStateMessage builds the equivalent payload with the remaining
 // window for a (re)connecting client. The caller must hold stateMu (it reads
 // the game, clock, and players).
-func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
+func (r *Instance) gameOverMessageLocked(abandoned bool, pgn string) []byte {
 	rematchWin := 0
 	nextGameIn := 0
 	if !abandoned && !r.players.HasBot() {
@@ -2233,7 +2190,7 @@ func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 		}
 	}
 
-	return r.buildGameOverMessageLocked(abandoned, rematchWin, nextGameIn)
+	return r.buildGameOverMessageLocked(abandoned, rematchWin, nextGameIn, pgn)
 }
 
 // buildGameOverMessageLocked assembles the game over payload with the human
@@ -2241,8 +2198,11 @@ func (r *Instance) gameOverMessageLocked(abandoned bool) []byte {
 // auto-rematched nor time-boxed) or, for an undecided race-to match, the
 // auto-advance countdown (nextGameIn) — never both. Callers set the full
 // window on a live finish and the remaining window for a (re)connecting
-// client. The caller must hold stateMu (it reads the game, clock, and players).
-func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int, nextGameIn int) []byte {
+// client. pgn is the finished game's canonical PGN, carried only on the live
+// finish broadcast so an analyzing client can copy exactly what was archived; a
+// (re)connecting resync passes "" (its client falls back to local assembly).
+// The caller must hold stateMu (it reads the game, clock, and players).
+func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int, nextGameIn int, pgn string) []byte {
 	var id int
 	var status string
 
@@ -2276,6 +2236,9 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int, ne
 		RaceTo:     r.params.RaceTo,
 		MatchOver:  matchOver,
 		NextGameIn: nextGameIn,
+		// the finished game's canonical PGN (live finish only), so the copy
+		// button copies exactly what was archived
+		PGN: pgn,
 	}
 
 	return gameOver.Marshal()

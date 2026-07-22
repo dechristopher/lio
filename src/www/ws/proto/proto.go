@@ -321,6 +321,11 @@ type GameOverPayload struct {
 	// undecided match auto-starts (the mid-match interlude). Mutually exclusive
 	// with RematchWindow: mid-match game-overs carry no rematch affordance.
 	NextGameIn int `json:"ng,omitempty"`
+	// PGN is the finished game's canonical archival PGN, present only on the
+	// live game-over broadcast (not on resync/reconnect payloads). It lets an
+	// analyzing client's copy button copy exactly what was archived — built by
+	// the same game.BuildPGN the archive path uses — instead of re-deriving it.
+	PGN string `json:"pgn,omitempty"`
 }
 
 // RematchUpdatePayload retimes the human rematch-window countdown mid-window

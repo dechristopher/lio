@@ -36,6 +36,10 @@ type ArchiveData struct {
 	Reason string `json:"r"`
 	// Outcome is the PGN result token ("1-0", "0-1", "1/2-1/2") for copy-PGN.
 	Outcome string `json:"outcome"`
+	// PGN is the game's canonical PGN, rebuilt server-side from the archived row
+	// (never fetched from the object store). The copy button copies it verbatim,
+	// so a copied PGN is byte-for-byte what was archived.
+	PGN string `json:"pgn,omitempty"`
 }
 
 // ArchiveGameData is the response of the archived-game JSON endpoint
@@ -56,6 +60,10 @@ type ArchiveGameData struct {
 	Winner  string            `json:"w"`
 	Reason  string            `json:"r"`
 	Outcome string            `json:"outcome"`
+	// PGN is the browsed game's canonical PGN, rebuilt from its archived row, so
+	// the copy button copies what was archived even for a non-live game of the
+	// match. Immutable like the rest of this cacheable response.
+	PGN string `json:"pgn,omitempty"`
 }
 
 // ArchiveModel is everything the archived room/game page renders server-side:
@@ -120,7 +128,15 @@ type ArchiveModel struct {
 	TCCenti int64
 	// EndedDate is the selected game's end date for the info line.
 	EndedDate string
-	Data      ArchiveData
+	// Matchup is this game's opening name (the White-vs-Black formation clash,
+	// e.g. "Tidal Siege"); Bottom/TopFormation are the two sides' formation
+	// names ("The Standard", ...) oriented to the board's bottom/top seats. All
+	// three are empty when the starting position doesn't resolve to a named
+	// deploy (defensive; a real game always resolves).
+	Matchup         string
+	BottomFormation string
+	TopFormation    string
+	Data            ArchiveData
 }
 
 // archiveModeLabel mirrors the live rail's Casual/Competitive tag.

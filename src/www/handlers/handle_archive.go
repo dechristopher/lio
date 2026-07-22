@@ -9,6 +9,7 @@ import (
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/db/gen"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/opening"
 	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
@@ -131,6 +132,9 @@ func ArchiveGameJSONHandler(c fiber.Ctx) error {
 		Winner:  winnerFromOutcome(g.Outcome),
 		Reason:  g.Reason,
 		Outcome: g.Outcome,
+		// canonical PGN for a browsed earlier game's copy button; immutable like
+		// the rest of this response (a pure function of the archived row)
+		PGN: archivePGN(g, og),
 	})
 }
 
@@ -235,6 +239,15 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		}
 	}
 
+	// opening + matchup names for this game, oriented to the board's bottom/top
+	// seats (white sits bottom unless the viewer played black). The matchup name
+	// itself is orientation-independent (it names the White-vs-Black clash).
+	whiteFormation, blackFormation, matchupName, _ := opening.Names(selected.StartingOfen)
+	bottomFormation, topFormation := whiteFormation, blackFormation
+	if orientation == "b" {
+		bottomFormation, topFormation = blackFormation, whiteFormation
+	}
+
 	model := view.ArchiveModel{
 		RoomID:            selected.RoomID,
 		VariantName:       selected.VariantName,
@@ -262,6 +275,9 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		H2HShow:           h2hShow,
 		TCCenti:           archiveTimeCenti(selected.VariantName, selected.VariantGroup),
 		EndedDate:         selected.EndTs.Time.Format("Jan 2, 2006"),
+		Matchup:           matchupName,
+		BottomFormation:   bottomFormation,
+		TopFormation:      topFormation,
 		Data:              buildArchiveData(games, selected, og),
 	}
 
@@ -369,6 +385,52 @@ func boardPayload(g gen.Game, og *game.OctadGame) proto.MovePayload {
 	return payload
 }
 
+// archivePGN rebuilds a finished game's canonical PGN from its archived row, via
+// the same game.BuildPGN the live archival path uses — so the copy button (which
+// copies this) yields byte-for-byte what was archived, without fetching the
+// stored object. Per-ply %clk comments come from the moves table; a game
+// archived before timing was recorded (or with Postgres unavailable) emits plain
+// movetext. The opening/matchup names derive purely from the starting OFEN.
+func archivePGN(g gen.Game, og *game.OctadGame) string {
+	times, err := db.ListGameMoveTimes(g.ID)
+	if err != nil || len(times) != len(og.Moves()) {
+		times = nil
+	}
+	white, black, matchup, _ := opening.Names(g.StartingOfen)
+	return game.BuildPGN(game.PGNMeta{
+		Event:          "Lioctad Test Match",
+		Site:           "https://lioctad.org",
+		Variant:        g.VariantName,
+		Group:          g.VariantGroup,
+		White:          archiveSeatName(g.WhiteUid, g.WhiteUserID),
+		Black:          archiveSeatName(g.BlackUid, g.BlackUserID),
+		WhiteUID:       g.WhiteUid,
+		BlackUID:       g.BlackUid,
+		Result:         g.Outcome,
+		Reason:         g.Reason,
+		Start:          g.StartTs.Time,
+		End:            g.EndTs.Time,
+		StartOFEN:      g.StartingOfen,
+		WhiteFormation: white,
+		BlackFormation: black,
+		Matchup:        matchup,
+	}, &og.Game, times)
+}
+
+// archiveSeatName reproduces room.seatArchiveName from the archived row so the
+// rebuilt PGN's White/Black tags match what the live path wrote: "BOT" for the
+// engine seat (no uid and no account), the account username for a logged-in
+// human, else "Anonymous".
+func archiveSeatName(uid string, userID *int64) string {
+	if isBotSeat(uid, userID) {
+		return "BOT"
+	}
+	if name, _ := db.UserDisplayForID(userID); name != "" {
+		return name
+	}
+	return "Anonymous"
+}
+
 // buildArchiveData assembles the client hydration payload for the selected
 // game of a match, reusing the live proto payload shapes (see
 // view.ArchiveData). Score and history are keyed by the selected game's seats.
@@ -382,6 +444,9 @@ func buildArchiveData(games []gen.Game, selected gen.Game, og *game.OctadGame) v
 		Winner:  winnerFromOutcome(selected.Outcome),
 		Reason:  selected.Reason,
 		Outcome: selected.Outcome,
+		// the canonical PGN rebuilt from this row, so the copy button copies
+		// exactly what was archived without fetching the stored object
+		PGN: archivePGN(selected, og),
 	}
 
 	// cached per-ply engine evals drive the archive eval bar. Only on this

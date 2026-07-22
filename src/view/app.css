@@ -723,7 +723,7 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.8rem;
+		font-size: 0.9rem;
 		line-height: 1;
 		color: var(--accent);
 		transform: translateY(-0.18em);
@@ -899,6 +899,25 @@
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		color: var(--accent);
+	}
+	/* This game's opening, under the rail title on the archive board: the matchup
+	   name (e.g. "Tidal Siege") with the two sides' deploy formations beneath. */
+	.opening-name {
+		display: flex;
+		flex-direction: column;
+		gap: 0.05rem;
+		margin-top: 0.35rem;
+	}
+	.opening-matchup {
+		font-size: 0.82rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.opening-formations {
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		color: var(--text-muted);
 	}
 	/* Copy-PGN icon button: hidden during play, shown once the finished game is
 	   being reviewed (.analyzing on the game grid). .copied briefly swaps the
