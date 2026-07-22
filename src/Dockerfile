@@ -8,7 +8,7 @@
 # self-contained: no sibling repos, no local Tailwind binary, no manual copying.
 
 # ---- octadground: fetch the pinned source and build the minified board bundle
-FROM node:22-bookworm-slim AS assets-octadground
+FROM node:24-bookworm-slim AS assets-octadground
 # renovate: datasource=github-tags depName=dechristopher/octadground
 ARG OCTADGROUND_REF=v7.12.2
 RUN apt-get update \
