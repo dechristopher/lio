@@ -355,7 +355,7 @@ func NewCustomRoom(c fiber.Ctx) error {
 // difficulty modal, or a query param on the rematch fallback URL; unset/legacy
 // resolves to the full-strength Queen.
 func NewRoomVsComputer(c fiber.Ctx) error {
-	selectedVariant := variant.HalfOneBlitzDeploy
+	selectedVariant := variant.OneTwoRapidDeploy
 	if tc := c.Query("tc"); tc != "" {
 		if v, ok := pools.Map[tc]; ok {
 			selectedVariant = v
