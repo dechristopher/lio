@@ -60,7 +60,7 @@ func TestRatingUpdate(t *testing.T) {
 	res := apply(GameRecord{
 		Rated: true, WhiteUserID: &white, BlackUserID: &black,
 		WhiteUID: "wuid", BlackUID: "buid",
-		Outcome: "1-0", VariantGroup: cat,
+		Outcome: "1-0", RatingCategory: cat,
 	})
 	if res == nil || res.White.Delta <= 0 || res.Black.Delta >= 0 {
 		t.Fatalf("rating result: %+v (want white>0, black<0)", res)
@@ -86,10 +86,10 @@ func TestRatingUpdate(t *testing.T) {
 
 	// no-op guards: casual, aborted, same-account, anon seat all leave ratings put
 	before := RatingOrDefault(white, cat)
-	apply(GameRecord{Rated: false, WhiteUserID: &white, BlackUserID: &black, Outcome: "1-0", VariantGroup: cat})
-	apply(GameRecord{Rated: true, WhiteUserID: &white, BlackUserID: &black, Outcome: "*", VariantGroup: cat})
-	apply(GameRecord{Rated: true, WhiteUserID: &white, BlackUserID: &white, Outcome: "1-0", VariantGroup: cat})
-	apply(GameRecord{Rated: true, WhiteUserID: &white, BlackUserID: nil, Outcome: "1-0", VariantGroup: cat})
+	apply(GameRecord{Rated: false, WhiteUserID: &white, BlackUserID: &black, Outcome: "1-0", RatingCategory: cat})
+	apply(GameRecord{Rated: true, WhiteUserID: &white, BlackUserID: &black, Outcome: "*", RatingCategory: cat})
+	apply(GameRecord{Rated: true, WhiteUserID: &white, BlackUserID: &white, Outcome: "1-0", RatingCategory: cat})
+	apply(GameRecord{Rated: true, WhiteUserID: &white, BlackUserID: nil, Outcome: "1-0", RatingCategory: cat})
 	if after := RatingOrDefault(white, cat); after.R != before.R || after.Games != before.Games {
 		t.Errorf("no-op game changed rating: %v -> %v", before, after)
 	}

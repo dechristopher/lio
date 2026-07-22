@@ -53,12 +53,17 @@ type GameRecord struct {
 	BlackUID     string
 	VariantName  string
 	VariantGroup string
-	Casual       bool
-	Outcome      string
-	Method       int16
-	StartingOFEN string
-	Moves        []byte
-	PGNObjectKey string
+	// RatingCategory keys the Glicko-2 rating update per exact time control (the
+	// variant HTMLName, e.g. "one-two-rapid-deploy"), decoupled from VariantGroup
+	// (which stays the speed group for archive/OG display). Empty for games that
+	// never rate — applyRatingUpdate only reads it for rated games anyway.
+	RatingCategory string
+	Casual         bool
+	Outcome        string
+	Method         int16
+	StartingOFEN   string
+	Moves          []byte
+	PGNObjectKey   string
 }
 
 // PlyRecord is one ply of the derived move/position analytics index: the packed

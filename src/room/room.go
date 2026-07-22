@@ -289,9 +289,12 @@ func NewParams(creator player.Identity, variant variant.Variant) Params {
 }
 
 // ratingCategory is the Glicko-2 category string for the room's variant — the
-// same value archiveGame keys the rating update by (variant speed group).
+// same value archiveGame keys the rating update by. Ratings are tracked per
+// exact time control (and thus per game mode): the variant's HTMLName uniquely
+// encodes mode + time control (e.g. "one-two-rapid-deploy"), so a bullet game
+// and a rapid game move separate ratings instead of a single "deploy" pool.
 func (params Params) ratingCategory() string {
-	return string(params.GameConfig.Variant.Group)
+	return params.GameConfig.Variant.HTMLName
 }
 
 // captureSeatRating snapshots a seat's Glicko-2 display rating at seat-claim so
@@ -1854,6 +1857,10 @@ func archiveToDatabase(g game.OctadGame, rec db.GameRecord, pgnKey string, end t
 	rec.BlackUID = g.Black
 	rec.VariantName = g.Variant.Name
 	rec.VariantGroup = string(g.Variant.Group)
+	// RatingCategory keys the Glicko-2 update per exact time control (the
+	// variant HTMLName), decoupled from VariantGroup, which stays the speed
+	// group ("rapid"/"deploy") for archive/OG display.
+	rec.RatingCategory = g.Variant.HTMLName
 	rec.Casual = g.Variant.Casual
 	rec.Outcome = g.Outcome().String()
 	rec.Method = int16(g.Method())

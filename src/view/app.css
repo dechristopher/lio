@@ -1732,7 +1732,7 @@
 	/* profile popover: collapsible account-admin sections + the active-sessions
 	   list. The <details> summary is a compact row with a rotating caret. */
 	.account-section {
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: 0.5rem;
 		background: var(--surface-2);
 		overflow: hidden;
@@ -1903,19 +1903,39 @@
 	}
 	.recovery-warn { font-size: 0.74rem; font-weight: 600; color: var(--warn); }
 
-	/* profile popover ratings summary (Phase 5): compact per-category chips */
-	.rating-summary { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-	.rating-chip {
+	/* profile popover ratings summary (Phase 5): uniform rectangular cards, one
+	   per time control, grouped by game mode. The default deploy mode ("Octad")
+	   renders no header — a future non-default mode surfaces as a .rating-mode
+	   eyebrow over its own grid. (Distinct from the challenger-list .rating-chip
+	   pill defined elsewhere.) */
+	.rating-summary { display: flex; flex-direction: column; gap: 0.5rem; }
+	.rating-mode {
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-subtle);
+	}
+	.rating-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
+		gap: 0.4rem;
+	}
+	.rating-card {
 		display: flex;
-		align-items: baseline;
-		gap: 0.35rem;
-		padding: 0.3rem 0.55rem;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.1rem;
+		padding: 0.45rem 0.4rem;
 		border: 1px solid var(--border);
 		border-radius: 0.5rem;
 		background: var(--surface-2);
+		text-align: center;
 	}
-	.rating-cat { font-size: 0.66rem; font-weight: 600; text-transform: capitalize; color: var(--text-subtle); }
-	.rating-val { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+	.rating-tc { font-size: 0.72rem; font-weight: 600; color: var(--text-subtle); }
+	.rating-val { font-size: 1.05rem; font-weight: 700; line-height: 1.1; color: var(--text); }
+	.rating-speed { font-size: 0.62rem; font-weight: 600; text-transform: capitalize; color: var(--text-subtle); }
 
 	/* the create-game modal is a wider, richer, horizontal two-panel dialog; it
 	   reuses the shared .modal-shade/.modal-close chrome but overrides the box */

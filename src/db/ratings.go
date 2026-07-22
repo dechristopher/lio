@@ -105,7 +105,7 @@ func applyRatingUpdate(ctx context.Context, q *gen.Queries, rec GameRecord) (*Ra
 	default:
 		return nil, nil // aborted / no result — ratings untouched
 	}
-	category := rec.VariantGroup
+	category := rec.RatingCategory
 
 	// lock both rows in a stable global order (ascending user_id)
 	lockOrder := []int64{white, black}

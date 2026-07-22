@@ -89,3 +89,45 @@ var CreateControls = []CreateControl{
 		Deploy:  variant.ThreeFiveRapidDeploy,
 	},
 }
+
+// RatingCategoryInfo describes how a rating category (a variant HTMLName, the
+// per-time-control Glicko-2 key) is displayed in the profile popover: its time
+// control, speed group, and game mode. Mode is empty for the default deploy mode
+// (surfaced as "Octad", so the UI shows no mode header); a future non-default
+// mode carries its own label so it can be grouped under one.
+type RatingCategoryInfo struct {
+	TimeControl string // shared time-control label, e.g. "1 + 2"
+	Speed       string // speed group: "bullet" / "blitz" / "rapid"
+	Mode        string // "" for the default deploy mode; e.g. "Classic" otherwise
+	Order       int    // canonical sort order (bullet < blitz < 1+2 < 3+5)
+}
+
+// ratingCategories maps every rateable variant HTMLName to its display info,
+// built once from CreateControls — the only place the deploy variant → speed
+// group mapping survives, since deploy variants themselves carry Group "deploy".
+var ratingCategories = map[string]RatingCategoryInfo{}
+
+func init() {
+	for i, ctrl := range CreateControls {
+		ratingCategories[ctrl.Deploy.HTMLName] = RatingCategoryInfo{
+			TimeControl: ctrl.Label,
+			Speed:       ctrl.Group.String(),
+			Mode:        "", // default deploy mode — surfaced as Octad, no header
+			Order:       i,
+		}
+		ratingCategories[ctrl.Classic.HTMLName] = RatingCategoryInfo{
+			TimeControl: ctrl.Label,
+			Speed:       ctrl.Group.String(),
+			Mode:        "Classic",
+			Order:       i,
+		}
+	}
+}
+
+// LookupRatingCategory resolves a rating category (a variant HTMLName) to its
+// display info. ok is false for an unknown category — e.g. a legacy row that no
+// longer maps to a curated variant.
+func LookupRatingCategory(htmlName string) (RatingCategoryInfo, bool) {
+	info, ok := ratingCategories[htmlName]
+	return info, ok
+}

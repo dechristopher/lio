@@ -139,9 +139,28 @@
 					ratingsSummary.innerHTML = '<p class="auth-hint">No rated games yet.</p>';
 					return;
 				}
-				ratingsSummary.innerHTML = '<div class="rating-summary">' + rows.map((r) =>
-					`<div class="rating-chip"><span class="rating-cat">${esc(r.category)}</span><span class="rating-val">${esc(r.rating)}</span></div>`
-				).join('') + '</div>';
+				// rows arrive sorted (default mode first, then bullet<blitz<rapid).
+				// Group by game mode into uniform rectangular cards; a mode header
+				// renders only for a non-default mode — the default deploy mode is
+				// surfaced simply as Octad, so today there is no header, just cards.
+				let html = '<div class="rating-summary">';
+				let curMode = null;
+				rows.forEach((r) => {
+					const mode = r.mode || '';
+					if (mode !== curMode) {
+						if (curMode !== null) { html += '</div>'; } // close prior grid
+						if (mode) { html += `<div class="rating-mode">${esc(mode)}</div>`; }
+						html += '<div class="rating-grid">';
+						curMode = mode;
+					}
+					html += '<div class="rating-card">'
+						+ `<span class="rating-tc">${esc(r.timeControl)}</span>`
+						+ `<span class="rating-val">${esc(r.rating)}</span>`
+						+ `<span class="rating-speed">${esc(r.speed)}</span>`
+						+ '</div>';
+				});
+				html += '</div></div>'; // close last grid + summary
+				ratingsSummary.innerHTML = html;
 			} catch (e) {
 				ratingsSummary.dataset.loaded = 'false'; // allow a retry on reopen
 			}
