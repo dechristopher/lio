@@ -685,13 +685,13 @@
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		grid-template-rows: auto auto;
-		column-gap: 0.7rem;
-		row-gap: 0.3rem;
+		column-gap: 0.8rem;
+		row-gap: 0.35rem;
 		align-items: center;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--surface-2);
-		padding: 0.45rem 0.7rem;
+		padding: 0.55rem 0.8rem;
 	}
 	.tl-id {
 		grid-column: 1;
@@ -701,7 +701,7 @@
 		min-width: 0;
 	}
 	.tl-name {
-		font-size: 0.72rem;
+		font-size: 0.82rem;
 		font-weight: 600;
 		/* case-preserved usernames (see .clockName) */
 		color: var(--text-muted);
@@ -709,21 +709,21 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		min-width: 0;
-		max-width: 9rem;
+		max-width: 10rem;
 	}
 	/* bot seat badge in the timeline rows (seatBotMarker): the generic CPU icon
 	   plus the difficulty-persona piece glyph, mirroring the clock. Grouped tight
 	   in .tl-seat so there's one gap to the name; the glyph is accent-tinted and
 	   nudged up (like .clockBotGlyph) to optically center the low-sitting piece
 	   against the name text. */
-	.tl-seat { flex: none; display: inline-flex; align-items: center; gap: 0.25rem; }
+	.tl-seat { flex: none; display: inline-flex; align-items: center; gap: 0.3rem; }
 	.tl-seat-bot { display: inline-flex; align-items: center; color: var(--text-subtle); }
-	.tl-seat-ico { width: 0.72rem; height: 0.72rem; display: block; }
+	.tl-seat-ico { width: 0.82rem; height: 0.82rem; display: block; }
 	.tl-seat-glyph {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.9rem;
+		font-size: 1rem;
 		line-height: 1;
 		color: var(--accent);
 		transform: translateY(-0.18em);
@@ -736,7 +736,7 @@
 		order: -1;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.82rem;
+		font-size: 0.92rem;
 		font-weight: 700;
 		color: var(--text-subtle);
 		min-width: 1ch;
@@ -750,7 +750,7 @@
 		flex: none;
 		order: -1;
 		width: 1px;
-		height: 0.85em;
+		height: 0.95em;
 		background: var(--border);
 		align-self: center;
 	}
@@ -759,17 +759,17 @@
 		margin-left: auto;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.82rem;
+		font-size: 0.92rem;
 		font-weight: 700;
 		color: var(--text);
-		min-width: 1.1rem;
+		min-width: 1.25rem;
 		text-align: right;
 	}
 	.tl-games {
 		grid-column: 2;
 		grid-row: 1 / span 2;
 		display: flex;
-		gap: 0.15rem;
+		gap: 0.18rem;
 		overflow-x: auto;
 		scrollbar-width: none;
 	}
@@ -786,15 +786,15 @@
 		flex-direction: column;
 		align-items: stretch;
 		justify-content: space-between;
-		width: 1.45rem;
-		padding: 0.14rem 0 0.2rem;
+		width: 1.65rem;
+		padding: 0.16rem 0 0.22rem;
 		border: 0;
 		border-radius: 5px;
 		background: none;
 		position: relative;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.7rem;
+		font-size: 0.8rem;
 		font-weight: 700;
 		color: var(--text-subtle);
 		cursor: default;
@@ -806,7 +806,7 @@
 		align-items: baseline;
 		justify-content: center;
 		gap: 1px;
-		line-height: 1rem;
+		line-height: 1.15rem;
 		padding-bottom: 3px;
 		color: var(--text-subtle);
 	}
@@ -818,7 +818,7 @@
 		left: 50%;
 		transform: translateX(-50%);
 		bottom: 1px;
-		width: 0.8rem;
+		width: 0.9rem;
 		height: 2px;
 		border-radius: 2px;
 	}
@@ -841,9 +841,9 @@
 		align-self: center;
 		font-family: var(--font-sans);
 		font-weight: 600;
-		font-size: 0.55rem;
+		font-size: 0.62rem;
 	}
-	.tl-glyph svg { width: 0.55rem; height: 0.55rem; display: block; }
+	.tl-glyph svg { width: 0.62rem; height: 0.62rem; display: block; }
 	/* the in-progress game's column: a single pulsing dot, no box */
 	.tl-game.tl-live {
 		align-items: center;
@@ -852,8 +852,8 @@
 	}
 	.tl-game.tl-live::before {
 		content: "";
-		width: 6px;
-		height: 6px;
+		width: 7px;
+		height: 7px;
 		border-radius: 50%;
 		background: var(--accent);
 		animation: tlLivePulse 1.6s ease-in-out infinite;
@@ -1051,10 +1051,12 @@
 	.var-discard:hover { color: var(--loss); background: color-mix(in srgb, var(--loss) 12%, transparent); }
 	/* free-exploration nudge under the move nav, revealed on arming */
 	.explore-hint {
+		flex: none;
 		margin-top: 0.35rem;
 		font-size: 0.68rem;
 		line-height: 1.35;
 		text-align: center;
+		text-wrap: balance;
 		color: var(--text-subtle);
 	}
 	/* the ⏵/⏸ realtime-playback control renders its glyph slightly larger so it
@@ -1099,10 +1101,16 @@
 			overflow-y: auto;
 		}
 		.archive-grid .moves-panel { flex: 1; min-height: 0; }
+		/* The list flex-grows to fill the (stretched) rail on normal viewports, but
+		   a low min-height lets it yield on short/zoomed ones so the fixed chrome
+		   below it — nav + the explore-hint — is never pushed past the card border.
+		   min-height only floors the shrink; it never shortens the list where there
+		   is room to fill (flex: 1 wins). Keeps the hint contained without the old
+		   8rem floor's overflow. */
 		.archive-grid .move-list {
 			height: auto;
 			flex: 1;
-			min-height: clamp(6rem, 20vh, 8rem);
+			min-height: 3.5rem;
 		}
 	}
 	.move-nav { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
