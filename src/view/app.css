@@ -501,17 +501,28 @@
 	}
 	/* player title badge (lichess-style "GM"/"WFM"/…), rendered to the left of a
 	   name wherever a name shows: header, live/archive clocks, match timeline,
-	   pre-game cards. Its color follows the current board theme's --accent, so it
-	   retints with the theme (the whole point of the feature). Font-size is left
-	   to inherit so the badge scales to whatever text it sits beside; flex:none
-	   keeps it from shrinking/ellipsizing inside the clock's flex meta row (where
-	   only .clockName flexes). The small right margin ties it tight to the name
-	   ("GM Hikaru"). */
+	   pre-game cards. A slightly-rounded accent-filled tag: background follows the
+	   board theme's --accent (so it retints with the theme — the point of the
+	   feature) and text uses --accent-contrast, the same per-theme foreground token
+	   the accent buttons use, so it stays readable across all 8 boards × light/dark
+	   (incl. the yellow board, where white text would fail). Everything is em-based
+	   so the one badge scales to whatever text it sits beside (header text-sm, the
+	   0.9rem clock name, pre-game cards) — a touch smaller than the name so it reads
+	   as a badge, not a second word. flex:none keeps it from shrinking/ellipsizing
+	   inside the clock's flex meta row (where only .clockName flexes); the right
+	   margin ties it tight to the name ("GM Hikaru"). */
 	.player-title {
 		flex: none;
-		font-weight: 800;
-		letter-spacing: 0.01em;
-		color: var(--accent);
+		display: inline-block;
+		vertical-align: middle;
+		padding: 0.1em 0.4em;
+		border-radius: 4px;
+		background: var(--accent);
+		color: var(--accent-contrast);
+		font-size: 0.82em;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: 0.02em;
 		white-space: nowrap;
 	}
 	.clockScore {
