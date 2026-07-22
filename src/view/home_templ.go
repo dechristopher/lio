@@ -428,7 +428,7 @@ func homeNews() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, item := range news.Latest(3) {
+		for _, item := range news.Latest(2) {
 			templ_7745c5c3_Err = newsItem(item).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

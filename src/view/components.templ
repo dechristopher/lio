@@ -24,8 +24,8 @@ templ header(width string) {
 				// space below that, floored at 0.9rem.
 				<span class="font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
 			</a>
-			<div class="mt-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest leading-none">
-				<span class="text-warn">alpha</span>
+			<div class="mt-1 flex items-center gap-2 text-[10px] font-semibold tracking-widest leading-none">
+				<span class="text-warn uppercase">beta</span>
 				@connIndicator()
 			</div>
 		</div>
@@ -530,6 +530,7 @@ templ footerContent(meta Meta) {
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://github.com/dechristopher/lio">{ meta.Version }</a>
 	</nav>
+	<p class="m-0 text-xs text-warn/70"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
 	<p class="m-0">© 2021-2026 li<span class="text-accent/70">octad</span>.org</p>
 }
 
