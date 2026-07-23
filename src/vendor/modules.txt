@@ -46,7 +46,7 @@ github.com/go-webauthn/webauthn/webauthn
 ## explicit; go 1.25.0
 github.com/go-webauthn/x/encoding/asn1
 github.com/go-webauthn/x/revoke
-# github.com/gofiber/contrib/v3/websocket v1.2.1
+# github.com/gofiber/contrib/v3/websocket v1.2.2
 ## explicit; go 1.25.0
 github.com/gofiber/contrib/v3/websocket
 # github.com/gofiber/fiber/v3 v3.4.0
@@ -68,16 +68,17 @@ github.com/gofiber/fiber/v3/middleware/logger
 github.com/gofiber/fiber/v3/middleware/recover
 github.com/gofiber/fiber/v3/middleware/requestid
 github.com/gofiber/fiber/v3/middleware/static
-# github.com/gofiber/schema v1.8.0
+# github.com/gofiber/schema v1.8.3
 ## explicit; go 1.25.0
 github.com/gofiber/schema
-# github.com/gofiber/utils/v2 v2.1.1
+# github.com/gofiber/utils/v2 v2.2.0
 ## explicit; go 1.25.0
 github.com/gofiber/utils/v2
 github.com/gofiber/utils/v2/bytes
 github.com/gofiber/utils/v2/internal/caseconv
 github.com/gofiber/utils/v2/internal/unsafeconv
 github.com/gofiber/utils/v2/strings
+github.com/gofiber/utils/v2/swar
 # github.com/golang-jwt/jwt/v5 v5.3.1
 ## explicit; go 1.21
 github.com/golang-jwt/jwt/v5
@@ -118,7 +119,7 @@ github.com/jackc/puddle/v2/internal/genstack
 # github.com/joho/godotenv v1.5.1
 ## explicit; go 1.12
 github.com/joho/godotenv
-# github.com/klauspost/compress v1.19.0
+# github.com/klauspost/compress v1.19.1
 ## explicit; go 1.24
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -147,8 +148,8 @@ github.com/looplab/fsm
 # github.com/mattn/go-colorable v0.1.15
 ## explicit; go 1.18
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.22
-## explicit; go 1.21
+# github.com/mattn/go-isatty v0.0.23
+## explicit; go 1.20
 github.com/mattn/go-isatty
 # github.com/mfridman/interpolate v0.0.2
 ## explicit; go 1.19
@@ -269,7 +270,7 @@ go.uber.org/multierr
 # go.yaml.in/yaml/v3 v3.0.4
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.53.0
+# golang.org/x/crypto v0.54.0
 ## explicit; go 1.25.0
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
@@ -284,7 +285,7 @@ golang.org/x/image/font/opentype
 golang.org/x/image/font/sfnt
 golang.org/x/image/math/fixed
 golang.org/x/image/vector
-# golang.org/x/net v0.56.0
+# golang.org/x/net v0.57.0
 ## explicit; go 1.25.0
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -298,7 +299,7 @@ golang.org/x/net/publicsuffix
 ## explicit; go 1.25.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.46.0
+# golang.org/x/sys v0.47.0
 ## explicit; go 1.25.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
