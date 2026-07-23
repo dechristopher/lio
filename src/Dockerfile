@@ -67,7 +67,7 @@ RUN mkdir -p /out \
        done
 
 # ---- build: compile the Go binary, embedding the freshly built assets
-FROM golang:1.26.4-alpine3.24 AS build
+FROM golang:1.26.5-alpine3.24 AS build
 
 # short git commit hash of the source being built, injected into config.Revision
 # so the running binary reports its exact build in the footer. The build context
