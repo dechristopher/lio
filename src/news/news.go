@@ -17,6 +17,13 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "v1.5.1: Homepage & game room UI polish",
+		Date:  "Jul 23, 2026",
+		Body: "Today's release cleans up some minor UI issues on the homepage and game room, especially on " +
+			"mobile devices. We're working hard to make Octad easy to play anywhere, and we think this should " +
+			"be one of the final steps in getting there.",
+	},
+	{
 		Title: "v1.3.1: Analysis board & UX improvements",
 		Date:  "Jul 21, 2026",
 		Body: "Today's release includes quality of live improvements to the analysis board, especially " +
