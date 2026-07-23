@@ -53,7 +53,10 @@ templ newsPager(p news.Page) {
 			} else {
 				<span class="btn btn-ghost pointer-events-none text-sm opacity-40">← Newer</span>
 			}
-			<span class="text-xs font-semibold uppercase tracking-wider text-fg-subtle">Page { strconv.Itoa(p.Number) } of { strconv.Itoa(p.Total) }</span>
+			<span class="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-fg-subtle">
+				<span class="max-[400px]:hidden">Page { strconv.Itoa(p.Number) } of { strconv.Itoa(p.Total) }</span>
+				<span class="hidden max-[400px]:inline">{ strconv.Itoa(p.Number) } / { strconv.Itoa(p.Total) }</span>
+			</span>
 			if p.HasNext {
 				<a href={ templ.SafeURL("/news?page=" + strconv.Itoa(p.Next)) } hx-get={ "/news?page=" + strconv.Itoa(p.Next) } hx-target="#news-content" hx-swap="innerHTML" hx-push-url="true" class="btn btn-ghost no-underline text-sm">Older →</a>
 			} else {

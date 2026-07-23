@@ -554,7 +554,7 @@ templ iconPencil() {
 // footerContent is the footer's inner nav + copyright, shared between the
 // standalone page footer and the home page's column-nested footer.
 templ footerContent(meta Meta) {
-	<nav class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 font-medium">
+	<nav data-footer-nav class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 font-medium">
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/about">About</a>
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/news">News</a>
@@ -567,6 +567,40 @@ templ footerContent(meta Meta) {
 	</nav>
 	<p class="m-0 text-xs text-warn/70"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
 	<p class="m-0">© 2021-2026 li<span class="text-accent/70">octad</span>.org</p>
+	@footerNavScript()
+}
+
+// footerNavScript hides any "·" separator left dangling at a wrap boundary when
+// the footer nav wraps to multiple lines (a separator whose two neighboring
+// links land on different visual lines). A centered, wrapping flex row can't
+// express this in pure CSS, so this runs on load + resize as a small
+// progressive enhancement. It toggles visibility (not display) so the
+// separator keeps its box: removing it from layout would let a just-wrapped
+// item slot back onto the previous line, which flips the separator right back
+// to "needed" and oscillates at the boundary width. Guarded so it binds once
+// even though footerContent renders twice on the home page (mobile + desktop).
+templ footerNavScript() {
+	<script>
+		(function () {
+			if (window.__footerNavInit) { return; }
+			window.__footerNavInit = true;
+			function reflow() {
+				document.querySelectorAll("[data-footer-nav]").forEach(function (nav) {
+					var seps = nav.querySelectorAll(":scope > span");
+					seps.forEach(function (s) { s.style.visibility = ""; });
+					seps.forEach(function (s) {
+						var a = s.previousElementSibling, b = s.nextElementSibling;
+						if (a && b && Math.abs(a.offsetTop - b.offsetTop) > 1) {
+							s.style.visibility = "hidden";
+						}
+					});
+				});
+			}
+			window.addEventListener("resize", reflow);
+			window.addEventListener("load", reflow);
+			reflow();
+		})();
+	</script>
 }
 
 // footer is the shared, full-width page footer with nav links and the build
