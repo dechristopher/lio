@@ -3,10 +3,11 @@ package utils
 import (
 	"math"
 	"strconv"
+
+	"github.com/gofiber/utils/v2/swar"
 )
 
 const (
-	maxFracDigits   = 16
 	maxUint64Cutoff = math.MaxUint64 / 10
 	maxUint64Cutlim = math.MaxUint64 % 10
 )
@@ -34,8 +35,24 @@ func ParseNativeUint[S byteSeq](s S) (uint, error) {
 // Returns the parsed value and nil on success, else 0 and an error.
 func ParseInt[S byteSeq](s S) (int64, error) {
 	if len(s) > 0 && s[0] != '-' && s[0] != '+' && len(s) <= 19 {
+		// At most 19 digits fit here, so two 8-digit SWAR steps plus a
+		// scalar remainder can never overflow before the final range check.
+		// A word with a non-digit lane falls through to the scalar loop,
+		// which reports the syntax error. The body deliberately duplicates
+		// the parseDigitsBig structure: routing through parseDigitsBig
+		// instead costs +22% on the 9-digit shape (benchstat -count=10,
+		// Go 1.25, Apple M2 Pro), mostly digit bookkeeping and the extra
+		// call frame.
 		var n uint64
-		for i := range len(s) {
+		i := 0
+		for ; len(s)-i >= 8; i += 8 {
+			w := swar.Load8(s, i)
+			if !isEightDigits(w) {
+				break
+			}
+			n = n*100000000 + parse8Digits(w)
+		}
+		for ; i < len(s); i++ {
 			c := s[i] - '0'
 			if c > 9 {
 				return 0, &strconv.NumError{Func: "ParseInt", Num: string(s), Err: strconv.ErrSyntax}
@@ -146,11 +163,67 @@ func ParseUint8[S byteSeq](s S) (uint8, error) {
 	return parseUnsigned[S, uint8]("ParseUint8", s, uint8(math.MaxUint8))
 }
 
-// parseDigits parses a sequence of digits and returns the uint64 value.
-// It returns an error if any non-digit is encountered or overflow happens.
+// isEightDigits reports whether every lane of w is an ASCII digit ('0'..'9').
+// High nibbles must all be 3 and low nibbles must not carry past 9 when 6 is
+// added. A lane >= 0xFA can carry into its neighbor's sum, but such a lane
+// already fails its own high-nibble test, so the answer stays exact.
+func isEightDigits(w uint64) bool {
+	const (
+		highNibbles = 0xF0F0F0F0F0F0F0F0
+		sixes       = 0x0606060606060606
+		threes      = 0x3333333333333333
+	)
+	return (w&highNibbles)|((w+sixes)&highNibbles)>>4 == threes
+}
+
+// parse8Digits converts a word of 8 ASCII digit bytes (first digit in lane 0,
+// most significant) to its numeric value using two pairwise multiply-combine
+// steps. The caller must have validated that every lane is '0'..'9'.
+func parse8Digits(w uint64) uint64 {
+	const (
+		digitZeros = 0x3030303030303030 // '0' in every lane
+		pairMask   = 0x000000FF000000FF
+		mul1       = 100 + (1000000 << 32)
+		mul2       = 1 + (10000 << 32)
+	)
+	w -= digitZeros
+	w = w*10 + w>>8 // adjacent digit pairs -> 2-digit values in even lanes
+	return ((w&pairMask)*mul1 + (w>>16&pairMask)*mul2) >> 32
+}
+
+// parseDigits parses a run of fewer than 8 digits and returns the uint64
+// value, or an error on the first non-digit. Callers must route runs of 8+
+// bytes to parseDigitsBig — that is what makes overflow impossible here (at
+// most 7 digits) and keeps this body under the inlining budget.
 func parseDigits[S byteSeq](s S, i int) (uint64, error) {
 	var n uint64
+	for ; i < len(s); i++ {
+		c := s[i] - '0'
+		if c > 9 {
+			return 0, strconv.ErrSyntax
+		}
+		n = n*10 + uint64(c)
+	}
+	return n, nil
+}
+
+// parseDigitsBig parses digit runs of 8+ bytes, consuming 8 digits per word
+// while the running value is guaranteed to still fit: two full steps reach 16
+// digits, and any value with <= 19 digits fits in uint64. A word with any
+// non-digit lane falls through to the scalar loop, which reports syntax
+// errors byte-precisely and applies the overflow checks.
+func parseDigitsBig[S byteSeq](s S, i int) (uint64, error) {
+	var n uint64
 	digits := 0
+	for len(s)-i >= 8 && digits+8 <= 19 {
+		w := swar.Load8(s, i)
+		if !isEightDigits(w) {
+			break
+		}
+		n = n*100000000 + parse8Digits(w)
+		digits += 8
+		i += 8
+	}
 	for ; i < len(s); i++ {
 		c := s[i] - '0'
 		if c > 9 {
@@ -187,8 +260,14 @@ func parseSigned[S byteSeq, T Signed](fn string, s S, minRange, maxRange T) (T, 
 		return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrSyntax}
 	}
 
-	// Parse digits.
-	n, err := parseDigits(s, i)
+	// Parse digits, taking the 8-digits-per-word path for long runs.
+	var n uint64
+	var err error
+	if len(s)-i >= 8 {
+		n, err = parseDigitsBig(s, i)
+	} else {
+		n, err = parseDigits(s, i)
+	}
 	if err != nil {
 		return 0, &strconv.NumError{Func: fn, Num: string(s), Err: err}
 	}
@@ -217,8 +296,15 @@ func parseUnsigned[S byteSeq, T Unsigned](fn string, s S, maxRange T) (T, error)
 		return 0, &strconv.NumError{Func: fn, Num: "", Err: strconv.ErrSyntax}
 	}
 
-	// Parse digits directly from index 0.
-	n, err := parseDigits(s, 0)
+	// Parse digits directly from index 0, taking the 8-digits-per-word path
+	// for long runs.
+	var n uint64
+	var err error
+	if len(s) >= 8 {
+		n, err = parseDigitsBig(s, 0)
+	} else {
+		n, err = parseDigits(s, 0)
+	}
 	if err != nil {
 		return 0, &strconv.NumError{Func: fn, Num: string(s), Err: err}
 	}
@@ -249,22 +335,26 @@ func parseFloat[S byteSeq](fn string, s S) (float64, error) {
 		return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrSyntax}
 	}
 
-	var intPart uint64
+	// Collect integer and fractional digits into a single mantissa and track
+	// the decimal exponent. Digits beyond uint64 precision are dropped: integer
+	// digits shift the exponent up, fractional digits are simply ignored.
+	var mantissa uint64
+	var exp10 int
+	digits := 0
 	for i < len(s) {
 		c := s[i] - '0'
 		if c > 9 {
 			break
 		}
-		if intPart > maxUint64Cutoff || (intPart == maxUint64Cutoff && uint64(c) > maxUint64Cutlim) {
-			return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrRange}
+		if mantissa > maxUint64Cutoff || (mantissa == maxUint64Cutoff && uint64(c) > maxUint64Cutlim) {
+			exp10++
+		} else {
+			mantissa = mantissa*10 + uint64(c)
 		}
-		intPart = intPart*10 + uint64(c)
+		digits++
 		i++
 	}
 
-	var fracPart uint64
-	var fracDiv uint64 = 1
-	var fracDigits int
 	if i < len(s) && s[i] == '.' {
 		i++
 		for i < len(s) {
@@ -272,14 +362,17 @@ func parseFloat[S byteSeq](fn string, s S) (float64, error) {
 			if c > 9 {
 				break
 			}
-			if fracDigits >= maxFracDigits {
-				return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrRange}
+			if mantissa < maxUint64Cutoff || (mantissa == maxUint64Cutoff && uint64(c) <= maxUint64Cutlim) {
+				mantissa = mantissa*10 + uint64(c)
+				exp10--
 			}
-			fracPart = fracPart*10 + uint64(c)
-			fracDiv *= 10
-			fracDigits++
+			digits++
 			i++
 		}
+	}
+
+	if digits == 0 {
+		return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrSyntax}
 	}
 
 	var expSign bool
@@ -299,17 +392,17 @@ func parseFloat[S byteSeq](fn string, s S) (float64, error) {
 		if i == len(s) {
 			return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrSyntax}
 		}
+		// Saturate the parsed exponent far beyond anything exp10 (bounded by
+		// the input length) could pull back into range. Clamping to the final
+		// range must wait until both are combined below.
+		const maxParsedExp = int64(1) << 50
 		for i < len(s) {
 			c := s[i] - '0'
 			if c > 9 {
 				return 0, &strconv.NumError{Func: fn, Num: string(s), Err: strconv.ErrSyntax}
 			}
-			exp = exp*10 + int64(c)
-			if !expSign && exp > 308 {
-				exp = 309
-			}
-			if expSign && exp > 324 {
-				exp = 325
+			if exp < maxParsedExp {
+				exp = exp*10 + int64(c)
 			}
 			i++
 		}
@@ -321,12 +414,21 @@ func parseFloat[S byteSeq](fn string, s S) (float64, error) {
 	if expSign {
 		exp = -exp
 	}
-
-	f := float64(intPart)
-	if fracPart > 0 {
-		f += float64(fracPart) / float64(fracDiv)
+	// Clamp the combined exponent to math.Pow10's saturation range so the
+	// int conversion below cannot wrap on 32-bit platforms for extremely
+	// long digit strings; larger magnitudes overflow (Inf, caught below) or
+	// underflow (Pow10 returns 0) anyway.
+	exp += int64(exp10)
+	if exp > 309 {
+		exp = 309
+	} else if exp < -325 {
+		exp = -325
 	}
-	if exp != 0 {
+
+	f := float64(mantissa)
+	// Skip scaling for a zero mantissa: 0 * Pow10(309) would be 0 * Inf = NaN
+	// and turn inputs like "0e400" into a spurious range error.
+	if exp != 0 && f != 0 {
 		f *= math.Pow10(int(exp))
 	}
 	if neg {

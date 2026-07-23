@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"maps"
 	"mime/multipart"
 	"reflect"
 	"strings"
@@ -17,6 +18,10 @@ import (
 const (
 	defaultMaxSize = 16000
 )
+
+// errNotPointerToStruct is returned by Decode for invalid destinations;
+// hoisted so the check does not allocate on every call.
+var errNotPointerToStruct = errors.New("schema: interface must be a pointer to struct")
 
 var decodeValueBufferPool = sync.Pool{
 	New: func() any {
@@ -92,24 +97,14 @@ func (d *Decoder) RegisterConverter(value interface{}, converterFunc Converter) 
 //
 // See the package documentation for a full explanation of the mechanics.
 func (d *Decoder) Decode(dst interface{}, src map[string][]string, files ...map[string][]*multipart.FileHeader) (err error) {
-	var multipartFiles map[string][]*multipart.FileHeader
-
-	if len(files) > 0 {
-		multipartFiles = files[0]
-	}
-
-	// Add files as empty string values to src in order to make path parsing work easily
-	for path := range multipartFiles {
-		src[path] = []string{""}
-	}
-
 	v := reflect.ValueOf(dst)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
-		return errors.New("schema: interface must be a pointer to struct")
+		return errNotPointerToStruct
 	}
 
 	// Catch panics from the decoder and return them as an error.
-	// This is needed because the decoder calls reflect and reflect panics
+	// This is needed because the decoder calls reflect and reflect panics.
+	// Installed before any other work so nothing can crash the caller.
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
@@ -120,19 +115,37 @@ func (d *Decoder) Decode(dst interface{}, src map[string][]string, files ...map[
 		}
 	}()
 
+	var multipartFiles map[string][]*multipart.FileHeader
+
+	if len(files) > 0 {
+		multipartFiles = files[0]
+	}
+
+	// Add files as empty string values to the decode view so path parsing
+	// works uniformly. Work on a copy: the caller's src map must not be
+	// mutated (and a caller-provided value under a file's key must not be
+	// overwritten in it).
+	if len(multipartFiles) > 0 {
+		merged := make(map[string][]string, len(src)+len(multipartFiles))
+		maps.Copy(merged, src)
+		for path := range multipartFiles {
+			merged[path] = []string{""}
+		}
+		src = merged
+	}
+
 	v = v.Elem()
 	t := v.Type()
+	rootInfo := d.cache.get(t)
 	var multiErrors MultiError
 	for path, values := range src {
-		if parts, err := d.cache.parsePath(path, t); err == nil {
-			if filesSlice, ok := multipartFiles[path]; ok {
-				if err = d.decode(v, path, parts, values, filesSlice); err != nil {
-					multiErrors = appendError(multiErrors, path, err)
-				}
-			} else {
-				if err = d.decode(v, path, parts, values, nil); err != nil {
-					multiErrors = appendError(multiErrors, path, err)
-				}
+		if parts, err := d.cache.parsePathInfo(path, rootInfo); err == nil {
+			var filesSlice []*multipart.FileHeader
+			if multipartFiles != nil {
+				filesSlice = multipartFiles[path]
+			}
+			if err = d.decode(v, path, parts, values, filesSlice); err != nil {
+				multiErrors = appendError(multiErrors, path, err)
 			}
 		} else {
 			if errors.Is(err, errIndexTooLarge) {
@@ -142,8 +155,10 @@ func (d *Decoder) Decode(dst interface{}, src map[string][]string, files ...map[
 			}
 		}
 	}
-	multiErrors = mergeErrors(multiErrors, d.setDefaults(t, v, src, ""))
-	multiErrors = mergeErrors(multiErrors, d.checkRequired(t, src))
+	if rootInfo.needsDefaultsWalk {
+		multiErrors = mergeErrors(multiErrors, d.setDefaults(t, v, src, ""))
+	}
+	multiErrors = mergeErrors(multiErrors, d.checkRequired(rootInfo, src))
 	if len(multiErrors) > 0 {
 		return multiErrors
 	}
@@ -155,24 +170,29 @@ func (d *Decoder) Decode(dst interface{}, src map[string][]string, files ...map[
 // nested structs can also have default tags
 func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src map[string][]string, prefix string) MultiError {
 	struc := d.cache.get(t)
-	if struc == nil {
-		// unexpected, cache.get never return nil
-		return MultiError{"default-" + t.Name(): errors.New("cache fail")}
+	// Skip the walk entirely when it can have no effect (no default tags and
+	// no anonymous embedded pointers to allocate anywhere in the tree) — the
+	// overwhelmingly common case.
+	if !struc.needsDefaultsWalk {
+		return nil
 	}
 
-	errs := MultiError{}
+	var errs MultiError
 
-	if v.Type().Kind() == reflect.Struct {
-		for i := 0; i < v.NumField(); i++ {
-			field := v.Field(i)
-			if field.Type().Kind() == reflect.Ptr && field.IsNil() && v.Type().Field(i).Anonymous {
-				field.Set(reflect.New(field.Type().Elem()))
-			}
+	// Allocate nil anonymous embedded pointer fields so their promoted
+	// fields stay reachable.
+	for _, idx := range struc.anonymousPtrFields {
+		if field := v.Field(idx); field.IsNil() {
+			field.Set(reflect.New(field.Type().Elem()))
 		}
 	}
 
 	for _, f := range struc.fields {
-		vCurrent := v.FieldByName(f.name)
+		vCurrent := walkIndexChain(v, f.index)
+		if !vCurrent.IsValid() {
+			// Unreachable behind an unsettable nil embedded pointer.
+			continue
+		}
 
 		if vCurrent.Type().Kind() == reflect.Struct && f.defaultValue == "" {
 			errs = mergeErrors(errs, d.setDefaults(vCurrent.Type(), vCurrent, src, prefix+f.canonicalAlias+"."))
@@ -186,8 +206,6 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src map[string][]
 			if f.typ.Kind() == reflect.Struct {
 				errs = appendError(errs, "default-"+f.name, errors.New("default option is supported only on: bool, float variants, string, unit variants types or their corresponding pointers or slices"))
 			} else if f.typ.Kind() == reflect.Slice {
-				vals := strings.Split(f.defaultValue, "|")
-
 				// check if slice has one of the supported types for defaults
 				conv := getBuiltinConverter(f.typ.Elem().Kind())
 				if conv == nil {
@@ -195,15 +213,19 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src map[string][]
 					continue
 				}
 
-				defaultSlice := reflect.MakeSlice(f.typ, 0, cap(vals))
-				for _, val := range vals {
+				elemT := f.typ.Elem()
+				defaultSlice := reflect.MakeSlice(f.typ, 0, strings.Count(f.defaultValue, "|")+1)
+				for val := range strings.SplitSeq(f.defaultValue, "|") {
 					// this check is to handle if the wrong value is provided
 					convertedVal := conv(val)
 					if !convertedVal.IsValid() {
 						errs = appendError(errs, "default-"+f.name, fmt.Errorf("failed setting default: %s is not compatible with field %s type", val, f.name))
 						break
 					}
-					defaultSlice = reflect.Append(defaultSlice, convertedVal)
+					// Builtin converters return the underlying kind; convert to
+					// the (possibly named) element type before appending, else
+					// reflect.Append panics for e.g. []MyInt.
+					defaultSlice = reflect.Append(defaultSlice, convertedVal.Convert(elemT))
 				}
 				vCurrent.Set(defaultSlice)
 			} else if f.typ.Kind() == reflect.Ptr {
@@ -214,8 +236,19 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src map[string][]
 				}
 
 				// this check is to handle if the wrong value is provided
-				if convertedVal := convertPointer(t1.Kind(), f.defaultValue); convertedVal.IsValid() {
-					vCurrent.Set(convertedVal)
+				if conv := getBuiltinConverter(t1.Kind()); conv != nil {
+					if convertedVal := conv(f.defaultValue); convertedVal.IsValid() {
+						// Build a pointer of the field's actual element type:
+						// the converter yields the underlying kind, which is
+						// convertible to the (possibly named) element type,
+						// and *elem is assignable to the field even when the
+						// field's type is itself a named pointer type (e.g.
+						// type MyIntPtr *MyInt), where converting a *int
+						// directly would panic.
+						p := reflect.New(t1)
+						p.Elem().Set(convertedVal.Convert(t1))
+						vCurrent.Set(p)
+					}
 				}
 			} else {
 				// this check is to handle if the wrong value is provided
@@ -223,7 +256,9 @@ func (d *Decoder) setDefaults(t reflect.Type, v reflect.Value, src map[string][]
 				if conv == nil {
 					errs = appendError(errs, "default-"+f.name, errors.New("default option is supported only on: bool, float variants, string, unit variants types or their corresponding pointers or slices"))
 				} else if convertedVal := conv(f.defaultValue); convertedVal.IsValid() {
-					vCurrent.Set(convertedVal)
+					// Builtin converters return the underlying kind; convert to
+					// the field's (possibly named) type before assigning.
+					vCurrent.Set(convertedVal.Convert(f.typ))
 				}
 			}
 		}
@@ -247,15 +282,14 @@ func fieldProvided(src map[string][]string, prefix string, f *fieldInfo) bool {
 
 // checkRequired checks whether required fields are empty
 //
-// check type t recursively if t has struct fields.
+// The set of required fields (including those of nested structs) is
+// precomputed once per struct type in structInfo.requiredFields, so this
+// only performs the per-request emptiness checks against src.
 //
 // src is the source map for decoding, we use it here to see if those required fields are included in src
-func (d *Decoder) checkRequired(t reflect.Type, src map[string][]string) MultiError {
-	m, errs := d.findRequiredFields(t, "", "")
-	if len(m) == 0 {
-		return errs
-	}
-	for key, fields := range m {
+func (d *Decoder) checkRequired(info *structInfo, src map[string][]string) MultiError {
+	var errs MultiError
+	for key, fields := range info.requiredFields {
 		if isEmptyFields(fields, src) {
 			errs = appendError(errs, key, EmptyFieldError{Key: key})
 		}
@@ -263,58 +297,41 @@ func (d *Decoder) checkRequired(t reflect.Type, src map[string][]string) MultiEr
 	return errs
 }
 
-// findRequiredFields recursively searches the struct type t for required fields.
-//
-// canonicalPrefix and searchPrefix are used to resolve full paths in dotted notation
-// for nested struct fields. canonicalPrefix is a complete path which never omits
-// any embedded struct fields. searchPrefix is a user-friendly path which may omit
-// some embedded struct fields to point promoted fields.
-func (d *Decoder) findRequiredFields(t reflect.Type, canonicalPrefix, searchPrefix string) (map[string][]fieldWithPrefix, MultiError) {
-	struc := d.cache.get(t)
-	if struc == nil {
-		// unexpected, cache.get never return nil
-		return nil, MultiError{canonicalPrefix + "*": errors.New("cache fail")}
-	}
-
-	m := map[string][]fieldWithPrefix{}
-	errs := MultiError{}
-	for _, f := range struc.fields {
-		if f.typ.Kind() == reflect.Struct {
-			fcprefix := canonicalPrefix + f.canonicalAlias + "."
-			for _, fspath := range f.paths(searchPrefix) {
-				fm, ferrs := d.findRequiredFields(f.typ, fcprefix, fspath+".")
-				for key, fields := range fm {
-					m[key] = append(m[key], fields...)
-				}
-				errs.merge(ferrs)
-			}
-		}
-		if f.isRequired {
-			key := canonicalPrefix + f.canonicalAlias
-			m[key] = append(m[key], fieldWithPrefix{
-				fieldInfo: f,
-				prefix:    searchPrefix,
-			})
-		}
-	}
-	return m, errs
-}
-
 type fieldWithPrefix struct {
 	*fieldInfo
 	prefix string
+	// searchPaths lists the src keys this required field answers to, and
+	// searchPathDots the corresponding nested-key prefixes; both are
+	// precomputed at cache-build time so per-request checks allocate
+	// nothing.
+	searchPaths    []string
+	searchPathDots []string
+}
+
+func newFieldWithPrefix(f *fieldInfo, prefix string) fieldWithPrefix {
+	paths := f.paths(prefix)
+	dots := make([]string, len(paths))
+	for i, p := range paths {
+		dots[i] = p + "."
+	}
+	return fieldWithPrefix{
+		fieldInfo:      f,
+		prefix:         prefix,
+		searchPaths:    paths,
+		searchPathDots: dots,
+	}
 }
 
 // isEmptyFields returns true if all of specified fields are empty.
 func isEmptyFields(fields []fieldWithPrefix, src map[string][]string) bool {
 	for _, f := range fields {
-		for _, path := range f.paths(f.prefix) {
+		for i, path := range f.searchPaths {
 			v, ok := src[path]
 			if ok && !isEmpty(f.typ, v) {
 				return false
 			}
 			// Check for nested keys that match this field.
-			pathDot := path + "."
+			pathDot := f.searchPathDots[i]
 			for key, val := range src {
 				if len(val) == 0 {
 					continue
@@ -337,7 +354,10 @@ func isEmpty(t reflect.Type, value []string) bool {
 		return true
 	}
 	switch t.Kind() {
-	case boolType, float32Type, float64Type, intType, int8Type, int32Type, int64Type, stringType, uint8Type, uint16Type, uint32Type, uint64Type:
+	case boolType, float32Type, float64Type,
+		intType, int8Type, int16Type, int32Type, int64Type,
+		stringType,
+		uintType, uint8Type, uint16Type, uint32Type, uint64Type:
 		return len(value[0]) == 0
 	}
 	return false
@@ -415,11 +435,38 @@ func isMultipartField(typ reflect.Type) bool {
 	return false
 }
 
+// walkIndexChain walks v along a struct field index chain. Chains longer
+// than one element traverse embedded structs; intermediate nil pointers are
+// allocated so promoted fields stay reachable. It returns the zero Value
+// when the chain is blocked by a nil pointer that cannot be set (an
+// unexported embedded pointer), which callers treat as an unreachable
+// field.
+func walkIndexChain(v reflect.Value, chain []int) reflect.Value {
+	for j, fi := range chain {
+		if j > 0 && v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				if !v.CanSet() {
+					return reflect.Value{}
+				}
+				v.Set(reflect.New(v.Type().Elem()))
+			}
+			v = v.Elem()
+		}
+		v = v.Field(fi)
+	}
+	return v
+}
+
 // decode fills a struct field using a parsed path.
 func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values []string, files []*multipart.FileHeader) error {
 	// Get the field walking the struct fields by index.
-	for _, name := range parts[0].path {
-		if v.Type().Kind() == reflect.Ptr {
+	for _, hop := range parts[0].hops {
+		// A previous hop may have been blocked by an unsettable nil
+		// embedded pointer; the field is unreachable then.
+		if !v.IsValid() {
+			return nil
+		}
+		if v.Kind() == reflect.Ptr {
 			if v.IsNil() {
 				v.Set(reflect.New(v.Type().Elem()))
 			}
@@ -427,11 +474,13 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 		}
 
 		// Allocate embedded anonymous pointers required for promoted fields.
-		if v.Type().Kind() == reflect.Struct {
-			d.ensureAnonymousPtrs(v)
+		for _, idx := range hop.ensure {
+			if f := v.Field(idx); f.IsNil() {
+				f.Set(reflect.New(f.Type().Elem()))
+			}
 		}
 
-		v = v.FieldByName(name)
+		v = walkIndexChain(v, hop.index)
 	}
 
 	// Don't even bother for unexported fields.
@@ -440,7 +489,7 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 	}
 
 	// Check multipart files
-	if mp := handleMultipartField(v, files); mp {
+	if parts[0].field.isMultipart && handleMultipartField(v, files) {
 		return nil
 	}
 
@@ -462,8 +511,11 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 			return fmt.Errorf("%v index %d is larger than the configured maxSize %d", v.Kind(), idx, d.maxSize)
 		}
 		if v.IsNil() || v.Len() < idx+1 {
+			// Grow into a fresh backing array: extending within existing
+			// capacity would write into memory the caller may still share
+			// through other slices aliasing the original array.
 			value := reflect.MakeSlice(t, idx+1, idx+1)
-			if v.Len() < idx+1 {
+			if v.Len() > 0 {
 				// Resize it.
 				reflect.Copy(value, v)
 			}
@@ -474,15 +526,15 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 
 	// Get the converter early in case there is one for a slice type.
 	conv := d.cache.converter(t)
-	m := isTextUnmarshaler(v)
+	// The encoding.TextUnmarshaler facts for v's type are precomputed per
+	// field; instances are bound to live values where needed below. For an
+	// elem part (path terminated at a slice index) v is an element of the
+	// slice field, so the element type's facts apply.
+	m := parts[0].field.derefUnmarshaler
+	if parts[0].elem {
+		m = parts[0].field.elemUnmarshaler
+	}
 	if conv == nil && t.Kind() == reflect.Slice && m.IsSliceElement {
-		itemsBuf := decodeValueBufferPool.Get().(*[]reflect.Value)
-		items := (*itemsBuf)[:0]
-		defer func() {
-			clear(items)
-			*itemsBuf = items[:0]
-			decodeValueBufferPool.Put(itemsBuf)
-		}()
 		elemT := t.Elem()
 		isPtrElem := elemT.Kind() == reflect.Ptr
 		if isPtrElem {
@@ -490,7 +542,8 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 		}
 
 		// Try to get a converter for the element type.
-		conv := d.cache.converter(elemT)
+		customConv := d.cache.converter(elemT)
+		conv := customConv
 		if conv == nil {
 			conv = getBuiltinConverter(elemT.Kind())
 			if conv == nil {
@@ -500,10 +553,25 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 			}
 		}
 
+		// Fast path: builtin element kinds without unmarshalers, custom
+		// converters or pointer elements decode straight into a fresh slice,
+		// avoiding one reflect.Value allocation per element.
+		if customConv == nil && !m.IsValid && !isPtrElem {
+			return d.decodeBuiltinSlice(v, t, path, values)
+		}
+
+		itemsBuf := decodeValueBufferPool.Get().(*[]reflect.Value)
+		items := (*itemsBuf)[:0]
+		defer func() {
+			clear(items)
+			*itemsBuf = items[:0]
+			decodeValueBufferPool.Put(itemsBuf)
+		}()
+
 		for key, value := range values {
 			if value == "" {
 				if d.zeroEmpty {
-					items = append(items, reflect.Zero(elemT))
+					items = append(items, reflect.Zero(t.Elem()))
 				}
 			} else if m.IsValid {
 				u := reflect.New(elemT)
@@ -521,39 +589,22 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 				}
 				if m.IsSliceElementPtr {
 					items = append(items, u.Elem().Addr())
-				} else if u.Kind() == reflect.Ptr {
-					items = append(items, u.Elem())
 				} else {
-					items = append(items, u)
+					// u is always a pointer from reflect.New; store the
+					// pointed-to value.
+					items = append(items, u.Elem())
 				}
 			} else if item := conv(value); item.IsValid() {
-				if isPtrElem {
-					ptr := reflect.New(elemT)
-					ptr.Elem().Set(item)
-					item = ptr
-				}
-				if item.Type() != elemT && !isPtrElem {
-					item = item.Convert(elemT)
-				}
-				items = append(items, item)
+				items = appendConvertedItem(items, item, elemT, isPtrElem)
 			} else {
-				if strings.Contains(value, ",") {
-					values := strings.Split(value, ",")
-					for _, value := range values {
+				if strings.IndexByte(value, ',') != -1 {
+					for value := range strings.SplitSeq(value, ",") {
 						if value == "" {
 							if d.zeroEmpty {
-								items = append(items, reflect.Zero(elemT))
+								items = append(items, reflect.Zero(t.Elem()))
 							}
 						} else if item := conv(value); item.IsValid() {
-							if isPtrElem {
-								ptr := reflect.New(elemT)
-								ptr.Elem().Set(item)
-								item = ptr
-							}
-							if item.Type() != elemT && !isPtrElem {
-								item = item.Convert(elemT)
-							}
-							items = append(items, item)
+							items = appendConvertedItem(items, item, elemT, isPtrElem)
 						} else {
 							return ConversionError{
 								Key:   path,
@@ -571,7 +622,10 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 				}
 			}
 		}
-		value := reflect.Append(reflect.MakeSlice(t, 0, 0), items...)
+		value := reflect.MakeSlice(t, len(items), len(items))
+		for i, item := range items {
+			value.Index(i).Set(item)
+		}
 		v.Set(value)
 	} else {
 		val := ""
@@ -605,8 +659,10 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 				v.Set(reflect.Indirect(u))
 			} else {
 				// If the value implements the encoding.TextUnmarshaler interface
-				// apply UnmarshalText as the converter
-				if err := m.Unmarshaler.UnmarshalText([]byte(val)); err != nil {
+				// apply UnmarshalText as the converter, binding it to the
+				// live value.
+				um, _ := reflect.TypeAssert[encoding.TextUnmarshaler](v)
+				if err := um.UnmarshalText([]byte(val)); err != nil {
 					return ConversionError{
 						Key:   path,
 						Type:  t,
@@ -619,10 +675,8 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 			if d.zeroEmpty {
 				v.Set(reflect.Zero(t))
 			}
-		} else if conv := getBuiltinConverter(t.Kind()); conv != nil {
-			if value := conv(val); value.IsValid() {
-				v.Set(value.Convert(t))
-			} else {
+		} else if handled, ok := setBuiltinKind(v, t.Kind(), val); handled {
+			if !ok {
 				return ConversionError{
 					Key:   path,
 					Type:  t,
@@ -636,26 +690,102 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 	return nil
 }
 
-func (d *Decoder) ensureAnonymousPtrs(v reflect.Value) {
-	info := d.cache.get(v.Type())
-	for _, idx := range info.anonymousPtrFields {
-		field := v.Field(idx)
-		if field.IsNil() {
-			field.Set(reflect.New(field.Type().Elem()))
+// appendConvertedItem converts a builtin/custom converter result to the slice
+// element type and appends it, wrapping it in a freshly allocated pointer for
+// pointer-element slices. The conversion must happen before the pointer wrap:
+// builtin converters return the underlying kind (e.g. int for a named
+// `type MyInt int`), which is not assignable to the named element type, so
+// Set-ing it into a *MyInt without converting first panics.
+func appendConvertedItem(items []reflect.Value, item reflect.Value, elemT reflect.Type, isPtrElem bool) []reflect.Value {
+	if item.Type() != elemT {
+		item = item.Convert(elemT)
+	}
+	if isPtrElem {
+		ptr := reflect.New(elemT)
+		ptr.Elem().Set(item)
+		item = ptr
+	}
+	return append(items, item)
+}
+
+// decodeBuiltinSlice decodes values into the slice field v of type t whose
+// elements are builtin-convertible kinds, parsing directly into slice slots
+// instead of boxing every element in a reflect.Value. The slice is built
+// detached and only assigned to v when every value parsed, matching the
+// all-or-nothing behavior of the generic path.
+//
+// A value that fails to parse as a whole is retried as a comma-separated
+// list. For non-string kinds a value containing a comma can never parse as a
+// whole (no builtin syntax admits commas — pinned by a test), and string
+// values always parse, so item boundaries are knowable upfront: the slice is
+// sized by a cheap comma count (an upper bound, since empty items may be
+// skipped) and truncated to the filled length at the end.
+func (d *Decoder) decodeBuiltinSlice(v reflect.Value, t reflect.Type, path string, values []string) error {
+	elemT := t.Elem()
+	k := elemT.Kind()
+	split := k != reflect.String
+
+	n := 0
+	for _, value := range values {
+		if split {
+			n += strings.Count(value, ",")
+		}
+		n++
+	}
+
+	sl := reflect.MakeSlice(t, n, n)
+	i := 0
+	for key, value := range values {
+		switch {
+		case value == "":
+			if d.zeroEmpty {
+				i++ // slot stays zero
+			}
+		case split && strings.IndexByte(value, ',') != -1:
+			for item := range strings.SplitSeq(value, ",") {
+				if item == "" {
+					if d.zeroEmpty {
+						i++ // slot stays zero
+					}
+					continue
+				}
+				if _, ok := setBuiltinKind(sl.Index(i), k, item); !ok {
+					return ConversionError{
+						Key:   path,
+						Type:  elemT,
+						Index: key,
+					}
+				}
+				i++
+			}
+		default:
+			if _, ok := setBuiltinKind(sl.Index(i), k, value); !ok {
+				return ConversionError{
+					Key:   path,
+					Type:  elemT,
+					Index: key,
+				}
+			}
+			i++
 		}
 	}
+	if i < n {
+		sl = sl.Slice(0, i)
+	}
+	v.Set(sl)
+	return nil
 }
 
 func isTextUnmarshaler(v reflect.Value) unmarshaler {
 	// Create a new unmarshaller instance
 	m := unmarshaler{}
-	if m.Unmarshaler, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](v); m.IsValid {
+	if _, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](v); m.IsValid {
 		return m
 	}
 	// As the UnmarshalText function should be applied to the pointer of the
 	// type, we check that type to see if it implements the necessary
 	// method.
-	if m.Unmarshaler, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](reflect.New(v.Type())); m.IsValid {
+	if _, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](reflect.New(v.Type())); m.IsValid {
 		m.IsPtr = true
 		return m
 	}
@@ -666,31 +796,27 @@ func isTextUnmarshaler(v reflect.Value) unmarshaler {
 		t = t.Elem()
 	}
 	if t.Kind() == reflect.Slice {
-		// Check if the slice implements encoding.TextUnmarshaller
-		if m.Unmarshaler, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](v); m.IsValid {
-			return m
-		}
-		// If t is a pointer slice, check if its elements implement
-		// encoding.TextUnmarshaler
+		// The slice type itself cannot implement encoding.TextUnmarshaler
+		// here: the value-level assert above already covered it. Check
+		// whether the elements do.
 		m.IsSliceElement = true
 		if t = t.Elem(); t.Kind() == reflect.Ptr {
 			t = reflect.PointerTo(t.Elem())
-			v = reflect.Zero(t)
 			m.IsSliceElementPtr = true
-			m.Unmarshaler, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](v)
+			_, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](reflect.Zero(t))
 			return m
 		}
 	}
 
-	v = reflect.New(t)
-	m.Unmarshaler, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](v)
+	_, m.IsValid = reflect.TypeAssert[encoding.TextUnmarshaler](reflect.New(t))
 	return m
 }
 
 // TextUnmarshaler helpers ----------------------------------------------------
-// unmarshaller contains information about a TextUnmarshaler type
+// unmarshaler describes how a type relates to encoding.TextUnmarshaler.
+// It carries type-level facts only; the decoder binds instances to live
+// values at the point of use.
 type unmarshaler struct {
-	Unmarshaler encoding.TextUnmarshaler
 	// IsValid indicates whether the resolved type indicated by the other
 	// flags implements the encoding.TextUnmarshaler interface.
 	IsValid bool
@@ -770,14 +896,6 @@ func (e MultiError) Error() string {
 		return s + " (and 1 other error)"
 	}
 	return fmt.Sprintf("%s (and %d other errors)", s, len(e)-1)
-}
-
-func (e MultiError) merge(errors MultiError) {
-	for key, err := range errors {
-		if e[key] == nil {
-			e[key] = err
-		}
-	}
 }
 
 func appendRequiredField(m map[string][]fieldWithPrefix, key string, field fieldWithPrefix) map[string][]fieldWithPrefix {
