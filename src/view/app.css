@@ -1540,7 +1540,7 @@
 	/* ---- shared surfaces + buttons (home, modal, pre-game) ---- */
 	.card {
 		background: var(--surface-3);
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-md);
 		padding: 1.25rem;
@@ -1562,12 +1562,13 @@
 		user-select: none;
 		transition: all 150ms var(--ease-snappy);
 	}
-	.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-	.btn:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+	.btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+	.btn:not(:disabled):active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+	.btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 	.btn-primary { background: var(--accent); color: var(--accent-contrast); }
-	.btn-primary:hover { background: var(--accent-hover); }
+	.btn-primary:not(:disabled):hover { background: var(--accent-hover); }
 	.btn-ghost { background: var(--surface-2); color: var(--text); border-color: var(--border); }
-	.btn-ghost:hover { border-color: var(--accent); }
+	.btn-ghost:not(:disabled):hover { border-color: var(--accent); }
 	.btn-block { width: 100%; }
 	.btn-lg { padding: 0.8rem 1.4rem; font-size: 1.05rem; }
 
@@ -1680,7 +1681,7 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 999px;
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		background: var(--surface-2);
 		color: var(--text-muted);
 		cursor: pointer;
@@ -1713,6 +1714,7 @@
 		outline: none;
 		border-color: var(--accent);
 	}
+	.auth-input:disabled { opacity: 0.5; cursor: not-allowed; }
 	.auth-hint {
 		font-size: 0.72rem;
 		font-weight: 500;
@@ -1770,7 +1772,7 @@
 		justify-content: space-between;
 		gap: 0.5rem;
 		padding: 0.35rem 0.5rem;
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: 0.4rem;
 		background: var(--surface-3);
 	}
@@ -1803,7 +1805,7 @@
 		font-size: 0.7rem;
 		font-weight: 600;
 		color: var(--loss);
-		border: 1px solid color-mix(in srgb, var(--loss) 40%, var(--border));
+		border: 2px solid color-mix(in srgb, var(--loss) 40%, var(--border));
 		border-radius: 0.35rem;
 		padding: 0.2rem 0.5rem;
 		background: transparent;
@@ -1831,7 +1833,7 @@
 
 	/* security modal: one bordered block per factor group */
 	.mfa-section {
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: 0.6rem;
 		background: var(--surface-2);
 		padding: 0.7rem 0.8rem;
@@ -1840,7 +1842,7 @@
 	.mfa-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
 	.mfa-title { font-size: 0.86rem; font-weight: 700; color: var(--text); }
 	.mfa-desc { margin-top: 0.15rem; font-size: 0.72rem; font-weight: 500; color: var(--text-subtle); }
-	.mfa-on { font-size: 0.7rem; font-weight: 700; color: var(--win); white-space: nowrap; }
+	.mfa-on { font-size: 0.9rem; font-weight: 700; color: var(--win); white-space: nowrap; }
 	.mfa-off { font-size: 0.7rem; font-weight: 700; color: var(--text-subtle); white-space: nowrap; }
 
 	/* passkey list inside the security modal */
@@ -1851,7 +1853,7 @@
 		justify-content: space-between;
 		gap: 0.5rem;
 		padding: 0.4rem 0.55rem;
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: 0.45rem;
 		background: var(--surface);
 	}
@@ -1864,7 +1866,7 @@
 		font-weight: 600;
 		color: var(--text-muted);
 		background: var(--surface-2);
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: 0.35rem;
 		cursor: pointer;
 		transition: all 150ms var(--ease-snappy);
@@ -2295,7 +2297,7 @@
 		gap: 0.5rem;
 		padding: 1rem 0.6rem 0.85rem;
 		text-align: center;
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--surface);
 		cursor: pointer;

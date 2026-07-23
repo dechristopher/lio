@@ -670,7 +670,7 @@ func navScript() templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<script>\n\t\t(function () {\n\t\t\tconst modal = document.getElementById(\"modalAccount\");\n\t\t\tconst loginBtn = document.getElementById(\"loginButton\");\n\t\t\tconst profileBtn = document.getElementById(\"profileButton\");\n\t\t\tconst profilePop = document.getElementById(\"profilePopover\");\n\t\t\tconst prefsBtn = document.getElementById(\"prefsButton\");\n\t\t\tconst popover = document.getElementById(\"prefsPopover\"); // preferences\n\t\t\tconst scrim = document.getElementById(\"menuScrim\");\n\n\t\t\tconst isOpen = (el) => el && !el.classList.contains(\"hidden\");\n\t\t\tconst closePrefs = () => { if (popover) popover.classList.add(\"hidden\"); };\n\t\t\tconst closeProfile = () => { if (profilePop) profilePop.classList.add(\"hidden\"); };\n\t\t\t// the backdrop follows the menus: shown (dim + blur) whenever either\n\t\t\t// header popover is open, hidden once both are closed\n\t\t\tconst syncScrim = () => {\n\t\t\t\tif (scrim) scrim.classList.toggle(\"is-open\", isOpen(popover) || isOpen(profilePop));\n\t\t\t};\n\t\t\tconst closeMenus = () => { closePrefs(); closeProfile(); syncScrim(); };\n\n\t\t\tconst closeModal = () => { if (modal) modal.classList.remove(\"open\"); };\n\t\t\tif (modal) {\n\t\t\t\tconst closeBtn = modal.querySelector(\".modal-close\");\n\t\t\t\tif (loginBtn) loginBtn.addEventListener(\"click\", () => modal.classList.add(\"open\"));\n\t\t\t\tif (closeBtn) closeBtn.addEventListener(\"click\", closeModal);\n\t\t\t\tmodal.addEventListener(\"click\", (e) => { if (e.target === modal) closeModal(); });\n\t\t\t}\n\n\t\t\t// Ring the swatch/pill matching the live <html> data-board/data-piece,\n\t\t\t// and highlight the selected theme mode. The mode is derived from\n\t\t\t// storage, not <html> data-theme: an explicit choice persists a\n\t\t\t// \"theme\" key, while System is its absence (data-theme always holds\n\t\t\t// the *resolved* light/dark, which can't distinguish the two).\n\t\t\tconst syncPrefs = () => {\n\t\t\t\tconst root = document.documentElement.dataset;\n\t\t\t\tpopover.querySelectorAll(\"[data-set-board]\").forEach((b) =>\n\t\t\t\t\tb.classList.toggle(\"is-active\", b.dataset.setBoard === root.board));\n\t\t\t\tpopover.querySelectorAll(\"[data-set-piece]\").forEach((b) =>\n\t\t\t\t\tb.classList.toggle(\"is-active\", b.dataset.setPiece === root.piece));\n\t\t\t\tlet mode = \"system\";\n\t\t\t\ttry {\n\t\t\t\t\tconst t = localStorage.getItem(\"theme\");\n\t\t\t\t\tif (t === \"light\" || t === \"dark\") mode = t;\n\t\t\t\t} catch (e) {}\n\t\t\t\tpopover.querySelectorAll(\"[data-set-theme]\").forEach((b) =>\n\t\t\t\t\tb.classList.toggle(\"is-active\", b.dataset.setTheme === mode));\n\t\t\t};\n\t\t\t// Delegated: a swatch sets the board theme, a pill sets the piece set,\n\t\t\t// a theme button sets (or clears, for System) the color scheme.\n\t\t\t// __setBoard/__setPiece/__setTheme/__useSystemTheme (layout.templ)\n\t\t\t// flip the <html> attribute + persist; the CSS reacts instantly.\n\t\t\tif (popover) popover.addEventListener(\"click\", (e) => {\n\t\t\t\tconst boardBtn = e.target.closest(\"[data-set-board]\");\n\t\t\t\tif (boardBtn) { window.__setBoard(boardBtn.dataset.setBoard); syncPrefs(); return; }\n\t\t\t\tconst pieceBtn = e.target.closest(\"[data-set-piece]\");\n\t\t\t\tif (pieceBtn) { window.__setPiece(pieceBtn.dataset.setPiece); syncPrefs(); return; }\n\t\t\t\tconst themeBtn = e.target.closest(\"[data-set-theme]\");\n\t\t\t\tif (themeBtn) {\n\t\t\t\t\tconst v = themeBtn.dataset.setTheme;\n\t\t\t\t\tif (v === \"system\") { window.__useSystemTheme(); } else { window.__setTheme(v); }\n\t\t\t\t\tsyncPrefs();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// Opening either popover closes the other first, so the two never\n\t\t\t// stack; the scrim then reflects whether anything is open.\n\t\t\tif (prefsBtn) prefsBtn.addEventListener(\"click\", (e) => {\n\t\t\t\te.stopPropagation();\n\t\t\t\tcloseProfile();\n\t\t\t\tpopover.classList.toggle(\"hidden\");\n\t\t\t\tif (isOpen(popover)) syncPrefs();\n\t\t\t\tsyncScrim();\n\t\t\t});\n\t\t\tif (profileBtn && profilePop) profileBtn.addEventListener(\"click\", (e) => {\n\t\t\t\te.stopPropagation();\n\t\t\t\tclosePrefs();\n\t\t\t\tprofilePop.classList.toggle(\"hidden\");\n\t\t\t\tsyncScrim();\n\t\t\t});\n\n\t\t\t// the backdrop dismisses any open menu on click\n\t\t\tif (scrim) scrim.addEventListener(\"click\", closeMenus);\n\t\t\t// safety net for outside clicks not caught by the scrim\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst within =\n\t\t\t\t\t(popover && popover.contains(e.target)) ||\n\t\t\t\t\t(profilePop && profilePop.contains(e.target)) ||\n\t\t\t\t\t(prefsBtn && prefsBtn.contains(e.target)) ||\n\t\t\t\t\t(profileBtn && profileBtn.contains(e.target));\n\t\t\t\tif (!within) closeMenus();\n\t\t\t});\n\t\t\tdocument.addEventListener(\"keydown\", (e) => {\n\t\t\t\tif (e.key === \"Escape\") { closeModal(); closeMenus(); }\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<script>\n\t\t(function () {\n\t\t\tconst modal = document.getElementById(\"modalAccount\");\n\t\t\tconst loginBtn = document.getElementById(\"loginButton\");\n\t\t\tconst profileBtn = document.getElementById(\"profileButton\");\n\t\t\tconst profilePop = document.getElementById(\"profilePopover\");\n\t\t\tconst prefsBtn = document.getElementById(\"prefsButton\");\n\t\t\tconst popover = document.getElementById(\"prefsPopover\"); // preferences\n\t\t\tconst scrim = document.getElementById(\"menuScrim\");\n\n\t\t\tconst isOpen = (el) => el && !el.classList.contains(\"hidden\");\n\t\t\tconst closePrefs = () => { if (popover) popover.classList.add(\"hidden\"); };\n\t\t\t// Restore the account popover to its pristine state whenever it is\n\t\t\t// dismissed: clear every form field, collapse the expandable sections,\n\t\t\t// and hide transient error/success lines. Dispatching an input event\n\t\t\t// lets each form's own controller (lio-auth.js) recompute derived\n\t\t\t// state — e.g. the change-password submit/confirm gating.\n\t\t\tconst resetProfile = () => {\n\t\t\t\tif (!profilePop) return;\n\t\t\t\tprofilePop.querySelectorAll(\"form\").forEach((f) => f.reset());\n\t\t\t\tprofilePop.querySelectorAll(\"details\").forEach((d) => { d.open = false; });\n\t\t\t\tprofilePop.querySelectorAll(\"[data-auth-error],[data-auth-ok]\")\n\t\t\t\t\t.forEach((el) => el.classList.add(\"hidden\"));\n\t\t\t\tprofilePop.querySelectorAll(\"input\")\n\t\t\t\t\t.forEach((i) => i.dispatchEvent(new Event(\"input\", { bubbles: true })));\n\t\t\t};\n\t\t\t// expose so lio-auth.js can reset the popover when it hides it to open\n\t\t\t// the edit-profile / security modals\n\t\t\twindow.__resetProfilePopover = resetProfile;\n\t\t\tconst closeProfile = () => {\n\t\t\t\tif (!profilePop) return;\n\t\t\t\tif (isOpen(profilePop)) resetProfile();\n\t\t\t\tprofilePop.classList.add(\"hidden\");\n\t\t\t};\n\t\t\t// the backdrop follows the menus: shown (dim + blur) whenever either\n\t\t\t// header popover is open, hidden once both are closed\n\t\t\tconst syncScrim = () => {\n\t\t\t\tif (scrim) scrim.classList.toggle(\"is-open\", isOpen(popover) || isOpen(profilePop));\n\t\t\t};\n\t\t\tconst closeMenus = () => { closePrefs(); closeProfile(); syncScrim(); };\n\n\t\t\tconst closeModal = () => { if (modal) modal.classList.remove(\"open\"); };\n\t\t\tif (modal) {\n\t\t\t\tconst closeBtn = modal.querySelector(\".modal-close\");\n\t\t\t\tif (loginBtn) loginBtn.addEventListener(\"click\", () => modal.classList.add(\"open\"));\n\t\t\t\tif (closeBtn) closeBtn.addEventListener(\"click\", closeModal);\n\t\t\t\tmodal.addEventListener(\"click\", (e) => { if (e.target === modal) closeModal(); });\n\t\t\t}\n\n\t\t\t// Ring the swatch/pill matching the live <html> data-board/data-piece,\n\t\t\t// and highlight the selected theme mode. The mode is derived from\n\t\t\t// storage, not <html> data-theme: an explicit choice persists a\n\t\t\t// \"theme\" key, while System is its absence (data-theme always holds\n\t\t\t// the *resolved* light/dark, which can't distinguish the two).\n\t\t\tconst syncPrefs = () => {\n\t\t\t\tconst root = document.documentElement.dataset;\n\t\t\t\tpopover.querySelectorAll(\"[data-set-board]\").forEach((b) =>\n\t\t\t\t\tb.classList.toggle(\"is-active\", b.dataset.setBoard === root.board));\n\t\t\t\tpopover.querySelectorAll(\"[data-set-piece]\").forEach((b) =>\n\t\t\t\t\tb.classList.toggle(\"is-active\", b.dataset.setPiece === root.piece));\n\t\t\t\tlet mode = \"system\";\n\t\t\t\ttry {\n\t\t\t\t\tconst t = localStorage.getItem(\"theme\");\n\t\t\t\t\tif (t === \"light\" || t === \"dark\") mode = t;\n\t\t\t\t} catch (e) {}\n\t\t\t\tpopover.querySelectorAll(\"[data-set-theme]\").forEach((b) =>\n\t\t\t\t\tb.classList.toggle(\"is-active\", b.dataset.setTheme === mode));\n\t\t\t};\n\t\t\t// Delegated: a swatch sets the board theme, a pill sets the piece set,\n\t\t\t// a theme button sets (or clears, for System) the color scheme.\n\t\t\t// __setBoard/__setPiece/__setTheme/__useSystemTheme (layout.templ)\n\t\t\t// flip the <html> attribute + persist; the CSS reacts instantly.\n\t\t\tif (popover) popover.addEventListener(\"click\", (e) => {\n\t\t\t\tconst boardBtn = e.target.closest(\"[data-set-board]\");\n\t\t\t\tif (boardBtn) { window.__setBoard(boardBtn.dataset.setBoard); syncPrefs(); return; }\n\t\t\t\tconst pieceBtn = e.target.closest(\"[data-set-piece]\");\n\t\t\t\tif (pieceBtn) { window.__setPiece(pieceBtn.dataset.setPiece); syncPrefs(); return; }\n\t\t\t\tconst themeBtn = e.target.closest(\"[data-set-theme]\");\n\t\t\t\tif (themeBtn) {\n\t\t\t\t\tconst v = themeBtn.dataset.setTheme;\n\t\t\t\t\tif (v === \"system\") { window.__useSystemTheme(); } else { window.__setTheme(v); }\n\t\t\t\t\tsyncPrefs();\n\t\t\t\t}\n\t\t\t});\n\n\t\t\t// Opening either popover closes the other first, so the two never\n\t\t\t// stack; the scrim then reflects whether anything is open.\n\t\t\tif (prefsBtn) prefsBtn.addEventListener(\"click\", (e) => {\n\t\t\t\te.stopPropagation();\n\t\t\t\tcloseProfile();\n\t\t\t\tpopover.classList.toggle(\"hidden\");\n\t\t\t\tif (isOpen(popover)) syncPrefs();\n\t\t\t\tsyncScrim();\n\t\t\t});\n\t\t\tif (profileBtn && profilePop) profileBtn.addEventListener(\"click\", (e) => {\n\t\t\t\te.stopPropagation();\n\t\t\t\tclosePrefs();\n\t\t\t\t// close (with reset) when open, otherwise reveal — a plain class\n\t\t\t\t// toggle would bypass closeProfile's reset on the closing click\n\t\t\t\tif (isOpen(profilePop)) closeProfile();\n\t\t\t\telse profilePop.classList.remove(\"hidden\");\n\t\t\t\tsyncScrim();\n\t\t\t});\n\n\t\t\t// the backdrop dismisses any open menu on click\n\t\t\tif (scrim) scrim.addEventListener(\"click\", closeMenus);\n\t\t\t// safety net for outside clicks not caught by the scrim\n\t\t\tdocument.addEventListener(\"click\", (e) => {\n\t\t\t\tconst within =\n\t\t\t\t\t(popover && popover.contains(e.target)) ||\n\t\t\t\t\t(profilePop && profilePop.contains(e.target)) ||\n\t\t\t\t\t(prefsBtn && prefsBtn.contains(e.target)) ||\n\t\t\t\t\t(profileBtn && profileBtn.contains(e.target));\n\t\t\t\tif (!within) closeMenus();\n\t\t\t});\n\t\t\tdocument.addEventListener(\"keydown\", (e) => {\n\t\t\t\tif (e.key === \"Escape\") { closeModal(); closeMenus(); }\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1116,7 +1116,7 @@ func footerContent(meta Meta) templ.Component {
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Version)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 530, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 554, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 		if templ_7745c5c3_Err != nil {
@@ -1370,7 +1370,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.IsSpectator))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 606, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 630, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 		if templ_7745c5c3_Err != nil {
@@ -1383,7 +1383,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var55 string
 		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.AnchorID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 606, Col: 155}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 630, Col: 155}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 		if templ_7745c5c3_Err != nil {
@@ -1396,7 +1396,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 606, Col: 227}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 630, Col: 227}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 		if templ_7745c5c3_Err != nil {
@@ -1409,7 +1409,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.Variant.Casual))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 606, Col: 286}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 630, Col: 286}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 		if templ_7745c5c3_Err != nil {
@@ -1422,7 +1422,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var58 string
 		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.Variant.Deploy))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 606, Col: 345}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 630, Col: 345}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 		if templ_7745c5c3_Err != nil {
@@ -1435,7 +1435,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var59 string
 		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Play again"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 681, Col: 126}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 705, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 		if templ_7745c5c3_Err != nil {
@@ -1448,7 +1448,7 @@ func board(payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 681, Col: 170}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 705, Col: 170}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 		if templ_7745c5c3_Err != nil {
@@ -1520,7 +1520,7 @@ func playerTitle(title string) templ.Component {
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 716, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 740, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 			if templ_7745c5c3_Err != nil {
@@ -1576,7 +1576,7 @@ func clock(title string, name string, botGlyph string, rating string, ratingDelt
 			var templ_7745c5c3_Var64 string
 			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(botGlyph)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 736, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 760, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 			if templ_7745c5c3_Err != nil {
@@ -1598,7 +1598,7 @@ func clock(title string, name string, botGlyph string, rating string, ratingDelt
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 739, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 763, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 		if templ_7745c5c3_Err != nil {
@@ -1616,7 +1616,7 @@ func clock(title string, name string, botGlyph string, rating string, ratingDelt
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(rating)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 742, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 766, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 			if templ_7745c5c3_Err != nil {
@@ -1652,7 +1652,7 @@ func clock(title string, name string, botGlyph string, rating string, ratingDelt
 				var templ_7745c5c3_Var69 string
 				templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(ratingDeltaText(ratingDelta))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 744, Col: 105}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 768, Col: 105}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 				if templ_7745c5c3_Err != nil {
@@ -1724,7 +1724,7 @@ func seatBotMarker(isBot bool, glyph string) templ.Component {
 				var templ_7745c5c3_Var71 string
 				templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(glyph)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 774, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/components.templ`, Line: 798, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 				if templ_7745c5c3_Err != nil {

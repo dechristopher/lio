@@ -9,7 +9,7 @@ import "strconv"
 // (lazy-loaded fragment), a security placeholder for Phase 4, and the logout
 // actions. lio-auth.js drives the forms/sections.
 templ profilePopover(username string, title string) {
-	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
 		<div class="mt-1 flex items-center gap-2">
 			<p class="flex min-w-0 flex-1 items-center gap-1.5 truncate text-md font-semibold text-fg">
 				@playerTitle(title)
@@ -36,11 +36,11 @@ templ profilePopover(username string, title string) {
 					</label>
 					<label class="auth-label">
 						Confirm new password
-						<input class="auth-input" name="confirm" type="password" autocomplete="new-password" required/>
+						<input class="auth-input" name="confirm" type="password" autocomplete="new-password" required disabled/>
 					</label>
 					<p class="auth-error hidden" data-auth-error role="alert"></p>
 					<p class="auth-ok hidden" data-auth-ok role="status">Password changed. Other sessions were signed out.</p>
-					<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm">Update password</button>
+					<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm" disabled>Update password</button>
 				</form>
 			</details>
 			<details id="sessionsDetails" class="account-section">

@@ -172,6 +172,27 @@
 	const pwForm = document.getElementById('passwordForm');
 	if (pwForm) {
 		const okEl = pwForm.querySelector('[data-auth-ok]');
+		const pwSubmit = pwForm.querySelector('button[type="submit"]');
+		// length bounds come from the New-password input's attributes so the
+		// client shares one source of truth with the server (auth.PasswordMinLen
+		// / PasswordMaxLen). Confirm stays disabled until the new password meets
+		// the length rule; Update stays disabled until all three fields are
+		// filled and new === confirm.
+		const pwMin = Number(pwForm.new.getAttribute('minlength')) || 8;
+		const pwMax = Number(pwForm.new.getAttribute('maxlength')) || 128;
+		const syncPwState = () => {
+			const newLen = pwForm.new.value.length;
+			const lenOK = newLen >= pwMin && newLen <= pwMax;
+			pwForm.confirm.disabled = !lenOK;
+			if (pwSubmit) {
+				pwSubmit.disabled = !(pwForm.current.value && lenOK &&
+					pwForm.new.value === pwForm.confirm.value);
+			}
+		};
+		pwForm.current.addEventListener('input', syncPwState);
+		pwForm.new.addEventListener('input', syncPwState);
+		pwForm.confirm.addEventListener('input', syncPwState);
+		syncPwState();
 		pwForm.addEventListener('submit', async (e) => {
 			e.preventDefault();
 			showError(pwForm);
@@ -187,6 +208,7 @@
 				});
 				if (status === 204) {
 					pwForm.reset();
+					syncPwState(); // reset() clears values but not the disabled state
 					if (okEl) { okEl.classList.remove('hidden'); }
 					return;
 				}
@@ -531,7 +553,9 @@
 		const close = () => { epModal.classList.remove('open'); };
 
 		openBtn.addEventListener('click', () => {
-			// dismiss the profile popover (and its scrim) before opening
+			// dismiss the profile popover (and its scrim) before opening, resetting
+			// it so it reopens pristine (navScript owns the reset)
+			if (window.__resetProfilePopover) { window.__resetProfilePopover(); }
 			const pp = document.getElementById('profilePopover');
 			if (pp) { pp.classList.add('hidden'); }
 			const scrim = document.getElementById('menuScrim');
@@ -606,7 +630,9 @@
 		const close = () => { secModal.classList.remove('open'); };
 
 		openBtn.addEventListener('click', () => {
-			// dismiss the profile popover (and its scrim) before opening
+			// dismiss the profile popover (and its scrim) before opening, resetting
+			// it so it reopens pristine (navScript owns the reset)
+			if (window.__resetProfilePopover) { window.__resetProfilePopover(); }
 			const pp = document.getElementById('profilePopover');
 			if (pp) { pp.classList.add('hidden'); }
 			const scrim = document.getElementById('menuScrim');

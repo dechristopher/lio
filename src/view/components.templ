@@ -331,7 +331,28 @@ templ navScript() {
 
 			const isOpen = (el) => el && !el.classList.contains("hidden");
 			const closePrefs = () => { if (popover) popover.classList.add("hidden"); };
-			const closeProfile = () => { if (profilePop) profilePop.classList.add("hidden"); };
+			// Restore the account popover to its pristine state whenever it is
+			// dismissed: clear every form field, collapse the expandable sections,
+			// and hide transient error/success lines. Dispatching an input event
+			// lets each form's own controller (lio-auth.js) recompute derived
+			// state — e.g. the change-password submit/confirm gating.
+			const resetProfile = () => {
+				if (!profilePop) return;
+				profilePop.querySelectorAll("form").forEach((f) => f.reset());
+				profilePop.querySelectorAll("details").forEach((d) => { d.open = false; });
+				profilePop.querySelectorAll("[data-auth-error],[data-auth-ok]")
+					.forEach((el) => el.classList.add("hidden"));
+				profilePop.querySelectorAll("input")
+					.forEach((i) => i.dispatchEvent(new Event("input", { bubbles: true })));
+			};
+			// expose so lio-auth.js can reset the popover when it hides it to open
+			// the edit-profile / security modals
+			window.__resetProfilePopover = resetProfile;
+			const closeProfile = () => {
+				if (!profilePop) return;
+				if (isOpen(profilePop)) resetProfile();
+				profilePop.classList.add("hidden");
+			};
 			// the backdrop follows the menus: shown (dim + blur) whenever either
 			// header popover is open, hidden once both are closed
 			const syncScrim = () => {
@@ -395,7 +416,10 @@ templ navScript() {
 			if (profileBtn && profilePop) profileBtn.addEventListener("click", (e) => {
 				e.stopPropagation();
 				closePrefs();
-				profilePop.classList.toggle("hidden");
+				// close (with reset) when open, otherwise reveal — a plain class
+				// toggle would bypass closeProfile's reset on the closing click
+				if (isOpen(profilePop)) closeProfile();
+				else profilePop.classList.remove("hidden");
 				syncScrim();
 			});
 
