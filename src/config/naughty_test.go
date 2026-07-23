@@ -35,7 +35,7 @@ func TestNaughtyUsername(t *testing.T) {
 		"f_u_c_k",    // separator padding -> "fuck"
 		"bollocks99", // long word, substring pass
 		"biiitch",    // repeated-letter padding -> "bitch"
-		"supercunt",  // long word nested is still caught
+		"wowjackass", // long word nested is still caught
 	}
 	for _, u := range blocked {
 		if !NaughtyUsername(u) {
