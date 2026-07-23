@@ -688,7 +688,7 @@
 		column-gap: 0.8rem;
 		row-gap: 0.35rem;
 		align-items: center;
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--surface-2);
 		padding: 0.55rem 0.8rem;
@@ -896,7 +896,7 @@
 	/* ---- side rail ---- */
 	.rail-stack { display: flex; flex-direction: column; gap: 0.6rem; height: 100%; }
 	.rail-card {
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--surface-2);
 		padding: 0.7rem 0.8rem;
@@ -1122,7 +1122,7 @@
 		padding: 0.35rem 0;
 		font-size: 0.9rem;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		background: var(--surface-3);
 		color: var(--text-muted);
 		cursor: pointer;
@@ -1191,7 +1191,7 @@
 		padding: 0.4rem 0.6rem;
 		border-radius: var(--radius-sm);
 		background: var(--surface-2);
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 	}
 	.info-bar #info:empty { display: none; }
 	.info-bar #info { font-weight: 600; color: var(--text); }
