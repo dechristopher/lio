@@ -14,17 +14,19 @@ import (
 // width formula (the room game grid's min(96vw,…)) can align the header edges
 // exactly to it.
 templ header(width string) {
-	<header class={ "flex items-center justify-between gap-4 pt-1 pb-3 " + width }>
-		<div class="flex flex-col items-start leading-none">
+	<header class={ "flex items-center justify-between gap-4 max-[400px]:gap-2 pt-1 pb-3 " + width }>
+		<div class="flex min-w-0 flex-col items-start leading-none">
 			<a href="/" class="no-underline">
-				// wordmark: text-2xl (1.5rem) capped, but fluid below ~328px viewports so
-				// the header's login/prefs/theme buttons keep their room on very narrow
-				// screens. The button cluster is a fixed width, so the logo absorbs the
-				// whole shortfall: 17vw - 32px ≈ 1.5rem at 328px and tracks the remaining
-				// space below that, floored at 0.9rem.
-				<span class="font-display text-[clamp(0.9rem,17vw_-_32px,1.5rem)] font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
+				// wordmark: text-2xl (1.5rem) capped, staying full-size well into narrow
+				// viewports now that the control cluster collapses to icons under 400px.
+				// It only begins shrinking around ~270px — where the logged-out "Log in"
+				// button + gear (the widest cluster, ~113px) plus the full 128px wordmark
+				// stop fitting in 92vw — then tracks the remaining space down to a 0.9rem
+				// floor (~214px). Same 17vw slope as before; the -22px offset is what
+				// moved the knee from ~330px down to ~270px.
+				<span class="font-display text-[clamp(0.9rem,17vw_-_22px,1.5rem)] font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
 			</a>
-			<div class="mt-1 flex items-center gap-2 text-[10px] font-semibold tracking-widest leading-none">
+			<div class="mt-1 flex min-w-0 items-center gap-2 text-[10px] font-semibold tracking-widest leading-none">
 				<span class="text-warn uppercase">beta</span>
 				@connIndicator()
 			</div>
@@ -34,9 +36,16 @@ templ header(width string) {
 		// page is dimmed/blurred behind an open popover.
 		<div class="relative z-50 flex items-center gap-2">
 			if viewer(ctx).LoggedIn {
-				<button type="button" id="profileButton" class="btn btn-ghost max-w-40 truncate whitespace-nowrap px-3 py-1.5 text-sm font-semibold">
+				// Wide (≥400px): the full username pill. Under 400px it collapses
+				// to the icon-only #profileButtonNarrow below to fit the header on
+				// small phones; both open the same profile popover (navScript wires
+				// the pair). Only one is ever displayed at a given width.
+				<button type="button" id="profileButton" class="btn btn-ghost max-w-40 truncate whitespace-nowrap px-3 py-1.5 text-sm font-semibold max-[400px]:hidden">
 					@playerTitle(viewer(ctx).Title)
 					<span class="min-w-0 truncate">{ viewer(ctx).Username }</span>
+				</button>
+				<button type="button" id="profileButtonNarrow" aria-label="Account" title="Account" class="hdr-icon-btn hidden max-[400px]:inline-flex">
+					@iconUser()
 				</button>
 			} else if viewer(ctx).AccountsEnabled {
 				<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm">Log in</button>
@@ -44,22 +53,13 @@ templ header(width string) {
 				// PG-less local dev: accounts have no backing store
 				<button type="button" id="loginButton" class="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-sm opacity-50" disabled title="Accounts are unavailable in this environment">Log in</button>
 			}
-			<button
-				type="button"
-				id="prefsButton"
-				aria-label="Preferences"
-				title="Preferences"
-				class="inline-flex h-9 w-9 items-center justify-center rounded-md border-2 border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0"
-			>
+			<button type="button" id="prefsButton" aria-label="Preferences" title="Preferences" class="hdr-icon-btn">
 				@iconGear()
 			</button>
-			<button
-				type="button"
-				onclick="__toggleTheme()"
-				aria-label="Toggle dark mode"
-				title="Toggle dark mode"
-				class="inline-flex h-9 w-9 items-center justify-center rounded-md border-2 border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:-translate-y-px hover:border-line-strong hover:text-fg hover:shadow-md active:translate-y-0"
-			>
+			// One-tap light/dark shortcut. Hidden under 400px, where the header
+			// collapses to icons — the prefs popover carries the full Light/Dark/
+			// System control there, so no capability is lost.
+			<button type="button" onclick="__toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode" class="hdr-icon-btn max-[400px]:hidden">
 				@iconMoon()
 				@iconSun()
 			</button>
@@ -177,7 +177,7 @@ templ updateNoticeScript() {
 // theme control is wired to the no-flash theme helpers; the rest are stubbed
 // placeholders for settings that land alongside accounts.
 templ prefsPopover() {
-	<div id="prefsPopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-72 rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+	<div id="prefsPopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-72 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
 		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Preferences</p>
 		<div class="mt-2">
 			<p class="mb-1 text-xs font-medium text-fg-muted">Theme</p>
@@ -323,7 +323,10 @@ templ navScript() {
 		(function () {
 			const modal = document.getElementById("modalAccount");
 			const loginBtn = document.getElementById("loginButton");
-			const profileBtn = document.getElementById("profileButton");
+			// wide (username pill) + narrow (collapsed icon) profile triggers; only
+			// one is displayed at a given width, both open the same popover
+			const profileBtns = ["profileButton", "profileButtonNarrow"]
+				.map((id) => document.getElementById(id)).filter(Boolean);
 			const profilePop = document.getElementById("profilePopover");
 			const prefsBtn = document.getElementById("prefsButton");
 			const popover = document.getElementById("prefsPopover"); // preferences
@@ -413,7 +416,7 @@ templ navScript() {
 				if (isOpen(popover)) syncPrefs();
 				syncScrim();
 			});
-			if (profileBtn && profilePop) profileBtn.addEventListener("click", (e) => {
+			if (profilePop) profileBtns.forEach((btn) => btn.addEventListener("click", (e) => {
 				e.stopPropagation();
 				closePrefs();
 				// close (with reset) when open, otherwise reveal — a plain class
@@ -421,7 +424,7 @@ templ navScript() {
 				if (isOpen(profilePop)) closeProfile();
 				else profilePop.classList.remove("hidden");
 				syncScrim();
-			});
+			}));
 
 			// the backdrop dismisses any open menu on click
 			if (scrim) scrim.addEventListener("click", closeMenus);
@@ -431,7 +434,7 @@ templ navScript() {
 					(popover && popover.contains(e.target)) ||
 					(profilePop && profilePop.contains(e.target)) ||
 					(prefsBtn && prefsBtn.contains(e.target)) ||
-					(profileBtn && profileBtn.contains(e.target));
+					profileBtns.some((btn) => btn.contains(e.target));
 				if (!within) closeMenus();
 			});
 			document.addEventListener("keydown", (e) => {
@@ -453,6 +456,15 @@ templ iconSun() {
 	<svg class="hidden h-5 w-5 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<circle cx="12" cy="12" r="4"></circle>
 		<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+	</svg>
+}
+
+// iconUser is the single-person glyph backing the narrow-screen collapsed
+// profile button (the logged-in account control under 400px).
+templ iconUser() {
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+		<circle cx="12" cy="7" r="4"></circle>
 	</svg>
 }
 
@@ -542,7 +554,7 @@ templ iconPencil() {
 // footerContent is the footer's inner nav + copyright, shared between the
 // standalone page footer and the home page's column-nested footer.
 templ footerContent(meta Meta) {
-	<nav class="flex items-center gap-2.5 font-medium">
+	<nav class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 font-medium">
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/about">About</a>
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/news">News</a>

@@ -1619,6 +1619,32 @@
 		}
 	}
 
+	/* header chrome icon buttons: the preferences gear, the theme toggle, and
+	   the narrow-screen collapsed profile button. A 36px square panel button;
+	   shared so the control cluster stays visually uniform as buttons collapse
+	   to icons under the 400px header breakpoint. Display is left to the caller's
+	   utilities (the theme toggle hides, the collapsed profile shows, under 400px). */
+	.hdr-icon-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.hdr-icon-btn:hover {
+		transform: translateY(-1px);
+		border-color: var(--border-strong);
+		color: var(--text);
+		box-shadow: var(--shadow-md);
+	}
+	.hdr-icon-btn:active { transform: translateY(0); }
+
 	/* ---- header popover backdrop ----
 	   Dims + blurs the page behind an open header popover (preferences /
 	   profile). Deliberately lighter than .modal-shade — a menu is less modal
@@ -2808,17 +2834,19 @@
 		line-height: 1;
 		white-space: nowrap;
 		user-select: none;
+		min-width: 0;
 	}
+	/* the label shows in full whenever the header has room; on the tightest
+	   widths a long transient label (reconnecting…/updating…) ellipsizes rather
+	   than forcing horizontal scroll (the dot color still signals the state).
+	   Pairs with the min-w-0 on the header's left column + beta/conn row. */
+	.conn-label { overflow: hidden; text-overflow: ellipsis; }
 	.conn-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--text-subtle); flex: none; }
 	.conn-online .conn-dot { background: var(--win); }
 	.conn-reconnecting .conn-dot { background: var(--warn); animation: connPulse 1s ease-in-out infinite; }
 	.conn-offline .conn-dot { background: var(--loss); }
 	.conn-reconnecting .conn-label { color: var(--warn); }
 	.conn-offline .conn-label { color: var(--loss); }
-	/* on very narrow headers, drop the label and keep the color dot as the signal */
-	@media (max-width: 360px) {
-		.conn-label { display: none; }
-	}
 
 	/* ---- preferences popover: board-theme swatches + piece-set pills ---- */
 	.swatch-btn {

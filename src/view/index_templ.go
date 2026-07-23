@@ -74,7 +74,7 @@ func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStat
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"flex flex-col gap-4 md:col-span-7\"><div class=\"card\"><p class=\"text-2xl font-extrabold uppercase tracking-widest text-accent\">Quick game</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"flex flex-col gap-4 md:col-span-7\"><div class=\"card\"><p class=\"text-2xl font-extrabold uppercase tracking-widest text-accent max-[244px]:text-center max-[244px]:text-xl\">Quick game</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
