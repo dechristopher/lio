@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -27,6 +28,19 @@ func TestValidateUsername(t *testing.T) {
 	for _, u := range reserved {
 		if err := ValidateUsername(u); err == nil {
 			t.Errorf("reserved username accepted: %q", u)
+		}
+	}
+	// blocklisted language (config.NaughtyUsername) — the third check.
+	blocked := []string{"fuck", "cunt99", "a55hole", "bollocks99"}
+	for _, u := range blocked {
+		if err := ValidateUsername(u); !errors.Is(err, ErrUsernameBlocked) {
+			t.Errorf("blocked username %q: got err %v, want ErrUsernameBlocked", u, err)
+		}
+	}
+	// a name that nests a short fragment must still pass the blocklist.
+	for _, u := range []string{"Classic", "Cockburn", "Analyst42"} {
+		if err := ValidateUsername(u); err != nil {
+			t.Errorf("legitimate username wrongly rejected: %q: %v", u, err)
 		}
 	}
 }
