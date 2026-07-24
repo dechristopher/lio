@@ -117,7 +117,7 @@ func header(width string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</button><button type=\"button\" onclick=\"__toggleTheme()\" aria-label=\"Toggle dark mode\" title=\"Toggle dark mode\" class=\"hdr-icon-btn shrink-0 max-[400px]:hidden\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</button><button type=\"button\" onclick=\"__toggleTheme()\" aria-label=\"Toggle dark mode\" title=\"Toggle dark mode\" class=\"hdr-icon-btn shrink-0 max-[768px]:hidden\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

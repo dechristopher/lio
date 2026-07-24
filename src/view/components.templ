@@ -19,7 +19,7 @@ templ header(width string) {
 			<a href="/" class="no-underline">
 				// wordmark: text-2xl (1.5rem) capped, staying full-size well into narrow
 				// viewports. The control cluster is now bare text + icons (the theme
-				// toggle also hides under 400px), and a logged-in username min-w-0
+				// toggle also hides under 768px), and a logged-in username min-w-0
 				// truncates rather than pushing the wordmark, so the wordmark rarely
 				// needs to give ground. It only begins shrinking around ~270px, then
 				// tracks the remaining space down to a 0.9rem floor (~214px). Same 17vw
@@ -58,10 +58,10 @@ templ header(width string) {
 			<button type="button" id="prefsButton" aria-label="Preferences" title="Preferences" class="hdr-icon-btn shrink-0">
 				@iconGear()
 			</button>
-			// One-tap light/dark shortcut. Hidden under 400px, where the header
-			// collapses to icons — the prefs popover carries the full Light/Dark/
+			// One-tap light/dark shortcut. Hidden under 768px, where the layout
+			// goes single-column — the prefs popover carries the full Light/Dark/
 			// System control there, so no capability is lost.
-			<button type="button" onclick="__toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode" class="hdr-icon-btn shrink-0 max-[400px]:hidden">
+			<button type="button" onclick="__toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode" class="hdr-icon-btn shrink-0 max-[768px]:hidden">
 				@iconMoon()
 				@iconSun()
 			</button>
