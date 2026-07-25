@@ -1,5 +1,5 @@
 // Package rating is a hand-written Glicko-2 implementation
-// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Lioctad rates per time-control
+// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). lio rates per time-control
 // category (variant.Group); each rated game is applied as a one-game rating
 // period, transactionally, inside the archive commit. Reference: Glickman,
 // "Example of the Glicko-2 system" (http://www.glicko.net/glicko/glicko2.pdf).
@@ -71,7 +71,7 @@ func (r Rating) Display() string {
 
 // Update returns the player's new rating after a single game against opp with
 // the given score (Win/Draw/Loss). It is a one-game rating period — the way
-// lioctad applies ratings (once per finished rated game).
+// lio applies ratings (once per finished rated game).
 func (r Rating) Update(opp Rating, score float64) Rating {
 	return r.updatePeriod([]opponent{{r: opp, score: score}}, tau)
 }

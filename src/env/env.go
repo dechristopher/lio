@@ -6,9 +6,10 @@ import "os"
 type Env string
 
 const (
-	// Prod is the production environment at https://lioctad.org
+	// Prod is the production environment at https://octad.gg
 	Prod Env = "prod"
-	// Dev is the dev environment at https://dev.lioctad.org
+	// Dev is a non-production deployed environment. There is no live dev host
+	// today; the value is retained for the DEPLOY=dev branch (see IsDev).
 	Dev Env = "dev"
 	// Local is the dev environment at localhost
 	Local Env = "local"

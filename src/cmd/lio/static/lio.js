@@ -69,7 +69,7 @@ window.notification = new Howl({
 
 const crowdTag = "c";
 
-const logMe = () => console.log(`© 2021-2026 lioctad.org`);
+const logMe = () => console.log(`© 2021-2026 octad.gg`);
 
 // requestAnimFrame polyfill
 window.requestAnimFrame = (function () {
@@ -98,7 +98,7 @@ const connect = (prefix) => {
 		/^http/, 'ws')}/socket${prefix ? `/${prefix}` : ''}${location.pathname}`);
 
 	window.ws.onopen = () => {
-		console.log("Connected to lioctad.org");
+		console.log("Connected to octad.gg");
 		connected();
 	};
 
@@ -136,13 +136,13 @@ const connect = (prefix) => {
 		}
 
 		if (!disconnected) {
-			console.warn("Lost connection to lioctad.org");
+			console.warn("Lost connection to octad.gg");
 			if (window.lioConn) {
 				window.lioConn.set("reconnecting");
 			}
 			reconnect(prefix);
 		} else {
-			console.log("Disconnected from lioctad.org");
+			console.log("Disconnected from octad.gg");
 			if (window.lioConn) {
 				window.lioConn.set("offline");
 			}

@@ -37,8 +37,8 @@ func TestOkOrigin(t *testing.T) {
 		t.Setenv("DEPLOY", "dev")
 		for _, origin := range []string{
 			"",
-			"https://dev.lioctad.org",
-			"http://192.168.1.50:4444", // LAN device against the dev env
+			"https://some-tunnel.trycloudflare.com", // arbitrary tunnel origin
+			"http://192.168.1.50:4444",              // LAN device against the dev env
 			"https://evil.example",
 		} {
 			if !checkOrigin(t, origin) {
@@ -53,8 +53,8 @@ func TestOkOrigin(t *testing.T) {
 			origin string
 			want   bool
 		}{
-			{"https://lioctad.org", true},
-			{"https://lioctad.or", false}, // registerable near-miss, substring of the real origin
+			{"https://octad.gg", true},
+			{"https://octad.g", false}, // registerable near-miss, substring of the real origin
 			{"http://localhost:4444", false},
 		}
 		for _, tc := range cases {

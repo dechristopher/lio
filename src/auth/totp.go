@@ -21,8 +21,10 @@ import (
 // verification adds a ±1-step skew, a per-user replay guard, and a 5/min rate
 // limit.
 
-// totpIssuer labels the account inside authenticator apps.
-const totpIssuer = "Lioctad"
+// totpIssuer labels the account inside authenticator apps (also reused as the
+// WebAuthn RPDisplayName). Only affects new enrollments; already-issued TOTP
+// URIs keep their original issuer.
+const totpIssuer = "octad.gg"
 
 // totpPeriod / totpSkew / totpDigits pin the verification parameters (defaults
 // pquerna also uses, stated explicitly so verify and enroll can't drift).

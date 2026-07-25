@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Local development stack helper for lioctad. Runs the backing services
+# Local development stack helper for lio. Runs the backing services
 # (Postgres + Redis, MinIO optional) in Docker with persistent named volumes;
 # run the lio server itself natively (GoLand "lio-local" run config or
 # `go run ./cmd/lio`) against them. See dev/README.md.

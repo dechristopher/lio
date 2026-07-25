@@ -24,7 +24,7 @@ func TestValidateUsername(t *testing.T) {
 			t.Errorf("invalid username accepted: %q", u)
 		}
 	}
-	reserved := []string{"anonymous", "ANONYMOUS", "Bot", "admin", "lioctad", "You"}
+	reserved := []string{"anonymous", "ANONYMOUS", "Bot", "admin", "octad", "You"}
 	for _, u := range reserved {
 		if err := ValidateUsername(u); err == nil {
 			t.Errorf("reserved username accepted: %q", u)

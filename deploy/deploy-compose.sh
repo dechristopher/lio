@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deploy/update the lioctad docker-compose stack (deploy/docker-compose.yaml).
+# Deploy/update the lio docker-compose stack (deploy/docker-compose.yaml).
 #
 # The compose replacement for deploy-fly.sh: resolves the short commit hash of
 # the checked-out tree and passes it through as GIT_REV so the build injects it
@@ -13,15 +13,15 @@
 #
 # If the new build never passes its healthcheck, the deploy self-heals instead
 # of leaving a poisoned environment: it retags the previously running image back
-# to lioctad:latest and rolls the service back (verifying the old build comes
+# to lio:latest and rolls the service back (verifying the old build comes
 # back healthy). On a first deploy with nothing to roll back to, the broken
 # service is stopped instead.
 #
 # Every healthy deploy tags its image "<version>-<commit>" (e.g.
-# lioctad:v0.9.17-abc1234) so hotfix deploys at the same version don't clobber
+# lio:v0.9.17-abc1234) so hotfix deploys at the same version don't clobber
 # each other, and prunes older per-release images, keeping the most recent
 # KEEP_RELEASES. Manual rollback to any retained build:
-#   docker tag lioctad:<version>-<commit> lioctad:latest && docker compose -f deploy/docker-compose.yaml up -d
+#   docker tag lio:<version>-<commit> lio:latest && docker compose -f deploy/docker-compose.yaml up -d
 #
 # Run from anywhere; extra args are passed to `docker compose up`
 # (e.g. deploy/deploy-compose.sh --force-recreate).
@@ -78,12 +78,12 @@ else
 fi
 export GIT_REV
 
-# wait_healthy <label> — poll the lioctad healthcheck for up to HEALTH_TIMEOUT_SECS
+# wait_healthy <label> — poll the lio healthcheck for up to HEALTH_TIMEOUT_SECS
 wait_healthy() {
-	echo -n "Waiting for lioctad ($1) to become healthy"
+	echo -n "Waiting for lio ($1) to become healthy"
 	local waited=0
 	while [ "$waited" -lt "$HEALTH_TIMEOUT_SECS" ]; do
-		status="$("${COMPOSE[@]}" ps --format '{{.Health}}' lioctad 2>/dev/null || true)"
+		status="$("${COMPOSE[@]}" ps --format '{{.Health}}' lio 2>/dev/null || true)"
 		if [ "$status" = "healthy" ]; then
 			echo
 			return 0
@@ -102,7 +102,7 @@ wait_healthy() {
 # trap, so it never outlives the script).
 LOG_FOLLOW_PID=""
 start_log_follow() {
-	"${COMPOSE[@]}" logs -f --no-color lioctad &
+	"${COMPOSE[@]}" logs -f --no-color lio &
 	LOG_FOLLOW_PID=$!
 }
 stop_log_follow() {
@@ -118,30 +118,30 @@ trap 'stop_log_follow' EXIT
 # surface the container's status/exit for the record
 emit_failure_status() {
 	{
-		echo "---- lioctad ($1) failed its healthcheck; container status:"
-		"${COMPOSE[@]}" ps -a lioctad
+		echo "---- lio ($1) failed its healthcheck; container status:"
+		"${COMPOSE[@]}" ps -a lio
 		echo "----"
 	} >&2
 }
 
 # purge_old_images — keep :latest plus the KEEP_RELEASES most-recent per-release
-# tags; remove older lioctad images so the host doesn't accumulate every build.
+# tags; remove older lio images so the host doesn't accumulate every build.
 # `docker images` lists newest-first; never fatal to the deploy.
 purge_old_images() {
-	docker images --format '{{.Repository}}:{{.Tag}}' lioctad 2>/dev/null \
+	docker images --format '{{.Repository}}:{{.Tag}}' lio 2>/dev/null \
 		| grep -Ev ':(latest|<none>)$' \
 		| tail -n "+$((KEEP_RELEASES + 1))" \
 		| xargs -r docker rmi 2>/dev/null || true
 }
 
 # capture the image the currently running container was started from, *before*
-# the build retags lioctad:latest out from under it — this exact image ID is
+# the build retags lio:latest out from under it — this exact image ID is
 # the rollback target (may be empty on a first deploy)
-PREV_IMAGE="$("${COMPOSE[@]}" ps -q lioctad 2>/dev/null \
+PREV_IMAGE="$("${COMPOSE[@]}" ps -q lio 2>/dev/null \
 	| head -n1 \
 	| xargs -r docker inspect -f '{{.Image}}' 2>/dev/null || true)"
 
-echo "Deploying lioctad ${RELEASE} via docker compose..."
+echo "Deploying lio ${RELEASE} via docker compose..."
 "${COMPOSE[@]}" build --pull
 "${COMPOSE[@]}" up -d "$@"
 
@@ -149,9 +149,9 @@ start_log_follow
 if wait_healthy "new build ${RELEASE}"; then
 	stop_log_follow
 	# tag this build with its release version for rollbacks/audit, then prune old ones
-	docker tag lioctad:latest "lioctad:${RELEASE}"
+	docker tag lio:latest "lio:${RELEASE}"
 	purge_old_images
-	echo "lioctad is healthy @ ${RELEASE}"
+	echo "lio is healthy @ ${RELEASE}"
 	"${COMPOSE[@]}" ps
 	exit 0
 fi
@@ -162,15 +162,15 @@ emit_failure_status "new build ${RELEASE}"
 if [ -z "$PREV_IMAGE" ]; then
 	echo "error: deploy failed and no previous image exists to roll back to;" >&2
 	echo "stopping the broken service" >&2
-	"${COMPOSE[@]}" stop lioctad
+	"${COMPOSE[@]}" stop lio
 	exit 1
 fi
 
 echo "Rolling back to previous image ${PREV_IMAGE#sha256:}..." >&2
-docker tag "$PREV_IMAGE" lioctad:latest
+docker tag "$PREV_IMAGE" lio:latest
 # compose sees the changed image ID and recreates the container from the old
 # build; --no-build so it can't helpfully rebuild the bad one
-"${COMPOSE[@]}" up -d --no-build lioctad
+"${COMPOSE[@]}" up -d --no-build lio
 
 start_log_follow
 if wait_healthy "rollback"; then
@@ -183,5 +183,5 @@ stop_log_follow
 
 emit_failure_status "rollback"
 echo "error: rollback image did not become healthy either; stopping the service" >&2
-"${COMPOSE[@]}" stop lioctad
+"${COMPOSE[@]}" stop lio
 exit 2

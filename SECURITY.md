@@ -1,6 +1,6 @@
-# lioctad.org Security Policy
+# octad.gg Security Policy
 
-While lioctad's security footprint isn't very large, we do take it seriously. If
+While octad.gg's security footprint isn't very large, we do take it seriously. If
 you find there are any vulnerable library versions or holes in our configuration
 checks that could impact a user system or live servers, please let us know.
 

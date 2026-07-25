@@ -318,7 +318,7 @@ func clientIP(c fiber.Ctx) string {
 // config.CorsOrigins. In production the Origin header must exactly match an
 // entry in the configured origin list — the old substring check would have
 // admitted registerable near-miss domains (e.g. an Origin of
-// https://lioctad.or is a substring of https://lioctad.org). An absent Origin
+// https://octad.g is a substring of https://octad.gg). An absent Origin
 // is allowed through: only non-browser clients omit it, and the check exists
 // to stop cross-site browser pages, not curl. Rejections are logged because
 // they surface client-side as an opaque handshake failure indistinguishable

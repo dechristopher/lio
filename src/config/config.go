@@ -166,24 +166,61 @@ func GetHealthAddr() string {
 	return "127.0.0.1:" + GetHealthPort()
 }
 
-// SiteURL returns the site URL based on environment configuration
+// SiteHost returns the canonical public host (no scheme), env-overridable so a
+// future domain move is one env var + DNS. Production defaults to "octad.gg"
+// (SITE_DOMAIN overrides); non-prod is the local listen host.
+func SiteHost() string {
+	if !env.IsProd() {
+		return "localhost:" + GetPort()
+	}
+	if h := os.Getenv("SITE_DOMAIN"); h != "" {
+		return h
+	}
+	return "octad.gg"
+}
+
+// SiteName returns the display brand shown in page titles, the PWA name, the OG
+// wordmark, and the TOTP authenticator label. It mirrors the domain by default
+// ("octad.gg", SITE_NAME overrides) but is deliberately decoupled from SiteHost
+// so local dev still brands as "octad.gg" rather than "localhost:4444".
+func SiteName() string {
+	if n := os.Getenv("SITE_NAME"); n != "" {
+		return n
+	}
+	return "octad.gg"
+}
+
+// SiteURL returns the site URL (scheme + host + trailing slash) based on
+// environment configuration.
 func SiteURL() string {
 	if !env.IsProd() {
-		return fmt.Sprintf("http://localhost:%s/", GetPort())
+		return "http://" + SiteHost() + "/"
 	}
-	return "https://lioctad.org/"
+	return "https://" + SiteHost() + "/"
+}
+
+// SiteOrigin returns the site origin (scheme + host, no trailing slash) — the
+// form used for CORS/WS origin matching and absolute OpenGraph/PGN URLs.
+func SiteOrigin() string {
+	return strings.TrimSuffix(SiteURL(), "/")
 }
 
 // CorsOrigins returns the proper CORS origin configuration for the current
-// environment. Production pins the canonical origin; everywhere else the
-// wildcard admits any origin, so LAN devices, tunnels, and test harnesses can
-// hit a non-prod server without curating an allowlist. The other two origin
-// gates (middleware.MutationGuard, ws.okOrigin) stand down outside production
-// the same way — a "*" entry would never match their exact-origin comparisons,
-// so they carry explicit env bypasses instead of consuming this wildcard.
+// environment. Production pins the canonical origin (SiteOrigin); everywhere
+// else the wildcard admits any origin, so LAN devices, tunnels, and test
+// harnesses can hit a non-prod server without curating an allowlist. The other
+// two origin gates (middleware.MutationGuard, ws.okOrigin) stand down outside
+// production the same way — a "*" entry would never match their exact-origin
+// comparisons, so they carry explicit env bypasses instead of consuming this
+// wildcard. EXTRA_ORIGINS (comma-separated) appends additional allowed origins
+// in prod — used to admit the old domain during a migration cutover window.
 func CorsOrigins() string {
-	if env.IsProd() {
-		return "https://lioctad.org"
+	if !env.IsProd() {
+		return "*"
 	}
-	return "*"
+	origins := SiteOrigin()
+	if extra := os.Getenv("EXTRA_ORIGINS"); extra != "" {
+		origins += "," + extra
+	}
+	return origins
 }

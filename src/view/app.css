@@ -1,5 +1,5 @@
 /*!
- * lioctad app styles — TailwindCSS v4 (built with the standalone CLI, no Node).
+ * lio app styles — TailwindCSS v4 (built with the standalone CLI, no Node).
  * Source of truth: this file. The output cmd/lio/static/app.css is a generated
  * artifact (gitignored, embedded via //go:embed static/*); build it with:
  *   ../bin/tailwindcss -i view/app.css -o cmd/lio/static/app.css --minify

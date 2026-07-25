@@ -1,10 +1,10 @@
-# docker-compose deployment for lioctad.org — replaces Fly.io (src/fly.toml).
+# docker-compose deployment for octad.gg — replaces Fly.io (src/fly.toml).
 #
 # Ingress is a Cloudflare Access tunnel, so no load balancer / TLS termination
 # here: the app port is published on loopback only and cloudflared (running on
 # the host) points its origin at http://localhost:4444. If you instead run
 # cloudflared as a container on this compose network, drop the `ports` mapping
-# and set the tunnel origin to http://lioctad:4444.
+# and set the tunnel origin to http://lio:4444.
 #
 # Deploy/update the stack with deploy/deploy-compose.sh (resolves GIT_REV,
 # builds, and rolls the service). Manual equivalent:
@@ -30,7 +30,7 @@ services:
       args:
         # injected into config.Revision via ldflags; empty = no +hash suffix
         GIT_REV: ${GIT_REV:-}
-    image: lioctad:latest
+    image: lio:latest
     restart: unless-stopped
     # Scoped debug logging. The image ENTRYPOINT is bare /lio (no baked-in flags),
     # so this deploy-side override is where prod log verbosity is chosen. Trim or
@@ -49,6 +49,16 @@ services:
     environment:
       DEPLOY: "prod"
       PORT: "4444"
+      # Canonical public host + display brand. Both default to octad.gg in code
+      # (config.SiteHost / config.SiteName); set explicitly here so a future
+      # domain move is a one-line change. SiteURL/CorsOrigins/WS origin/WebAuthn
+      # RPID and all OG/PGN URLs derive from SITE_DOMAIN.
+      SITE_DOMAIN: "octad.gg"
+      SITE_NAME: "octad.gg"
+      # Transition-only: admit the old origin alongside octad.gg during the
+      # cutover window (appended to the prod CORS/WS-origin allowlist). Remove
+      # once lioctad.org fully 301-redirects at the edge.
+      EXTRA_ORIGINS: "https://lioctad.org"
       # Host of the self-hosted Plausible analytics instance. Deliberately not
       # a literal here (this file is in VCS): compose substitutes it from the
       # deploy host's environment or the gitignored deploy/.env

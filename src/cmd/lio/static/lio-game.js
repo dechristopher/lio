@@ -4609,7 +4609,7 @@ const buildPGN = () => {
 	const now = new Date();
 	const pad = (n) => String(n).padStart(2, '0');
 	const tags = [
-		['Event', 'Lioctad Casual Game'],
+		['Event', 'octad.gg Casual Game'],
 		['Site', window.location.origin],
 		['Date', now.getFullYear() + '.' + pad(now.getMonth() + 1) + '.' + pad(now.getDate())],
 		['White', whiteName],

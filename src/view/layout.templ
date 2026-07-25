@@ -7,7 +7,7 @@ import (
 
 templ base(meta Meta) {
 	<!DOCTYPE html>
-	<html lang="en" aria-label="lioctad.org">
+	<html lang="en" aria-label={ config.SiteName() }>
 		@head(meta)
 		{ children... }
 	</html>
@@ -95,12 +95,12 @@ templ head(meta Meta) {
 		<link rel="icon" type="image/png" sizes="32x32" href="/res/ico/favicon-32x32.png"/>
 		<link rel="icon" type="image/png" sizes="16x16" href="/res/ico/favicon-16x16.png"/>
 		<link rel="manifest" href="/manifest.json"/>
-		<meta name="apple-mobile-web-app-title" content="lioctad.org"/>
-		<meta name="application-name" content="lioctad.org"/>
+		<meta name="apple-mobile-web-app-title" content={ config.SiteName() }/>
+		<meta name="application-name" content={ config.SiteName() }/>
 		<meta name="msapplication-TileColor" content="#da532c"/>
 		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf8f5"/>
 		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1917"/>
-		<meta property="og:site_name" content="lioctad.org"/>
+		<meta property="og:site_name" content={ config.SiteName() }/>
 		<meta property="og:type" content="website"/>
 		<meta property="og:url" content={ meta.OGURL }/>
 		<meta property="og:title" content={ meta.OGTitle }/>
@@ -132,9 +132,12 @@ templ head(meta Meta) {
 		// Plausible analytics (self-hosted), prod only. The instance host comes
 		// from PLAUSIBLE_DOMAIN (kept out of VCS; unset disables analytics), and
 		// the CSP allows it in script-src and connect-src
-		// (www/middleware/security.go).
+		// (www/middleware/security.go). data-domain is the Plausible *property*
+		// identity and intentionally stays "octad.gg" across the octad.gg
+		// migration — analytics is a separate cross-origin instance, so keeping a
+		// single property preserves history (it is not the site host).
 		if env.IsProd() && config.PlausibleDomain() != "" {
-			<script defer data-domain="lioctad.org" src={ "https://" + config.PlausibleDomain() + "/js/script.hash.outbound-links.pageview-props.tagged-events.js" }></script>
+			<script defer data-domain="octad.gg" src={ "https://" + config.PlausibleDomain() + "/js/script.hash.outbound-links.pageview-props.tagged-events.js" }></script>
 		}
 		// warm howler + the sound effects into cache so audio is ready the moment
 		// a visitor reaches a game (see soundPrefetch).

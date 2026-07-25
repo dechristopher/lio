@@ -69,7 +69,7 @@ func TestMutationGuard(t *testing.T) {
 			{"", "same-site", fiber.StatusOK},
 			{"", "none", fiber.StatusOK}, // user-initiated (address bar, bookmark)
 			{"", "cross-site", fiber.StatusForbidden},
-			{"https://lioctad.org", "", fiber.StatusOK},         // allowlisted Origin fallback
+			{"https://octad.gg", "", fiber.StatusOK},            // allowlisted Origin fallback
 			{"https://evil.example", "", fiber.StatusForbidden}, // unknown Origin fallback
 			{"", "", fiber.StatusOK},                            // non-browser client
 		}

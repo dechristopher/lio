@@ -1,6 +1,6 @@
 # Local development environment
 
-A repeatable, ephemeral local stack for lioctad: Postgres + Redis (MinIO
+A repeatable, ephemeral local stack for lio: Postgres + Redis (MinIO
 optional) in Docker with **persistent named volumes**, plus a one-command fresh
 slate. The lio server runs **natively** (GoLand or `go run`) so you keep fast
 rebuilds and the debugger (compose only supplies the backing services). Service

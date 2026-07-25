@@ -163,15 +163,15 @@ func ArchiveMeta(m ArchiveModel) Meta {
 	meta := Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
-		Title:       title + " • lioctad.org",
+		Title:       title + " • " + config.SiteName(),
 		OGTitle:     title,
-		OGURL:       "https://lioctad.org/game/" + m.Data.GameID,
-		OGImage:     "https://lioctad.org/og/default.png",
+		OGURL:       config.SiteOrigin() + "/game/" + m.Data.GameID,
+		OGImage:     config.SiteOrigin() + "/og/default.png",
 		Description: "Finished octad game — replay every move.",
 	}
 	if !m.Standalone {
-		meta.OGURL = "https://lioctad.org/" + m.RoomID
-		meta.OGImage = "https://lioctad.org/og/room/" + m.RoomID + ".png"
+		meta.OGURL = config.SiteOrigin() + "/" + m.RoomID
+		meta.OGImage = config.SiteOrigin() + "/og/room/" + m.RoomID + ".png"
 		meta.Description = "Finished octad match — replay every move."
 	}
 	return meta

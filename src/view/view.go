@@ -57,15 +57,15 @@ const (
 )
 
 // PageMeta builds metadata for a standard (non-room) page. name is rendered in
-// the title as "lioctad.org • {name}".
+// the title as "{SiteName} • {name}" (e.g. "octad.gg • About").
 func PageMeta(name string) Meta {
 	return Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
-		Title:       "lioctad.org • " + name,
-		OGURL:       "https://lioctad.org",
+		Title:       config.SiteName() + " • " + name,
+		OGURL:       config.SiteOrigin(),
 		OGTitle:     defaultOGTitle,
-		OGImage:     "https://lioctad.org/og/default.png",
+		OGImage:     config.SiteOrigin() + "/og/default.png",
 		Description: defaultDescription,
 	}
 }
@@ -94,10 +94,10 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	return Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
-		Title:       challenge + " • lioctad.org",
-		OGURL:       "https://lioctad.org/" + payload.RoomID,
+		Title:       challenge + " • " + config.SiteName(),
+		OGURL:       config.SiteOrigin() + "/" + payload.RoomID,
 		OGTitle:     challenge,
-		OGImage:     "https://lioctad.org/og/room/" + payload.RoomID + ".png",
+		OGImage:     config.SiteOrigin() + "/og/room/" + payload.RoomID + ".png",
 		Description: roomDescription,
 	}
 }

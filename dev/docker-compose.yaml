@@ -1,4 +1,4 @@
-# Local development stack for lioctad
+# Local development stack for lio
 #
 # Backing services only — run the lio server itself natively (GoLand or
 # `go run ./cmd/lio`) so you keep fast rebuilds and the debugger. Service

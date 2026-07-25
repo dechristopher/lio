@@ -1,8 +1,8 @@
-# lioctad.org — free, realtime Octad server
+# octad.gg — free, realtime Octad server
 User-agent: *
 Allow: /
 # state-changing POST endpoints and the JSON API carry no crawlable content
 Disallow: /new/
 Disallow: /api/
 
-Sitemap: https://lioctad.org/sitemap.xml
+Sitemap: https://octad.gg/sitemap.xml

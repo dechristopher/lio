@@ -1794,8 +1794,8 @@ func buildArchivePGN(g game.OctadGame, rec db.GameRecord, end time.Time) string 
 	whiteFormation, blackFormation, matchup, _ := opening.Names(startOFEN)
 
 	return game.BuildPGN(game.PGNMeta{
-		Event:    "Lioctad Test Match",
-		Site:     "https://lioctad.org",
+		Event:    "octad.gg Test Match",
+		Site:     config.SiteOrigin(),
 		Variant:  g.Variant.Name,
 		Group:    string(g.Variant.Group),
 		White:    whiteName,

@@ -14,7 +14,7 @@ import (
 // library's (well-tested) responsibility, so matching its bitmap is what proves
 // the rendered code is scannable.
 func TestInviteQR(t *testing.T) {
-	const url = "https://lioctad.org/abc123"
+	const url = "https://octad.gg/abc123"
 	out := renderSmoke(t, inviteQR(url))
 
 	if !strings.HasPrefix(out, `<svg class="invite-qr"`) {

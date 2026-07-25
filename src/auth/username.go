@@ -19,7 +19,7 @@ var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,19}$`)
 var reservedUsernames = map[string]struct{}{
 	"anonymous": {}, "anon": {}, "bot": {}, "computer": {}, "engine": {},
 	"admin": {}, "administrator": {}, "mod": {}, "moderator": {},
-	"lioctad": {}, "lichess": {}, "octad": {}, "lio": {},
+	"lioctad": {}, "lioctad-org": {}, "lioctad_org": {}, "lichess": {}, "octad": {}, "octad-gg": {}, "octad_gg": {}, "lio": {},
 	"you": {}, "player": {}, "opponent": {}, "spectator": {},
 	"system": {}, "root": {}, "staff": {}, "support": {}, "official": {},
 }

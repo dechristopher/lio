@@ -57,7 +57,7 @@ func Serve(static embed.FS) {
 		// useful (the internal health listener's status JSON and the site footer);
 		// keeping it out of the Server header on every response denies casual
 		// version fingerprinting.
-		ServerHeader:  "lioctad.org",
+		ServerHeader:  config.SiteName(),
 		CaseSensitive: true,
 		ErrorHandler:  nil,
 		// Connection hygiene against slow-loris style hoarding. ReadTimeout bounds
@@ -184,7 +184,7 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	r.Get("/db", handlers.DBHandler)
 
 	// OpenGraph preview cards (the og:image targets scrapers fetch when a
-	// lioctad link is shared): the site-wide default card and the per-room
+	// octad.gg link is shared): the site-wide default card and the per-room
 	// live-position card
 	r.Get("/og/default.png", handlers.OGDefaultHandler)
 	r.Get("/og/room/:id", handlers.OGRoomHandler)

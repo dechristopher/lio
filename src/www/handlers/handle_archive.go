@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/db/gen"
 	"github.com/dechristopher/lio/game"
@@ -417,8 +418,8 @@ func archivePGN(g gen.Game, og *game.OctadGame) string {
 	white, black, matchup, _ := opening.Names(g.StartingOfen)
 	persona := derefStr(g.BotPersona)
 	return game.BuildPGN(game.PGNMeta{
-		Event:          "Lioctad Test Match",
-		Site:           "https://lioctad.org",
+		Event:          "octad.gg Test Match",
+		Site:           config.SiteOrigin(),
 		Variant:        g.VariantName,
 		Group:          g.VariantGroup,
 		White:          archiveSeatName(g.WhiteUid, g.WhiteUserID, persona),

@@ -20,7 +20,7 @@ import (
 
 // WebAuthn passkeys as a second factor (arch/ACCOUNTS_AUTH_RATINGS.md Phase 4).
 // The relying-party identity is derived from config.SiteURL(): RPID is the host
-// (localhost in dev, lioctad.org in prod) and the single permitted origin is the
+// (localhost in dev, octad.gg in prod) and the single permitted origin is the
 // full scheme+host. Passkeys work over http://localhost (secure-context
 // exception) but not over a LAN IP — noted in the dev docs. Credential storage
 // records the user handle, discoverable flag, AAGUID, and transports so

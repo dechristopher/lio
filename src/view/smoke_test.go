@@ -52,7 +52,7 @@ func TestRenderIndex(t *testing.T) {
 	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneTwoRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
 	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), challenges, stats))
-	mustContain(t, out, "<title>lioctad.org • Free Online Octad</title>")
+	mustContain(t, out, "<title>octad.gg • Free Online Octad</title>")
 	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
 	mustContain(t, out, `id="createGameButton"`) // modal opener
 	mustContain(t, out, `id="modalCreateGame"`)
@@ -477,7 +477,7 @@ func TestRenderRoomArchive(t *testing.T) {
 // oldest entry landing on the last page.
 func TestRenderNews(t *testing.T) {
 	out := renderSmoke(t, News(PageMeta("News"), 1))
-	mustContain(t, out, "<title>lioctad.org • News</title>")
+	mustContain(t, out, "<title>octad.gg • News</title>")
 	mustContain(t, out, `id="news-content"`)                     // htmx swap region
 	mustContain(t, out, templ.EscapeString(news.Items[0].Title)) // newest entry on page 1
 

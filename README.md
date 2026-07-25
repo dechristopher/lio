@@ -1,8 +1,8 @@
-# [lioctad.org](https://lioctad.org)
+# [octad.gg](https://octad.gg)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://raw.githubusercontent.com/dechristopher/lio/master/LICENSE)
 
-Lioctad (li[bre] octad) is a free online octad game server focused on
-[realtime](https://lioctad.org/games) gameplay and ease of use.
+**lio** is a free online octad game server focused on
+[realtime](https://octad.gg/games) gameplay and ease of use.
 
 **Octad** is a 4x4 chess variant: the same pieces and rules as chess (check,
 checkmate, promotion, en passant) with variant-specific castling, played on a
@@ -11,16 +11,16 @@ checkmate, promotion, en passant) with variant-specific castling, played on a
 
 ## Stack
 
-Lioctad is written in Go 1.25 using [Fiber](https://gofiber.io/). Templ is used for templating,
+lio is written in Go 1.25 using [Fiber](https://gofiber.io/). Templ is used for templating,
 with HTMX for reactivity. Pure octad logic (move generation, legality, OFEN
 parsing, and outcomes) lives in the [octad](https://github.com/dechristopher/octad) library, not in this repo; the
 server is built around it. The server is fully asynchronous, making heavy use of
 Go routines. WebSocket connections are handled by a separate server that
-communicates using Redis PubSub. Lioctad.org talks to an octad engine that uses
+communicates using Redis PubSub. octad.gg talks to an octad engine that uses
 minimax with alpha-beta pruning for games against computers. It uses PostgreSQL
 to store games, which are indexed by Elasticsearch. HTTP requests and WebSocket
 connections can be proxied by Nginx. All rated games are published in a free PGN
-[database](https://lioctad.org/db).
+[database](https://octad.gg/db).
 
 ## Repository layout
 
@@ -46,5 +46,5 @@ debug logging. By default, it listens on port `4444`.
 
 ## License
 
-Lioctad is licensed under the GNU Affero General Public License 3 or any later
+lio is licensed under the GNU Affero General Public License 3 or any later
 version of your choice. See COPYING for details.

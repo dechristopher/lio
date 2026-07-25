@@ -37,8 +37,8 @@ func newTestGame(t *testing.T, ofen string, n int) *OctadGame {
 
 func sampleMeta() PGNMeta {
 	return PGNMeta{
-		Event:          "Lioctad Test Match",
-		Site:           "https://lioctad.org",
+		Event:          "octad.gg Test Match",
+		Site:           "https://octad.gg",
 		Variant:        "1+0",
 		Group:          "blitz",
 		White:          "drewtest",

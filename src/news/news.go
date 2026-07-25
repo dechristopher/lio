@@ -17,6 +17,15 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "We've moved to octad.gg",
+		Date:  "Jul 24, 2026",
+		Body: "Octad has a shorter, snappier home: octad.gg. Old lioctad.org links " +
+			"redirect here automatically, so anything you've bookmarked or shared still " +
+			"works. One heads-up: because the address changed, you'll need to sign in " +
+			"again, and any passkeys you set up will need to be re-added under the new " +
+			"domain.",
+	},
+	{
 		Title: "v1.5.1: Homepage & game room UI polish",
 		Date:  "Jul 23, 2026",
 		Body: "Today's release cleans up some minor UI issues on the homepage and game room, especially on " +
@@ -171,7 +180,7 @@ var Items = []Item{
 	{
 		Title: "Game links that show the game",
 		Date:  "Jul 11, 2026",
-		Body: "Share a lioctad.org link and it now unfurls (in most link previews) with a real " +
+		Body: "Share an octad.gg link and it now unfurls (in most link previews) with a real " +
 			"picture of the board alongside game info.",
 	},
 	{
@@ -184,12 +193,12 @@ var Items = []Item{
 	{
 		Title: "Sound, ready the moment you need it",
 		Date:  "Jul 10, 2026",
-		Body: "Move, capture, and check sounds are now served straight from lioctad and loaded " +
+		Body: "Move, capture, and check sounds are now served straight from octad.gg and loaded " +
 			"ahead of time, so audio is primed to play the instant it's needed. No waiting on an " +
 			"CDN or outside service.",
 	},
 	{
-		Title: "A more secure lioctad",
+		Title: "A more secure octad.gg",
 		Date:  "Jul 10, 2026",
 		Body: "Under the hood, your session is now sealed with tamper-proof encryption, and the " +
 			"site gained browser-level protections against clickjacking and other cross-site " +
@@ -402,7 +411,7 @@ var Items = []Item{
 	{
 		Title: "Hello, world",
 		Date:  "Feb 21, 2021",
-		Body: "lioctad.org is born: a fresh Go server, the first pages, and a mission: a free, " +
+		Body: "octad.gg is born: a fresh Go server, the first pages, and a mission: a free, " +
 			"libre home for octad, the 4x4 chess variant, in the spirit of lichess.",
 	},
 }

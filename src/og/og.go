@@ -1,5 +1,5 @@
 // Package og renders the OpenGraph preview cards (1200×630 PNGs) served at
-// /og/*.png and referenced by the og:image meta tags, so shared lioctad links
+// /og/*.png and referenced by the og:image meta tags, so shared octad.gg links
 // unfurl with a real board preview instead of bare text.
 //
 // The board replicates the in-game octadground presentation 1:1 by
@@ -179,10 +179,10 @@ func Render(c Card) ([]byte, error) {
 	draw.Draw(dst, image.Rect(pad, pad, pad+boardPx, pad+boardPx),
 		board, image.Point{}, draw.Src)
 
-	// wordmark: "lioctad" in text color, ".org" in the accent
+	// wordmark: "octad" in text color, ".gg" in the accent
 	wordY := pad + 76
-	w := drawString(dst, faceWordmark, textColor, textX, wordY, "lioctad")
-	drawString(dst, faceWordmark, accent, textX+w, wordY, ".org")
+	w := drawString(dst, faceWordmark, textColor, textX, wordY, "octad")
+	drawString(dst, faceWordmark, accent, textX+w, wordY, ".gg")
 	// accent underline beneath the wordmark
 	draw.Draw(dst, image.Rect(textX, wordY+22, textX+64, wordY+28),
 		image.NewUniform(accent), image.Point{}, draw.Src)

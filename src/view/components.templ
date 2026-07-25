@@ -24,7 +24,7 @@ templ header(width string) {
 				// needs to give ground. It only begins shrinking around ~270px, then
 				// tracks the remaining space down to a 0.9rem floor (~214px). Same 17vw
 				// slope as before; the -22px offset moves the knee from ~330px to ~270px.
-				<span class="font-display text-[clamp(0.9rem,17vw_-_22px,1.5rem)] font-bold tracking-tight text-fg">li<span class="text-accent">octad</span>.org</span>
+				<span class="font-display text-[clamp(0.9rem,17vw_-_22px,1.5rem)] font-bold tracking-tight text-fg"><span class="text-accent">octad</span>.gg</span>
 			</a>
 			<div class="mt-1 flex min-w-0 items-center gap-2 text-[10px] font-semibold tracking-widest leading-none">
 				<span class="text-warn uppercase">beta</span>
@@ -166,7 +166,7 @@ templ updateNoticeScript() {
 				notice.setAttribute("role", "status");
 				notice.className = "fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-line-strong bg-elevated px-4 py-2.5 shadow-lg";
 				notice.innerHTML =
-					'<span class="text-sm font-medium text-fg">li<span class="text-accent">octad</span>.org has been updated.</span>' +
+					'<span class="text-sm font-medium text-fg"><span class="text-accent">octad</span>.gg has been updated.</span>' +
 					'<button type="button" class="rounded-md border border-accent px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-accent hover:bg-accent/10" onclick="window.location.reload()">Refresh</button>' +
 					'<button type="button" class="text-xs text-fg-muted hover:text-fg" aria-label="Dismiss" onclick="this.parentElement.remove()">✕</button>';
 				document.body.appendChild(notice);
@@ -553,12 +553,12 @@ templ footerContent(meta Meta) {
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/db">DB</a>
 		<span aria-hidden="true">·</span>
-		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://status.lioctad.org" target="_blank" rel="noopener">Status</a>
+		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://status.octad.gg" target="_blank" rel="noopener">Status</a>
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://github.com/dechristopher/lio">{ meta.Version }</a>
 	</nav>
-	<p class="m-0 text-xs text-warn/70"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
-	<p class="m-0">© 2021-2026 li<span class="text-accent/70">octad</span>.org</p>
+	<p class="m-0 text-xs text-warn/70 hover:text-warn"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
+	<p class="m-0">© 2021-2026 <span class="text-accent/70">octad</span>.gg</p>
 	@footerNavScript()
 }
 

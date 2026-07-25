@@ -105,7 +105,7 @@ func main() {
 	// one-off archive backfill: replay the object-store PGN archive into
 	// Postgres, then exit without serving. Runs after systems.Run (object store
 	// + db up, migrations applied) and is meant to be a throwaway container:
-	//   docker compose run --rm lioctad --backfill
+	//   docker compose run --rm lio --backfill
 	if *runBackfill {
 		if err := backfill.Run(); err != nil {
 			log.Fatalln(str.CMain, err.Error())
