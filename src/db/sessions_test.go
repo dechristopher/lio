@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"testing"
 	"time"
+
+	"github.com/dechristopher/lio/title"
 )
 
 // TestSessionLifecycle exercises the session rows behind the unified identity
@@ -65,22 +67,25 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Fatalf("account not attached: %+v", rec)
 	}
 
-	// the account's optional title must ride through the sessions↔users join
-	// (regression: GetSessionByTokenHash once selected u.title but dropped it in
-	// the struct mapping, so a re-resolved session lost the title until re-login)
-	if rec.Title != "" {
-		t.Fatalf("unexpected title before assignment: %q", rec.Title)
+	// the account's optional title must ride through the sessions↔users↔titles
+	// joins, badge code and tooltip name both (regression: GetSessionByTokenHash
+	// once selected the title but dropped it in the struct mapping, so a
+	// re-resolved session lost the title until re-login)
+	if rec.Title.Set() {
+		t.Fatalf("unexpected title before assignment: %+v", rec.Title)
 	}
 	func() {
 		ctx, cancel := Ctx()
 		defer cancel()
-		if _, err := Pool.Exec(ctx,
-			"UPDATE users SET title = $2 WHERE id = $1", userID, "GM"); err != nil {
+		if _, err := Pool.Exec(ctx, `UPDATE users SET title_id =
+			(SELECT id FROM titles WHERE code = 'GM') WHERE id = $1`,
+			userID); err != nil {
 			t.Fatalf("set title: %v", err)
 		}
 	}()
+	want := title.Title{Code: "GM", Name: "Grandmaster"}
 	if rec, found, err = GetSessionByTokenHash(newHash[:]); err != nil || !found ||
-		rec.Title != "GM" {
+		rec.Title != want {
 		t.Fatalf("title not carried through session join: found=%v err=%v rec=%+v",
 			found, err, rec)
 	}

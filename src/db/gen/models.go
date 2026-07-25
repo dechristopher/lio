@@ -114,6 +114,13 @@ type Session struct {
 	UserAgent string
 }
 
+type Title struct {
+	ID        int16
+	CreatedAt pgtype.Timestamptz
+	Code      string
+	Name      string
+}
+
 type User struct {
 	ID                 int64
 	CreatedAt          pgtype.Timestamptz
@@ -124,7 +131,7 @@ type User struct {
 	TotpConfirmedAt    pgtype.Timestamptz
 	WebauthnUserHandle []byte
 	UsernameChangedAt  pgtype.Timestamptz
-	Title              *string
+	TitleID            *int16
 }
 
 type WebauthnCredential struct {

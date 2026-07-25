@@ -5,6 +5,7 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
@@ -89,11 +90,11 @@ type ArchiveModel struct {
 	// the engine, "PLAYER" otherwise.
 	TopName    string
 	BottomName string
-	// Top/BottomTitle are each account seat's optional display title ("GM", …),
-	// rendered to the left of the name in the theme accent color. Empty for
-	// anon/bot seats and untitled accounts.
-	TopTitle    string
-	BottomTitle string
+	// Top/BottomTitle are each account seat's optional display title ("GM"
+	// badge, "Grandmaster" tooltip), rendered to the left of the name in the
+	// theme accent color. Zero for anon/bot seats and untitled accounts.
+	TopTitle    title.Title
+	BottomTitle title.Title
 	// Top/BottomRating are each seat's rating "at the time of this game" (the
 	// display it held going into the game, "1650"/"1500?"), and Top/BottomRatingDelta
 	// the signed change that game applied (+8/-8). Empty/zero for casual/anon/bot
@@ -158,13 +159,13 @@ func ArchiveMeta(m ArchiveModel) Meta {
 	if m.Casual {
 		mode = "casual"
 	}
-	title := group + " (" + m.VariantName + ") " + mode + " octad • Archived match"
+	pageTitle := group + " (" + m.VariantName + ") " + mode + " octad • Archived match"
 
 	meta := Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
-		Title:       title + " • " + config.SiteName(),
-		OGTitle:     title,
+		Title:       pageTitle + " • " + config.SiteName(),
+		OGTitle:     pageTitle,
 		OGURL:       config.SiteOrigin() + "/game/" + m.Data.GameID,
 		OGImage:     config.SiteOrigin() + "/og/default.png",
 		Description: "Finished octad game — replay every move.",

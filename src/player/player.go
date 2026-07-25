@@ -1,6 +1,10 @@
 package player
 
-import "github.com/dechristopher/octad/v2"
+import (
+	"github.com/dechristopher/octad/v2"
+
+	"github.com/dechristopher/lio/title"
+)
 
 // GameResult records one finished game of a room's match from this player's
 // perspective: the points they earned (1, 0.5, or 0), the color they played
@@ -31,10 +35,10 @@ type Player struct {
 	UserID        *int64
 	Username      string
 	RatingDisplay string
-	// Title is the seat's optional account display title ("" for anon/bot),
+	// Title is the seat's optional account display title (zero for anon/bot),
 	// rendered to the left of the name in the theme accent color. Captured at
 	// seat-claim like Username so page renders never read the DB.
-	Title       string
+	Title       title.Title
 	scorePoints int
 	scoreHalf   int
 	results     []GameResult
@@ -49,7 +53,7 @@ type Identity struct {
 	UID      string
 	UserID   *int64
 	Username string
-	Title    string
+	Title    title.Title
 }
 
 // DisplayName returns the seat's account username, or "" for an anonymous
@@ -76,29 +80,38 @@ func (p *Player) resetScore() {
 // identity (including the account fields as of Phase 2) plus the accumulated
 // match score and per-game history, which are otherwise unexported and would
 // not survive a JSON round-trip.
+// The title is persisted as its two display strings rather than the
+// title.Title struct (or its titles row id): flat fields keep "tt" wire-
+// compatible with the snapshots older builds wrote, so this change needs no
+// persistVersion bump, and a restored room never has to re-read the DB to
+// render a badge whose row may have been renamed mid-game anyway.
 type Snapshot struct {
 	ID            string       `json:"id"`
 	IsBot         bool         `json:"bot,omitempty"`
 	UserID        *int64       `json:"uid,omitempty"`
 	Username      string       `json:"un,omitempty"`
 	Title         string       `json:"tt,omitempty"`
+	TitleName     string       `json:"ttn,omitempty"`
 	RatingDisplay string       `json:"rd,omitempty"`
 	ScorePoints   int          `json:"sp,omitempty"`
 	ScoreHalf     int          `json:"sh,omitempty"`
 	Results       []GameResult `json:"res,omitempty"`
 }
 
-// Snapshot captures the player's persistable state. Title is an additive
-// omitempty field: an older snapshot without it simply restores an empty title
-// (a purely cosmetic gap for the rest of that one restored game — the title
-// never affects game logic or archival), so it needs no persistVersion bump.
+// Snapshot captures the player's persistable state. The title fields are
+// additive omitempty ones: an older snapshot without them simply restores an
+// untitled seat (a purely cosmetic gap for the rest of that one restored game
+// — the title never affects game logic or archival), and one written before
+// titles had names restores a code-only title, whose tooltip falls back to the
+// code. Neither needs a persistVersion bump.
 func (p *Player) Snapshot() Snapshot {
 	return Snapshot{
 		ID:            p.ID,
 		IsBot:         p.IsBot,
 		UserID:        p.UserID,
 		Username:      p.Username,
-		Title:         p.Title,
+		Title:         p.Title.Code,
+		TitleName:     p.Title.Name,
 		RatingDisplay: p.RatingDisplay,
 		ScorePoints:   p.scorePoints,
 		ScoreHalf:     p.scoreHalf,
@@ -113,7 +126,7 @@ func RestorePlayer(s Snapshot) *Player {
 		IsBot:         s.IsBot,
 		UserID:        s.UserID,
 		Username:      s.Username,
-		Title:         s.Title,
+		Title:         title.Title{Code: s.Title, Name: s.TitleName},
 		RatingDisplay: s.RatingDisplay,
 		scorePoints:   s.ScorePoints,
 		scoreHalf:     s.ScoreHalf,

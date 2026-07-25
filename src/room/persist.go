@@ -14,6 +14,7 @@ import (
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
@@ -43,12 +44,16 @@ type PersistedRoom struct {
 	Creator       string `json:"creator"`
 	CreatorUserID *int64 `json:"creatorUid,omitempty"`
 	CreatorName   string `json:"creatorName,omitempty"`
-	CreatorTitle  string `json:"creatorTitle,omitempty"`
-	State         State  `json:"state"`
-	Public        bool   `json:"public,omitempty"`
-	Rated         bool   `json:"rated,omitempty"`
-	JoinToken     string `json:"jt,omitempty"`
-	CancelToken   string `json:"ct,omitempty"`
+	// the creator's title, flattened to its two display strings exactly like
+	// player.Snapshot's: "creatorTitle" stays the badge code, so snapshots
+	// older builds wrote still restore (with the tooltip falling back to it)
+	CreatorTitle     string `json:"creatorTitle,omitempty"`
+	CreatorTitleName string `json:"creatorTitleName,omitempty"`
+	State            State  `json:"state"`
+	Public           bool   `json:"public,omitempty"`
+	Rated            bool   `json:"rated,omitempty"`
+	JoinToken        string `json:"jt,omitempty"`
+	CancelToken      string `json:"ct,omitempty"`
 
 	// params: the full variant definition is embedded (rather than a registry
 	// key) so a snapshot never dangles on a renamed variant; clock.CTime
@@ -119,15 +124,16 @@ func (r *Instance) Persist() ([]byte, bool) {
 		V:       persistVersion,
 		SavedAt: time.Now(),
 
-		RoomID:        r.ID,
-		Creator:       r.creator,
-		CreatorUserID: r.params.CreatorUserID,
-		CreatorName:   r.params.CreatorName,
-		CreatorTitle:  r.params.CreatorTitle,
-		Public:        r.public,
-		Rated:         r.params.Rated,
-		JoinToken:     r.joinToken,
-		CancelToken:   r.cancelToken,
+		RoomID:           r.ID,
+		Creator:          r.creator,
+		CreatorUserID:    r.params.CreatorUserID,
+		CreatorName:      r.params.CreatorName,
+		CreatorTitle:     r.params.CreatorTitle.Code,
+		CreatorTitleName: r.params.CreatorTitle.Name,
+		Public:           r.public,
+		Rated:            r.params.Rated,
+		JoinToken:        r.joinToken,
+		CancelToken:      r.cancelToken,
 
 		Variant:    r.params.GameConfig.Variant,
 		ParamsOFEN: r.params.GameConfig.OFEN,
@@ -212,7 +218,7 @@ func Rehydrate(data []byte) (*Instance, error) {
 		Creator:       p.Creator,
 		CreatorUserID: p.CreatorUserID,
 		CreatorName:   p.CreatorName,
-		CreatorTitle:  p.CreatorTitle,
+		CreatorTitle:  title.Title{Code: p.CreatorTitle, Name: p.CreatorTitleName},
 		Players:       players,
 		GameConfig: game.OctadGameConfig{
 			White:   p.White.ID,

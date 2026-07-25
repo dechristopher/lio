@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/dechristopher/lio/db/gen"
+	"github.com/dechristopher/lio/title"
 )
 
 // Session rows for the unified identity system (arch/ACCOUNTS_AUTH_RATINGS.md):
@@ -21,8 +22,8 @@ type SessionRecord struct {
 	ID        int64
 	UID       string
 	UserID    *int64
-	Username  string // empty for anonymous sessions
-	Title     string // account's optional display title, empty for anon
+	Username  string      // empty for anonymous sessions
+	Title     title.Title // account's optional display title, zero for anon
 	LastSeen  time.Time
 	ExpiresAt time.Time
 }
@@ -57,7 +58,7 @@ func GetSessionByTokenHash(tokenHash []byte) (SessionRecord, bool, error) {
 		ID:        s.ID,
 		UID:       s.Uid,
 		UserID:    s.UserID,
-		Title:     strOrEmpty(s.Title),
+		Title:     title.New(s.TitleCode, s.TitleName),
 		LastSeen:  s.LastSeen.Time,
 		ExpiresAt: s.ExpiresAt.Time,
 	}

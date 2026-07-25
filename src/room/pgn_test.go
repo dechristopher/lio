@@ -11,6 +11,7 @@ import (
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/player"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/variant"
 )
 
@@ -228,7 +229,8 @@ func TestSeatArchiveName(t *testing.T) {
 		want    string
 	}{
 		{"bot", &player.Player{IsBot: true}, "pawn", "BOT " + pawn.Glyph + " " + pawn.Name},
-		{"titled", &player.Player{Username: "drewtest", Title: "OG"}, "", "OG drewtest"},
+		{"titled", &player.Player{Username: "drewtest",
+			Title: title.Title{Code: "OG", Name: "Original Gangster"}}, "", "OG drewtest"},
 		{"untitled", &player.Player{Username: "bob"}, "", "bob"},
 		{"anon", &player.Player{}, "", "Anonymous"},
 		{"nil", nil, "", "Anonymous"},

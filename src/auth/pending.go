@@ -3,6 +3,8 @@ package auth
 import (
 	"sync"
 	"time"
+
+	"github.com/dechristopher/lio/title"
 )
 
 // The MFA-pending token (arch/ACCOUNTS_AUTH_RATINGS.md Phase 4). When a login
@@ -26,7 +28,7 @@ const pendingTTL = 5 * time.Minute
 type Pending struct {
 	UserID   int64
 	Username string
-	Title    string
+	Title    title.Title
 	expires  time.Time
 }
 
@@ -37,9 +39,9 @@ var pendingStore = struct {
 
 // NewPending issues a pending token for a user who just passed the password
 // factor. The token is a fresh opaque 256-bit value (the same minter sessions
-// use), but it is stored only here, never as a session. title rides along so
-// the completed login carries it into the session like username.
-func NewPending(userID int64, username, title string) string {
+// use), but it is stored only here, never as a session. The title rides along
+// so the completed login carries it into the session like username.
+func NewPending(userID int64, username string, t title.Title) string {
 	token, _ := NewToken()
 	now := time.Now()
 	pendingStore.Lock()
@@ -52,7 +54,7 @@ func NewPending(userID int64, username, title string) string {
 	pendingStore.m[token] = Pending{
 		UserID:   userID,
 		Username: username,
-		Title:    title,
+		Title:    t,
 		expires:  now.Add(pendingTTL),
 	}
 	pendingStore.Unlock()

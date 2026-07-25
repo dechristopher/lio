@@ -207,9 +207,10 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		orientation = "b"
 	}
 
-	// resolve each seat's account username + optional display title (both empty
-	// for anon/bot); the archive has no live player records, so it reads them off
-	// the games row's user-id FKs (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2)
+	// resolve each seat's account username + optional display title (both
+	// zero-valued for anon/bot); the archive has no live player records, so it
+	// reads them off the games row's user-id FKs, joining the titles table
+	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2)
 	whiteName, whiteTitle := db.UserDisplayForID(selected.WhiteUserID)
 	blackName, blackTitle := db.UserDisplayForID(selected.BlackUserID)
 
@@ -451,8 +452,8 @@ func archiveSeatName(uid string, userID *int64, personaKey string) string {
 	if isBotSeat(uid, userID) {
 		return game.PGNSeatName("", "", view.BotSeatGlyph(personaKey), view.BotSeatLabel(personaKey), true)
 	}
-	name, title := db.UserDisplayForID(userID)
-	return game.PGNSeatName(name, title, "", "", false)
+	name, seatTitle := db.UserDisplayForID(userID)
+	return game.PGNSeatName(name, seatTitle.Code, "", "", false)
 }
 
 // buildArchiveData assembles the client hydration payload for the selected

@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/gofiber/fiber/v3"
+
+	"github.com/dechristopher/lio/title"
 )
 
 // Context is the request-scoped identity, resolved per request from the sid
@@ -24,10 +26,11 @@ type Context struct {
 type Account struct {
 	ID       int64
 	Username string
-	// Title is the account's optional display title ("" when unset), rendered
-	// to the left of the username in the theme accent color. Set directly in
-	// the DB (no in-app assignment UI); flows here from the session.
-	Title string
+	// Title is the account's optional display title (the zero Title when
+	// unset), rendered to the left of the username in the theme accent color.
+	// Assigned by pointing users.title_id at a titles row (no in-app
+	// assignment UI); flows here from the session.
+	Title title.Title
 }
 
 // GetID is a helper to return the session uid from the request context.

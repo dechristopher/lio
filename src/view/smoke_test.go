@@ -10,6 +10,7 @@ import (
 
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/news"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/variant"
 )
 
@@ -334,43 +335,51 @@ func TestRenderRoomRated(t *testing.T) {
 // rendering: a gain is a green +N, a loss a red -N, a zero delta shows only the
 // rating (live clocks), and no rating shows nothing at all.
 func TestRenderClockRatingDelta(t *testing.T) {
-	gain := renderSmoke(t, clock("", "drewtest", "", "1650", 8))
+	gain := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 8))
 	mustContain(t, gain, ">1650</span>")
 	mustContain(t, gain, "clockRatingDelta win")
 	mustContain(t, gain, "+8")
 
-	loss := renderSmoke(t, clock("", "cdpplayer", "", "1500?", -8))
+	loss := renderSmoke(t, clock(title.Title{}, "cdpplayer", "", "1500?", -8))
 	mustContain(t, loss, "1500?")
 	mustContain(t, loss, "clockRatingDelta loss")
 	mustContain(t, loss, "-8")
 
 	// zero delta (the live clocks): rating shown, no delta span
-	none := renderSmoke(t, clock("", "drewtest", "", "1650", 0))
+	none := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0))
 	mustContain(t, none, ">1650</span>")
 	mustNotContain(t, none, "clockRatingDelta")
 
 	// no rating (casual/anon/bot): no rating block at all
-	empty := renderSmoke(t, clock("", "You", "", "", 0))
+	empty := renderSmoke(t, clock(title.Title{}, "You", "", "", 0))
 	mustNotContain(t, empty, "clockRating")
 
 	// a bot seat: the persona glyph renders as the avatar and the generic CPU
 	// icon is not; a human seat (empty glyph) is the reverse
-	bot := renderSmoke(t, clock("", "Queen", "♛︎", "", 0))
+	bot := renderSmoke(t, clock(title.Title{}, "Queen", "♛︎", "", 0))
 	mustContain(t, bot, `class="clockBotGlyph"`)
-	human := renderSmoke(t, clock("", "drewtest", "", "1650", 0))
+	human := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0))
 	mustNotContain(t, human, "clockBotGlyph")
 }
 
 // TestRenderPlayerTitle locks the account title badge: a titled clock renders a
-// .player-title span with the value; an untitled one renders none. The badge's
-// accent color comes from CSS (var(--accent)), so it's exercised at the DOM
-// level here, not the color.
+// .player-title span showing the titles row's short code and tooltipping its
+// full name; an untitled one renders none. A title carrying no name (an older
+// room snapshot, restored code-only) tooltips the code instead of an empty
+// string. The badge's accent color comes from CSS (var(--accent)), so it's
+// exercised at the DOM level here, not the color.
 func TestRenderPlayerTitle(t *testing.T) {
-	titled := renderSmoke(t, clock("GM", "drewtest", "", "1650", 0))
+	titled := renderSmoke(t, clock(
+		title.Title{Code: "GM", Name: "Grandmaster"}, "drewtest", "", "1650", 0))
 	mustContain(t, titled, `class="player-title"`)
 	mustContain(t, titled, ">GM</span>")
+	mustContain(t, titled, `title="Grandmaster"`)
 
-	untitled := renderSmoke(t, clock("", "drewtest", "", "1650", 0))
+	nameless := renderSmoke(t, clock(
+		title.Title{Code: "OG"}, "drewtest", "", "1650", 0))
+	mustContain(t, nameless, `title="OG"`)
+
+	untitled := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0))
 	mustNotContain(t, untitled, "player-title")
 }
 
@@ -532,7 +541,8 @@ func TestRenderHeaderViewerStates(t *testing.T) {
 	mustContain(t, loggedOut, `data-mfa-alt="recovery"`)
 
 	loggedIn := renderSmokeViewer(t,
-		Viewer{UID: "uid123", LoggedIn: true, Username: "drew", Title: "GM",
+		Viewer{UID: "uid123", LoggedIn: true, Username: "drew",
+			Title:           title.Title{Code: "GM", Name: "Grandmaster"},
 			AccountsEnabled: true}, page)
 	mustContain(t, loggedIn, `id="profileButton"`)
 	mustContain(t, loggedIn, ">drew</span>")

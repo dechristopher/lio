@@ -6,20 +6,34 @@ VALUES ($1, $2, $3)
 RETURNING id, username;
 
 -- name: GetUserByID :one
-SELECT * FROM users WHERE id = $1;
+-- The title join is a LEFT JOIN on the tiny titles table: NULL code/name for
+-- the vast majority of accounts, which hold no title.
+SELECT sqlc.embed(u), t.code AS title_code, t.name AS title_name
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+WHERE u.id = $1;
 
 -- name: GetUserByUsernameLower :one
 -- Login lookup: case-insensitive, served by the lower(username) unique index.
-SELECT * FROM users WHERE lower(username) = lower($1);
+-- Carries the joined title so the login path stamps the session without a
+-- second query.
+SELECT sqlc.embed(u), t.code AS title_code, t.name AS title_name
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+WHERE lower(u.username) = lower($1);
 
 -- name: GetUsernameByID :one
 -- Resolve a user id to its display-case username (archive page seat labels).
 SELECT username FROM users WHERE id = $1;
 
 -- name: GetUserDisplayByID :one
--- Resolve a user id to its display-case username plus optional title, for the
--- archive page's seat labels (which have no live player record to read).
-SELECT username, title FROM users WHERE id = $1;
+-- Resolve a user id to its display-case username plus optional title (badge
+-- code + tooltip name), for the archive page's seat labels (which have no live
+-- player record to read).
+SELECT u.username, t.code AS title_code, t.name AS title_name
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+WHERE u.id = $1;
 
 -- name: UsernameTaken :one
 -- Signup-form availability probe (also covers the reserved-word check's DB

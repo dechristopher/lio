@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/title"
 )
 
 // header is the site wordmark + account/preferences/theme controls shown at the
@@ -769,17 +770,20 @@ templ board(payload message.RoomTemplatePayload) {
 // clock horizontally.
 // playerTitle renders a player's optional account display title as a compact
 // accent-colored badge to the left of their name (lichess-style "GM"/"WFM"/…).
-// Its color follows the current board theme's --accent (see app.css
-// .player-title), so it retints with the theme. Renders nothing when title is
-// empty — anonymous/bot seats and untitled accounts — so it can be dropped in
-// unconditionally before any name. Set directly in the DB (no assignment UI).
-templ playerTitle(title string) {
-	if title != "" {
-		<span class="player-title" title="Player title">{ title }</span>
+// The badge shows the titles row's short code and hovers its full name as the
+// tooltip ("GM" → "Grandmaster"); a title whose row carries no name falls back
+// to tooltipping the code. Its color follows the current board theme's
+// --accent (see app.css .player-title), so it retints with the theme. Renders
+// nothing for an unset title — anonymous/bot seats and untitled accounts — so
+// it can be dropped in unconditionally before any name. Assigned by pointing
+// users.title_id at a titles row (no in-app assignment UI).
+templ playerTitle(t title.Title) {
+	if t.Set() {
+		<span class="player-title" title={ t.Tooltip() }>{ t.Code }</span>
 	}
 }
 
-templ clock(title string, name string, botGlyph string, rating string, ratingDelta int) {
+templ clock(seatTitle title.Title, name string, botGlyph string, rating string, ratingDelta int) {
 	<div class="clock">
 		<div class="clockProgress">
 			<div class="clockProgressBg"></div>
@@ -797,7 +801,7 @@ templ clock(title string, name string, botGlyph string, rating string, ratingDel
 				if botGlyph != "" {
 					<span class="clockBotGlyph" aria-hidden="true">{ botGlyph }</span>
 				}
-				@playerTitle(title)
+				@playerTitle(seatTitle)
 				<span class="clockName">{ name }</span>
 				if rating != "" {
 					<span class="clockRating">

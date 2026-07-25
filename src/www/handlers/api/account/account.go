@@ -8,6 +8,7 @@ import (
 
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/www/middleware"
 )
 
@@ -120,7 +121,7 @@ func RegisterHandler(c fiber.Ctx) error {
 	}
 
 	// a just-registered account has no title yet (assigned later, in the DB)
-	if err := auth.Login(c, auth.FromRequest(c), id, username, ""); err != nil {
+	if err := auth.Login(c, auth.FromRequest(c), id, username, title.Title{}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "registration succeeded but login failed - try logging in"})
 	}

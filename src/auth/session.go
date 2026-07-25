@@ -15,6 +15,7 @@ import (
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/env"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 )
@@ -58,7 +59,7 @@ type Session struct {
 	UID       string
 	UserID    *int64
 	Username  string
-	Title     string // account's optional display title, empty for anon
+	Title     title.Title // account's optional display title, zero for anon
 	tokenHash [32]byte
 	lastSeen  time.Time
 	expiresAt time.Time
@@ -269,10 +270,11 @@ func FromRequest(c fiber.Ctx) *Session {
 // token rotated (fixation defense), account attached, authed expiry applied,
 // uid preserved. sess may be nil (a login POST with no live session — e.g.
 // cookies cleared mid-flow); a fresh authenticated session is minted instead.
-// title is the account's optional display title (carried alongside username so
+// t is the account's optional display title (carried alongside username so
 // the just-logged-in render shows it without waiting for the ≤30s cache to
 // expire and re-resolve the join). Requires Enabled(); callers gate on it.
-func Login(c fiber.Ctx, sess *Session, userID int64, username, title string) error {
+func Login(c fiber.Ctx, sess *Session, userID int64, username string,
+	t title.Title) error {
 	token, hash := NewToken()
 	now := time.Now()
 
@@ -294,7 +296,7 @@ func Login(c fiber.Ctx, sess *Session, userID int64, username, title string) err
 
 	sess.UserID = &userID
 	sess.Username = username
-	sess.Title = title
+	sess.Title = t
 	sess.tokenHash = hash
 	sess.lastSeen = now
 	sess.expiresAt = now.Add(authedTTL)

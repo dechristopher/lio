@@ -20,6 +20,7 @@ import (
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/variant"
 )
@@ -83,8 +84,8 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 	challenger := "anonymous player"
 	if payload.CreatorName != "" {
 		challenger = payload.CreatorName
-		if payload.CreatorTitle != "" {
-			challenger = payload.CreatorTitle + " " + payload.CreatorName
+		if payload.CreatorTitle.Set() {
+			challenger = payload.CreatorTitle.Code + " " + payload.CreatorName
 		}
 		if payload.CreatorRating != "" {
 			challenger += " (" + payload.CreatorRating + ")"
@@ -111,9 +112,9 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 type Viewer struct {
 	UID             string // session uid ("" when no session resolved)
 	LoggedIn        bool
-	Username        string // display-case username, empty when anonymous
-	Title           string // optional account display title, empty when unset
-	AccountsEnabled bool   // false only in PG-less local dev
+	Username        string      // display-case username, empty when anonymous
+	Title           title.Title // optional account display title, zero when unset
+	AccountsEnabled bool        // false only in PG-less local dev
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -278,26 +279,26 @@ func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot boo
 }
 
 // seatColorTitle resolves one seat's optional account display title by "w"/"b"
-// color from the payload. Empty for anonymous/bot seats, untitled accounts, and
+// color from the payload. Zero for anonymous/bot seats, untitled accounts, and
 // (harmlessly) whenever seatColorLabel resolves to You/Anonymous/BOT — those
 // seats carry no account title. The view renders it to the left of the name.
-func seatColorTitle(payload message.RoomTemplatePayload, color string) string {
+func seatColorTitle(payload message.RoomTemplatePayload, color string) title.Title {
 	switch color {
 	case "w":
 		return payload.WhiteTitle
 	case "b":
 		return payload.BlackTitle
 	}
-	return ""
+	return title.Title{}
 }
 
 // topClockTitle / bottomClockTitle label each clock's title badge, resolved by
 // the same color/anchor rules as the names and ratings.
-func topClockTitle(payload message.RoomTemplatePayload) string {
+func topClockTitle(payload message.RoomTemplatePayload) title.Title {
 	return seatColorTitle(payload, topClockColor(payload))
 }
 
-func bottomClockTitle(payload message.RoomTemplatePayload) string {
+func bottomClockTitle(payload message.RoomTemplatePayload) title.Title {
 	return seatColorTitle(payload, bottomClockColor(payload))
 }
 

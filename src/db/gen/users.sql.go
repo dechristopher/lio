@@ -36,65 +36,96 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at, title FROM users WHERE id = $1
+SELECT u.id, u.created_at, u.username, u.email, u.password_hash, u.totp_secret_enc, u.totp_confirmed_at, u.webauthn_user_handle, u.username_changed_at, u.title_id, t.code AS title_code, t.name AS title_name
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+WHERE u.id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+type GetUserByIDRow struct {
+	User      User
+	TitleCode *string
+	TitleName *string
+}
+
+// The title join is a LEFT JOIN on the tiny titles table: NULL code/name for
+// the vast majority of accounts, which hold no title.
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.Username,
-		&i.Email,
-		&i.PasswordHash,
-		&i.TotpSecretEnc,
-		&i.TotpConfirmedAt,
-		&i.WebauthnUserHandle,
-		&i.UsernameChangedAt,
-		&i.Title,
+		&i.User.ID,
+		&i.User.CreatedAt,
+		&i.User.Username,
+		&i.User.Email,
+		&i.User.PasswordHash,
+		&i.User.TotpSecretEnc,
+		&i.User.TotpConfirmedAt,
+		&i.User.WebauthnUserHandle,
+		&i.User.UsernameChangedAt,
+		&i.User.TitleID,
+		&i.TitleCode,
+		&i.TitleName,
 	)
 	return i, err
 }
 
 const getUserByUsernameLower = `-- name: GetUserByUsernameLower :one
-SELECT id, created_at, username, email, password_hash, totp_secret_enc, totp_confirmed_at, webauthn_user_handle, username_changed_at, title FROM users WHERE lower(username) = lower($1)
+SELECT u.id, u.created_at, u.username, u.email, u.password_hash, u.totp_secret_enc, u.totp_confirmed_at, u.webauthn_user_handle, u.username_changed_at, u.title_id, t.code AS title_code, t.name AS title_name
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+WHERE lower(u.username) = lower($1)
 `
 
+type GetUserByUsernameLowerRow struct {
+	User      User
+	TitleCode *string
+	TitleName *string
+}
+
 // Login lookup: case-insensitive, served by the lower(username) unique index.
-func (q *Queries) GetUserByUsernameLower(ctx context.Context, lower string) (User, error) {
+// Carries the joined title so the login path stamps the session without a
+// second query.
+func (q *Queries) GetUserByUsernameLower(ctx context.Context, lower string) (GetUserByUsernameLowerRow, error) {
 	row := q.db.QueryRow(ctx, getUserByUsernameLower, lower)
-	var i User
+	var i GetUserByUsernameLowerRow
 	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.Username,
-		&i.Email,
-		&i.PasswordHash,
-		&i.TotpSecretEnc,
-		&i.TotpConfirmedAt,
-		&i.WebauthnUserHandle,
-		&i.UsernameChangedAt,
-		&i.Title,
+		&i.User.ID,
+		&i.User.CreatedAt,
+		&i.User.Username,
+		&i.User.Email,
+		&i.User.PasswordHash,
+		&i.User.TotpSecretEnc,
+		&i.User.TotpConfirmedAt,
+		&i.User.WebauthnUserHandle,
+		&i.User.UsernameChangedAt,
+		&i.User.TitleID,
+		&i.TitleCode,
+		&i.TitleName,
 	)
 	return i, err
 }
 
 const getUserDisplayByID = `-- name: GetUserDisplayByID :one
-SELECT username, title FROM users WHERE id = $1
+SELECT u.username, t.code AS title_code, t.name AS title_name
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+WHERE u.id = $1
 `
 
 type GetUserDisplayByIDRow struct {
-	Username string
-	Title    *string
+	Username  string
+	TitleCode *string
+	TitleName *string
 }
 
-// Resolve a user id to its display-case username plus optional title, for the
-// archive page's seat labels (which have no live player record to read).
+// Resolve a user id to its display-case username plus optional title (badge
+// code + tooltip name), for the archive page's seat labels (which have no live
+// player record to read).
 func (q *Queries) GetUserDisplayByID(ctx context.Context, id int64) (GetUserDisplayByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserDisplayByID, id)
 	var i GetUserDisplayByIDRow
-	err := row.Scan(&i.Username, &i.Title)
+	err := row.Scan(&i.Username, &i.TitleCode, &i.TitleName)
 	return i, err
 }
 

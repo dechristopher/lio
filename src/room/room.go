@@ -24,6 +24,7 @@ import (
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
@@ -220,10 +221,10 @@ type Params struct {
 	// anonymous creator.
 	CreatorUserID *int64
 	CreatorName   string
-	// CreatorTitle is the creator's optional account display title ("" when
+	// CreatorTitle is the creator's optional account display title (zero when
 	// anonymous or untitled), personalizing the joiner's pre-game view and the
 	// OG challenge card alongside CreatorName.
-	CreatorTitle string
+	CreatorTitle title.Title
 	Players      player.Players
 	GameConfig   game.OctadGameConfig
 	// Public lists an open human challenge in the home-page Open Challenges
@@ -1766,7 +1767,7 @@ func seatArchiveName(p *player.Player, personaKey string) string {
 		persona := engine.PersonaByKey(personaKey)
 		return game.PGNSeatName("", "", persona.Glyph, persona.Name, true)
 	}
-	return game.PGNSeatName(p.Username, p.Title, "", "", false)
+	return game.PGNSeatName(p.Username, p.Title.Code, "", "", false)
 }
 
 // buildArchivePGN assembles the archival PGN for a finished game via the shared
@@ -2007,12 +2008,12 @@ func (r *Instance) GenTemplatePayload(id string) message.RoomTemplatePayload {
 	// per-seat display names for the clocks/timeline: the account username, or
 	// "" for an anonymous human / bot (the view resolves "" to You/Anonymous
 	// and the bot flags to "BOT"). CreatorName personalizes the joiner view.
-	whiteName, whiteTitle := "", ""
+	whiteName, blackName := "", ""
+	whiteTitle, blackTitle := title.Title{}, title.Title{}
 	if p := r.players[octad.White]; p != nil {
 		whiteName = p.DisplayName()
 		whiteTitle = p.Title
 	}
-	blackName, blackTitle := "", ""
 	if p := r.players[octad.Black]; p != nil {
 		blackName = p.DisplayName()
 		blackTitle = p.Title

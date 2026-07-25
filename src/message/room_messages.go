@@ -4,6 +4,7 @@ import (
 	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/variant"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
@@ -40,12 +41,13 @@ type RoomTemplatePayload struct {
 	BlackName   string
 	CreatorName string
 	// WhiteTitle / BlackTitle / CreatorTitle are each account's optional display
-	// title ("GM", "WFM", …), rendered to the left of the corresponding name in
-	// the theme accent color. Empty for anonymous/bot seats and untitled
-	// accounts. Set directly in the DB (no in-app assignment).
-	WhiteTitle   string
-	BlackTitle   string
-	CreatorTitle string
+	// title ("GM" badge, "Grandmaster" tooltip), rendered to the left of the
+	// corresponding name in the theme accent color. Zero for anonymous/bot
+	// seats and untitled accounts. Assigned by pointing users.title_id at a
+	// titles row (no in-app assignment UI).
+	WhiteTitle   title.Title
+	BlackTitle   title.Title
+	CreatorTitle title.Title
 	// WhiteRating / BlackRating are each seat's Glicko-2 display rating
 	// ("1650" / "1500?") in a rated game, captured at seat-claim
 	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5). Empty for anonymous/bot seats and

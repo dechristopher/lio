@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dechristopher/lio/db/gen"
+	"github.com/dechristopher/lio/title"
 )
 
 // This file is the accounts data plane: user rows for the auth package
@@ -27,10 +28,11 @@ type UserRecord struct {
 	Email        *string
 	PasswordHash string
 	CreatedAt    time.Time
-	// Title is the account's optional display title ("" when unset), shown to
-	// the left of the username wherever the name renders. Carried into the
-	// session/Viewer and stamped onto seats at claim time.
-	Title string
+	// Title is the account's optional display title (the zero Title when
+	// unset), resolved through the titles table and shown to the left of the
+	// username wherever the name renders. Carried into the session/Viewer and
+	// stamped onto seats at claim time.
+	Title title.Title
 	// TOTPConfirmed reports whether the account has an active TOTP factor
 	// (arch/ACCOUNTS_AUTH_RATINGS.md Phase 4). Read off the user row the login
 	// path already fetches, so the MFA decision costs no extra query for the
@@ -67,20 +69,21 @@ func CreateUser(username string, email *string, passwordHash string) (int64, err
 func GetUserByID(id int64) (UserRecord, bool, error) {
 	ctx, cancel := Ctx()
 	defer cancel()
-	u, err := gen.New(Pool).GetUserByID(ctx, id)
+	row, err := gen.New(Pool).GetUserByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return UserRecord{}, false, nil
 	}
 	if err != nil {
 		return UserRecord{}, false, err
 	}
+	u := row.User
 	return UserRecord{
 		ID:              u.ID,
 		Username:        u.Username,
 		Email:           u.Email,
 		PasswordHash:    u.PasswordHash,
 		CreatedAt:       u.CreatedAt.Time,
-		Title:           strOrEmpty(u.Title),
+		Title:           title.New(row.TitleCode, row.TitleName),
 		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
 		UsernameChanged: u.UsernameChangedAt.Valid,
 	}, true, nil
@@ -91,20 +94,21 @@ func GetUserByID(id int64) (UserRecord, bool, error) {
 func GetUserByUsername(username string) (UserRecord, bool, error) {
 	ctx, cancel := Ctx()
 	defer cancel()
-	u, err := gen.New(Pool).GetUserByUsernameLower(ctx, username)
+	row, err := gen.New(Pool).GetUserByUsernameLower(ctx, username)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return UserRecord{}, false, nil
 	}
 	if err != nil {
 		return UserRecord{}, false, err
 	}
+	u := row.User
 	return UserRecord{
 		ID:              u.ID,
 		Username:        u.Username,
 		Email:           u.Email,
 		PasswordHash:    u.PasswordHash,
 		CreatedAt:       u.CreatedAt.Time,
-		Title:           strOrEmpty(u.Title),
+		Title:           title.New(row.TitleCode, row.TitleName),
 		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
 		UsernameChanged: u.UsernameChangedAt.Valid,
 	}, true, nil
@@ -135,29 +139,20 @@ func UsernameForID(id *int64) string {
 }
 
 // UserDisplayForID resolves a (nullable) user id to its display-case username
-// and optional title, both "" for a nil id (anon/bot seat), a miss, or an
-// unconfigured Postgres. Used by the archive page, which has no live player
-// record to read the seat's account fields from.
-func UserDisplayForID(id *int64) (username, title string) {
+// and optional title, both zero-valued for a nil id (anon/bot seat), a miss,
+// or an unconfigured Postgres. Used by the archive page, which has no live
+// player record to read the seat's account fields from.
+func UserDisplayForID(id *int64) (username string, t title.Title) {
 	if id == nil || Pool == nil {
-		return "", ""
+		return "", title.Title{}
 	}
 	ctx, cancel := Ctx()
 	defer cancel()
 	row, err := gen.New(Pool).GetUserDisplayByID(ctx, *id)
 	if err != nil {
-		return "", ""
+		return "", title.Title{}
 	}
-	return row.Username, strOrEmpty(row.Title)
-}
-
-// strOrEmpty dereferences a nullable text column into a plain string ("" for
-// NULL), the shape the auth/view layers want.
-func strOrEmpty(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
+	return row.Username, title.New(row.TitleCode, row.TitleName)
 }
 
 // UpdatePasswordHash swaps a user's stored PHC string — password changes and

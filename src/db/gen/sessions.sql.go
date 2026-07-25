@@ -107,9 +107,10 @@ func (q *Queries) DeleteSessionsForUserExcept(ctx context.Context, arg DeleteSes
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT s.id, s.uid, s.user_id, s.expires_at, s.last_seen,
-       u.username AS username, u.title AS title
+       u.username AS username, t.code AS title_code, t.name AS title_name
 FROM sessions s
 LEFT JOIN users u ON u.id = s.user_id
+LEFT JOIN titles t ON t.id = u.title_id
 WHERE s.token_hash = $1
 `
 
@@ -120,12 +121,16 @@ type GetSessionByTokenHashRow struct {
 	ExpiresAt pgtype.Timestamptz
 	LastSeen  pgtype.Timestamptz
 	Username  *string
-	Title     *string
+	TitleCode *string
+	TitleName *string
 }
 
 // The per-request identity lookup: session + account (username/title NULL for
-// anon). title is the account's optional display title, carried into the
-// render Viewer so the header (and the viewer's own seat) show it.
+// anon). The title columns are the account's optional display title resolved
+// through the titles table — code is the badge text, name its tooltip —
+// carried into the render Viewer so the header (and the viewer's own seat)
+// show it. Two LEFT JOINs down a primary key on tiny tables; the resolver
+// also caches the result for ~30s, so this is not a per-request cost.
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (GetSessionByTokenHashRow, error) {
 	row := q.db.QueryRow(ctx, getSessionByTokenHash, tokenHash)
 	var i GetSessionByTokenHashRow
@@ -136,7 +141,8 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.ExpiresAt,
 		&i.LastSeen,
 		&i.Username,
-		&i.Title,
+		&i.TitleCode,
+		&i.TitleName,
 	)
 	return i, err
 }
