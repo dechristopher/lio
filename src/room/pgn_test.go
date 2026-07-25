@@ -163,6 +163,58 @@ func TestBuildArchivePGNSeatTags(t *testing.T) {
 	}
 }
 
+// TestBuildArchivePGNEventTag verifies the live archival path feeds the Event
+// tag's situation inputs from the archive record: the rating stake, the race-to
+// match target, and the engine opponent (derived from the seats, matching what
+// the archive-page rebuild derives from the stored row). The game is the blind
+// deploy variant every room now plays, so its "deploy" group must read as the
+// speed of the time control it shares a label with ("½ + 1" → Blitz) rather
+// than naming the deploy.
+func TestBuildArchivePGNEventTag(t *testing.T) {
+	g, err := game.NewOctadGame(game.OctadGameConfig{
+		Variant: variant.HalfOneBlitzDeploy,
+		White:   "uid_drew", // logged-in human
+		Black:   "",         // the bot
+	})
+	if err != nil {
+		t.Fatalf("NewOctadGame failed: %v", err)
+	}
+
+	userID := int64(7)
+	cases := []struct {
+		name string
+		rec  db.GameRecord
+		want string
+	}{
+		{
+			"rated race vs bot",
+			db.GameRecord{Rated: true, RaceTo: 3, WhiteUserID: &userID},
+			`[Event "Rated Blitz match (race to 3) vs Computer"]`,
+		},
+		{
+			"casual single game vs bot",
+			db.GameRecord{WhiteUserID: &userID},
+			`[Event "Unrated Blitz game vs Computer"]`,
+		},
+		{
+			// both seats held by humans: an account on one, a plain session uid
+			// (no account) on the other — neither reads as the engine
+			"human opponents",
+			db.GameRecord{Rated: true, WhiteUserID: &userID, BlackUserID: &userID},
+			`[Event "Rated Blitz game"]`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pgn := buildArchivePGN(*g, tc.rec, time.Now())
+			if !strings.Contains(pgn, tc.want) {
+				t.Errorf("PGN missing %s:\n%s", tc.want, pgn)
+			}
+		})
+	}
+}
+
 // TestSeatArchiveName covers the seat-name formatter used for the PGN White/Black
 // tags: a bot shows "BOT <glyph> <persona>", a titled account "<title>
 // <username>", an untitled account its bare username, and an anonymous or nil

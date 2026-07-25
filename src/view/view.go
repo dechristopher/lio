@@ -18,6 +18,7 @@ import (
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/engine"
+	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/variant"
@@ -163,6 +164,22 @@ func Render(c fiber.Ctx, status int, component templ.Component) error {
 func IsHTMXFragment(c fiber.Ctx) bool {
 	return c.Get("HX-Request") == "true" &&
 		c.Get("HX-History-Restore-Request") != "true"
+}
+
+// pgnEventName pre-renders the room's PGN Event tag ("Rated Blitz game vs
+// Computer") onto the copy-PGN button. The button normally copies the canonical
+// server-built PGN verbatim; only when that is missing (a resync/reconnect that
+// never saw the game-over broadcast) does lio-game.js assemble a PGN itself, and
+// this keeps that fallback on the same vocabulary as the archived game instead
+// of a hardcoded placeholder.
+func pgnEventName(payload message.RoomTemplatePayload) string {
+	return game.PGNMeta{
+		Variant: payload.Variant.Name,
+		Group:   string(payload.Variant.Group),
+		Rated:   payload.Rated,
+		RaceTo:  payload.RaceTo,
+		VsBot:   payload.WhiteIsBot || payload.BlackIsBot,
+	}.EventName()
 }
 
 // groupTitle title-cases a variant speed group ("blitz" → "Blitz") for display

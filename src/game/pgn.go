@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/dechristopher/octad/v2"
+
+	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/variant"
 )
 
 // PGNMeta carries the tag-pair inputs for BuildPGN. It is decoupled from the
@@ -19,8 +22,11 @@ import (
 // (games.reason), not a display sentence; White/Black are the archived display
 // names ("BOT"/"Anonymous"/<username>), with the raw session uids in
 // WhiteUID/BlackUID.
+//
+// There is deliberately no Event field: the Event tag is *derived* from the
+// situation fields below (see EventName), so the two paths cannot drift on it.
 type PGNMeta struct {
-	Event, Site        string
+	Site               string
 	Variant, Group     string
 	White, Black       string
 	WhiteUID, BlackUID string
@@ -32,6 +38,13 @@ type PGNMeta struct {
 	// WhiteFormation is empty the three name tags are omitted (an unresolvable
 	// start), so BuildPGN never fabricates a name.
 	WhiteFormation, BlackFormation, Matchup string
+	// Situation fields, all straight off the games row (games.rated,
+	// games.race_to) or derived from it exactly as the archive page derives them
+	// (SeatIsBot on both seats). They name the game in the Event tag, alongside
+	// Group/Variant above.
+	Rated  bool // affected Glicko-2 ratings
+	RaceTo int  // >0 for a race-to match: the points target
+	VsBot  bool // either seat is the engine
 }
 
 // PGNSeatName formats a seat's PGN display name, space-separated (no brackets):
@@ -64,6 +77,91 @@ func PGNSeatName(username, title, botGlyph, botPersona string, isBot bool) strin
 	return username
 }
 
+// SeatIsBot reports whether an archived seat is the engine: the bot plays with
+// no session uid and no account, so an empty uid with a nil user id is the
+// engine and nothing else. It is the single rule both PGN paths (and the
+// archive page's own seat rendering) key off, so a seat can never read as the
+// bot on one surface and a human on another. A human who lost their session uid
+// but has an account still resolves as a human.
+func SeatIsBot(uid string, userID *int64) bool {
+	return uid == "" && userID == nil
+}
+
+// EventName names the situation the game was played in, for the PGN Event tag.
+// It is derived rather than passed in so the live archival path and the
+// archive-page rebuild cannot disagree; every input is on the games row.
+// (Exported for the room page, which pre-renders the same name for the copy
+// button's client-side fallback PGN — see view.pgnEventName.)
+//
+// The shape is "<rating> <speed> <game|match> [vs Computer]":
+//
+//	Rated Blitz game
+//	Unrated Bullet game vs Computer
+//	Unrated Casual game
+//	Rated Rapid match (race to 3)
+//
+// "Rated"/"Unrated" is the rating stake (there is no other tag carrying it).
+// The speed word is the variant's group in the site's own vocabulary, with the
+// untimed unlimited group reading as the site's "Casual" mode. The blind deploy
+// pre-game is deliberately unnamed: it *is* octad now, so saying so would be
+// noise on every game. A future non-standard gamemode is what belongs beside
+// the speed here ("Rated Atomic Blitz game").
+func (m PGNMeta) EventName() string {
+	var sb strings.Builder
+	if m.Rated {
+		sb.WriteString("Rated ")
+	} else {
+		sb.WriteString("Unrated ")
+	}
+	if speed := eventSpeed(m.Group, m.Variant); speed != "" {
+		sb.WriteString(speed)
+		sb.WriteByte(' ')
+	}
+	if m.RaceTo > 0 {
+		fmt.Fprintf(&sb, "match (race to %d)", m.RaceTo)
+	} else {
+		sb.WriteString("game")
+	}
+	if m.VsBot {
+		sb.WriteString(" vs Computer")
+	}
+	return sb.String()
+}
+
+// eventSpeed renders a variant group as the Event tag's speed word. The deploy
+// group is not a speed — it collects the blind-deploy forms of the standard time
+// controls, which every game now uses — so it resolves to the speed of the
+// control it shares a display label with (variantName, e.g. "½ + 1" → Blitz). An
+// unrecognized group (a future group reaching an old binary) degrades to the raw
+// token, and an unresolvable one to no speed word at all, rather than
+// mislabeling the game.
+func eventSpeed(group, variantName string) string {
+	switch variant.Group(group) {
+	case variant.BulletGroup:
+		return "Bullet"
+	case variant.BlitzGroup:
+		return "Blitz"
+	case variant.RapidGroup:
+		return "Rapid"
+	case variant.HyperGroup:
+		return "Hyper"
+	case variant.UltiGroup:
+		return "Ulti"
+	case variant.UnlimitedGroup:
+		// the untimed variants; "Casual" is what the site calls this mode
+		return "Casual"
+	case variant.DeployGroup:
+		for _, c := range pools.CreateControls {
+			if c.Label == variantName {
+				return eventSpeed(string(c.Group), variantName)
+			}
+		}
+		return ""
+	default:
+		return group
+	}
+}
+
 // BuildPGN assembles the full archival PGN for a finished game: the tag-pair
 // roster followed by numbered SAN movetext (with a { [%clk h:mm:ss.cc] } comment
 // per move when per-ply timing was recorded) ending in the result token.
@@ -83,7 +181,14 @@ func BuildPGN(m PGNMeta, g *octad.Game, times []MoveTime) string {
 	// byte-identical tags for the same game.
 	start, end := m.Start.UTC(), m.End.UTC()
 
-	add("Event", m.Event)
+	// a non-standard starting position (the blind deploy's arranged home rank)
+	// becomes the SetUp/FEN tag pair below
+	deployed := false
+	if std, err := octad.StartingPosition(); err == nil {
+		deployed = m.StartOFEN != "" && m.StartOFEN != std.String()
+	}
+
+	add("Event", m.EventName())
 	add("Site", m.Site)
 	add("Date", start.Format("2006.01.02"))
 	add("Variant", m.Variant)
@@ -111,11 +216,9 @@ func BuildPGN(m PGNMeta, g *octad.Game, times []MoveTime) string {
 	// tag pair so the movetext replays from the correct initial OFEN. The tag key
 	// must be the PGN-standard "FEN": that's the only key octad's own decoder
 	// reads to seed a custom start.
-	if start, err := octad.StartingPosition(); err == nil {
-		if m.StartOFEN != "" && m.StartOFEN != start.String() {
-			add("SetUp", "1")
-			add("FEN", m.StartOFEN)
-		}
+	if deployed {
+		add("SetUp", "1")
+		add("FEN", m.StartOFEN)
 	}
 
 	var sb strings.Builder

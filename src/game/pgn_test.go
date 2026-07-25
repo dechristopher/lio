@@ -37,7 +37,6 @@ func newTestGame(t *testing.T, ofen string, n int) *OctadGame {
 
 func sampleMeta() PGNMeta {
 	return PGNMeta{
-		Event:          "octad.gg Test Match",
 		Site:           "https://octad.gg",
 		Variant:        "1+0",
 		Group:          "blitz",
@@ -90,6 +89,71 @@ func TestBuildPGNNameTags(t *testing.T) {
 	bare := BuildPGN(m, &g.Game, g.MoveTimes)
 	if strings.Contains(bare, "Formation") || strings.Contains(bare, "[Matchup ") {
 		t.Errorf("PGN should omit name tags when unresolved:\n%s", bare)
+	}
+}
+
+// TestBuildPGNEventTag verifies the Event tag names the situation the game was
+// played in — rating stake, speed ("Casual" for the untimed variants), single
+// game vs race-to match, and the engine opponent — instead of a fixed
+// placeholder string. The blind deploy pre-game is never named: every game is
+// played that way, so the deploy group resolves to the speed of the time
+// control it shares a label with.
+func TestBuildPGNEventTag(t *testing.T) {
+	const deployOFEN = "knpp/4/4/PNKP w NCFncf - 0 1"
+
+	cases := []struct {
+		name  string
+		meta  func(m *PGNMeta)
+		event string
+	}{
+		{"unrated blitz", func(m *PGNMeta) {}, "Unrated Blitz game"},
+		{"rated blitz", func(m *PGNMeta) { m.Rated = true }, "Rated Blitz game"},
+		{"vs bot", func(m *PGNMeta) { m.VsBot = true }, "Unrated Blitz game vs Computer"},
+		{"bullet", func(m *PGNMeta) { m.Group = "bullet" }, "Unrated Bullet game"},
+		{"untimed casual", func(m *PGNMeta) { m.Group = "unlimited" }, "Unrated Casual game"},
+		{"race to match", func(m *PGNMeta) { m.Rated, m.RaceTo = true, 3 }, "Rated Blitz match (race to 3)"},
+		// the deploy start alone says nothing about the game: it is how every
+		// game starts now
+		{"deploy start", func(m *PGNMeta) { m.StartOFEN = deployOFEN }, "Unrated Blitz game"},
+		{
+			// the deploy group resolves through its shared time-control label
+			// ("½ + 1" is the blitz control) to the speed word
+			"deploy group reads as its speed",
+			func(m *PGNMeta) { m.Group, m.Variant, m.StartOFEN = "deploy", "½ + 1", deployOFEN },
+			"Unrated Blitz game",
+		},
+		{
+			"deploy group rapid vs bot",
+			func(m *PGNMeta) { m.Group, m.Variant, m.VsBot = "deploy", "1 + 2", true },
+			"Unrated Rapid game vs Computer",
+		},
+		{
+			// a deploy variant whose label no longer resolves drops the speed
+			// word rather than claiming the wrong one
+			"unresolvable deploy control",
+			func(m *PGNMeta) { m.Group, m.Variant = "deploy", "9 + 9" },
+			"Unrated game",
+		},
+		{
+			"untimed deploy vs bot",
+			func(m *PGNMeta) { m.Group, m.StartOFEN, m.VsBot = "unlimited", deployOFEN, true },
+			"Unrated Casual game vs Computer",
+		},
+		// an unknown group (a newer variant group reaching an old binary) still
+		// produces a sane Event rather than a mislabeled one
+		{"unknown group", func(m *PGNMeta) { m.Group = "marathon" }, "Unrated marathon game"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := newTestGame(t, "", 2)
+			m := sampleMeta()
+			tc.meta(&m)
+			want := `[Event "` + tc.event + `"]`
+			if pgn := BuildPGN(m, &g.Game, g.MoveTimes); !strings.Contains(pgn, want) {
+				t.Errorf("PGN missing %s:\n%s", want, pgn)
+			}
+		})
 	}
 }
 

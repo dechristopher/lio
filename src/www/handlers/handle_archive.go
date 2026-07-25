@@ -330,9 +330,10 @@ func archiveTimeCenti(name, group string) int64 {
 // logged-in player whose session uid was lost to the deploy-rebuild bug (fixed
 // in Join) still carries an account FK, so keying bot-ness off the uid alone
 // mislabeled such humans as "BOT" in the archive. The account check rescues
-// those rows without a data migration.
+// those rows without a data migration. The rule itself lives in game
+// (SeatIsBot) because the PGN builder's Event tag keys off it too.
 func isBotSeat(seatUID string, seatUserID *int64) bool {
-	return seatUID == "" && seatUserID == nil
+	return game.SeatIsBot(seatUID, seatUserID)
 }
 
 // seatLabel names a timeline row's seat, mirroring the live-room rules: the
@@ -418,7 +419,6 @@ func archivePGN(g gen.Game, og *game.OctadGame) string {
 	white, black, matchup, _ := opening.Names(g.StartingOfen)
 	persona := derefStr(g.BotPersona)
 	return game.BuildPGN(game.PGNMeta{
-		Event:          "octad.gg Test Match",
 		Site:           config.SiteOrigin(),
 		Variant:        g.VariantName,
 		Group:          g.VariantGroup,
@@ -434,6 +434,11 @@ func archivePGN(g gen.Game, og *game.OctadGame) string {
 		WhiteFormation: white,
 		BlackFormation: black,
 		Matchup:        matchup,
+		// Event-tag situation inputs, straight off the row (the live path
+		// derives the same three from its archive record)
+		Rated:  g.Rated,
+		RaceTo: int(g.RaceTo),
+		VsBot:  isBotSeat(g.WhiteUid, g.WhiteUserID) || isBotSeat(g.BlackUid, g.BlackUserID),
 	}, &og.Game, times)
 }
 

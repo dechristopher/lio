@@ -131,6 +131,7 @@ func TestRenderRoomGame(t *testing.T) {
 		PlayerColor:   "w",
 		OpponentColor: "b",
 		OpponentIsBot: true,
+		BlackIsBot:    true,
 		VariantName:   "Half One blitz",
 		Variant:       variant.HalfOneBlitz,
 	}
@@ -153,6 +154,10 @@ func TestRenderRoomGame(t *testing.T) {
 	// the live board ships the eval bar hidden; lio-game.js reveals it only
 	// after a bot game ends and analysis begins (requestLiveEvals)
 	mustContain(t, out, `id="eval-bar"`)
+
+	// the copy-PGN button carries this room's PGN Event name, so the client's
+	// fallback PGN names the situation the same way the archived one does
+	mustContain(t, out, `data-event="Unrated Blitz game vs Computer"`)
 }
 
 // TestRenderRoomAnonCta locks the anonymous "create account" shim: it renders
@@ -303,7 +308,8 @@ func TestRenderRoomRated(t *testing.T) {
 	mustContain(t, out, "1650")  // white clock rating
 	mustContain(t, out, "1500?") // black clock rating (provisional)
 	mustContain(t, out, "Challenge from drewtest (1650)")
-	mustContain(t, out, `id="result-ratings"`) // game-over delta slot (JS-filled)
+	mustContain(t, out, `id="result-ratings"`)           // game-over delta slot (JS-filled)
+	mustContain(t, out, `data-event="Rated Blitz game"`) // copy-PGN fallback Event name
 
 	// pre-game joiner render: the "Rated" badge + creator rating in the summary
 	joiner := p

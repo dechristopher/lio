@@ -1794,7 +1794,6 @@ func buildArchivePGN(g game.OctadGame, rec db.GameRecord, end time.Time) string 
 	whiteFormation, blackFormation, matchup, _ := opening.Names(startOFEN)
 
 	return game.BuildPGN(game.PGNMeta{
-		Event:    "octad.gg Test Match",
 		Site:     config.SiteOrigin(),
 		Variant:  g.Variant.Name,
 		Group:    string(g.Variant.Group),
@@ -1813,6 +1812,13 @@ func buildArchivePGN(g game.OctadGame, rec db.GameRecord, end time.Time) string 
 		WhiteFormation: whiteFormation,
 		BlackFormation: blackFormation,
 		Matchup:        matchup,
+		// Event-tag situation inputs. VsBot keys off the shared seat rule (uid +
+		// account) rather than the room's live player state, so the archive-page
+		// rebuild — which has only the row — names the game the same way.
+		Rated:  rec.Rated,
+		RaceTo: rec.RaceTo,
+		VsBot: game.SeatIsBot(g.White, rec.WhiteUserID) ||
+			game.SeatIsBot(g.Black, rec.BlackUserID),
 	}, &g.Game, g.MoveTimes)
 }
 

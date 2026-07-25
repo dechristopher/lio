@@ -47,8 +47,12 @@ func TestArchivePGNRebuild(t *testing.T) {
 	start := time.Date(2026, 7, 22, 14, 5, 0, 0, time.UTC)
 	row := gen.Game{
 		StartingOfen: startOFEN,
-		VariantName:  "1+0",
-		VariantGroup: "blitz",
+		// the blind deploy variant every room plays: its group is "deploy", which
+		// the Event tag resolves to the speed of the "½ + 1" control (blitz)
+		VariantName:  "½ + 1",
+		VariantGroup: "deploy",
+		Rated:        true,
+		RaceTo:       3,
 		WhiteUid:     "uid_drew",
 		BlackUid:     "", // bot seat: no uid + no account
 		BotPersona:   &persona,
@@ -67,6 +71,9 @@ func TestArchivePGNRebuild(t *testing.T) {
 		`[White "Anonymous"]`, wantBlack,
 		`[WhiteUID "uid_drew"]`, `[BlackUID ""]`,
 		`[SetUp "1"]`, `[FEN "` + startOFEN + `"]`,
+		// the Event names the situation off the row: a rated blitz race-to match
+		// against the engine
+		`[Event "Rated Blitz match (race to 3) vs Computer"]`,
 		// PNKP = The Citadel (white); knpp reversed = ppnk = The Bastion (black)
 		`[WhiteFormation "The Citadel"]`, `[BlackFormation "The Bastion"]`,
 		`[Matchup "White Dwarf"]`,

@@ -4608,15 +4608,17 @@ const buildPGN = () => {
 
 	const now = new Date();
 	const pad = (n) => String(n).padStart(2, '0');
+	const copyBtn = document.getElementById('btn-copy-pgn');
 	const tags = [
-		['Event', 'octad.gg Casual Game'],
+		// the room's Event name ("Rated Blitz game vs Computer"), rendered
+		// server-side onto the button by the same builder the archived PGN uses
+		['Event', (copyBtn && copyBtn.dataset.event) || 'Octad game'],
 		['Site', window.location.origin],
 		['Date', now.getFullYear() + '.' + pad(now.getMonth() + 1) + '.' + pad(now.getDate())],
 		['White', whiteName],
 		['Black', blackName],
 		['Result', gameResult],
 	];
-	const copyBtn = document.getElementById('btn-copy-pgn');
 	if (copyBtn && copyBtn.dataset.variant) {
 		tags.splice(2, 0, ['Variant', copyBtn.dataset.variant]);
 	}
