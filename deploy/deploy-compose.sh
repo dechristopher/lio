@@ -83,7 +83,7 @@ wait_healthy() {
 	echo -n "Waiting for lio ($1) to become healthy"
 	local waited=0
 	while [ "$waited" -lt "$HEALTH_TIMEOUT_SECS" ]; do
-		status="$("${COMPOSE[@]}" ps --format '{{.Health}}' lio 2>/dev/null || true)"
+		status="$("${COMPOSE[@]}" ps --format '{{.Health}}' lioctad 2>/dev/null || true)"
 		if [ "$status" = "healthy" ]; then
 			echo
 			return 0
@@ -102,7 +102,7 @@ wait_healthy() {
 # trap, so it never outlives the script).
 LOG_FOLLOW_PID=""
 start_log_follow() {
-	"${COMPOSE[@]}" logs -f --no-color lio &
+	"${COMPOSE[@]}" logs -f --no-color lioctad &
 	LOG_FOLLOW_PID=$!
 }
 stop_log_follow() {
@@ -162,7 +162,7 @@ emit_failure_status "new build ${RELEASE}"
 if [ -z "$PREV_IMAGE" ]; then
 	echo "error: deploy failed and no previous image exists to roll back to;" >&2
 	echo "stopping the broken service" >&2
-	"${COMPOSE[@]}" stop lio
+	"${COMPOSE[@]}" stop lioctad
 	exit 1
 fi
 
@@ -170,7 +170,7 @@ echo "Rolling back to previous image ${PREV_IMAGE#sha256:}..." >&2
 docker tag "$PREV_IMAGE" lio:latest
 # compose sees the changed image ID and recreates the container from the old
 # build; --no-build so it can't helpfully rebuild the bad one
-"${COMPOSE[@]}" up -d --no-build lio
+"${COMPOSE[@]}" up -d --no-build lioctad
 
 start_log_follow
 if wait_healthy "rollback"; then
@@ -183,5 +183,5 @@ stop_log_follow
 
 emit_failure_status "rollback"
 echo "error: rollback image did not become healthy either; stopping the service" >&2
-"${COMPOSE[@]}" stop lio
+"${COMPOSE[@]}" stop lioctad
 exit 2
