@@ -663,8 +663,11 @@ templ footerContent(meta Meta) {
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="https://github.com/dechristopher/lio">{ meta.Version }</a>
 	</nav>
-	<p class="m-0 text-xs text-warn/70 hover:text-warn"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
-	<p class="m-0">© 2021-2026 <span class="text-accent/70">octad</span>.gg</p>
+	// No /70 opacity modifier on either token: the light-mode --warn and --accent
+	// are tuned to sit right at the readable threshold, so knocking 30% off them
+	// dropped these two lines to ~3.0:1. They are already de-emphasized by size.
+	<p class="m-0 text-xs text-warn"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
+	<p class="m-0">© 2021-2026 <span class="text-accent">octad</span>.gg</p>
 	@footerNavScript()
 }
 

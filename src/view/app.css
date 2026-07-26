@@ -96,28 +96,47 @@
    Accent brightens one step in dark for vibrancy against the dark surface.
 ---------------------------------------------------------------------------- */
 @layer base {
+	/* Light mode is NOT dark mode with inverted neutrals. The saturated tokens
+	   below are tuned one or two steps darker than their dark-mode counterparts
+	   (600/700 level, not 500): a mid-tone that reads brilliantly on a near-black
+	   ground is nearly invisible on a near-white one. Every value here clears
+	   4.5:1 against --surface-2, the darkest and most common panel ground, so a
+	   token stays legible on whichever of the three surfaces it lands on.
+	   The warm, sub-white grounds are deliberate glare control — keep them warm
+	   and keep --text a warm near-black rather than #000. */
 	:root {
 		color-scheme: light;
 		/* The page ground sits a step below the cards rather than nearly level
 		   with them: at #faf8f5 the surface and the #fdfbf8 cards were within a
 		   couple of percent of each other, so the card edges did all the work of
-		   separating content from background and the layout read as flat. */
+		   separating content from background and the layout read as flat.
+		   surface-3 is held just under the white point (was #fdfbf8, 96.7%
+		   luminance — the one glare source in an otherwise warm palette); it
+		   still reads as clearly raised above the ground without the blast. */
 		--surface: #f2ece3;
 		--surface-2: #e9e2d8;
-		--surface-3: #fdfbf8;
-		--border: #e7e1d8;
-		--border-strong: #d6cdbf;
+		--surface-3: #fbf7f1;
+		/* Borders must be darker than surface-2, not just darker than surface:
+		   the old #e7e1d8 sat at 1.01:1 against the panels it was drawn on, so
+		   card and input edges were mathematically invisible in light mode. */
+		--border: #d9d0c1;
+		--border-strong: #bfb3a0;
+		/* Three steps that are all readable, not two readable and one decorative.
+		   muted/subtle were 4.09 and 2.15 against the ground; subtle is the most
+		   used text token on the site, so it has to carry real text. */
 		--text: #1c1917;
-		--text-muted: #78716c;
-		--text-subtle: #a8a29e;
+		--text-muted: #5b544e;
+		--text-subtle: #6f675f;
 
-		--accent: #10b981;
+		/* Deep emerald. The brand mint (#10b981, kept in dark) cannot carry white
+		   text — 2.54:1 — so it could not be the primary button fill here. */
+		--accent: #036b4e;
 		--accent-contrast: #ffffff;
 
-		--win: #10b981;
-		--loss: #ef4444;
-		--draw: #a8a29e;
-		--warn: #f59e0b;
+		--win: #036b4e;
+		--loss: #bc2f28;
+		--draw: #6f675f;
+		--warn: #8f5106;
 	}
 
 	[data-theme="dark"] {
@@ -161,13 +180,18 @@
 	   dark-mode (brighter) variant. green is the default (:root above) so it
 	   needs no override.
 	------------------------------------------------------------------------ */
-	[data-board="blue"]   { --accent: #3b82f6; }
-	[data-board="purple"] { --accent: #8b5cf6; }
-	[data-board="pink"]   { --accent: #ec4899; }
-	[data-board="red"]    { --accent: #ef4444; }
-	[data-board="brown"]  { --accent: #b45309; }
-	[data-board="yellow"] { --accent: #eab308; --accent-contrast: #422006; }
-	[data-board="mono"]   { --accent: #64748b; }
+	/* Light: 600/700-level hues, same reasoning as the semantic tokens above —
+	   the 500-level set these replaced ran 1.63:1 (yellow) to 4.28:1 (brown) as
+	   text on the ground, and none could carry white button text. Yellow no
+	   longer needs the dark --accent-contrast override it carried at #eab308; at
+	   #805d07 white is the higher-contrast pairing (6.02:1). */
+	[data-board="blue"]   { --accent: #175fbf; }
+	[data-board="purple"] { --accent: #6a38d6; }
+	[data-board="pink"]   { --accent: #bd2168; }
+	[data-board="red"]    { --accent: #b52c25; }
+	[data-board="brown"]  { --accent: #8c4109; }
+	[data-board="yellow"] { --accent: #805d07; }
+	[data-board="mono"]   { --accent: #454f60; }
 
 	[data-theme="dark"][data-board="blue"]   { --accent: #60a5fa; }
 	[data-theme="dark"][data-board="purple"] { --accent: #a78bfa; }
