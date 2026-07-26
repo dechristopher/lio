@@ -4,10 +4,16 @@ import "github.com/dechristopher/lio/clock"
 
 // Variant represents a timed octad variant
 type Variant struct {
-	Name     string            `json:"name"`
-	HTMLName string            `json:"html_name"`
-	Group    Group             `json:"group"`
-	Control  clock.TimeControl `json:"time"`
+	Name     string `json:"name"`
+	HTMLName string `json:"html_name"`
+	Group    Group  `json:"group"`
+	// Speed is the variant's speed class (bullet/blitz/rapid) when Group does
+	// not already carry it. The deploy variants all share DeployGroup, which
+	// collects them by pre-game rather than by pace, so the speed shorthand a
+	// player reads a challenge by would otherwise be lost — see SpeedGroup.
+	// Zero for the speed-grouped variants, which are their own speed class.
+	Speed   Group             `json:"speed,omitempty"`
+	Control clock.TimeControl `json:"time"`
 	// Deploy enables the blind deploy pre-game for this variant: players
 	// privately arrange their home rank before normal play begins.
 	Deploy bool `json:"deploy,omitempty"`
@@ -28,6 +34,18 @@ type Group string
 // String returns the group as a string
 func (g Group) String() string {
 	return string(g)
+}
+
+// SpeedGroup returns the variant's speed class: the explicit Speed when the
+// variant's Group collects it by something other than pace (the deploy
+// variants), otherwise Group itself, which already is the speed class. Views
+// use this for the "½ + 1 · Blitz" shorthand so a deploy room still reads as
+// bullet/blitz/rapid rather than the uninformative constant "Deploy".
+func (v Variant) SpeedGroup() Group {
+	if v.Speed != "" {
+		return v.Speed
+	}
+	return v.Group
 }
 
 // Default variant groups

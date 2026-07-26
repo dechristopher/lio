@@ -439,25 +439,29 @@ func TestRenderRoomJoiner(t *testing.T) {
 	mustContain(t, out, "You've been challenged")
 	mustContain(t, out, "Black") // open-seat color shown in the summary
 
-	// challenger card, anonymous creator: "?" avatar chip + fallback name +
-	// the side the challenger plays (joiner takes black → challenger is white)
+	// challenger card, anonymous creator: fallback name + the side the
+	// challenger plays (joiner takes black → challenger is white)
 	mustContain(t, out, `class="challenger-card"`)
-	mustContain(t, out, ">?</span>")
 	mustContain(t, out, "Anonymous player")
-	mustContain(t, out, "Challenger · plays White")
+	mustContain(t, out, "Plays White")
 
-	// named + rated challenger: initial-letter chip, username, rating chip
+	// the joiner decides whether to accept, so the match spec must precede the
+	// button that commits them to it (the panels stack in DOM order on a phone)
+	if strings.Index(out, `class="spec"`) > strings.Index(out, `class="wait-join-cta"`) {
+		t.Error("join CTA rendered before the match spec")
+	}
+
+	// named + rated challenger: username + rating chip
 	p.CreatorName = "pregametest"
 	p.CreatorRating = "1500?"
 	named := renderSmoke(t, Room(RoomMeta(p), p))
-	mustContain(t, named, ">P</span>") // initial-letter avatar chip
 	mustContain(t, named, "pregametest")
 	mustContain(t, named, `class="rating-chip"`)
 
 	// random-color room: the challenger's side is hidden
 	p.BlindColor = true
 	blind := renderSmoke(t, Room(RoomMeta(p), p))
-	mustContain(t, blind, "Challenger · plays a random color")
+	mustContain(t, blind, "Plays a random color")
 }
 
 // TestRenderRoomArchive locks the archived-game page: the archive board mount

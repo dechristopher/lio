@@ -7,60 +7,67 @@ import (
 )
 
 // gameSummary renders the at-a-glance match details shown on both pre-game
-// views: the time control + speed group, the color this viewer plays, and the
-// game mode — Casual for an untimed (infinite-clock) game, Competitive for any
-// timed one. PlayerColor is the viewer's color for the creator and the
-// open-seat color for the joiner (set in HandlePreGame), so "You play …" reads
-// correctly for both. When BlindColor is set (the creator chose random), the
-// concrete color is hidden behind a half/half indicator + "a random color" for
-// both players — the board reveals it only once the game begins. colorDot is
-// reused from the home page. It renders as borderless content within the
-// waiting-room hero.
+// views as a labeled spec list — one fact per row, label left, value right —
+// so the settings are scannable instead of buried in a dot-separated prose run
+// that grows unreadable once race-to and rated stack onto it.
+//
+// The rows are Time (clock notation + pace, with the plain-language decode as a
+// footnote), the color this viewer plays, the pre-game format, the scoring, and
+// — only for a race-to room — the match length. PlayerColor is the viewer's
+// color for the creator and the open-seat color for the joiner (set in
+// HandlePreGame), so "You play …" reads correctly for both. When BlindColor is
+// set (the creator chose random), the concrete color is hidden behind a
+// half/half indicator + "Random" for both players — the board reveals it only
+// once the game begins. colorDot is reused from the home page.
 templ gameSummary(payload message.RoomTemplatePayload) {
-	<div class="flex flex-col gap-3">
-		<div class="flex items-baseline gap-2">
-			<span class="font-mono text-3xl font-semibold tabular-nums text-fg">{ payload.Variant.Name }</span>
-			<span class="text-xs font-semibold uppercase tracking-wider text-fg-subtle">{ groupTitle(payload.Variant.Group) }</span>
+	<dl class="spec">
+		<div class="spec-row">
+			<dt class="spec-label">Time</dt>
+			<dd class="spec-value">
+				<span class="spec-tc">{ payload.Variant.Name }</span>
+				<span class="spec-speed">{ speedLabel(payload.Variant) }</span>
+			</dd>
 		</div>
-		<div class="flex items-center gap-1.5 text-sm text-fg-muted">
-			if payload.BlindColor {
-				// random color: hide the resolved side from both players until the
-				// board reveals it at game start (half/half indicator + neutral copy)
-				@colorDot("r")
-				<span>You play <span class="font-semibold text-fg">a random color</span></span>
-			} else {
-				@colorDot(payload.PlayerColor)
-				<span>
-					You play
+		<div class="spec-row">
+			<dt class="spec-label">You play</dt>
+			<dd class="spec-value">
+				if payload.BlindColor {
+					// random color: hide the resolved side from both players until the
+					// board reveals it at game start (half/half indicator + neutral copy)
+					@colorDot("r")
+					<span>Random</span>
+				} else {
+					@colorDot(payload.PlayerColor)
 					if payload.PlayerColor == "w" {
-						<span class="font-semibold text-fg">White</span>
+						<span>White</span>
 					} else {
-						<span class="font-semibold text-fg">Black</span>
+						<span>Black</span>
 					}
-				</span>
-			}
-			<span class="px-1 text-fg-subtle">•</span>
-			if payload.RaceTo > 0 {
-				<span>Race to <span class="font-semibold text-fg">{ strconv.Itoa(payload.RaceTo) }</span></span>
-				<span class="px-1 text-fg-subtle">•</span>
-			}
-			if payload.Variant.Casual {
-				<span>Casual</span>
-			} else {
-				<span>Competitive</span>
-			}
-			if payload.Rated {
-				<span class="px-1 text-fg-subtle">•</span>
-				<span class="font-semibold text-accent">Rated</span>
-			}
+				}
+			</dd>
 		</div>
-		<!-- plain-language decode of the clock notation + the deploy pre-game,
-		     so newcomers know exactly what they're signing up for -->
-		<p class="wait-note -mt-1.5">
-			{ humanClock(payload.Variant) }
-			if payload.Variant.Deploy {
-				{ " · arrange your pieces before play" }
-			}
-		</p>
-	</div>
+		<div class="spec-row">
+			<dt class="spec-label">Format</dt>
+			<dd class="spec-value">{ formatLabel(payload.Variant) }</dd>
+		</div>
+		if payload.RaceTo > 0 {
+			<div class="spec-row">
+				<dt class="spec-label">Match</dt>
+				<dd class="spec-value">Race to { strconv.Itoa(payload.RaceTo) }</dd>
+			</div>
+		}
+		<div class="spec-row">
+			<dt class="spec-label">Scoring</dt>
+			<dd class="spec-value">
+				if payload.Rated {
+					<span class="spec-rated">Rated</span>
+				} else {
+					<span>Unrated</span>
+				}
+			</dd>
+		</div>
+	</dl>
+	<!-- plain-language decode of the clock notation, so newcomers know exactly
+	     what they're signing up for without parsing "½ + 1" -->
+	<p class="wait-note spec-note">{ humanClock(payload.Variant) }</p>
 }

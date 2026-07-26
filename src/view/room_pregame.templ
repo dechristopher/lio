@@ -2,17 +2,28 @@ package view
 
 import "github.com/dechristopher/lio/message"
 
-// roomCreator is the creator's pre-game waiting view, laid out share-first:
-// the invite link + copy button lead as a full-width hero row (the thing the
-// creator actually came here to do), with the QR demoted to a small side tile
-// beside the match summary and the cancel action as a quiet ghost button in
-// the bottom corner. A logged-in creator sees a "Playing as …" identity line
-// in the head. On narrow viewports everything stacks and the QR collapses
-// behind a "Show QR code" fold (lio-room-create.js closes #qrFold on load
-// below the 34rem breakpoint; it renders open so the QR stays visible without
-// JS and on desktop). It waits over the websocket for an opponent.
+// roomCreator is the creator's pre-game waiting view: a status head over a
+// two-panel body — the match spec on one side, the invite on the other — with
+// the cancel action alone in a quiet footer row.
+//
+// The QR anchors the invite panel, giving that column enough mass to sit level
+// with the spec list instead of leaving the dead space the old single-column
+// hero had. A logged-in creator sees a "Playing as …" identity line in the head.
+//
+// The panels are ordered invite-then-spec in the DOM: on phones the share
+// actions are what the creator came for, so they lead, and the interactive
+// controls come first in tab order; CSS reverses the visual order from 40rem up
+// so desktop reads match → invite.
+//
+// Below 40rem the invite condenses to three rows — an OS share-sheet button
+// (#shareInviteButton, unhidden by lio-room-create.js only where
+// navigator.share exists), the link with its copy and QR icon buttons, and the
+// caption — with the code itself moved into the #modalQR dimming modal behind
+// the QR button. From 40rem up that modal flattens (see the markup note) and
+// the code sits inline above the link instead.
 // lio-room-create.js wires #copyInviteButton (toggling .copied) and reads
-// #gameInviteLink, so those hooks are preserved.
+// #gameInviteLink, so those hooks are preserved. It waits over the websocket
+// for an opponent.
 templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 	<main class="wait card mt-2 mb-4">
 		<div class="wait-head">
@@ -26,9 +37,9 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 				<h1 class="wait-title">Waiting for an opponent…</h1>
 			</div>
 			if payload.Public {
-				<p class="wait-sub">Your challenge is listed on the home page — anyone can join, or share the link below.</p>
+				<p class="wait-sub">Your challenge is listed on the home page. Anyone can join by visiting the link.</p>
 			} else {
-				<p class="wait-sub">Your challenge is unlisted — only someone with the link can join.</p>
+				<p class="wait-sub">Your challenge is unlisted: only someone with the link can join.</p>
 			}
 			if payload.CreatorName != "" {
 				<p class="wait-identity">
@@ -42,8 +53,15 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 				</p>
 			}
 		</div>
-		<div class="wait-hero">
-			<div class="wait-invite">
+		<div class="wait-body">
+			<section class="wait-panel panel-invite">
+				<h2 class="panel-label">Invite</h2>
+				<!-- unhidden by lio-room-create.js only where navigator.share exists;
+				     hidden by CSS from 40rem up, where the QR + copy already serve -->
+				<button type="button" id="shareInviteButton" class="btn btn-ghost share-btn" hidden title="Share the invite link">
+					@iconShare()
+					<span>Share invite</span>
+				</button>
 				<label class="sr-only" for="gameInviteLink">Invite link</label>
 				<div class="invite-row">
 					<input type="text" id="gameInviteLink" class="invite-field" onClick="this.select();" value={ meta.SiteURL + payload.RoomID } readonly/>
@@ -51,40 +69,55 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 						@iconCopy()
 						@iconCheck()
 					</button>
+					<!-- phones only: the code is inline on desktop, so CSS drops this -->
+					<button type="button" id="qrModalButton" class="btn btn-ghost qr-btn" title="Show QR code" aria-label="Show QR code">
+						@iconQR()
+					</button>
 				</div>
-				<p class="wait-note mt-2">Anyone who opens this link can take the open seat.</p>
-			</div>
-			<details id="qrFold" class="qr-fold" open>
-				<summary>
-					<span class="qr-show">Show QR code</span>
-					<span class="qr-hide">Hide QR code</span>
-				</summary>
-				<div class="qr-fold-body">
-					<div class="qr-tile qr-tile-sm">
-						@inviteQR(meta.SiteURL + payload.RoomID)
+				<p class="wait-note">Anyone who opens this link can take the open seat.</p>
+				<!-- One QR, two presentations. Below 40rem this is a real modal that
+				     dims the page (opened by #qrModalButton); from 40rem up the CSS
+				     collapses the shade and the modal box with display:contents, so
+				     the .qr-tile inside becomes a direct flex child of the invite
+				     panel and sits inline above the link. Rendering it once this way
+				     keeps a single source of truth for the code instead of emitting
+				     the SVG twice and risking the copies drifting. -->
+				<div id="modalQR" class="modal-shade">
+					<div class="modal qr-modal card">
+						<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
+						<h2>Scan to join</h2>
+						<div class="qr-tile">
+							@inviteQR(meta.SiteURL + payload.RoomID)
+						</div>
+						<p class="wait-note">Point a phone camera at this code to open the game.</p>
 					</div>
-					<p class="wait-note">Scan to join from another device</p>
 				</div>
-			</details>
-			<div class="wait-summary">
+			</section>
+			<section class="wait-panel panel-match">
+				<h2 class="panel-label">The match</h2>
 				@gameSummary(payload)
-			</div>
-			<div class="wait-actions">
-				<form class="contents" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
-					<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
-					<button type="submit" class="btn btn-ghost cancel-ghost" title="Cancel the game">× Cancel game</button>
-				</form>
-			</div>
+			</section>
+		</div>
+		<div class="wait-foot">
+			<form method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
+				<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
+				<button type="submit" class="btn btn-ghost cancel-ghost" title="Cancel the game">× Cancel game</button>
+			</form>
 		</div>
 	</main>
 }
 
 // roomJoiner is the joining player's pre-game view: the same head treatment as
-// the creator, then a challenger identity card — initial-letter avatar chip,
-// username (or "Anonymous player"), rating chip, and the side they'll play —
-// so who is challenging you is unmissable. Below it, the match summary sits
-// beside the join call-to-action (stacking on narrow viewports). A rated room
-// swaps the Join button for a "Log in to play" prompt for anonymous viewers.
+// the creator over the same two-panel body, with the invite panel replaced by
+// the opponent panel — who is challenging you, the side they play, and the join
+// call-to-action. A rated room swaps the Join button for a "Log in to play"
+// prompt for anonymous viewers.
+//
+// The spec leads in the DOM here, unlike the creator's invite-first order: a
+// creator already chose these settings and came back only to share, while a
+// joiner is deciding whether to accept, so the stakes — rated, race-to, the
+// clock — must come before the button that commits them. Stacked on a phone
+// that puts Join last; side by side the columns read the same for both views.
 templ roomJoiner(payload message.RoomTemplatePayload) {
 	<main class="wait card mt-2 mb-4">
 		<div class="wait-head">
@@ -95,36 +128,39 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 			</div>
 			<p class="wait-sub">The game starts the moment you take the seat.</p>
 		</div>
-		<div class="challenger-card">
-			<span class="avatar-chip" aria-hidden="true">{ challengerInitial(payload.CreatorName) }</span>
-			<div class="challenger-meta">
-				<span class="challenger-name">
-					if payload.CreatorName != "" {
-						@playerTitle(payload.CreatorTitle)
-						{ payload.CreatorName }
-						if payload.CreatorRating != "" {
-							<span class="rating-chip">{ payload.CreatorRating }</span>
+		<div class="wait-body">
+			<section class="wait-panel panel-match">
+				<h2 class="panel-label">The match</h2>
+				@gameSummary(payload)
+			</section>
+			<section class="wait-panel panel-opponent">
+				<h2 class="panel-label">Your opponent</h2>
+				<div class="challenger-card">
+					<span class="challenger-name">
+						if payload.CreatorName != "" {
+							@playerTitle(payload.CreatorTitle)
+							{ payload.CreatorName }
+							if payload.CreatorRating != "" {
+								<span class="rating-chip">{ payload.CreatorRating }</span>
+							}
+						} else {
+							Anonymous player
 						}
-					} else {
-						Anonymous player
-					}
-				</span>
-				<span class="challenger-sub">Challenger · plays { challengerColorName(payload) }</span>
-			</div>
-		</div>
-		<div class="wait-join">
-			@gameSummary(payload)
-			if payload.Rated && !viewer(ctx).LoggedIn {
-				<div class="wait-join-cta">
-					<p class="wait-sub">This is a rated game — log in to accept the challenge.</p>
-					<button type="button" class="btn btn-primary btn-block btn-lg" onclick="document.getElementById('modalAccount').classList.add('open')" title="Log in to play">Log in to play</button>
+					</span>
+					<span class="challenger-sub">Plays { challengerColorName(payload) }</span>
 				</div>
-			} else {
-				<form class="wait-join-cta" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>
-					<input type="hidden" name="join_token" value={ payload.JoinToken }/>
-					<button type="submit" class="btn btn-primary btn-block btn-lg" title="Join the game">Join game</button>
-				</form>
-			}
+				if payload.Rated && !viewer(ctx).LoggedIn {
+					<div class="wait-join-cta">
+						<p class="wait-note mb-2">This is a rated game. Log in to accept the challenge.</p>
+						<button type="button" class="btn btn-primary btn-block btn-lg" onclick="document.getElementById('modalAccount').classList.add('open')" title="Log in to play">Log in to play</button>
+					</div>
+				} else {
+					<form class="wait-join-cta" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>
+						<input type="hidden" name="join_token" value={ payload.JoinToken }/>
+						<button type="submit" class="btn btn-primary btn-block btn-lg" title="Join the game">Join game</button>
+					</form>
+				}
+			</section>
 		</div>
 	</main>
 }

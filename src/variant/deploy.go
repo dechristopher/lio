@@ -24,6 +24,7 @@ var HalfOneBlitzDeploy = Variant{
 	Name:     "½ + 1",
 	HTMLName: "half-one-blitz-deploy",
 	Group:    DeployGroup,
+	Speed:    BlitzGroup,
 	Control:  withDeployPreStart(HalfOneBlitzTC),
 	Deploy:   true,
 }
@@ -34,6 +35,7 @@ var QuarterZeroBulletDeploy = Variant{
 	Name:     "¼ + 0",
 	HTMLName: "quarter-zero-bullet-deploy",
 	Group:    DeployGroup,
+	Speed:    BulletGroup,
 	Control:  withDeployPreStart(QuarterZeroBulletTC),
 	Deploy:   true,
 }
@@ -44,6 +46,7 @@ var OneTwoRapidDeploy = Variant{
 	Name:     "1 + 2",
 	HTMLName: "one-two-rapid-deploy",
 	Group:    DeployGroup,
+	Speed:    RapidGroup,
 	Control:  withDeployPreStart(OneTwoRapidTC),
 	Deploy:   true,
 }
@@ -54,6 +57,7 @@ var ThreeFiveRapidDeploy = Variant{
 	Name:     "3 + 5",
 	HTMLName: "three-five-rapid-deploy",
 	Group:    DeployGroup,
+	Speed:    RapidGroup,
 	Control:  withDeployPreStart(ThreeFiveRapidTC),
 	Deploy:   true,
 }

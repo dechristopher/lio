@@ -2102,7 +2102,7 @@
 	}
 	.tc-label:hover .tc-box { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: var(--shadow-md); }
 	.tc-name { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; line-height: 1; }
-	.tc-pool { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-subtle); }
+	.tc-pool { font-size: 1rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-subtle); }
 	.tc-input:checked + .tc-label .tc-box {
 		transform: translateY(-2px);
 		border-color: transparent;
@@ -2431,14 +2431,24 @@
 	.invite-field {
 		flex: 1;
 		min-width: 0;
-		padding: 0.5rem 0.75rem;
+		padding: 0.5rem 0.7rem;
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
 		background: var(--surface-2);
 		color: var(--text);
+		/* mono + left-aligned: it is a URL to read and select, not a caption —
+		   centering made the long ones look ragged as they overflowed */
+		font-family: var(--font-mono);
 		font-size: 0.78rem;
 		font-weight: 600;
-		text-align: center;
+		text-overflow: ellipsis;
+	}
+	/* below ~384px the field, copy button and QR button together leave a room URL
+	   a few pixels short; buy them back rather than ellipsize the one thing on
+	   the row the creator might want to read. (Clicking still selects the whole
+	   value either way, so any clip below this is cosmetic.) */
+	@media (max-width: 24rem) {
+		.invite-field { font-size: 0.7rem; padding-inline: 0.5rem; }
 	}
 	.copy-btn .icon-check { display: none; }
 	.copy-btn.copied { background: var(--win); color: #fff; border-color: transparent; }
@@ -2446,12 +2456,14 @@
 	.copy-btn.copied .icon-check { display: inline-flex; }
 
 	/* ---- pre-game waiting room (creator + joiner) ---- */
-	/* A single content-sized hero under a divided head: the QR beside the match
-	   summary / invite link / cancel (creator), or the summary beside the join
-	   CTA (joiner). Everything stacks on narrow viewports and goes horizontal
-	   from 34rem up (matching .cg-body's breakpoint). */
+	/* A status head over a two-panel body — the match spec beside the invite
+	   (creator) or the opponent + join CTA (joiner) — with the cancel action
+	   alone in a quiet footer. The panels stack on phones and go side by side
+	   from 40rem up. */
 	.wait {
-		width: min(92vw, 44rem);
+		/* two panels side by side: wide enough that the invite column holds a full
+		   room URL without ellipsizing it */
+		width: min(92vw, 47rem);
 		padding: 1.35rem;
 		text-align: left;
 		border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
@@ -2496,65 +2508,117 @@
 		font-size: 0.8rem;
 		color: var(--text-muted);
 	}
-	/* creator hero, share-first: the invite link is the full-width lead row (the
-	   thing the creator came to do); below it the small QR tile sits beside the
-	   match summary, with the quiet cancel pinned to the bottom-right. Mobile
-	   stacks invite → summary → QR fold → cancel. */
-	.wait-hero { display: grid; gap: 1rem; grid-template-areas: "invite" "summary" "qr" "actions"; }
-	@media (min-width: 34rem) {
-		.wait-hero {
-			grid-template-columns: auto minmax(0, 1fr);
-			grid-template-rows: auto auto 1fr;
-			grid-template-areas:
-				"invite invite"
-				"qr     summary"
-				"qr     actions";
-			column-gap: 1.5rem;
-			align-items: start;
+	/* the two-panel body. Panels are authored action-first (invite / opponent,
+	   then the match spec) so the interactive controls lead in both the phone
+	   layout and tab order; from 40rem up the columns go side by side and the
+	   spec is ordered back to the left, reading match → invite. The divider is
+	   a border on the second panel, so it flips from a rule between the stacked
+	   panels to a rule between the columns. */
+	.wait-body { display: flex; flex-direction: column; gap: 1.25rem; }
+	.wait-panel { display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+	/* stacked: the rule sits above whichever panel is second in the DOM, which
+	   is also the second one visually while the panels are stacked */
+	.wait-panel + .wait-panel { padding-top: 1.25rem; border-top: 1px solid var(--border); }
+	@media (min-width: 40rem) {
+		.wait-body { flex-direction: row; align-items: stretch; gap: 0; }
+		.wait-panel { flex: 1 1 0; }
+		.panel-match { order: 1; padding-right: 1.75rem; }
+		.panel-invite,
+		.panel-opponent { order: 2; }
+		/* side by side the divider must follow the *visual* order, which `order`
+		   has decoupled from the DOM — targeting the DOM sibling here would draw
+		   the rule down the outer edge of the left column instead of between the
+		   two. The spec panel is always visually first, so the rule belongs on
+		   whichever panel fills the right column. */
+		.wait-panel + .wait-panel { padding-top: 0; border-top: 0; }
+		.panel-invite,
+		.panel-opponent {
+			padding-left: 1.75rem;
+			border-left: 1px solid var(--border);
 		}
-		.wait-actions { justify-self: end; align-self: end; }
 	}
-	.wait-invite { grid-area: invite; min-width: 0; }
-	.wait-summary { grid-area: summary; min-width: 0; }
-	.wait-actions { grid-area: actions; }
+	/* the panel's uppercase micro-heading, matching the head's kicker rhythm but
+	   in the muted register — these label content, they don't announce it */
+	.panel-label {
+		margin: 0;
+		font-size: 1.2rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+	}
+	/* the cancel action alone in its own footer rule, right-aligned: deliberately
+	   quiet (a waiting room's loudest element should never be the destructive
+	   one), loss-tinted on hover */
+	.wait-foot {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 1.25rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border);
+	}
 	.wait-note { font-size: 0.72rem; line-height: 1.4; color: var(--text-subtle); }
-	/* the cancel action: deliberately quiet (a waiting room's loudest element
-	   should never be the destructive one), loss-tinted on hover */
 	.cancel-ghost { padding: 0.4rem 0.9rem; font-size: 0.8rem; color: var(--text-muted); }
 	.cancel-ghost:hover { color: var(--loss); border-color: var(--loss); }
-	/* challenger identity card (joiner view): initial-letter avatar chip +
-	   username + rating + the side they play — who is challenging you should be
-	   unmissable */
-	.challenger-card {
+
+	/* ---- match spec: one fact per labeled row ----
+	   A dl of label/value rows, dotted-leader-free: the label is a fixed-width
+	   uppercase micro-caption and the value carries the weight, so the settings
+	   scan vertically instead of running together in a prose list. */
+	.spec { display: flex; flex-direction: column; gap: 0.75rem; margin: 0; }
+	.spec-row { display: flex; align-items: baseline; gap: 0.75rem; }
+	.spec-label {
+		flex: none;
+		width: 5.25rem;
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+	}
+	.spec-value {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 1.1rem;
-		padding: 0.65rem 0.85rem;
+		gap: 0.45rem;
+		margin: 0;
+		min-width: 0;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--text);
+	}
+	/* the clock notation is the one number here worth setting in mono — it is
+	   read as a value ("½ + 1"), not as prose */
+	.spec-tc { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+	.spec-speed { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+	.spec-rated { color: var(--accent); }
+	/* the plain-language clock decode, indented to the value column so it reads
+	   as a footnote to the Time row rather than a new fact */
+	.spec-note { margin: -0.15rem 0 0; padding-left: 6rem; }
+	@media (max-width: 26rem) {
+		.spec-label { width: 4.5rem; }
+		.spec-note { padding-left: 5.25rem; }
+	}
+	/* challenger identity card (joiner view): username + rating + the side they
+	   play — who is challenging you should be unmissable. Sized to its content
+	   rather than the panel so an anonymous challenger doesn't leave a wide
+	   empty bar. */
+	.challenger-card {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		align-self: flex-start;
+		max-width: 100%;
+		padding: 0.7rem 0.95rem;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--surface-2);
 	}
-	.avatar-chip {
-		flex: none;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 2.4rem;
-		height: 2.4rem;
-		border-radius: 9999px;
-		font-weight: 700;
-		font-size: 1.05rem;
-		color: var(--accent);
-		background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
-		border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
-	}
-	.challenger-meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 	.challenger-name {
 		display: flex;
 		align-items: center;
 		gap: 0.45rem;
-		font-weight: 600;
+		font-size: 1.05rem;
+		font-weight: 700;
 		color: var(--text);
 		min-width: 0;
 	}
@@ -2571,40 +2635,78 @@
 		font-weight: 600;
 		color: var(--text);
 	}
-	/* the QR fold: a <details> that renders open (QR visible without JS and on
-	   desktop, where the summary toggle is hidden). lio-room-create.js closes it
-	   on load below the 34rem breakpoint so phones lead with the invite link. */
-	.qr-fold { grid-area: qr; }
-	.qr-fold summary {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		list-style: none;
-		cursor: pointer;
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: var(--text-muted);
-		padding: 0.5rem 0.75rem;
-		border: 1px dashed var(--border-strong);
-		border-radius: var(--radius-md);
-		user-select: none;
+	/* ---- the QR's two presentations ----
+	   Below 40rem #modalQR is an ordinary .modal-shade: the code lives behind
+	   the invite row's QR button and opens as a dimming modal, which keeps the
+	   phone's invite section down to share / link / caption.
+
+	   From 40rem up the same markup is flattened instead of duplicated:
+	   display:contents erases the shade and the modal box, promoting the
+	   .qr-tile inside to a direct flex child of .panel-invite so it sits inline
+	   above the link exactly as a hand-placed tile would. The ID beats
+	   .modal-shade.open on specificity, so a stale .open class can never turn
+	   the desktop layout back into an overlay. The modal's own chrome — close
+	   button, heading, caption — has no role inline and is dropped. */
+	@media (min-width: 40rem) {
+		#modalQR,
+		#modalQR .qr-modal { display: contents; }
+		#modalQR .modal-close,
+		#modalQR .qr-modal > h2,
+		#modalQR .qr-modal > .wait-note { display: none; }
+		/* the promoted tile takes the invite column's lead slot */
+		.panel-invite .qr-tile { order: 0; align-self: center; }
+		.qr-btn { display: none; }
+		/* flattening keeps the .qr-modal class on the element, so its enlarged
+		   modal sizing would follow the tile inline and swamp the column — put
+		   the code back to the size the two-column balance was tuned for */
+		#modalQR .invite-qr { width: min(9rem, 55vw); height: min(9rem, 55vw); }
 	}
-	.qr-fold summary::-webkit-details-marker { display: none; }
-	.qr-fold summary:hover { color: var(--text); border-color: var(--accent); }
-	.qr-fold[open] summary { margin-bottom: 0.75rem; }
-	.qr-fold[open] .qr-show { display: none; }
-	.qr-fold:not([open]) .qr-hide { display: none; }
-	.qr-fold-body { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; text-align: center; }
-	@media (min-width: 34rem) {
-		.qr-fold summary { display: none; }
+	/* the modal box itself: the code is the content, so it gets more room here
+	   than the inline desktop tile does */
+	.qr-modal { display: flex; flex-direction: column; align-items: center; gap: 0.85rem; }
+	/* the shared .modal h2 carries its own bottom margin, which doubles up with
+	   the flex gap here */
+	.qr-modal > h2 { margin: 0; }
+	.qr-modal .invite-qr { width: min(13rem, 58vw); height: min(13rem, 58vw); }
+	.qr-modal .wait-note { text-align: center; }
+	/* Icon-only buttons in the invite row. The base .btn's 1.1rem side padding is
+	   sized for a label; with two of these plus the field on a 390px phone it
+	   pushed a real room URL into an ellipsis, so square them off to the icon. */
+	.copy-btn,
+	.qr-btn { flex: none; padding-inline: 0.75rem; }
+	/* the OS share-sheet button, unhidden by lio-room-create.js only where
+	   navigator.share exists; on desktop the QR + copy button already cover
+	   sharing, so it never shows there. Accent-tinted to rank it above the copy
+	   row and the QR toggle — on a phone this is the way an invite actually gets
+	   sent — without borrowing btn-primary, which belongs to Join. */
+	.share-btn {
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--accent);
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+		background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
 	}
-	/* joiner: match summary beside the join CTA from 34rem up */
-	.wait-join { display: flex; flex-direction: column; gap: 1.1rem; }
-	.wait-join-cta { width: 100%; }
-	@media (min-width: 34rem) {
-		.wait-join { flex-direction: row; align-items: center; justify-content: space-between; gap: 2rem; }
-		.wait-join-cta { width: 15rem; flex: none; }
+	.share-btn:not(:disabled):hover {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
 	}
+	@media (min-width: 40rem) {
+		.share-btn { display: none; }
+	}
+	/* invite panel ordering: share, then the link row, then the caption. The QR
+	   is absent from this flow on phones (it is inside the modal) and is slotted
+	   ahead of everything on desktop, where the modal flattens — see the QR
+	   presentation block below. */
+	.panel-invite .share-btn { order: 1; }
+	.panel-invite .invite-row { order: 2; }
+	.panel-invite > .wait-note { order: 4; }
+	/* the link row spans the column, so the column's axis is its centre — the
+	   QR and the caption centre on it too rather than leaving a ragged edge */
+	.panel-invite > .wait-note { text-align: center; }
+	/* joiner: the join CTA closes out the opponent panel, pushed to its foot so
+	   it lines up with the bottom of the spec column on desktop */
+	.wait-join-cta { width: 100%; margin-top: auto; }
 
 	/* "live, listening" status: a radar-ping dot beside the heading. The pulse is
 	   the motion cue; under prefers-reduced-motion the dot simply stops pulsing
@@ -2631,16 +2733,15 @@
 		border-radius: var(--radius-md);
 		box-shadow: var(--shadow-sm);
 	}
+	/* sized to level the invite column against the spec list rather than to
+	   dominate it; the vw cap keeps it inside the narrower phone layout, where
+	   it only appears once the fold is opened */
 	.invite-qr {
 		display: block;
-		width: 10rem;
-		height: 10rem;
+		width: min(9rem, 55vw);
+		height: min(9rem, 55vw);
 		shape-rendering: crispEdges;
 	}
-	/* the share-first creator hero demotes the QR to a compact side tile — the
-	   invite link leads, the code stays comfortably scannable at this size */
-	.qr-tile-sm { padding: 0.5rem; }
-	.qr-tile-sm .invite-qr { width: 8.5rem; height: 8.5rem; }
 
 	/* ---- home-page "What is Octad?" self-playing demo board ----
 	   lio-home-demo.js mounts an octadground board on #home-demo-board, reusing

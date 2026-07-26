@@ -196,6 +196,39 @@ func groupTitle(g variant.Group) string {
 	return cases.Title(language.English).String(g.String())
 }
 
+// speedLabel is the pace shorthand shown beside a variant's clock notation in
+// the pre-game match spec ("½ + 1 · Blitz"). It reads the variant's speed class
+// rather than its Group so a deploy room — every room the create modal makes —
+// still reads Bullet/Blitz/Rapid instead of the constant, uninformative
+// "Deploy". Untimed variants have no pace, so they keep the site's "Casual"
+// wording (their Name is already "∞").
+func speedLabel(v variant.Variant) string {
+	if v.Casual {
+		return "Casual"
+	}
+	return groupTitle(v.SpeedGroup())
+}
+
+// formatLabel names the variant's pre-game format for the match spec: every
+// variant the create modal offers is blind-deploy today, but the spec states it
+// explicitly rather than assuming it.
+func formatLabel(v variant.Variant) string {
+	if v.Deploy {
+		return "Blind deploy"
+	}
+	return "Standard"
+}
+
+// ratedLabel names a room's scoring for the match spec. Ratings only move in a
+// rated room; everything else is explicitly unrated so the stake is never
+// ambiguous.
+func ratedLabel(rated bool) string {
+	if rated {
+		return "Rated"
+	}
+	return "Unrated"
+}
+
 // humanClock renders a variant's clock in plain language for the pre-game
 // summary ("30 seconds each + 1 second per move") so newcomers don't have to
 // decode the "½ + 1" notation to know what they're signing up for. Casual
@@ -232,15 +265,6 @@ func humanSeconds(n int64) string {
 		return "1 second"
 	}
 	return strconv.FormatInt(n, 10) + " seconds"
-}
-
-// challengerInitial is the single-letter avatar chip for the joiner's
-// challenger card ("?" for an anonymous creator).
-func challengerInitial(name string) string {
-	if name == "" {
-		return "?"
-	}
-	return strings.ToUpper(string([]rune(name)[0]))
 }
 
 // challengerColorName names the side the challenger will play in the joiner's
