@@ -20,9 +20,16 @@ func IndexHandler(c fiber.Ctx) error {
 	// one-shot notice for clients redirected off a room that no longer exists
 	// (the ws layer sends them to /?notice=room-gone — typically an open
 	// challenge dropped by a server restart, which doesn't persist waiting rooms)
-	if c.Query("notice") == "room-gone" {
+	switch c.Query("notice") {
+	case "room-gone":
 		meta.Notice = "That room is gone — it was most likely cleared by a " +
 			"server update before the game started. Create a new game below."
+	case "maintenance":
+		// refused by the maintenance switch (arch/ADMIN_MODERATION.md Phase 3).
+		// The site-wide banner usually says more about why; this explains the
+		// specific action that just didn't happen.
+		meta.Notice = "New games are paused for maintenance right now. " +
+			"Games already in progress are unaffected — please try again shortly."
 	}
 
 	return view.Render(c, 200, view.Index(meta, challenges, stats))

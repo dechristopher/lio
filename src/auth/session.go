@@ -14,6 +14,7 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/user"
@@ -60,6 +61,7 @@ type Session struct {
 	UserID    *int64
 	Username  string
 	Title     title.Title // account's optional display title, zero for anon
+	Role      role.Role   // account's permission level, Player for anon
 	tokenHash [32]byte
 	lastSeen  time.Time
 	expiresAt time.Time
@@ -224,12 +226,21 @@ func FromRequest(c fiber.Ctx) *Session {
 		if !found || time.Now().After(rec.ExpiresAt) {
 			return nil
 		}
+		// A banned account's sessions are deleted by the ban itself, so this
+		// should not fire; it is the backstop for a row that outlived that
+		// sweep (or a ban applied straight in SQL). Refusing to resolve is
+		// what makes the sanction real rather than cosmetic — and it is not
+		// cached, so an unban takes effect on the next request.
+		if rec.Banned {
+			return nil
+		}
 		sess = Session{
 			ID:        rec.ID,
 			UID:       rec.UID,
 			UserID:    rec.UserID,
 			Username:  rec.Username,
 			Title:     rec.Title,
+			Role:      rec.Role,
 			tokenHash: hash,
 			lastSeen:  rec.LastSeen,
 			expiresAt: rec.ExpiresAt,
@@ -266,17 +277,62 @@ func FromRequest(c fiber.Ctx) *Session {
 	return &sess
 }
 
+// AccountInfo is the account identity a completed login attaches to the
+// session: everything the render needs about who just logged in, carried
+// alongside the id so the immediate post-login page shows the right name,
+// title and permission level without waiting for the ≤30s cache to expire and
+// re-resolve the join. Bundled into one value because these travel together
+// through Login and the MFA-pending record, and adding each new account
+// attribute as another positional argument does not scale.
+type AccountInfo struct {
+	UserID   int64
+	Username string
+	Title    title.Title
+	Role     role.Role
+}
+
+// AccountInfoOf builds the login identity from a user row.
+func AccountInfoOf(rec db.UserRecord) AccountInfo {
+	return AccountInfo{
+		UserID:   rec.ID,
+		Username: rec.Username,
+		Title:    rec.Title,
+		Role:     rec.Role,
+	}
+}
+
+// BannedError reports a login refused because the account is under sanction.
+// It carries the ban so the handler can tell the account holder why and until
+// when — the *public* "account closed" state deliberately says neither, but the
+// person who just proved the password is owed the detail.
+type BannedError struct {
+	Ban db.BanState
+}
+
+func (e BannedError) Error() string {
+	return "account is banned"
+}
+
 // Login performs the in-place session upgrade after full authentication:
 // token rotated (fixation defense), account attached, authed expiry applied,
 // uid preserved. sess may be nil (a login POST with no live session — e.g.
 // cookies cleared mid-flow); a fresh authenticated session is minted instead.
-// t is the account's optional display title (carried alongside username so
-// the just-logged-in render shows it without waiting for the ≤30s cache to
-// expire and re-resolve the join). Requires Enabled(); callers gate on it.
-func Login(c fiber.Ctx, sess *Session, userID int64, username string,
-	t title.Title) error {
+// Requires Enabled(); callers gate on it.
+//
+// The ban check lives here rather than in the callers so that *no* path can
+// mint a session for a banned account: password login, every second-factor
+// completion, and registration all funnel through this one function. It costs
+// one primary-key read on a path that runs once per login, and it closes the
+// window where a ban landing mid-MFA would otherwise be missed until the
+// session cache expired.
+func Login(c fiber.Ctx, sess *Session, acct AccountInfo) error {
 	token, hash := NewToken()
 	now := time.Now()
+	userID := acct.UserID
+
+	if rec, found, err := db.GetUserByID(userID); err == nil && found && rec.Ban.Banned {
+		return BannedError{Ban: rec.Ban}
+	}
 
 	if sess == nil {
 		uid := config.GenerateCode(16, config.Base58)
@@ -295,14 +351,34 @@ func Login(c fiber.Ctx, sess *Session, userID int64, username string,
 	}
 
 	sess.UserID = &userID
-	sess.Username = username
-	sess.Title = t
+	sess.Username = acct.Username
+	sess.Title = acct.Title
+	sess.Role = acct.Role
 	sess.tokenHash = hash
 	sess.lastSeen = now
 	sess.expiresAt = now.Add(authedTTL)
 	cachePut(*sess)
 	setSessionCookie(c, token)
 	return nil
+}
+
+// DropUserSessions evicts every cached session belonging to one account. The
+// cache is keyed by token hash with no user index, so this walks the map — it
+// is small (one entry per active session, 30s TTL) and this runs only on a
+// moderation action, never on a request path.
+//
+// It is the difference between a ban that bites now and one that bites within
+// cacheTTL: deleting the session rows leaves any already-cached session
+// resolving happily for up to 30 more seconds. Callers pair it with
+// db.DeleteSessionsForUser (arch/ADMIN_MODERATION.md).
+func DropUserSessions(userID int64) {
+	sessionCache.Lock()
+	defer sessionCache.Unlock()
+	for hash, entry := range sessionCache.m {
+		if entry.sess.UserID != nil && *entry.sess.UserID == userID {
+			delete(sessionCache.m, hash)
+		}
+	}
 }
 
 // CurrentSession resolves the request's session (cache-first, no mint). Nil
@@ -402,7 +478,12 @@ func clearCookie(c fiber.Ctx, name string) {
 func UserContext(s *Session) *user.Context {
 	ctx := &user.Context{Context: context.Background(), ID: s.UID}
 	if s.LoggedIn() {
-		ctx.Account = &user.Account{ID: *s.UserID, Username: s.Username, Title: s.Title}
+		ctx.Account = &user.Account{
+			ID:       *s.UserID,
+			Username: s.Username,
+			Title:    s.Title,
+			Role:     s.Role,
+		}
 	}
 	return ctx
 }

@@ -51,6 +51,63 @@ func BroadcastEx(d []byte, meta SocketContext) {
 	}
 }
 
+// CloseForUID sends a close frame with the given code to every tracked
+// connection belonging to one session uid, across every channel, then shuts
+// those connections down. It is moderation's socket-level reach
+// (arch/ADMIN_MODERATION.md): revoking a banned account's session rows stops
+// them making new *requests*, but an already-open WebSocket keeps working —
+// it authenticated once at upgrade time and is keyed by uid thereafter. Without
+// this, a banned player could keep playing the game they are sitting in.
+//
+// Returns the number of connections closed.
+func CloseForUID(uid string, code int, reason string) int {
+	if uid == "" {
+		return 0
+	}
+	closed := 0
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.SocketsFor(uid) {
+			if s.Connection != nil {
+				_ = s.Connection.WriteControl(websocket.CloseMessage,
+					websocket.FormatCloseMessage(code, reason),
+					time.Now().Add(WriteWait))
+			}
+			s.Close()
+			closed++
+		}
+		return true
+	})
+	return closed
+}
+
+// CloseAllOn closes every connection tracked on one channel, with the given
+// code. The per-channel counterpart to CloseAll: an operator force-closing a
+// single room needs its occupants disconnected, not the whole site's.
+//
+// Peek rather than GetSockMap, so closing a room that has no tracked sockets
+// does not create a map for it on the way out.
+func CloseAllOn(channelName string, code int, reason string) int {
+	sm := Map.Peek(channelName)
+	if sm == nil {
+		return 0
+	}
+	closed := 0
+	for _, s := range sm.Sockets() {
+		if s.Connection != nil {
+			_ = s.Connection.WriteControl(websocket.CloseMessage,
+				websocket.FormatCloseMessage(code, reason),
+				time.Now().Add(WriteWait))
+		}
+		s.Close()
+		closed++
+	}
+	return closed
+}
+
 // CloseAll sends a close frame with the given code to every tracked connection
 // on every channel, then shuts each connection's writer down. It is the
 // shutdown drain's client notification: code 1012 (Service Restart) surfaces

@@ -6,6 +6,7 @@ import (
 	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
@@ -158,6 +159,22 @@ func (r *Instance) handleGameReady() {
 			}
 
 			return
+		case control := <-r.controlChannel:
+			// An operator force-closing the room (room.CloseRoom) is the only
+			// producer of a Cancel here: Instance.Cancel is gated on the waiting
+			// state, and the in-game controls are resign/draw. Without this case
+			// the control would sit buffered until some later state consumed it,
+			// and a close would visibly do nothing while the room waited out its
+			// first-move timer — which is how an operator ends up pressing Close
+			// repeatedly on a room that is not going anywhere.
+			//
+			// The flag is set here, in the room's own goroutine, so the routine
+			// loop exits after this handler returns without racing the caller.
+			// Same shape as the waiting and deploy states.
+			if control.Type == message.Cancel {
+				r.cancelled = true
+				return
+			}
 		case <-cleanupTimer.C:
 			// a reconnect can race the fire: don't expire a casual room whose
 			// players are present again (the pending listener event re-syncs the

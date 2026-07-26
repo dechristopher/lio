@@ -11,6 +11,7 @@ import (
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
+	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
@@ -179,6 +180,13 @@ func RoomJoinHandler(c fiber.Ctx) error {
 	err = c.Bind().Body(&joinPayload)
 	if err != nil {
 		return redirect(c, "/#errJoin")
+	}
+
+	// maintenance mode stops games *starting*, so an open challenge cannot be
+	// taken up either — a join is how a new game begins. Rooms already playing
+	// are untouched.
+	if settings.Current().Maintenance {
+		return redirect(c, "/?notice=maintenance")
 	}
 
 	// a rated room needs a logged-in opponent; send anonymous joiners back to
@@ -402,6 +410,14 @@ func newRoom(payload newRoomPayload) error {
 		return redirect(payload.c, "/")
 	}
 
+	// maintenance mode: no new games start, while every game already in
+	// progress plays out untouched (arch/ADMIN_MODERATION.md Phase 3). The home
+	// page explains the refusal via its one-shot notice rather than dropping the
+	// visitor somewhere with no idea why nothing happened.
+	if settings.Current().Maintenance {
+		return redirect(payload.c, "/?notice=maintenance")
+	}
+
 	// establish room parameters
 	params := room.NewParams(creator, payload.variant)
 	params.Public = payload.public
@@ -415,7 +431,12 @@ func newRoom(payload newRoomPayload) error {
 	// players" (allowAnonymous), which opens the game to anonymous joiners and so
 	// makes it unrated. The room.Join guard keys off Rated: it requires a
 	// logged-in opponent for a rated room, and allows anyone otherwise.
-	params.Rated = !payload.vsBot &&
+	//
+	// The site-wide rated switch gates this too: with ratings paused, new games
+	// are created casual. Games already in flight keep the flag they were
+	// stamped with — a match's own terms must not change under the players
+	// mid-game (arch/ADMIN_MODERATION.md Phase 3).
+	params.Rated = !payload.vsBot && settings.Current().RatedEnabled &&
 		creator.UserID != nil && !payload.variant.Casual && !payload.allowAnonymous
 
 	// set creating player in players map, stamping their account identity

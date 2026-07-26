@@ -104,12 +104,17 @@
 	};
 
 	// --- logged-in: profile popover actions --------------------------------
+	// Logging out goes home rather than reloading in place. Half the pages a
+	// logged-in visitor can be on stop making sense without their account —
+	// /system and /moderation 404 outright, a player page loses its mod bar —
+	// and landing on a 404 immediately after logging out reads as an error
+	// rather than as the log-out having worked.
 	const logoutBtn = document.getElementById('logoutButton');
 	if (logoutBtn) {
 		logoutBtn.addEventListener('click', async () => {
 			logoutBtn.disabled = true;
-			try { await post('/api/auth/logout', null); } catch (e) { /* still reload */ }
-			window.location.reload();
+			try { await post('/api/auth/logout', null); } catch (e) { /* still leave */ }
+			window.location.href = '/';
 		});
 	}
 
@@ -118,8 +123,8 @@
 	if (logoutAllBtn) {
 		logoutAllBtn.addEventListener('click', async () => {
 			logoutAllBtn.disabled = true;
-			try { await post('/api/auth/logout-all', null); } catch (e) { /* still reload */ }
-			window.location.reload();
+			try { await post('/api/auth/logout-all', null); } catch (e) { /* still leave */ }
+			window.location.href = '/';
 		});
 	}
 
@@ -660,7 +665,10 @@
 		const renderStatus = (s) => {
 			const totpOn = !!s.totp;
 			const passkeys = s.passkeys || [];
-			const anyMFA = totpOn || passkeys.length > 0;
+			// a section is "On" when the factor is actually usable — for passkeys
+			// that means at least one is enrolled, mirroring the authenticator row
+			const pkOn = passkeys.length > 0;
+			const anyMFA = totpOn || pkOn;
 			const pkSupported = webAuthnSupported();
 
 			let pkRows = passkeys.map((p) => `
@@ -678,7 +686,7 @@
 					<div class="mfa-head">
 						<div>
 							<div class="mfa-title">Authenticator app</div>
-							<div class="mfa-desc">Time-based codes from an app like Google Authenticator or 1Password.</div>
+							<div class="mfa-desc">Time-based codes from an app like 1Password, FreeOTP, Authy, or Google Authenticator.</div>
 						</div>
 						<span class="${totpOn ? 'mfa-on' : 'mfa-off'}">${totpOn ? 'On' : 'Off'}</span>
 					</div>
@@ -693,6 +701,7 @@
 							<div class="mfa-title">Passkeys</div>
 							<div class="mfa-desc">Sign in with a fingerprint, face, or security key.</div>
 						</div>
+						<span class="${pkOn ? 'mfa-on' : 'mfa-off'}">${pkOn ? 'On' : 'Off'}</span>
 					</div>
 					<div class="pk-list">${pkRows}</div>
 					<button type="button" class="btn btn-ghost w-full justify-center py-1.5 text-sm mt-2.5" data-act="passkey-add" ${pkSupported ? '' : 'disabled title="This browser does not support passkeys"'}>

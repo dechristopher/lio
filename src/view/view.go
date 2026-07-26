@@ -20,6 +20,7 @@ import (
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/variant"
@@ -115,6 +116,11 @@ type Viewer struct {
 	Username        string      // display-case username, empty when anonymous
 	Title           title.Title // optional account display title, zero when unset
 	AccountsEnabled bool        // false only in PG-less local dev
+	// Role is the viewer's site permission level, gating the moderation UI
+	// (the mod bar on a player page, the /mod link). Player for anonymous
+	// visitors and ordinary accounts. Rendering off it is cosmetic — every
+	// privileged route re-checks server-side.
+	Role role.Role
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -129,6 +135,7 @@ func viewerFrom(c fiber.Ctx) Viewer {
 			v.LoggedIn = true
 			v.Username = uc.Account.Username
 			v.Title = uc.Account.Title
+			v.Role = uc.Account.Role
 		}
 	}
 	return v
@@ -276,6 +283,32 @@ func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot boo
 		return "You"
 	}
 	return "Anonymous"
+}
+
+// reportableOpponent returns the account name of the viewer's opponent, or ""
+// when there is nobody to report.
+//
+// Only an account can be reported: an anonymous opponent has nothing to
+// sanction and a bot has no account at all. A spectator has no opponent either.
+// The caller adds the remaining condition — the viewer must be logged in — from
+// the render context, and the API re-checks every one of these regardless.
+func reportableOpponent(payload message.RoomTemplatePayload) string {
+	if payload.IsSpectator {
+		return ""
+	}
+	switch payload.OpponentColor {
+	case "w":
+		if payload.WhiteIsBot {
+			return ""
+		}
+		return payload.WhiteName
+	case "b":
+		if payload.BlackIsBot {
+			return ""
+		}
+		return payload.BlackName
+	}
+	return ""
 }
 
 // seatColorTitle resolves one seat's optional account display title by "w"/"b"

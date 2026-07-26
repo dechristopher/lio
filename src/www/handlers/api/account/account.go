@@ -8,7 +8,8 @@ import (
 
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
-	"github.com/dechristopher/lio/title"
+	"github.com/dechristopher/lio/role"
+	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/www/middleware"
 )
 
@@ -82,6 +83,13 @@ func RegisterHandler(c fiber.Ctx) error {
 	if !auth.Enabled() {
 		return unavailable(c)
 	}
+	// runtime site control: an admin can close signups without a deploy.
+	// Deliberately only gates *new* accounts — existing ones keep logging in,
+	// so this is never a lockout (arch/ADMIN_MODERATION.md Phase 3).
+	if !settings.Current().RegistrationOpen {
+		return c.Status(fiber.StatusForbidden).
+			JSON(errBody{Error: "new account registration is temporarily closed"})
+	}
 
 	var req credentials
 	if err := c.Bind().Body(&req); err != nil {
@@ -120,8 +128,10 @@ func RegisterHandler(c fiber.Ctx) error {
 			JSON(errBody{Error: "registration failed"})
 	}
 
-	// a just-registered account has no title yet (assigned later, in the DB)
-	if err := auth.Login(c, auth.FromRequest(c), id, username, title.Title{}); err != nil {
+	// a just-registered account holds no title and the default player role
+	// (both assigned later, by a moderator)
+	acct := auth.AccountInfo{UserID: id, Username: username, Role: role.Player}
+	if err := auth.Login(c, auth.FromRequest(c), acct); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "registration succeeded but login failed - try logging in"})
 	}
@@ -184,16 +194,44 @@ func LoginHandler(c fiber.Ctx) error {
 	if methods, hasMFA := loginMFAMethods(rec.ID, rec.TOTPConfirmed); hasMFA {
 		return c.Status(fiber.StatusOK).JSON(mfaChallengeBody{
 			MFA:     true,
-			Pending: auth.NewPending(rec.ID, rec.Username, rec.Title),
+			Pending: auth.NewPending(auth.AccountInfoOf(rec)),
 			Methods: methods,
 		})
 	}
 
-	if err := auth.Login(c, auth.FromRequest(c), rec.ID, rec.Username, rec.Title); err != nil {
-		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "login failed"})
+	if err := auth.Login(c, auth.FromRequest(c), auth.AccountInfoOf(rec)); err != nil {
+		return loginError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(okBody{Username: rec.Username})
+}
+
+// loginError renders a failed session upgrade. A banned account gets 403 with
+// the reason and expiry: this visitor proved the password, so they are the
+// account holder and are owed the detail the public closed-account state
+// withholds. Anything else is an opaque 500.
+func loginError(c fiber.Ctx, err error) error {
+	var banned auth.BannedError
+	if errors.As(err, &banned) {
+		return c.Status(fiber.StatusForbidden).
+			JSON(errBody{Error: banMessage(banned.Ban)})
+	}
+	return c.Status(fiber.StatusInternalServerError).
+		JSON(errBody{Error: "login failed"})
+}
+
+// banMessage phrases a sanction for its own account holder: how long, and why
+// when a reason was recorded.
+func banMessage(b db.BanState) string {
+	msg := "This account is closed"
+	if b.Permanent {
+		msg += " permanently."
+	} else {
+		msg += " until " + b.Until.Format("Jan 2, 2006") + "."
+	}
+	if b.Reason != "" {
+		msg += " Reason: " + b.Reason
+	}
+	return msg
 }
 
 // loginMFAMethods reports which second factors an account offers (and whether it

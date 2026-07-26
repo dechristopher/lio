@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/title"
 )
 
@@ -31,6 +32,11 @@ type Account struct {
 	// Assigned by pointing users.title_id at a titles row (no in-app
 	// assignment UI); flows here from the session.
 	Title title.Title
+	// Role is the account's site permission level (arch/ADMIN_MODERATION.md),
+	// Player for the vast majority. The render reads it to decide whether to
+	// show the moderation UI; every privileged route re-checks it server-side,
+	// so a hidden control is never the security boundary.
+	Role role.Role
 }
 
 // GetID is a helper to return the session uid from the request context.

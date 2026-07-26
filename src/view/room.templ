@@ -30,12 +30,19 @@ templ Room(meta Meta, payload message.RoomTemplatePayload) {
 					@roomGame(meta, payload)
 				}
 			</div>
+			// the report dialog, mounted only where its control can appear
+			if reportableOpponent(payload) != "" && viewer(ctx).LoggedIn {
+				@reportModal()
+			}
 		</body>
 		@scriptsBase(meta)
 		if !payload.IsCreator && !payload.IsJoining {
 			@scriptsRoom(meta)
 		} else if payload.IsCreator {
 			@scriptsRoomCreator(meta)
+		}
+		if reportableOpponent(payload) != "" && viewer(ctx).LoggedIn {
+			<script src={ asset("lio-report.js") }></script>
 		}
 	}
 }

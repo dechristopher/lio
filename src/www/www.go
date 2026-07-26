@@ -198,6 +198,20 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	newRoom.Post("/human/quick", handlers.NewQuickRoomVsHuman)
 	newRoom.Post("/computer", handlers.NewRoomVsComputer)
 
+	// system console (site controls + active notices + audit feed) and the
+	// moderation queue. Both 404 for anyone without the role; per-player actions
+	// live on the player page instead.
+	r.Get("/system", handlers.SystemHandler)
+	// the audit feed on its own, for the filter form + pager's htmx swaps
+	r.Get("/system/actions", handlers.SystemActionsHandler)
+	r.Get("/moderation", handlers.ModerationHandler)
+
+	// public player pages. Registered before the room wildcards for the same
+	// reason /game/:uuid is: "/@/drewtest" would otherwise match /:id/:num and
+	// be read as room "@" game "drewtest". "@" cannot occur in a generated room
+	// id, so ordering fully resolves the ambiguity.
+	r.Get("/@/:username", handlers.ProfileHandler)
+
 	// direct archived-game permalink by UUID (301s to the canonical
 	// /<room_id>/<n> when the game has a room). Registered before the room
 	// wildcards so "game" is never captured as a room id.

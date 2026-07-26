@@ -107,7 +107,8 @@ func (q *Queries) DeleteSessionsForUserExcept(ctx context.Context, arg DeleteSes
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT s.id, s.uid, s.user_id, s.expires_at, s.last_seen,
-       u.username AS username, t.code AS title_code, t.name AS title_name
+       u.username AS username, t.code AS title_code, t.name AS title_name,
+       u.role AS role, u.banned_until AS banned_until
 FROM sessions s
 LEFT JOIN users u ON u.id = s.user_id
 LEFT JOIN titles t ON t.id = u.title_id
@@ -115,14 +116,16 @@ WHERE s.token_hash = $1
 `
 
 type GetSessionByTokenHashRow struct {
-	ID        int64
-	Uid       string
-	UserID    *int64
-	ExpiresAt pgtype.Timestamptz
-	LastSeen  pgtype.Timestamptz
-	Username  *string
-	TitleCode *string
-	TitleName *string
+	ID          int64
+	Uid         string
+	UserID      *int64
+	ExpiresAt   pgtype.Timestamptz
+	LastSeen    pgtype.Timestamptz
+	Username    *string
+	TitleCode   *string
+	TitleName   *string
+	Role        *string
+	BannedUntil pgtype.Timestamptz
 }
 
 // The per-request identity lookup: session + account (username/title NULL for
@@ -131,6 +134,9 @@ type GetSessionByTokenHashRow struct {
 // carried into the render Viewer so the header (and the viewer's own seat)
 // show it. Two LEFT JOINs down a primary key on tiny tables; the resolver
 // also caches the result for ~30s, so this is not a per-request cost.
+// role and banned_until ride along so the per-request identity carries the
+// viewer's permission level (the mod bar renders off it) and so a ban is
+// noticed even by a session row that outlived the revocation sweep.
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (GetSessionByTokenHashRow, error) {
 	row := q.db.QueryRow(ctx, getSessionByTokenHash, tokenHash)
 	var i GetSessionByTokenHashRow
@@ -143,6 +149,8 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.Username,
 		&i.TitleCode,
 		&i.TitleName,
+		&i.Role,
+		&i.BannedUntil,
 	)
 	return i, err
 }

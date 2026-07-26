@@ -1,0 +1,342 @@
+package view
+
+import "strconv"
+
+// System renders the site console: what is currently overriding the site's
+// defaults, the controls that set them (admins only), and the global audit
+// feed. Per-player actions are not here by design — they live on the player
+// page, where the moderator can see who they are acting on.
+templ System(meta Meta, m SystemModel) {
+	@base(meta) {
+		<body>
+			<div class="page">
+				@header("w-[92vw] max-w-[44rem]")
+				<main class="w-[92vw] max-w-[44rem] text-left">
+					<h1 class="font-display text-xl font-bold">System</h1>
+					@liveOps(m)
+					if m.IsAdmin {
+						@activeNotices(m)
+						@siteControls(m)
+					}
+					@auditFeed(m)
+				</main>
+				@footer(meta, "max-w-[44rem]")
+			</div>
+			if m.IsAdmin {
+				@confirmActionModal()
+			}
+		</body>
+		@scriptsBase(meta)
+		<script src={ asset("lio-mod.js") }></script>
+	}
+}
+
+// liveOps is the operational picture: who is here, what is running, and a way
+// into any of it. It leads the page because "what is happening right now" is
+// the question an operator opens this page with; the switches below are what
+// they reach for once they know.
+//
+// Every room links through to itself — a moderator watching a suspected cheat
+// spectates the game like anyone else rather than through a special viewer.
+// Force-closing is the one action here, and it goes through the same control
+// channel a resignation does.
+templ liveOps(m SystemModel) {
+	<div class="card mt-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Right now</p>
+			<p class="text-xs text-fg-subtle">this instance</p>
+		</div>
+		<div class="mt-3 flex flex-wrap gap-2">
+			@liveStat("Online", strconv.Itoa(m.Live.Online), "Distinct people connected to a room or on the home page")
+			@liveStat("Games", strconv.Itoa(m.Live.LiveGames), "Games in progress")
+			@liveStat("Challenges", strconv.Itoa(m.Live.OpenChallenges), "Open challenges waiting for an opponent")
+		</div>
+		if len(m.Live.Rooms) == 0 {
+			<p class="mt-3 text-sm text-fg-subtle">No rooms are live.</p>
+		} else {
+			<ul class="mt-3 flex flex-col gap-1">
+				for _, r := range m.Live.Rooms {
+					<li class="live-room">
+						<a class="live-room-id" href={ templ.SafeURL(r.URL) } title="Open the room — you join as a spectator">{ r.RoomID }</a>
+						<span class="live-room-kind">{ r.Kind }</span>
+						<span class="live-room-variant">{ r.Variant }</span>
+						if r.VsBot {
+							<span class="live-room-bot" title="Against the computer">bot</span>
+						}
+						<span class="live-room-moves">{ r.Moves }</span>
+						if m.IsAdmin {
+							<button
+								type="button"
+								class="btn btn-ghost live-room-close"
+								data-close-room={ r.RoomID }
+								data-confirm={ "Close room " + r.RoomID }
+								data-effect="Ends the room for both players. A game in progress is abandoned, not resolved — use this to clear something stuck, not to decide a game."
+							>Close</button>
+						}
+					</li>
+				}
+			</ul>
+			if m.Live.Truncated > 0 {
+				<p class="mt-2 text-xs text-fg-subtle">
+					{ strconv.Itoa(m.Live.Truncated) } more not shown.
+				</p>
+			}
+		}
+	</div>
+}
+
+// liveStat is one counter tile.
+templ liveStat(label string, value string, help string) {
+	<div class="live-stat" title={ help }>
+		<span class="live-stat-value">{ value }</span>
+		<span class="live-stat-label">{ label }</span>
+	</div>
+}
+
+// activeNotices lists everything currently deviating from the site's defaults,
+// each with a one-click stand-down. It exists because the controls below answer
+// "what can I change?" while the only question that matters during an incident
+// — or a week later, when nobody remembers — is "what is still switched on?".
+// Nothing here is a new capability: each X posts the same setting change the
+// toggle below would, and carries the same required reason.
+templ activeNotices(m SystemModel) {
+	<div class="card mt-3">
+		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Active notices</p>
+		if len(m.Active) == 0 {
+			<p class="mt-3 text-sm text-fg-subtle">
+				Nothing active — the site is running on its defaults.
+			</p>
+		} else {
+			<ul class="mt-3 flex flex-col gap-1.5">
+				for _, n := range m.Active {
+					<li class={ "active-notice " + n.Class }>
+						<span class="active-notice-body">
+							<span class="active-notice-title">{ n.Title }</span>
+							if n.Detail != "" {
+								<span class="active-notice-detail">{ n.Detail }</span>
+							}
+						</span>
+						<button
+							type="button"
+							class="active-notice-clear"
+							data-setting={ n.Setting }
+							data-value={ n.ClearValue }
+							data-confirm={ "Stand down: " + n.Title }
+							data-effect={ n.ClearEffect }
+							aria-label={ "Stand down: " + n.Title }
+							title="Stand down"
+						>
+							@iconClose()
+						</button>
+					</li>
+				}
+			</ul>
+			<p class="mt-2 text-xs text-fg-subtle">
+				Standing one down asks for a reason and is recorded like any other change.
+			</p>
+		}
+	</div>
+}
+
+// siteControls is the runtime switches form. Each control posts on its own, so
+// changing one switch never restates the rest of the site's configuration —
+// and a stale form open in another tab cannot silently revert something.
+templ siteControls(m SystemModel) {
+	<div class="card mt-3 mod-bar">
+		<p class="text-xs font-semibold uppercase tracking-wider text-warn">⚑ Site controls</p>
+		<form id="settingsForm" class="mt-3 flex flex-col gap-3" novalidate>
+			<div class="flex flex-col gap-2">
+				<label class="auth-label">
+					Site notice
+					<input class="auth-input" name="noticeText" type="text" maxlength="300" value={ m.Settings.NoticeText } placeholder="Shown on every page & not dismissable"/>
+				</label>
+				<div class="flex flex-wrap items-end gap-2">
+					<label class="auth-label">
+						Style
+						<select class="auth-input" name="noticeLevel">
+							<option value="info" selected?={ m.Settings.NoticeLevel != "warn" }>Info</option>
+							<option value="warn" selected?={ m.Settings.NoticeLevel == "warn" }>Warning</option>
+						</select>
+					</label>
+					<button
+						type="button"
+						class="btn btn-ghost"
+						data-setting="notice"
+						data-confirm="Set the site notice"
+						data-effect="Shown above the header on every page until it is cleared."
+					>Set notice</button>
+				</div>
+			</div>
+			<div class="mt-2 flex flex-col gap-2 border-t border-line pt-3">
+				@settingToggle("registrationOpen", "New account registration", "Existing accounts keep signing in either way.", m.Settings.RegistrationOpen)
+				@settingToggle("ratedEnabled", "Rated games", "Games already in progress keep the rating they started with.", m.Settings.RatedEnabled)
+				@settingToggle("maintenance", "Maintenance mode", "Stops new games starting. Games in progress play out normally.", m.Settings.Maintenance)
+			</div>
+		</form>
+	</div>
+}
+
+// settingToggle is one boolean switch: its current state and the button that
+// flips it. The button says what it will *do*, not what the state is — a
+// control labelled with its own state is the classic way to get an operator to
+// turn the wrong thing off during an incident.
+templ settingToggle(key string, label string, help string, on bool) {
+	<div class="setting-row">
+		<div class="min-w-0">
+			<p class="text-sm font-semibold text-fg">
+				{ label }
+				if on {
+					<span class="setting-state setting-on">on</span>
+				} else {
+					<span class="setting-state setting-off">off</span>
+				}
+			</p>
+			<p class="text-xs text-fg-subtle">{ help }</p>
+		</div>
+		if on {
+			<button
+				type="button"
+				class="btn btn-ghost shrink-0"
+				data-setting={ key }
+				data-value="0"
+				data-confirm={ "Turn off: " + label }
+				data-effect={ SettingEffect(key, false) }
+			>Turn off</button>
+		} else {
+			<button
+				type="button"
+				class="btn btn-ghost shrink-0"
+				data-setting={ key }
+				data-value="1"
+				data-confirm={ "Turn on: " + label }
+				data-effect={ SettingEffect(key, true) }
+			>Turn on</button>
+		}
+	</div>
+}
+
+// auditFeed is the global record of privileged actions, newest first. Every
+// moderator sees every other moderator's entries: there is no silent
+// moderation, and this feed is the accountability model for the tools.
+//
+// The log is permanent and append-only, so the page onto it needs to be
+// navigable rather than a fixed window of the most recent entries — the entry
+// that matters is usually the one someone is trying to find months later.
+templ auditFeed(m SystemModel) {
+	<div class="card my-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Audit log</p>
+			<p class="text-xs text-fg-subtle">{ auditCountLabel(m.Feed) }</p>
+		</div>
+		@auditFilters(m.Feed)
+		<div id="auditFeed">
+			@AuditFeedBody(m.Feed)
+		</div>
+	</div>
+}
+
+// auditFilters is the search + verb form. It GETs the same page, so a filtered
+// view is a real URL someone can bookmark or paste into a ticket; htmx swaps
+// the results in place when it is available, and the plain form submission is
+// the fallback.
+templ auditFilters(f AuditFeed) {
+	<form
+		class="mt-3 flex flex-wrap items-end gap-2"
+		method="GET"
+		action="/system"
+		hx-get="/system/actions"
+		hx-target="#auditFeed"
+		hx-swap="innerHTML"
+	>
+		<label class="auth-label min-w-0 flex-1">
+			Search
+			<input class="auth-input" name="q" type="search" value={ f.Query } placeholder="Reason, or either account's name"/>
+		</label>
+		<label class="auth-label">
+			Action
+			<select class="auth-input" name="action">
+				<option value="">All</option>
+				for _, kind := range f.ActionKinds {
+					<option value={ kind } selected?={ kind == f.Action }>{ kind }</option>
+				}
+			</select>
+		</label>
+		<button type="submit" class="btn btn-ghost">Filter</button>
+		if f.Filtered {
+			<a href="/system" class="btn btn-ghost no-underline">Clear</a>
+		}
+	</form>
+}
+
+// AuditFeedBody is the swappable results region: the entries plus the pager.
+// Exported because it is served on its own as the htmx fragment.
+templ AuditFeedBody(f AuditFeed) {
+	if len(f.Actions) == 0 {
+		if f.Filtered {
+			<p class="mt-3 text-sm text-fg-subtle">No actions match that search.</p>
+		} else {
+			<p class="mt-3 text-sm text-fg-subtle">Nothing has been actioned yet.</p>
+		}
+	} else {
+		<ul class="mt-3 flex flex-col gap-1.5">
+			for _, a := range f.Actions {
+				@auditRow(a, true)
+			}
+		</ul>
+		if f.Pages > 1 {
+			<div class="audit-pager">
+				if f.PrevURL != "" {
+					<a class="btn btn-ghost no-underline" href={ templ.SafeURL(f.PrevURL) } hx-get={ fragmentURL(f.PrevURL) } hx-target="#auditFeed" hx-swap="innerHTML">← Newer</a>
+				} else {
+					<span class="btn btn-ghost is-disabled">← Newer</span>
+				}
+				<span class="audit-pager-state">Page { strconv.Itoa(f.Page) } of { strconv.Itoa(f.Pages) }</span>
+				if f.NextURL != "" {
+					<a class="btn btn-ghost no-underline" href={ templ.SafeURL(f.NextURL) } hx-get={ fragmentURL(f.NextURL) } hx-target="#auditFeed" hx-swap="innerHTML">Older →</a>
+				} else {
+					<span class="btn btn-ghost is-disabled">Older →</span>
+				}
+			</div>
+		}
+	}
+}
+
+// auditRow renders one audit entry as a set of tinted, tooltipped fields.
+//
+// withTarget is false on a player page, where every entry is about that account
+// and repeating its name on each row would be noise; the /system feed spans
+// accounts, so it needs both parties and the site-wide marker.
+//
+// Everything carries a title attribute because the vocabulary here is internal:
+// "forfeited=1" or "lifted=permanent" is obvious to whoever wrote the handler
+// and opaque to the moderator reading it six weeks later. The row degrades
+// sensibly when fields are absent — a site-level change has no target, and some
+// actions carry no payload.
+templ auditRow(a ModFeedEntry, withTarget bool) {
+	<li class="audit-row">
+		<time class="audit-when" title={ a.WhenExact }>{ a.When }</time>
+		<span class={ "audit-action " + ActionClass(a.Action) } title={ ActionHelp(a.Action) }>{ a.Action }</span>
+		<span class="audit-parties">
+			<a class="audit-actor" href={ templ.SafeURL("/@/" + a.Actor) } title="Moderator who took this action">{ a.Actor }</a>
+			if withTarget && a.Target != "" {
+				<span class="audit-arrow" aria-hidden="true">→</span>
+				<a class="audit-target" href={ templ.SafeURL("/@/" + a.Target) } title="Account this action was taken against">{ a.Target }</a>
+			} else if withTarget {
+				<span class="audit-sitewide" title="A site-wide change, not aimed at one account">site-wide</span>
+			}
+		</span>
+		if len(a.Details) > 0 {
+			<span class="audit-details">
+				for _, d := range a.Details {
+					<span class="audit-chip" title={ d.Help }>
+						<span class="audit-chip-key">{ d.Key }</span>
+						<span class="audit-chip-value">{ d.Value }</span>
+					</span>
+				}
+			</span>
+		}
+		if a.Reason != "" {
+			<span class="audit-reason" title="Reason the moderator gave; required on every action">{ a.Reason }</span>
+		}
+	</li>
+}

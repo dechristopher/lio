@@ -98,8 +98,12 @@
 @layer base {
 	:root {
 		color-scheme: light;
-		--surface: #faf8f5;
-		--surface-2: #f0ebe4;
+		/* The page ground sits a step below the cards rather than nearly level
+		   with them: at #faf8f5 the surface and the #fdfbf8 cards were within a
+		   couple of percent of each other, so the card edges did all the work of
+		   separating content from background and the layout read as flat. */
+		--surface: #f2ece3;
+		--surface-2: #e9e2d8;
 		--surface-3: #fdfbf8;
 		--border: #e7e1d8;
 		--border-strong: #d6cdbf;
@@ -2929,6 +2933,528 @@
 	}
 	.piece-btn:hover .piece-label { color: var(--text); }
 	.piece-btn.is-active .piece-label { color: var(--accent); }
+
+	/* --- player pages (/@/username) ------------------------------------- */
+
+	/* one rating per time control the account has actually played */
+	.rating-tile {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		padding: 0.4rem 0.6rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+	}
+	.rating-tile-cat {
+		font-size: 0.68rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-muted);
+	}
+	.rating-tile-value {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 1.05rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.rating-tile-games { font-size: 0.68rem; color: var(--text-subtle); }
+
+	/* a labeled win/draw/loss line. The three counts are tinted with the same
+	   semantic tokens the clocks and archive use, so a result reads the same
+	   colour everywhere on the site. */
+	.record-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+	}
+	.record-label { flex: 1 1 auto; min-width: 0; color: var(--text); }
+	.record-wdl {
+		flex: none;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-weight: 700;
+	}
+	.record-win { color: var(--win); }
+	.record-draw { color: var(--draw); }
+	.record-loss { color: var(--loss); }
+	.record-sep { color: var(--text-subtle); padding: 0 0.15em; }
+	.record-total { flex: none; font-size: 0.75rem; color: var(--text-subtle); }
+
+	/* one archived game in the recent-games list. Collapses to two lines on
+	   narrow viewports rather than ellipsizing the opponent away. */
+	.game-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.5rem;
+		padding: 0.35rem 0.5rem;
+		border-radius: var(--radius-sm);
+		color: var(--text);
+		text-decoration: none;
+		transition: background 150ms var(--ease-snappy);
+	}
+	.game-row:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+	.game-result {
+		flex: none;
+		width: 3.2rem;
+		font-size: 0.78rem;
+		font-weight: 700;
+	}
+	.game-result.win { color: var(--win); }
+	.game-result.loss { color: var(--loss); }
+	.game-result.draw { color: var(--draw); }
+	.game-opponent {
+		flex: 1 1 8rem;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.35em;
+		font-size: 0.85rem;
+		font-weight: 600;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.game-variant, .game-mode, .game-when {
+		flex: none;
+		font-size: 0.75rem;
+		color: var(--text-subtle);
+	}
+
+	/* --- moderation bar (moderators only) -------------------------------- */
+
+	/* warn-tinted border so the privileged region is unmistakable against the
+	   ordinary cards above it — this is the one part of the page whose
+	   controls act on someone else's account. */
+	.mod-bar {
+		border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+	}
+	.mod-ban-state {
+		padding: 0.5rem 0.6rem;
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--loss) 10%, transparent);
+	}
+	.mod-action-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.4rem;
+		font-size: 0.75rem;
+	}
+	.mod-action-when { flex: none; color: var(--text-subtle); }
+	.mod-action-what { flex: none; font-weight: 600; color: var(--text); }
+	.mod-action-why { flex: 1 1 8rem; min-width: 0; color: var(--text-muted); }
+	.mod-action-detail {
+		margin-left: 0.35em;
+		font-family: var(--font-mono);
+		font-weight: 400;
+		color: var(--text-subtle);
+	}
+
+	/* --- audit log rows --------------------------------------------------- */
+
+	/* Each field is its own element with its own tint, because an audit row is
+	   scanned rather than read: the eye needs to find the verb and the two
+	   parties without parsing a sentence. Wraps to multiple lines on narrow
+	   viewports rather than truncating — a half-shown reason is worse than a
+	   taller row. */
+	.audit-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.3rem 0.5rem;
+		padding: 0.35rem 0.5rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.78rem;
+		line-height: 1.45;
+	}
+	.audit-row:nth-child(odd) {
+		background: color-mix(in srgb, var(--text) 4%, transparent);
+	}
+	.audit-when {
+		flex: none;
+		min-width: 5.5rem;
+		color: var(--text-subtle);
+		font-variant-numeric: tabular-nums;
+		cursor: help;
+	}
+	/* the verb, tinted by what it does: sanctions read as losses, reversals as
+	   wins, ordinary edits as neutral — the same semantics a clock uses */
+	.audit-action {
+		flex: none;
+		padding: 0.05em 0.45em;
+		border-radius: 4px;
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		cursor: help;
+	}
+	.act-ban {
+		background: color-mix(in srgb, var(--loss) 16%, transparent);
+		color: var(--loss);
+	}
+	.act-unban {
+		background: color-mix(in srgb, var(--win) 16%, transparent);
+		color: var(--win);
+	}
+	.act-role {
+		background: color-mix(in srgb, var(--warn) 18%, transparent);
+		color: var(--warn);
+	}
+	.act-setting {
+		background: color-mix(in srgb, var(--text) 10%, transparent);
+		color: var(--text-muted);
+	}
+	.act-edit {
+		background: color-mix(in srgb, var(--accent) 15%, transparent);
+		color: var(--accent);
+	}
+	.audit-parties {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.3em;
+		min-width: 0;
+		font-weight: 600;
+	}
+	/* actor and target are visually distinct: who acted vs who it happened to
+	   is the pair a reader is matching on */
+	.audit-actor { color: var(--text); text-decoration: none; }
+	.audit-target { color: var(--accent); text-decoration: none; }
+	.audit-actor:hover, .audit-target:hover { text-decoration: underline; }
+	.audit-arrow { color: var(--text-subtle); font-weight: 400; }
+	.audit-sitewide {
+		color: var(--text-subtle);
+		font-weight: 400;
+		font-style: italic;
+		cursor: help;
+	}
+	.audit-details {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: 0.25rem;
+		min-width: 0;
+	}
+	.audit-chip {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.25em;
+		padding: 0.05em 0.35em;
+		border-radius: 3px;
+		background: color-mix(in srgb, var(--text) 7%, transparent);
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		cursor: help;
+	}
+	.audit-chip-key { color: var(--text-subtle); }
+	.audit-chip-value { color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+	.audit-reason {
+		flex: 1 1 10rem;
+		min-width: 0;
+		color: var(--text-muted);
+		font-style: italic;
+		overflow-wrap: anywhere;
+		cursor: help;
+	}
+
+	/* --- confirmation modal ------------------------------------------------ */
+
+	.confirm-summary {
+		padding: 0.6rem 0.7rem;
+		border: 2px solid var(--border);
+		border-left: 4px solid var(--warn);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+	}
+	.confirm-change {
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	/* the notice text being set, quoted so it reads as content rather than copy */
+	.confirm-value {
+		margin-top: 0.35rem;
+		padding-left: 0.6rem;
+		border-left: 2px solid var(--border-strong);
+		font-size: 0.85rem;
+		color: var(--text);
+		overflow-wrap: anywhere;
+	}
+	.confirm-effect {
+		margin-top: 0.35rem;
+		font-size: 0.8rem;
+		line-height: 1.4;
+		color: var(--text-muted);
+	}
+
+	/* --- report queue (/moderation) --------------------------------------- */
+
+	.report-row {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		padding: 0.6rem 0.7rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+	}
+	.report-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.3rem 0.5rem;
+		font-size: 0.85rem;
+	}
+	/* tinted by what is alleged: rating attacks read as losses, conduct as
+	   warnings, "other" stays neutral so it borrows no urgency */
+	.report-cat {
+		flex: none;
+		padding: 0.05em 0.45em;
+		border-radius: 4px;
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		cursor: help;
+	}
+	.rep-severe {
+		background: color-mix(in srgb, var(--loss) 16%, transparent);
+		color: var(--loss);
+	}
+	.rep-conduct {
+		background: color-mix(in srgb, var(--warn) 18%, transparent);
+		color: var(--warn);
+	}
+	.rep-other {
+		background: color-mix(in srgb, var(--text) 10%, transparent);
+		color: var(--text-muted);
+	}
+	.report-by { color: var(--text-subtle); font-size: 0.78rem; }
+	.report-note {
+		padding-left: 0.6rem;
+		border-left: 2px solid var(--border-strong);
+		font-size: 0.82rem;
+		line-height: 1.45;
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+	.report-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+	.report-actions .btn { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+	/* the player-facing report control on the game-over card. Understated: it
+	   sits below the result, not beside Rematch, because most games end without
+	   anyone needing it and a prominent accusation button invites misuse. */
+	.result-report {
+		margin-top: 0.35rem;
+		background: none;
+		border: none;
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		cursor: pointer;
+	}
+	.result-report:hover { color: var(--loss); }
+
+	/* audit log pager */
+	.audit-pager {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--border);
+	}
+	.audit-pager-state {
+		font-size: 0.75rem;
+		color: var(--text-subtle);
+	}
+	/* the end of the range renders as an inert span, not a disabled button:
+	   there is nothing to press, so it should not look pressable */
+	.btn.is-disabled {
+		opacity: 0.4;
+		cursor: default;
+		pointer-events: none;
+	}
+
+	/* --- site controls (/mod, admins only) ------------------------------- */
+
+	.setting-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.4rem 0;
+	}
+	/* the current state reads as a chip beside the label; the button next to it
+	   is labelled with the action it performs, not the state it shows */
+	.setting-state {
+		margin-left: 0.4em;
+		padding: 0.05em 0.4em;
+		border-radius: 4px;
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		vertical-align: middle;
+	}
+	.setting-on {
+		background: color-mix(in srgb, var(--win) 18%, transparent);
+		color: var(--win);
+	}
+	.setting-off {
+		background: color-mix(in srgb, var(--text) 10%, transparent);
+		color: var(--text-muted);
+	}
+
+	/* --- site notice banner (every page) --------------------------------- */
+
+	/* Sits above the header on every page, so it is deliberately quiet: full
+	   width of the page column, one line of text, no icon or dismiss control.
+	   An announcement that shouts on every navigation stops being read. */
+	.site-notice {
+		margin: 0 auto 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		font-size: 0.85rem;
+		line-height: 1.35;
+		color: var(--text);
+	}
+	.site-notice-info {
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+		background: color-mix(in srgb, var(--accent) 8%, transparent);
+	}
+	.site-notice-warn {
+		border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+		background: color-mix(in srgb, var(--warn) 10%, transparent);
+	}
+
+	/* --- maintenance banner (every page, while maintenance mode is on) ---- */
+
+	/* Louder than the admin notice on purpose: it is a statement of fact about
+	   what the site will and won't do, not an announcement someone chose to
+	   write. Sits above the notice so the two read as fact-then-context. */
+	.maintenance-notice {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 0 auto 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border: 2px solid var(--warn);
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--warn) 16%, transparent);
+		font-size: 0.85rem;
+		line-height: 1.35;
+		color: var(--text);
+	}
+	.maintenance-badge {
+		flex: none;
+		padding: 0.1em 0.45em;
+		border-radius: 4px;
+		background: var(--warn);
+		/* both --warn shades (amber 500/400) are light enough that dark text is
+		   the readable choice in either mode, so this is a literal rather than a
+		   token — there is no --warn-contrast, and inventing one for a single
+		   badge would imply a system that doesn't exist */
+		color: #1c1917;
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	/* --- registration-closed notice on the signup form -------------------- */
+
+	.auth-closed {
+		padding: 0.5rem 0.6rem;
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--warn) 12%, transparent);
+		font-size: 0.8rem;
+		line-height: 1.35;
+		color: var(--text);
+	}
+
+	/* the disabled fieldset wrapping the inert form. `contents` keeps it out of
+	   the layout entirely, so the form's own flex gap still governs spacing. */
+	#registerForm fieldset[disabled] { opacity: 0.5; }
+
+	/* --- create-game modal: ratings paused site-wide ---------------------- */
+
+	/* Reuses the .cg-rated layout but is inert: a warn-tinted badge in place of
+	   the live RATED one, with a single line of copy instead of the three the
+	   :has() state machine switches between. Time controls are untouched — the
+	   pause is about ratings, not about clocks. */
+	.cg-rated-paused .cg-rated-badge {
+		background: color-mix(in srgb, var(--warn) 18%, transparent);
+		color: var(--warn);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 45%, transparent);
+	}
+	.cg-rated-paused .cg-rated-line[data-state="on"] {
+		visibility: visible;
+		color: var(--warn);
+	}
+
+	/* --- active notices (/system) ----------------------------------------- */
+
+	.active-notice {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.45rem 0.55rem;
+		border: 2px solid var(--border);
+		border-left-width: 4px;
+		border-radius: var(--radius-sm);
+	}
+	.active-notice-warn {
+		border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+		border-left-color: var(--warn);
+	}
+	.active-notice-info {
+		border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+		border-left-color: var(--accent);
+	}
+	.active-notice-body {
+		display: flex;
+		min-width: 0;
+		flex: 1 1 auto;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+	.active-notice-title {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text);
+	}
+	.active-notice-detail {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+	/* generously sized for a touch target despite the small glyph */
+	.active-notice-clear {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 1.9rem;
+		height: 1.9rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: color 150ms var(--ease-snappy), border-color 150ms var(--ease-snappy);
+	}
+	.active-notice-clear:hover {
+		border-color: var(--border-strong);
+		color: var(--text);
+	}
 }
 
 @keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }

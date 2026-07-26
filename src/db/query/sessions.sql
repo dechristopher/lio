@@ -12,8 +12,12 @@ RETURNING id;
 -- carried into the render Viewer so the header (and the viewer's own seat)
 -- show it. Two LEFT JOINs down a primary key on tiny tables; the resolver
 -- also caches the result for ~30s, so this is not a per-request cost.
+-- role and banned_until ride along so the per-request identity carries the
+-- viewer's permission level (the mod bar renders off it) and so a ban is
+-- noticed even by a session row that outlived the revocation sweep.
 SELECT s.id, s.uid, s.user_id, s.expires_at, s.last_seen,
-       u.username AS username, t.code AS title_code, t.name AS title_name
+       u.username AS username, t.code AS title_code, t.name AS title_name,
+       u.role AS role, u.banned_until AS banned_until
 FROM sessions s
 LEFT JOIN users u ON u.id = s.user_id
 LEFT JOIN titles t ON t.id = u.title_id

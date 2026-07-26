@@ -8,8 +8,11 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/news"
+	"github.com/dechristopher/lio/role"
+	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/variant"
 )
@@ -531,7 +534,11 @@ func TestRenderHeaderViewerStates(t *testing.T) {
 	mustContain(t, loggedOut, `id="loginForm"`)
 	mustContain(t, loggedOut, `id="registerForm"`)
 	mustNotContain(t, loggedOut, `id="profilePopover"`)
-	mustNotContain(t, loggedOut, "disabled")
+	// accounts are available, so the login button is live rather than the
+	// unavailable placeholder. Asserted on the placeholder's own copy: a bare
+	// "disabled" substring matches any inert control anywhere on the page
+	// (the signup form goes inert when registration is closed, for one).
+	mustNotContain(t, loggedOut, "Accounts are unavailable")
 
 	// Phase 4 login-time second-factor step + method controls
 	mustContain(t, loggedOut, `id="mfaStep"`)
@@ -596,4 +603,775 @@ func TestRenderSessionList(t *testing.T) {
 
 	// empty state
 	mustContain(t, renderSmoke(t, SessionList(nil)), "No active sessions")
+}
+
+// profileFixture is a populated, unbanned player page model.
+func profileFixture() ProfileModel {
+	return ProfileModel{
+		UserID:   7,
+		Username: "drewtest",
+		Title:    title.Title{Code: "OG", Name: "Original Gamer"},
+		Joined:   "March 2026",
+		Ratings: []RatingView{
+			{Category: "half-one-blitz", Rating: "1653", Games: 12},
+		},
+		Total: NewRecordView(db.Record{Games: 3, Wins: 2, Draws: 0, Losses: 1}),
+		Variants: []VariantRecordView{{Name: "½ + 1", Group: "blitz",
+			RecordView: NewRecordView(db.Record{Games: 3, Wins: 2, Losses: 1})}},
+		Bots: []BotRecordView{{Persona: "Queen", Glyph: "♛︎",
+			RecordView: NewRecordView(db.Record{Games: 1, Losses: 1})}},
+		Games: []ProfileGameView{{
+			URL: "/abc123/1", When: "2 days ago", Variant: "½ + 1 blitz",
+			Mode: "Rated", Result: "Won", Class: "win", Opponent: "cdpplayer",
+			OppTitle: "GM",
+		}},
+	}
+}
+
+// TestRenderProfile covers the public player page: identity with the title
+// badge, ratings, records and the games list all present for a normal account.
+func TestRenderProfile(t *testing.T) {
+	m := profileFixture()
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, ">drewtest</span>")
+	mustContain(t, out, `class="player-title"`)
+	mustContain(t, out, ">OG</span>")
+	mustContain(t, out, "Member since")
+	mustContain(t, out, "March 2026")
+	mustContain(t, out, "1653")           // rating tile
+	mustContain(t, out, "half-one-blitz") // its category
+	mustContain(t, out, "All games")      // lifetime record row
+	mustContain(t, out, "Versus the computer")
+	mustContain(t, out, "♛︎ Queen")         // bot record label
+	mustContain(t, out, `href="/abc123/1"`) // game links into the archive
+	mustContain(t, out, "cdpplayer")
+	// the page title carries the title code, as the OG/meta treatment does
+	mustContain(t, out, templ.EscapeString("OG drewtest"))
+	// no moderation UI for an ordinary viewer
+	mustNotContain(t, out, `id="modForm"`)
+	mustNotContain(t, out, "lio-mod")
+}
+
+// TestRenderProfileClosed locks the public treatment of a banned account: a
+// neutral closed card, and *no* reason, expiry, ratings, record or games. The
+// reason is moderator-only, so leaking it here would be a real disclosure bug.
+func TestRenderProfileClosed(t *testing.T) {
+	m := profileFixture()
+	m.Closed = true
+	m.Ratings, m.Variants, m.Bots, m.Games = nil, nil, nil, nil
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, "This account is closed.")
+	mustContain(t, out, ">drewtest</span>") // the name still renders
+	mustNotContain(t, out, "1653")          // ratings suppressed
+	mustNotContain(t, out, "All games")     // record suppressed
+	mustNotContain(t, out, "Recent games")  // games suppressed
+}
+
+// TestRenderProfileModBar covers the moderator view: the action controls
+// render, the role picker is admin-only, and a reason field is always present
+// (every action is required to carry one).
+func TestRenderProfileModBar(t *testing.T) {
+	m := profileFixture()
+	m.ShowMod = true
+	m.Mod = ModBarView{
+		CanSetRole:     false,
+		CanBan:         true,
+		CurrentRole:    "player",
+		CurrentTitleID: "1",
+		Titles:         []TitleOptionView{{ID: "1", Code: "OG", Name: "Original Gamer"}},
+		Roles:          AssignableRoles(),
+		Actions: []ModFeedEntry{
+			{When: "yesterday", Actor: "cdpplayer", Action: "title", Reason: "won the open",
+				Details: DetailChipsOf(map[string]any{"from": "none", "to": "OG"})},
+		},
+		ActionsTotal: 1,
+	}
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, `id="modForm"`)
+	mustContain(t, out, `data-user-id="7"`)
+	mustContain(t, out, `name="reason"`)
+	mustContain(t, out, `data-mod-action="ban"`)
+	mustContain(t, out, `data-mod-action="title"`)
+	mustContain(t, out, `data-mod-action="rename"`)
+	mustContain(t, out, "lio-mod") // the bar's script only loads for moderators
+	mustContain(t, out, "won the open")
+	// a mod is not an admin: no role control, even though Roles was populated
+	mustNotContain(t, out, `data-mod-action="role"`)
+
+	// an admin gets it
+	m.Mod.CanSetRole = true
+	admin := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, admin, `data-mod-action="role"`)
+
+	// a banned target swaps the ban control for the lift control
+	m.Mod.Banned = true
+	m.Mod.BanUntil = "permanently"
+	m.Mod.BanReason = "engine assistance"
+	banned := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, banned, `data-mod-action="unban"`)
+	mustContain(t, banned, "engine assistance") // moderators DO see the reason
+	mustNotContain(t, banned, `data-mod-action="ban"`)
+}
+
+// systemFixture is a console model with a small first page of audit entries.
+func systemFixture() SystemModel {
+	return SystemModel{
+		IsAdmin:  true,
+		Settings: settings.Snapshot{RegistrationOpen: true, RatedEnabled: true},
+		Feed: AuditFeed{
+			Actions: []ModFeedEntry{
+				{When: "just now", WhenExact: "2026-07-25 12:00:00 UTC",
+					Actor: "drewtest", Action: "ban", Target: "spammer99", Reason: "ads",
+					Details: DetailChipsOf(map[string]any{
+						"permanent": true, "duration": "permanent", "forfeited": float64(1),
+					})},
+				{When: "yesterday", WhenExact: "2026-07-24 09:00:00 UTC",
+					Actor: "drewtest", Action: "setting", Reason: "deploy window",
+					Details: DetailChipsOf(map[string]any{"maintenance": true})},
+			},
+			ActionKinds: ModActionKinds,
+			Page:        1,
+			Pages:       1,
+			Total:       2,
+		},
+	}
+}
+
+// TestRenderSystemConsole covers /system: an admin sees the site controls, a
+// plain moderator does not (they affect every visitor at once), and both see
+// the audit log.
+func TestRenderSystemConsole(t *testing.T) {
+	m := systemFixture()
+	admin := renderSmoke(t, System(SystemMeta(), m))
+	mustContain(t, admin, `id="settingsForm"`)
+	mustContain(t, admin, `data-setting="maintenance"`)
+	mustContain(t, admin, `data-setting="registrationOpen"`)
+	mustContain(t, admin, `data-setting="notice"`)
+	mustContain(t, admin, `name="reason"`) // every change carries one
+	mustContain(t, admin, "Audit log")
+	mustContain(t, admin, "2 entries on record")
+	mustContain(t, admin, "spammer99")
+	mustContain(t, admin, `href="/@/spammer99"`) // targets link to their page
+	mustContain(t, admin, "site-wide")           // site-level entry, no target
+
+	// a moderator who is not an admin gets the log but no site controls
+	m.IsAdmin = false
+	mod := renderSmoke(t, System(SystemMeta(), m))
+	mustNotContain(t, mod, `id="settingsForm"`)
+	mustContain(t, mod, "Audit log")
+
+	// empty log distinguishes "nothing yet" from "nothing matches"
+	mustContain(t, renderSmoke(t, System(SystemMeta(), SystemModel{})),
+		"Nothing has been actioned yet.")
+	empty := AuditFeed{Filtered: true, Query: "nobody", Page: 1, Pages: 1}
+	mustContain(t, renderSmoke(t, AuditFeedBody(empty)), "No actions match that search.")
+}
+
+// TestRenderAuditPager: the pager appears only past one page, disables the end
+// it is at, and both controls carry a real href plus its htmx fragment.
+func TestRenderAuditPager(t *testing.T) {
+	one := systemFixture().Feed
+	mustNotContain(t, renderSmoke(t, AuditFeedBody(one)), "audit-pager")
+
+	mid := one
+	mid.Page, mid.Pages, mid.Total = 2, 3, 120
+	mid.PrevURL = AuditURL(ModActionQuery{Page: 1})
+	mid.NextURL = AuditURL(ModActionQuery{Page: 3})
+	out := renderSmoke(t, AuditFeedBody(mid))
+	mustContain(t, out, "Page 2 of 3")
+	mustContain(t, out, `href="/system"`)                  // page 1 is the bare path
+	mustContain(t, out, `href="/system?page=3"`)           // next page
+	mustContain(t, out, `hx-get="/system/actions?page=3"`) // its fragment
+	mustNotContain(t, out, "is-disabled")
+
+	last := mid
+	last.Page, last.NextURL = 3, ""
+	end := renderSmoke(t, AuditFeedBody(last))
+	mustContain(t, end, "is-disabled") // "Older" is inert at the end
+}
+
+// TestAuditURL locks the link builder the pager and the player page share: an
+// unfiltered first page is the bare path, and filters survive paging.
+func TestAuditURL(t *testing.T) {
+	cases := []struct {
+		q    ModActionQuery
+		want string
+	}{
+		{ModActionQuery{Page: 1}, "/system"},
+		{ModActionQuery{Page: 0}, "/system"},
+		{ModActionQuery{Page: 2}, "/system?page=2"},
+		{ModActionQuery{Query: "drewtest", Page: 1}, "/system?q=drewtest"},
+		{ModActionQuery{Query: "drewtest", Action: "ban", Page: 3},
+			"/system?action=ban&page=3&q=drewtest"},
+	}
+	for _, tc := range cases {
+		if got := AuditURL(tc.q); got != tc.want {
+			t.Errorf("AuditURL(%+v) = %q, want %q", tc.q, got, tc.want)
+		}
+	}
+}
+
+// TestNormalizeAction drops unknown verbs so a hand-typed query string cannot
+// silently produce an empty feed.
+func TestNormalizeAction(t *testing.T) {
+	for _, kind := range ModActionKinds {
+		if got := NormalizeAction(kind); got != kind {
+			t.Errorf("NormalizeAction(%q) = %q", kind, got)
+		}
+	}
+	for _, bad := range []string{"", "BAN", "drop", "'; --"} {
+		if got := NormalizeAction(bad); got != "" {
+			t.Errorf("NormalizeAction(%q) = %q, want empty", bad, got)
+		}
+	}
+}
+
+// TestSettingToggleLabelsAction locks a small but load-bearing UX rule: the
+// button says what it will DO, not what the state IS. A control labelled with
+// its own state is how an operator turns the wrong thing off mid-incident.
+func TestSettingToggleLabelsAction(t *testing.T) {
+	on := renderSmoke(t, settingToggle("maintenance", "Maintenance mode", "help", true))
+	mustContain(t, on, "Turn off")
+	mustContain(t, on, `data-value="0"`)
+	mustContain(t, on, "setting-on")
+
+	off := renderSmoke(t, settingToggle("maintenance", "Maintenance mode", "help", false))
+	mustContain(t, off, "Turn on")
+	mustContain(t, off, `data-value="1"`)
+	mustContain(t, off, "setting-off")
+}
+
+// withSettings runs fn against a temporary settings override, restoring the
+// real snapshot afterward. The settings package caches from Postgres, which the
+// view tests do not have, so these poke the resolved snapshot directly.
+func withSettings(t *testing.T, s settings.Snapshot, fn func()) {
+	t.Helper()
+	restore := settings.OverrideForTest(s)
+	defer restore()
+	fn()
+}
+
+// TestRenderRegistrationClosed covers the signup form while registration is
+// closed: the visitor is told why, and every control goes inert. The form is
+// still rendered — removing it would shift the modal and leave the Sign up tab
+// pointing at nothing.
+func TestRenderRegistrationClosed(t *testing.T) {
+	page := Index(PageMeta("home"), nil, message.SiteStats{})
+	viewer := Viewer{UID: "u", AccountsEnabled: true}
+
+	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: true}, func() {
+		open := renderSmokeViewer(t, viewer, page)
+		mustContain(t, open, `id="registerForm"`)
+		mustNotContain(t, open, "sign-ups are temporarily closed")
+		mustNotContain(t, open, `<fieldset class="contents" disabled>`)
+	})
+
+	withSettings(t, settings.Snapshot{RegistrationOpen: false, RatedEnabled: true}, func() {
+		closed := renderSmokeViewer(t, viewer, page)
+		mustContain(t, closed, `id="registerForm"`) // still present, just inert
+		mustContain(t, closed, "sign-ups are temporarily closed")
+		mustContain(t, closed, `<fieldset class="contents" disabled>`)
+		// the login form is untouched: closing signups is not a lockout
+		mustContain(t, closed, `id="loginForm"`)
+	})
+}
+
+// TestRenderRatedPaused covers the create-game modal while ratings are paused:
+// the live rated badge is replaced by an inert unrated one, and the player's
+// other choices are left alone. Pausing ratings must not take clocks away, so
+// the casual toggle stays free and the time controls stay selectable — the
+// server forces Rated off regardless of what the form submits.
+func TestRenderRatedPaused(t *testing.T) {
+	page := Index(PageMeta("home"), nil, message.SiteStats{})
+	viewer := Viewer{UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true}
+	// the casual checkbox, exactly as it renders when nothing has touched it
+	freeCasual := `<input type="checkbox" class="cg-toggle-box cg-casual-box" name="casual" value="true">`
+
+	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: true}, func() {
+		on := renderSmokeViewer(t, viewer, page)
+		mustNotContain(t, on, "Rated games are temporarily disabled")
+		mustContain(t, on, "Counts toward your rating") // live badge
+		mustContain(t, on, freeCasual)
+	})
+
+	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: false}, func() {
+		off := renderSmokeViewer(t, viewer, page)
+		mustContain(t, off, "cg-rated-paused")
+		mustContain(t, off, "Rated games are temporarily disabled")
+		mustNotContain(t, off, "Counts toward your rating") // live badge replaced
+		// the casual toggle is untouched: not checked, not disabled
+		mustContain(t, off, freeCasual)
+		mustNotContain(t, off, `<input type="hidden" name="casual"`)
+		// who-can-join is a separate question and stays available
+		mustContain(t, off, `name="allow_anon"`)
+	})
+
+	// an anonymous visitor is not invited to log in "for rated play" while
+	// there is no rated play to log in for
+	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: false}, func() {
+		anon := renderSmokeViewer(t, Viewer{UID: "u", AccountsEnabled: true}, page)
+		mustContain(t, anon, "cg-rated-paused")
+		mustNotContain(t, anon, "to play rated games")
+	})
+}
+
+// TestRenderMaintenanceBanner: the maintenance bar is its own element, on every
+// page, independent of whether an admin notice happens to be set. The two stack
+// when both are active.
+func TestRenderMaintenanceBanner(t *testing.T) {
+	page := About(PageMeta("about"), "main")
+
+	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: true}, func() {
+		mustNotContain(t, renderSmoke(t, page), "maintenance-notice")
+	})
+
+	withSettings(t, settings.Snapshot{Maintenance: true, RegistrationOpen: true, RatedEnabled: true}, func() {
+		out := renderSmoke(t, page)
+		mustContain(t, out, "maintenance-notice")
+		mustContain(t, out, "New games are paused")
+		mustNotContain(t, out, "site-notice ") // no admin notice set
+	})
+
+	withSettings(t, settings.Snapshot{
+		Maintenance: true, NoticeText: "back at 21:00", NoticeLevel: settings.LevelWarn,
+		RegistrationOpen: true, RatedEnabled: true,
+	}, func() {
+		both := renderSmoke(t, page)
+		mustContain(t, both, "maintenance-notice")
+		mustContain(t, both, "back at 21:00")
+	})
+}
+
+// TestActiveNoticesOf derives the /system stand-down list from a snapshot. The
+// clear value for each row must be the setting change that returns it to the
+// default — a stand-down button that re-posts the current state is worse than
+// no button.
+func TestActiveNoticesOf(t *testing.T) {
+	if got := ActiveNoticesOf(settings.Snapshot{
+		RegistrationOpen: true, RatedEnabled: true,
+	}); len(got) != 0 {
+		t.Fatalf("default site has %d active notices: %+v", len(got), got)
+	}
+
+	all := ActiveNoticesOf(settings.Snapshot{
+		Maintenance: true, RegistrationOpen: false, RatedEnabled: false,
+		NoticeText: "hello",
+	})
+	if len(all) != 4 {
+		t.Fatalf("got %d notices, want 4: %+v", len(all), all)
+	}
+	// ordered by how much a visitor is affected
+	wantOrder := []string{"Maintenance mode", "Registration closed", "Rated games paused", "Site notice"}
+	for i, want := range wantOrder {
+		if all[i].Title != want {
+			t.Errorf("notice %d = %q, want %q", i, all[i].Title, want)
+		}
+	}
+	wantClear := map[string]string{
+		"maintenance": "0", "registrationOpen": "1", "ratedEnabled": "1", "notice": "",
+	}
+	for _, n := range all {
+		if got, ok := wantClear[n.Setting]; !ok || got != n.ClearValue {
+			t.Errorf("%s clears with %q, want %q", n.Setting, n.ClearValue, got)
+		}
+	}
+	// the site notice carries its own text so an admin can see what they are
+	// taking down without going hunting for it
+	if all[3].Detail != "hello" {
+		t.Errorf("site notice detail = %q, want the notice text", all[3].Detail)
+	}
+}
+
+// TestRenderStaffLinks: the console shortcuts appear in the profile popover for
+// a moderator and nobody else.
+func TestRenderStaffLinks(t *testing.T) {
+	page := Index(PageMeta("home"), nil, message.SiteStats{})
+
+	plain := renderSmokeViewer(t, Viewer{
+		UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true,
+	}, page)
+	mustNotContain(t, plain, `href="/system"`)
+	mustNotContain(t, plain, `href="/moderation"`)
+
+	staff := renderSmokeViewer(t, Viewer{
+		UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true, Role: role.Mod,
+	}, page)
+	mustContain(t, staff, `href="/system"`)
+	mustContain(t, staff, `href="/moderation"`)
+	// renamed security section
+	mustContain(t, staff, "Account Security")
+	mustNotContain(t, staff, "Two-factor &amp; passkeys")
+}
+
+// TestRenderModBarSelf covers an admin looking at their own player page: the
+// harmless edits are offered, ban and role are not, and the bar says why rather
+// than silently showing a shorter set of controls.
+func TestRenderModBarSelf(t *testing.T) {
+	m := profileFixture()
+	m.ShowMod = true
+	m.Mod = ModBarView{
+		IsSelf:      true,
+		CanSetRole:  false, // no self-demotion
+		CanBan:      false, // no self-ban
+		CurrentRole: "admin",
+		Titles:      []TitleOptionView{{ID: "1", Code: "OG", Name: "Original Gamer"}},
+		Roles:       AssignableRoles(),
+	}
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, `id="modForm"`)
+	mustContain(t, out, "Your account")
+	mustContain(t, out, "not available on your own account")
+	mustContain(t, out, `data-mod-action="title"`) // still yours to change
+	mustContain(t, out, `data-mod-action="rename"`)
+	mustNotContain(t, out, `data-mod-action="ban"`)
+	mustNotContain(t, out, `data-mod-action="role"`)
+	// the ban blurb goes with the ban control
+	mustNotContain(t, out, "ends any game in progress")
+}
+
+// TestRenderModHistoryLink: a truncated history says so and links to the full
+// record on /system rather than growing a second pager here.
+func TestRenderModHistoryLink(t *testing.T) {
+	m := profileFixture()
+	m.ShowMod = true
+	m.Mod = ModBarView{
+		CanBan: true,
+		Actions: []ModFeedEntry{
+			{When: "yesterday", Actor: "cdpplayer", Action: "ban", Reason: "cheating"},
+		},
+		ActionsTotal: 37,
+		HistoryURL:   AuditURL(ModActionQuery{Query: "drewtest", Page: 1}),
+	}
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, out, "latest 1 of 37")
+	mustContain(t, out, `href="/system?q=drewtest"`)
+	mustContain(t, out, "See everything involving this account")
+
+	// a complete history needs no link out
+	m.Mod.ActionsTotal = 1
+	m.Mod.HistoryURL = ""
+	whole := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, whole, "1 entry")
+	mustNotContain(t, whole, "See everything involving this account")
+}
+
+// TestDetailChipsOf covers the audit payload rendering: stable ordering with
+// the before/after pair first, JSON's float64 numbers printed without a decimal
+// tail, booleans as words, and every key carrying an explanation.
+func TestDetailChipsOf(t *testing.T) {
+	if got := DetailChipsOf(nil); got != nil {
+		t.Errorf("nil detail produced %+v", got)
+	}
+
+	chips := DetailChipsOf(map[string]any{
+		"forfeited": float64(2),
+		"to":        "admin",
+		"permanent": false,
+		"from":      "mod",
+	})
+	var keys []string
+	for _, c := range chips {
+		keys = append(keys, c.Key)
+		if c.Help == "" {
+			t.Errorf("chip %q has no tooltip", c.Key)
+		}
+	}
+	// from/to lead — a before/after pair reads backwards any other way — then
+	// the rest alphabetically
+	want := []string{"from", "to", "forfeited", "permanent"}
+	if strings.Join(keys, ",") != strings.Join(want, ",") {
+		t.Errorf("chip order = %v, want %v", keys, want)
+	}
+
+	byKey := map[string]string{}
+	for _, c := range chips {
+		byKey[c.Key] = c.Value
+	}
+	if byKey["forfeited"] != "2" {
+		t.Errorf("float64 rendered as %q, want \"2\"", byKey["forfeited"])
+	}
+	if byKey["permanent"] != "no" {
+		t.Errorf("false rendered as %q, want \"no\"", byKey["permanent"])
+	}
+	// an empty string is an em dash, never a blank that reads as a bug
+	if got := DetailChipsOf(map[string]any{"from": ""})[0].Value; got != "—" {
+		t.Errorf("empty value rendered as %q, want an em dash", got)
+	}
+}
+
+// TestActionClassAndHelp: every verb the log can record has its own tint and a
+// human explanation, and an unknown verb still renders rather than blanking.
+func TestActionClassAndHelp(t *testing.T) {
+	seen := map[string]bool{}
+	for _, kind := range ModActionKinds {
+		class, help := ActionClass(kind), ActionHelp(kind)
+		if class == "" || help == "" {
+			t.Errorf("%q: class=%q help=%q", kind, class, help)
+		}
+		if help == "Moderation action" {
+			t.Errorf("%q falls through to the generic help text", kind)
+		}
+		seen[class] = true
+	}
+	// sanctions and their reversal must not share a colour
+	if ActionClass("ban") == ActionClass("unban") {
+		t.Error("ban and unban render identically")
+	}
+	if got := ActionClass("something-new"); got == "" {
+		t.Error("unknown action has no class")
+	}
+}
+
+// TestSettingEffect: every switch states its consequence in both directions,
+// and the two directions differ.
+func TestSettingEffect(t *testing.T) {
+	for _, key := range []string{"maintenance", "registrationOpen", "ratedEnabled"} {
+		on, off := SettingEffect(key, true), SettingEffect(key, false)
+		if on == "" || off == "" {
+			t.Errorf("%q: on=%q off=%q", key, on, off)
+		}
+		if on == off {
+			t.Errorf("%q reads the same in both directions", key)
+		}
+	}
+}
+
+// TestRenderAuditRowFields locks the per-field rendering: each part is its own
+// tinted element, the timestamp and every chip carry a tooltip, and a
+// site-level entry says so instead of showing an empty target.
+func TestRenderAuditRowFields(t *testing.T) {
+	f := AuditFeed{Page: 1, Pages: 1, Actions: []ModFeedEntry{{
+		When: "2 days ago", WhenExact: "2026-07-23 11:22:33 UTC",
+		Actor: "drewtest", Action: "ban", Target: "spammer99",
+		Reason: "engine assistance",
+		Details: DetailChipsOf(map[string]any{
+			"duration": "permanent", "forfeited": float64(1),
+		}),
+	}}}
+	out := renderSmoke(t, AuditFeedBody(f))
+
+	mustContain(t, out, `class="audit-action act-ban"`)
+	mustContain(t, out, `title="2026-07-23 11:22:33 UTC"`) // exact time on hover
+	mustContain(t, out, `class="audit-actor"`)
+	mustContain(t, out, `class="audit-target"`)
+	mustContain(t, out, `href="/@/drewtest"`) // both parties link to their pages
+	mustContain(t, out, `href="/@/spammer99"`)
+	mustContain(t, out, `class="audit-chip-key"`)
+	mustContain(t, out, "forfeited")
+	mustContain(t, out, templ.EscapeString("Live games this ban ended as a forfeit"))
+	mustContain(t, out, "engine assistance")
+
+	// a site-level entry names itself rather than rendering an empty target
+	site := AuditFeed{Page: 1, Pages: 1, Actions: []ModFeedEntry{{
+		When: "just now", Actor: "drewtest", Action: "setting", Reason: "window",
+		Details: DetailChipsOf(map[string]any{"maintenance": true}),
+	}}}
+	siteOut := renderSmoke(t, AuditFeedBody(site))
+	mustContain(t, siteOut, "site-wide")
+	mustContain(t, siteOut, `class="audit-action act-setting"`)
+	mustNotContain(t, siteOut, `class="audit-target"`)
+}
+
+// TestRenderConfirmModal: the site controls carry the change summary and its
+// consequence for the confirmation, and the reason lives in the modal rather
+// than at the top of the form.
+func TestRenderConfirmModal(t *testing.T) {
+	m := systemFixture()
+	out := renderSmoke(t, System(SystemMeta(), m))
+
+	mustContain(t, out, `id="modalConfirmChange"`)
+	mustContain(t, out, `id="confirmReason"`)
+	mustContain(t, out, `id="confirmSummary"`)
+	// each control describes its own change + effect for the modal to show
+	mustContain(t, out, `data-confirm="Turn on: Maintenance mode"`)
+	mustContain(t, out, templ.EscapeString(SettingEffect("maintenance", true)))
+	mustContain(t, out, `data-confirm="Set the site notice"`)
+	// the form no longer carries a reason field of its own
+	if strings.Contains(out, `<form id="settingsForm"`) {
+		formPart := out[strings.Index(out, `<form id="settingsForm"`):]
+		formPart = formPart[:strings.Index(formPart, "</form>")]
+		if strings.Contains(formPart, `name="reason"`) {
+			t.Error("settings form still carries its own reason field")
+		}
+	}
+
+	// a non-admin moderator gets neither the controls nor the modal
+	m.IsAdmin = false
+	mod := renderSmoke(t, System(SystemMeta(), m))
+	mustNotContain(t, mod, `id="modalConfirmChange"`)
+}
+
+// TestRenderModBarConfirmFlow: the player-page mod bar no longer carries its own
+// reason field, ships the shared confirmation modal, and each action states its
+// consequence for that modal to show. The account name rides on the form so the
+// confirmation can name who is being acted on.
+func TestRenderModBarConfirmFlow(t *testing.T) {
+	m := profileFixture()
+	m.ShowMod = true
+	m.Mod = ModBarView{
+		Username:    "drewtest",
+		CanBan:      true,
+		CanSetRole:  true,
+		CurrentRole: "player",
+		Titles:      []TitleOptionView{{ID: "1", Code: "OG", Name: "Original Gamer"}},
+		Roles:       AssignableRoles(),
+	}
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, `id="modalConfirmChange"`)
+	mustContain(t, out, `id="confirmReason"`)
+	mustContain(t, out, `data-username="drewtest"`)
+	// every action carries its consequence
+	for _, act := range []string{"ban", "title", "role", "rename"} {
+		mustContain(t, out, `data-mod-action="`+act+`"`)
+	}
+	mustContain(t, out, "Ends any game in progress as a forfeit")
+	mustContain(t, out, "signs it out so the new role takes effect immediately")
+
+	// the bar's own reason field is gone — it lives in the modal now
+	form := out[strings.Index(out, `<form id="modForm"`):]
+	form = form[:strings.Index(form, "</form>")]
+	if strings.Contains(form, `name="reason"`) {
+		t.Error("mod bar still carries its own reason field")
+	}
+	// and the standing ban blurb moved into the confirmation, where it is read
+	// at the moment it matters
+	mustNotContain(t, form, "A ban ends any game in progress")
+
+	// no modal for a page without the bar
+	plain := profileFixture()
+	mustNotContain(t, renderSmoke(t, Profile(ProfileMeta(plain), plain)), `id="modalConfirmChange"`)
+}
+
+// TestRenderModHistoryChips: the player page renders the same audit row the
+// /system feed does — payload chips and tooltips included — minus the target,
+// which on that page is the page itself.
+func TestRenderModHistoryChips(t *testing.T) {
+	m := profileFixture()
+	m.ShowMod = true
+	m.Mod = ModBarView{
+		Username: "drewtest",
+		CanBan:   true,
+		Actions: []ModFeedEntry{{
+			When: "yesterday", WhenExact: "2026-07-24 08:00:00 UTC",
+			Actor: "cdpplayer", Action: "ban", Reason: "engine assistance",
+			Details: DetailChipsOf(map[string]any{
+				"duration": "7 days", "forfeited": float64(1),
+			}),
+		}},
+		ActionsTotal: 1,
+	}
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, `class="audit-action act-ban"`)
+	mustContain(t, out, `title="2026-07-24 08:00:00 UTC"`)
+	mustContain(t, out, `class="audit-chip-key"`)
+	mustContain(t, out, "forfeited")
+	mustContain(t, out, templ.EscapeString("Live games this ban ended as a forfeit"))
+	// the target is this page, so it is not repeated on every row
+	mustNotContain(t, out, `class="audit-target"`)
+	mustNotContain(t, out, "site-wide")
+}
+
+// TestRenderReportQueue covers /moderation: open reports render with their
+// category tint and links out to the account and the evidence, and the queue
+// carries no sanction controls of its own — acting happens on the player page,
+// where the record is visible.
+func TestRenderReportQueue(t *testing.T) {
+	m := ModerationModel{
+		OpenCount: 2,
+		Open: []ReportView{{
+			ID: "7", When: "2 hours ago", WhenExact: "2026-07-26 09:00:00 UTC",
+			Category: "cheating", Class: ReportCategoryClass("cheating"),
+			Help: ReportCategoryHelp("cheating"), Note: "instant moves from a lost position",
+			Reporter: "drewtest", Target: "spammer99",
+			GameURL: "/game/abc-123",
+		}},
+		Closed: []ReportView{{
+			ID: "6", Category: "stalling", Class: ReportCategoryClass("stalling"),
+			Help: ReportCategoryHelp("stalling"), Target: "someone",
+			Resolved: "yesterday", Resolver: "drewtest", Resolution: "warned",
+		}},
+	}
+	out := renderSmoke(t, Moderation(ModerationMeta(), m))
+
+	mustContain(t, out, "2 reports waiting")
+	mustContain(t, out, `class="report-cat rep-severe"`)
+	mustContain(t, out, "spammer99")
+	mustContain(t, out, `href="/@/spammer99"`)  // straight to the account
+	mustContain(t, out, `href="/game/abc-123"`) // the evidence
+	mustContain(t, out, "instant moves from a lost position")
+	mustContain(t, out, `data-resolve-report="7"`)
+	mustContain(t, out, "Recently resolved")
+	mustContain(t, out, "warned")
+	// the queue does not sanction: no ban/role controls live here
+	mustNotContain(t, out, `data-mod-action="ban"`)
+	mustNotContain(t, out, `data-mod-action="role"`)
+
+	// empty queue explains where reports come from
+	empty := renderSmoke(t, Moderation(ModerationMeta(), ModerationModel{}))
+	mustContain(t, empty, "Nothing waiting")
+	mustNotContain(t, empty, "Recently resolved")
+}
+
+// TestReportCategoryMapping: every category the database accepts has a tint,
+// an explanation and a picker label, so a new one cannot be added to the CHECK
+// constraint and render as a bare slug.
+func TestReportCategoryMapping(t *testing.T) {
+	for _, c := range ReportCategoriesForPicker() {
+		if ReportCategoryClass(c) == "" {
+			t.Errorf("%q has no tint", c)
+		}
+		if help := ReportCategoryHelp(c); help == "" || help == "Reported behaviour" {
+			t.Errorf("%q falls through to the generic help", c)
+		}
+		if label := ReportCategoryLabel(c); label == "" || label == c {
+			t.Errorf("%q has no picker label", c)
+		}
+	}
+	// severity is distinguishable
+	if ReportCategoryClass("cheating") == ReportCategoryClass("other") {
+		t.Error("a cheating report reads the same as an unspecified one")
+	}
+}
+
+// TestRenderLiveOps covers the /system ops section: the counters, a room list
+// that links through to spectate, and the admin-only force-close.
+func TestRenderLiveOps(t *testing.T) {
+	m := systemFixture()
+	m.Live = LiveOps{
+		Online: 12, LiveGames: 3, OpenChallenges: 1,
+		Rooms: []LiveRoomView{
+			{RoomID: "abc123", URL: "/abc123", Variant: "½ + 1 blitz",
+				Moves: "14 moves", Kind: "playing"},
+			{RoomID: "bot456", URL: "/bot456", Variant: "1 + 2 rapid",
+				Moves: "2 moves", VsBot: true, Kind: "playing"},
+		},
+		Truncated: 5,
+	}
+	admin := renderSmoke(t, System(SystemMeta(), m))
+	mustContain(t, admin, "Right now")
+	mustContain(t, admin, ">12<") // online
+	mustContain(t, admin, `href="/abc123"`)
+	mustContain(t, admin, "½ + 1 blitz")
+	mustContain(t, admin, "14 moves")
+	mustContain(t, admin, ">bot<") // the bot marker
+	mustContain(t, admin, "5 more not shown")
+	mustContain(t, admin, `data-close-room="abc123"`)
+
+	// a moderator sees the picture but cannot force-close
+	m.IsAdmin = false
+	mod := renderSmoke(t, System(SystemMeta(), m))
+	mustContain(t, mod, "Right now")
+	mustContain(t, mod, `href="/abc123"`)
+	mustNotContain(t, mod, "data-close-room")
+
+	// empty
+	quiet := systemFixture()
+	quiet.Live = LiveOps{}
+	mustContain(t, renderSmoke(t, System(SystemMeta(), quiet)), "No rooms are live.")
 }

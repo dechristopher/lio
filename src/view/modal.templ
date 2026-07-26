@@ -1,6 +1,9 @@
 package view
 
-import "github.com/dechristopher/lio/pools"
+import (
+	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/settings"
+)
 
 // createGameModal is the custom-game dialog opened from the home page. It is a
 // horizontal two-panel layout: a left "setup" panel (opponent toggle, casual
@@ -62,7 +65,9 @@ templ createGameModal() {
 						     joiners and so makes it unrated. An anonymous creator instead
 						     gets the locked variant, since rated play needs an account. Kept
 						     always-visible to avoid layout shift. -->
-						if viewer(ctx).LoggedIn {
+						if !settings.Current().RatedEnabled {
+							@ratedPausedBadge()
+						} else if viewer(ctx).LoggedIn {
 							<div class="cg-rated" aria-live="polite">
 								<span class="cg-rated-badge">
 									@iconTrophy("cg-rated-ico")
@@ -74,6 +79,8 @@ templ createGameModal() {
 									<span class="cg-rated-line" data-state="off">Just for fun — unrated</span>
 								</span>
 							</div>
+						}
+						if viewer(ctx).LoggedIn {
 							<label class="cg-toggle cg-allow-anon">
 								<input type="checkbox" class="cg-toggle-box cg-allow-anon-box" name="allow_anon" value="true"/>
 								<span class="cg-toggle-text">
@@ -82,7 +89,9 @@ templ createGameModal() {
 								</span>
 								<span class="cg-switch" aria-hidden="true"></span>
 							</label>
-						} else if viewer(ctx).AccountsEnabled {
+						} else if viewer(ctx).AccountsEnabled && settings.Current().RatedEnabled {
+							<!-- only worth inviting an anonymous visitor to log in for rated
+							     play while rated play actually exists -->
 							<div class="cg-rated cg-rated-locked">
 								<span class="cg-rated-badge">
 									@iconLock("cg-rated-ico")
@@ -240,4 +249,25 @@ templ createGameModal() {
 	<link rel="prefetch" href="/res/img/cburnett/wK.svg"/>
 	<link rel="prefetch" href="/res/img/cburnett/bK.svg"/>
 	<link rel="prefetch" href="/res/img/cburnett/wbK.svg"/>
+}
+
+// ratedPausedBadge replaces the interactive rated-status display while ratings
+// are paused site-wide (/system). The live badge is swapped out rather than
+// driven to its "off" state because no combination of the controls beside it
+// can produce a rated game right now — a status display that still reacted to
+// them would be describing a choice the visitor does not have.
+//
+// Time controls and the casual toggle are deliberately untouched: a paused
+// rating pool is no reason to take clocks away, and the server already forces
+// Rated off regardless of what the form submits.
+templ ratedPausedBadge() {
+	<div class="cg-rated cg-rated-paused" role="status">
+		<span class="cg-rated-badge">
+			@iconTrophy("cg-rated-ico")
+			UNRATED
+		</span>
+		<span class="cg-rated-copy">
+			<span class="cg-rated-line" data-state="on">Rated games are temporarily disabled</span>
+		</span>
+	</div>
 }

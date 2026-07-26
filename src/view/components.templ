@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/title"
 )
 
@@ -14,7 +15,44 @@ import (
 // class list (base width + caps), so a page whose content uses a different
 // width formula (the room game grid's min(96vw,…)) can align the header edges
 // exactly to it.
+// siteNotice renders the admin-set announcement banner above the header, on
+// every page (arch/ADMIN_MODERATION.md Phase 3). Distinct from Meta.Notice,
+// which is a per-request one-shot on the home page ("that room is gone"): this
+// one is site state, set from /mod and shown until it is cleared. Renders
+// nothing when unset, which is the overwhelmingly common case.
+//
+// It reads the settings snapshot directly rather than being threaded through
+// every page's Meta — a banner that has to be remembered on each new page is a
+// banner that will be missing from one.
+templ siteNotice(width string) {
+	if notice := settings.Current(); notice.NoticeText != "" {
+		<div class={ "site-notice " + noticeLevelClass(notice.NoticeLevel) + " " + width } role="status">
+			{ notice.NoticeText }
+		</div>
+	}
+}
+
+// maintenanceNotice is the standing "the site is in maintenance mode" bar,
+// rendered on every page above the admin notice. Deliberately its own element
+// rather than a variant of siteNotice: the admin banner is arbitrary copy that
+// may be saying something else entirely (or nothing), and the fact that no new
+// game can be started must not depend on someone having remembered to write it
+// down. The two stack when both are active.
+//
+// It states the *consequence* rather than the mode name, because "maintenance
+// mode" tells a player nothing about whether they can play.
+templ maintenanceNotice(width string) {
+	if settings.Current().Maintenance {
+		<div class={ "maintenance-notice " + width } role="status">
+			<span class="maintenance-badge">Maintenance</span>
+			<span>New games are paused. Games already in progress are unaffected.</span>
+		</div>
+	}
+}
+
 templ header(width string) {
+	@maintenanceNotice(width)
+	@siteNotice(width)
 	<header class={ "flex items-center justify-between gap-4 max-[400px]:gap-2 pt-1 pb-3 " + width }>
 		<div class="flex min-w-0 flex-col items-start leading-none">
 			<a href="/" class="no-underline">
@@ -249,6 +287,13 @@ templ prefStub(label string) {
 // accountModal is the login/register dialog shown when Log in is clicked,
 // reusing the shared .modal-shade/.modal styling. The two forms swap via the
 // tab buttons (lio-auth.js); submission is fetch-driven against /api/auth.
+//
+// When registration is closed from /system the signup form stays rendered and
+// goes inert — a wrapping fieldset plus a notice saying why — rather than being
+// removed: the modal must not change shape, the Sign up tab must not lead
+// somewhere empty, and a visitor is owed a reason. The API refuses
+// independently; this is the explanation, never the enforcement. Logging in is
+// untouched, because closing signups is not a lockout.
 templ accountModal() {
 	<div id="modalAccount" class="modal-shade">
 		<div class="modal card">
@@ -271,25 +316,32 @@ templ accountModal() {
 				<button type="submit" class="btn btn-primary w-full justify-center py-2">Log in</button>
 			</form>
 			<form id="registerForm" class="mt-4 hidden flex-col gap-3 text-left" data-auth-form="register" novalidate>
-				<label class="auth-label">
-					Username
-					<input class="auth-input" name="username" type="text" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{2,19}"/>
-					<span class="auth-hint" data-auth-avail></span>
-				</label>
-				<label class="auth-label">
-					Password
-					<input class="auth-input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128"/>
-				</label>
-				<label class="auth-label">
-					Email <span class="text-fg-subtle">(optional)</span>
-					<input class="auth-input" name="email" type="email" autocomplete="email"/>
-				</label>
-				<p class="auth-hint">
-					Email is only used to recover your account. Skipping it means a
-					forgotten password can't be reset.
-				</p>
-				<p class="auth-error hidden" data-auth-error role="alert"></p>
-				<button type="submit" class="btn btn-primary w-full justify-center py-2">Create account</button>
+				if !settings.Current().RegistrationOpen {
+					<p class="auth-closed" role="status">
+						New account sign-ups are temporarily closed. Existing accounts can still log in.
+					</p>
+				}
+				<fieldset class="contents" disabled?={ !settings.Current().RegistrationOpen }>
+					<label class="auth-label">
+						Username
+						<input class="auth-input" name="username" type="text" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{2,19}"/>
+						<span class="auth-hint" data-auth-avail></span>
+					</label>
+					<label class="auth-label">
+						Password
+						<input class="auth-input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128"/>
+					</label>
+					<label class="auth-label">
+						Email <span class="text-fg-subtle">(optional)</span>
+						<input class="auth-input" name="email" type="email" autocomplete="email"/>
+					</label>
+					<p class="auth-hint">
+						Email is only used to recover your account. Skipping it means a
+						forgotten password can't be reset.
+					</p>
+					<p class="auth-error hidden" data-auth-error role="alert"></p>
+					<button type="submit" class="btn btn-primary w-full justify-center py-2">Create account</button>
+				</fieldset>
 			</form>
 			<!-- second-factor step: shown by lio-auth.js when login returns
 			     mfa:true. The tabs + login/register forms are hidden while it is
@@ -441,6 +493,28 @@ templ navScript() {
 			});
 			document.addEventListener("keydown", (e) => {
 				if (e.key === "Escape") { closeModal(); closeMenus(); }
+			});
+
+			// Back/forward restores land here with the DOM exactly as it was left,
+			// so a menu that was open when the visitor navigated away is still open
+			// when they come back — and since the script does not re-run, nothing
+			// closes it. Now that the profile popover contains real navigation
+			// (System / Moderation), that is easy to hit: open the menu, follow a
+			// link, press Back, and the menu is sitting there over the page with
+			// the scrim dimming everything behind it.
+			//
+			// On a restore, any open overlay is by definition stale: no script has
+			// run to open it. Nothing opens a menu or modal at load time, so this
+			// can never undo something a page meant to show. Guarded on persisted
+			// because a normal load re-runs everything already closed.
+			window.addEventListener("pageshow", (e) => {
+				if (!e.persisted) return;
+				closeMenus();
+				closeModal();
+				// the other modals belong to other scripts (auth, create-game, bot
+				// difficulty, moderation), but the rule is the same for all of them
+				document.querySelectorAll(".modal-shade.open")
+					.forEach((m) => m.classList.remove("open"));
 			});
 		})();
 	</script>
@@ -745,6 +819,16 @@ templ board(payload message.RoomTemplatePayload) {
 							<button id="result-home" type="button" class="result-btn result-home">Home</button>
 						</div>
 						<button id="result-analyze" type="button" class="result-analyze">Analyze board</button>
+						<!-- Reporting the opponent, offered only where it can mean
+						     something: a logged-in viewer who played this game against
+						     another account. A bot, an anonymous opponent, a spectator
+						     or a logged-out viewer all render nothing rather than a
+						     control that would be refused. Understated on purpose —
+						     it sits below the result, not beside Rematch, because
+						     most games end without anyone needing it. -->
+						if opp := reportableOpponent(payload); opp != "" && viewer(ctx).LoggedIn {
+							<button id="result-report" type="button" class="result-report" data-report-target={ opp }>Report { opp }</button>
+						}
 						<div id="result-countdown" class="result-countdown"></div>
 					</div>
 					<!-- shown once the result card is dismissed for board review; restores it -->
@@ -841,4 +925,50 @@ templ seatBotMarker(isBot bool, glyph string) {
 			}
 		</span>
 	}
+}
+
+// confirmActionModal is the single confirmation step shared by every privileged
+// change — the site controls on /system and the moderation bar on a player
+// page. It replaces two things that sat badly together: a reason field parked
+// at the top of a form (asking for a justification before you had chosen what
+// to justify) and a browser confirm() carrying a generic sentence.
+//
+// The modal states the specific change, who or what it lands on, and its
+// consequence, then asks for the reason in the same breath — which is the order
+// the decision actually happens in, and means the reason is typed against a
+// change the operator can still see. Naming the target matters most on a player
+// page, where acting on the wrong account is the classic mistake.
+//
+// lio-mod.js fills the summary and owns the submit; the shell is server-rendered
+// so the markup and styling live with the rest of the page.
+templ confirmActionModal() {
+	<div id="modalConfirmChange" class="modal-shade">
+		<div class="modal card">
+			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
+			<h2 id="confirmTitle">Confirm change</h2>
+			<div class="mt-3 text-left">
+				<div id="confirmSummary" class="confirm-summary"></div>
+				<form id="confirmForm" class="mt-3 flex flex-col gap-3" novalidate>
+					<label class="auth-label">
+						Reason
+						<input
+							id="confirmReason"
+							class="auth-input"
+							name="reason"
+							type="text"
+							maxlength="500"
+							autocomplete="off"
+							required
+							placeholder="Recorded in the audit log"
+						/>
+					</label>
+					<p id="confirmError" class="auth-error hidden" role="alert"></p>
+					<div class="flex items-stretch gap-2">
+						<button type="button" id="confirmCancel" class="btn btn-ghost flex-1 justify-center py-2">Cancel</button>
+						<button type="submit" id="confirmApply" class="btn btn-primary flex-1 justify-center py-2">Confirm</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
 }

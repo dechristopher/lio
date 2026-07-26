@@ -43,6 +43,16 @@ type Game struct {
 	BotPersona       *string
 }
 
+type ModAction struct {
+	ID           int64
+	CreatedAt    pgtype.Timestamptz
+	ActorUserID  int64
+	TargetUserID *int64
+	Action       string
+	Detail       []byte
+	Reason       string
+}
+
 type Move struct {
 	GameRef    int32
 	PositionID int32
@@ -80,6 +90,20 @@ type RecoveryCode struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Report struct {
+	ID             int64
+	CreatedAt      pgtype.Timestamptz
+	ReporterUserID int64
+	TargetUserID   int64
+	GameID         pgtype.UUID
+	Category       string
+	Note           string
+	Status         string
+	ResolvedAt     pgtype.Timestamptz
+	ResolvedBy     *int64
+	Resolution     *string
+}
+
 type Room struct {
 	ID            int32
 	RoomID        string
@@ -114,6 +138,13 @@ type Session struct {
 	UserAgent string
 }
 
+type Setting struct {
+	Key       string
+	Value     string
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy *int64
+}
+
 type Title struct {
 	ID        int16
 	CreatedAt pgtype.Timestamptz
@@ -132,6 +163,9 @@ type User struct {
 	WebauthnUserHandle []byte
 	UsernameChangedAt  pgtype.Timestamptz
 	TitleID            *int16
+	Role               string
+	BannedUntil        pgtype.Timestamptz
+	BanReason          *string
 }
 
 type WebauthnCredential struct {

@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/dechristopher/lio/db/gen"
+	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/title"
 )
 
@@ -42,6 +42,14 @@ type UserRecord struct {
 	// (casing-only) username change (arch polish pass). Drives the Edit Profile
 	// UI's availability state; the change itself is enforced atomically in SQL.
 	UsernameChanged bool
+	// Role is the account's site permission level (arch/ADMIN_MODERATION.md),
+	// Player for the vast majority. Carried into the session/Viewer so the
+	// render can gate the moderation UI.
+	Role role.Role
+	// Ban is the account's sanction status, decoded from the ban columns. The
+	// login path refuses a banned account; the player page renders a neutral
+	// closed state and suppresses its ratings.
+	Ban BanState
 }
 
 // CreateUser inserts a registration row, returning the new user's id. A
@@ -54,8 +62,7 @@ func CreateUser(username string, email *string, passwordHash string) (int64, err
 		Email:        email,
 		PasswordHash: passwordHash,
 	})
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	if isUniqueViolation(err) {
 		return 0, ErrUsernameTaken
 	}
 	if err != nil {
@@ -86,6 +93,8 @@ func GetUserByID(id int64) (UserRecord, bool, error) {
 		Title:           title.New(row.TitleCode, row.TitleName),
 		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
 		UsernameChanged: u.UsernameChangedAt.Valid,
+		Role:            role.Parse(u.Role),
+		Ban:             banFrom(u.BannedUntil, u.BanReason),
 	}, true, nil
 }
 
@@ -111,6 +120,8 @@ func GetUserByUsername(username string) (UserRecord, bool, error) {
 		Title:           title.New(row.TitleCode, row.TitleName),
 		TOTPConfirmed:   u.TotpConfirmedAt.Valid,
 		UsernameChanged: u.UsernameChangedAt.Valid,
+		Role:            role.Parse(u.Role),
+		Ban:             banFrom(u.BannedUntil, u.BanReason),
 	}, true, nil
 }
 

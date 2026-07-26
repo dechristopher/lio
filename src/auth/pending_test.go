@@ -4,21 +4,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/title"
 )
 
 // TestPendingLifecycle: issue → resolve (non-consuming) → consume, plus the
 // rejections for unknown/empty/expired tokens.
 func TestPendingLifecycle(t *testing.T) {
-	gm := title.Title{Code: "GM", Name: "Grandmaster"}
-	tok := NewPending(42, "drew", gm)
+	acct := AccountInfo{
+		UserID:   42,
+		Username: "drew",
+		Title:    title.Title{Code: "GM", Name: "Grandmaster"},
+		Role:     role.Mod,
+	}
+	tok := NewPending(acct)
 	if tok == "" {
 		t.Fatal("empty pending token")
 	}
 
 	// resolvable, and resolving does not consume (a failed factor is retryable);
-	// username + title both round-trip into the pending record
-	if p, ok := ResolvePending(tok); !ok || p.UserID != 42 || p.Username != "drew" || p.Title != gm {
+	// the whole account identity — name, title and role — round-trips into the
+	// pending record, so completing a second factor needs no second user read
+	if p, ok := ResolvePending(tok); !ok || p.AccountInfo != acct {
 		t.Fatalf("resolve: ok=%v p=%+v", ok, p)
 	}
 	if _, ok := ResolvePending(tok); !ok {
@@ -40,7 +47,7 @@ func TestPendingLifecycle(t *testing.T) {
 	}
 
 	// expired entries are rejected (and dropped) — insert one directly
-	expired := NewPending(7, "old", title.Title{})
+	expired := NewPending(AccountInfo{UserID: 7, Username: "old"})
 	pendingStore.Lock()
 	e := pendingStore.m[expired]
 	e.expires = time.Now().Add(-time.Minute)

@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/dechristopher/lio/db/gen"
+	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/title"
 )
 
@@ -19,11 +20,17 @@ import (
 // SessionRecord is the decoupled session row (joined with its user, when any)
 // handed to the auth package.
 type SessionRecord struct {
-	ID        int64
-	UID       string
-	UserID    *int64
-	Username  string      // empty for anonymous sessions
-	Title     title.Title // account's optional display title, zero for anon
+	ID       int64
+	UID      string
+	UserID   *int64
+	Username string      // empty for anonymous sessions
+	Title    title.Title // account's optional display title, zero for anon
+	Role     role.Role   // account's permission level, Player for anon
+	// Banned reports an in-force sanction on the attached account. Banning
+	// deletes the account's session rows, so this should not normally be true;
+	// it is the backstop for a row that outlived the revocation sweep, and the
+	// resolver treats such a session as unresolvable.
+	Banned    bool
 	LastSeen  time.Time
 	ExpiresAt time.Time
 }
@@ -59,6 +66,8 @@ func GetSessionByTokenHash(tokenHash []byte) (SessionRecord, bool, error) {
 		UID:       s.Uid,
 		UserID:    s.UserID,
 		Title:     title.New(s.TitleCode, s.TitleName),
+		Role:      role.Parse(strOrEmpty(s.Role)),
+		Banned:    banFrom(s.BannedUntil, nil).Banned,
 		LastSeen:  s.LastSeen.Time,
 		ExpiresAt: s.ExpiresAt.Time,
 	}
