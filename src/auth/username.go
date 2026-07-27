@@ -10,7 +10,7 @@ import (
 
 // Username policy: 3–20 characters, letters/digits/underscore/hyphen, must
 // start with a letter or digit. Uniqueness is case-insensitive (the
-// lower(username) unique index) while display case is preserved. Renames are
+// lower(username) unique index) while display casing is preserved. Renames are
 // not offered initially.
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,19}$`)
 
@@ -22,6 +22,7 @@ var reservedUsernames = map[string]struct{}{
 	"lioctad": {}, "lioctad-org": {}, "lioctad_org": {}, "lichess": {}, "octad": {}, "octad-gg": {}, "octad_gg": {}, "lio": {},
 	"you": {}, "player": {}, "opponent": {}, "spectator": {},
 	"system": {}, "root": {}, "staff": {}, "support": {}, "official": {},
+	"pawn": {}, "knight": {}, "bishop": {}, "rook": {}, "queen": {}, "king": {}, "board": {},
 }
 
 var (
