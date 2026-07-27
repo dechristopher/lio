@@ -1658,9 +1658,11 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 		CreatorUserID: r.params.CreatorUserID,
 		RaceTo:        r.params.RaceTo,
 		Rated:         r.params.Rated,
-		WhiteScore:    r.players[octad.White].Score(),
-		BlackScore:    r.players[octad.Black].Score(),
-		Reason:        r.gameOverReasonLocked(false),
+		// player.Score() is the accumulated *match* score, which is what both
+		// the games row's match-score columns and the rooms row want
+		WhiteMatchScore: r.players[octad.White].Score(),
+		BlackMatchScore: r.players[octad.Black].Score(),
+		Reason:          r.gameOverReasonLocked(false),
 		// account identity + PGN-ready display names for each seat, captured
 		// here under stateMu (not reachable from the game copy, which carries
 		// only uids). WhiteName/BlackName render "BOT"/"Anonymous"/<username>.

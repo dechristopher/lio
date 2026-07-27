@@ -79,7 +79,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 		@roomAnonCta()
 		<div class="game-grid">
 			<div id="clockOpponent" class="clockOpponent ga-opp" data-bot={ strconv.FormatBool(topClockIsBot(payload)) }>
-				@clock(topClockTitle(payload), topClockName(payload), topClockBotGlyph(payload), topClockRating(payload), 0)
+				@clock(topClockTitle(payload), topClockName(payload), topClockBotGlyph(payload), topClockRating(payload), 0, topClockProfile(payload))
 			</div>
 			<div class="ga-board">
 				@board(payload)
@@ -109,8 +109,7 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<span class="tl-divider" aria-hidden="true"></span>
 						}
 						@seatBotMarker(topClockIsBot(payload), topClockBotGlyph(payload))
-						@playerTitle(topClockTitle(payload))
-						<span class="tl-name">{ topClockName(payload) }</span>
+						@timelineName(topClockTitle(payload), topClockName(payload), topClockProfile(payload))
 						<span class="tl-total">0</span>
 					</div>
 					<div class="tl-id" id="tl-row-player">
@@ -119,15 +118,14 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<span class="tl-divider" aria-hidden="true"></span>
 						}
 						@seatBotMarker(bottomClockIsBot(payload), bottomClockBotGlyph(payload))
-						@playerTitle(bottomClockTitle(payload))
-						<span class="tl-name">{ bottomClockName(payload) }</span>
+						@timelineName(bottomClockTitle(payload), bottomClockName(payload), bottomClockProfile(payload))
 						<span class="tl-total">0</span>
 					</div>
 					<div class="tl-games" role="list"></div>
 				</div>
 			</div>
 			<div id="clockPlayer" class="clockPlayer ga-you" data-bot={ strconv.FormatBool(bottomClockIsBot(payload)) }>
-				@clock(bottomClockTitle(payload), bottomClockName(payload), bottomClockBotGlyph(payload), bottomClockRating(payload), 0)
+				@clock(bottomClockTitle(payload), bottomClockName(payload), bottomClockBotGlyph(payload), bottomClockRating(payload), 0, bottomClockProfile(payload))
 			</div>
 			<aside class="ga-rail">
 				<div class="rail-stack">

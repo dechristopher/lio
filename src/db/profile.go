@@ -34,6 +34,18 @@ func (r Record) Points() float64 {
 	return float64(r.Wins) + 0.5*float64(r.Draws)
 }
 
+// Lifetime is an account's whole-history facts beyond the win/draw/loss tally:
+// when they first played and how long they have spent at the board. Both ride
+// along on the totals query, which already scans exactly these rows.
+//
+// Played is wall-clock game duration summed across every game, so it counts
+// both sides' thinking — it is "time spent playing octad", not "time this
+// account's clock ran". FirstGame is zero for an account with no games.
+type Lifetime struct {
+	FirstGame time.Time
+	Played    time.Duration
+}
+
 // VariantRecord is a Record scoped to one time control.
 type VariantRecord struct {
 	Name  string
@@ -64,6 +76,13 @@ type ProfileGame struct {
 	Reason       string
 	// Score is this account's result in the game: 1, 0.5 or 0.
 	Score float32
+	// Plies is the game's length in half-moves.
+	Plies int
+	// OppRating is the opponent's display rating going into the game ("1520" /
+	// "1500?"), empty for an unrated game or an anon/bot seat. Delta is the
+	// change this game made to *this* account's rating; nil when unrated.
+	OppRating string
+	Delta     *int
 	// Opponent identity. Name is empty for an anonymous human; IsBot marks the
 	// engine seat, in which case BotPersona names the difficulty.
 	OpponentName  string
@@ -103,16 +122,24 @@ func ListGamesForUser(userID int64, limit, offset int32) ([]ProfileGame, error) 
 			Reason:       r.Reason,
 			BotPersona:   strOrEmpty(r.BotPersona),
 		}
+		// The result comes from outcome + seat, never from white_score /
+		// black_score: those hold the *cumulative match score* at the time the
+		// game finished, so from game 2 of a match onward they are not this
+		// game's result at all (see the header note in db/query/profile.sql).
+		g.Score = SeatScore(r.Outcome, asWhite)
+		g.Plies = int(r.Plies)
 		if asWhite {
-			g.Score = r.WhiteScore
 			g.OpponentName = strOrEmpty(r.BlackUsername)
 			g.OpponentTitle = strOrEmpty(r.BlackTitleCode)
 			g.OpponentIsBot = game.SeatIsBot(r.BlackUid, r.BlackUserID)
+			g.OppRating = strOrEmpty(r.BlackRating)
+			g.Delta = intOrNil(r.WhiteRatingDelta)
 		} else {
-			g.Score = r.BlackScore
 			g.OpponentName = strOrEmpty(r.WhiteUsername)
 			g.OpponentTitle = strOrEmpty(r.WhiteTitleCode)
 			g.OpponentIsBot = game.SeatIsBot(r.WhiteUid, r.WhiteUserID)
+			g.OppRating = strOrEmpty(r.WhiteRating)
+			g.Delta = intOrNil(r.BlackRatingDelta)
 		}
 		if !g.OpponentIsBot {
 			// bot_persona is stamped on the game, not the seat; it is
@@ -124,23 +151,65 @@ func ListGamesForUser(userID int64, limit, offset int32) ([]ProfileGame, error) 
 	return out, nil
 }
 
-// TotalsForUser returns an account's lifetime record.
-func TotalsForUser(userID int64) (Record, error) {
+// intOrNil widens an optional archived rating delta, dropping the storage width.
+func intOrNil(v *int16) *int {
+	if v == nil {
+		return nil
+	}
+	n := int(*v)
+	return &n
+}
+
+// SeatScore is one seat's result in a game: 1 for a win, 0.5 for a draw, 0 for
+// a loss. The Go twin of the CASE every profile aggregate uses, and the only
+// correct way to read a per-game result out of the archive — the
+// games.*_match_score columns are match-cumulative and cannot answer it (see the
+// header note in db/query/profile.sql).
+//
+// Exported because the archive page needs the same answer for its match
+// timeline; one implementation means the profile and the archive cannot come to
+// different conclusions about who won a game.
+func SeatScore(outcome string, asWhite bool) float32 {
+	switch outcome {
+	case "1/2-1/2":
+		return 0.5
+	case "1-0":
+		if asWhite {
+			return 1
+		}
+	case "0-1":
+		if !asWhite {
+			return 1
+		}
+	}
+	return 0
+}
+
+// TotalsForUser returns an account's lifetime record along with the whole-history
+// facts the identity card shows beside it. One query, because the totals scan
+// already visits precisely the rows both answers need.
+func TotalsForUser(userID int64) (Record, Lifetime, error) {
 	if Pool == nil {
-		return Record{}, nil
+		return Record{}, Lifetime{}, nil
 	}
 	ctx, cancel := Ctx()
 	defer cancel()
 	row, err := gen.New(Pool).ProfileTotals(ctx, &userID)
 	if err != nil {
-		return Record{}, err
+		return Record{}, Lifetime{}, err
 	}
 	return Record{
-		Games:  row.Games,
-		Wins:   row.Wins,
-		Draws:  row.Draws,
-		Losses: row.Losses,
-	}, nil
+			Games:  row.Games,
+			Wins:   row.Wins,
+			Draws:  row.Draws,
+			Losses: row.Losses,
+		}, Lifetime{
+			// Valid is false for an account with no games at all, where min()
+			// over an empty set is NULL — the zero Time the view reads as "no
+			// first game yet".
+			FirstGame: row.FirstGame.Time,
+			Played:    time.Duration(row.PlayedSeconds) * time.Second,
+		}, nil
 }
 
 // VariantRecordsForUser returns an account's record per time control, busiest

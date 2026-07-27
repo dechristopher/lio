@@ -3061,6 +3061,138 @@
 
 	/* --- player pages (/@/username) ------------------------------------- */
 
+	/* The chess-piece glyphs that stand in for a bot's difficulty come from a
+	   fallback font whose baseline sits well below the surrounding text's, so
+	   they hang low against a name. inline-block + line-height:1 detaches the
+	   glyph from the line's leading, and the small lift centres it on the
+	   x-height rather than the baseline. */
+	.piece-glyph {
+		display: inline-block;
+		line-height: 1;
+		vertical-align: -0.06em;
+	}
+
+	/* A username is a way to reach that player's page. Styled as ordinary text
+	   until hovered, so a name in a clock or a popover does not read as a
+	   call to action it is not. */
+	.player-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		min-width: 0;
+		color: inherit;
+		text-decoration: none;
+		transition: color 150ms var(--ease-snappy);
+	}
+	.player-link:hover { color: var(--accent); }
+
+	/* --- refresh control -------------------------------------------------- */
+
+	.hero-aside { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+	.refresh-row {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: 0.68rem;
+		color: var(--text-subtle);
+	}
+	.refresh-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: color 150ms var(--ease-snappy), border-color 150ms var(--ease-snappy);
+	}
+	.refresh-btn:hover { border-color: var(--border-strong); color: var(--text); }
+	.refresh-btn svg { width: 0.85rem; height: 0.85rem; }
+	/* spins only while a refresh is actually in flight */
+	.refresh-btn.is-busy svg { animation: refresh-spin 700ms linear infinite; }
+	@keyframes refresh-spin { to { transform: rotate(360deg); } }
+
+	/* --- hero card -------------------------------------------------------- */
+
+	/* The page's high-level view: who this is, the two figures that summarise a
+	   whole history, and every rating held. Built as separate blocks rather than
+	   one dense line because this is where trophies and customisation will hang
+	   off later, and a row of prose has nowhere to put them. */
+	.hero-top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+	.hero-id { min-width: 0; }
+	.hero-name {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem;
+		font-family: var(--font-display);
+		font-size: 1.6rem;
+		line-height: 1.15;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.hero-since { margin-top: 0.2rem; font-size: 0.78rem; color: var(--text-subtle); }
+
+	/* figures, not prose: these are the numbers a visitor scans for */
+	.hero-figures { display: flex; gap: 0.5rem; }
+	.hero-figure {
+		display: flex;
+		min-width: 4.5rem;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.05rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+	}
+	.hero-figure-value {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 1.15rem;
+		font-weight: 700;
+		line-height: 1.1;
+		color: var(--text);
+	}
+	.hero-figure-label {
+		font-size: 0.62rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-subtle);
+	}
+
+	/* a hairline rather than a heading: the tiles label themselves, so a
+	   "Ratings" caption above them would be a word doing no work */
+	.hero-ratings {
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border);
+	}
+	.hero-rating-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.hero-ratings-empty { font-size: 0.78rem; color: var(--text-subtle); }
+
+	.hero-h2h {
+		margin-top: 0.85rem;
+		font-size: 0.78rem;
+		color: var(--text-muted);
+	}
+	.hero-h2h-score {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-weight: 700;
+		color: var(--text);
+	}
+
 	/* one rating per time control the account has actually played */
 	.rating-tile {
 		display: flex;
@@ -3072,11 +3204,840 @@
 		background: var(--surface-2);
 	}
 	.rating-tile-cat {
+		display: flex;
+		align-items: baseline;
+		gap: 0.3rem;
 		font-size: 0.68rem;
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		color: var(--text-muted);
+	}
+	/* speed group / mode qualifier beside the time control ("1 + 2 rapid") */
+	.rating-tile-speed { font-weight: 500; color: var(--text-subtle); }
+
+	/* --- record analytics ------------------------------------------------- */
+
+	/* Section heading for every statistics card. Real <h2>s under the page's
+	   single <h1>, so the page outlines correctly for a screen reader and for
+	   search. Set in the display face at the same weight as the name above them,
+	   one step smaller — the old treatment (uppercase, letter-spaced, muted,
+	   0.75rem) exists to make *tiny* text legible and reads as shouting once the
+	   text is large enough to not need it. */
+	.stat-title {
+		font-family: var(--font-display);
+		font-size: 1.125rem;
+		line-height: 1.3;
+		font-weight: 700;
+		color: var(--text);
+	}
+
+	/* two distribution cards side by side once there is room for both. They
+	   answer the same question ("what shape is a typical game") and pairing them
+	   uses the width the player page was widened for. */
+	.stat-pair { display: grid; grid-template-columns: 1fr; gap: 0; }
+	@media (min-width: 52rem) {
+		.stat-pair { grid-template-columns: 1fr 1fr; gap: 0 0.75rem; }
+		.stat-pair > .card { margin-bottom: 0.75rem; }
+	}
+
+	/* The proportional win/draw/loss mark. Unlike the rating curve these ARE
+	   semantic, so they wear --win/--draw/--loss — the same tokens the clocks and
+	   archive use, and the three the board theme deliberately does not retint. */
+	.wdl-bar {
+		display: flex;
+		width: 100%;
+		height: 0.5rem;
+		overflow: hidden;
+		border-radius: 999px;
+		background: var(--surface-2);
+	}
+	/* a 2px surface gap separates touching segments — the separator is negative
+	   space, never a stroke, which would add ink that is not data */
+	.wdl-seg + .wdl-seg { margin-left: 2px; }
+	.wdl-seg.win { background: var(--win); }
+	.wdl-seg.draw { background: var(--draw); }
+	.wdl-seg.loss { background: var(--loss); }
+
+	.wdl-legend {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		margin-top: 0.75rem;
+		font-size: 0.68rem;
+		color: var(--text-subtle);
+	}
+	.wdl-key {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 2px;
+	}
+	.wdl-key:not(:first-child) { margin-left: 0.5rem; }
+	.wdl-key.win { background: var(--win); }
+	.wdl-key.draw { background: var(--draw); }
+	.wdl-key.loss { background: var(--loss); }
+
+
+	/* how-games-end rows: the track width ranks the methods by frequency, the
+	   bar inside it splits that method's games by result */
+	.ending-row { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; }
+	.ending-label { flex: none; width: 8.5rem; color: var(--text); }
+	.ending-track { flex: 0 1 auto; min-width: 1rem; }
+	.ending-count {
+		flex: none;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+	}
+
+	/* game-length histogram */
+	.length-chart {
+		position: relative;
+		display: grid;
+		grid-template-columns: repeat(5, 1fr);
+		gap: 0.4rem;
+		margin-top: 0.75rem;
+	}
+	.length-col { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+	.length-bar-wrap {
+		display: flex;
+		align-items: flex-end;
+		width: 100%;
+		height: 4.5rem;
+	}
+	/* the column grows from a single baseline; its fill is the same W/D/L split
+	   the other cards use, rotated upright */
+	.length-bar {
+		display: flex;
+		width: 100%;
+		min-height: 2px;
+		border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+		overflow: hidden;
+	}
+	/* Wins on top, draws in the middle, losses at the bottom — the same order the
+	   legend and every readout list them in, so the stack can be read without
+	   re-deriving which end is which. (Plain `column`, not `column-reverse`: the
+	   segments are emitted win-first.) */
+	.length-bar .wdl-bar {
+		flex-direction: column;
+		width: 100%;
+		height: 100%;
+		border-radius: inherit;
+	}
+	.length-bar .wdl-seg + .wdl-seg { margin-left: 0; margin-top: 2px; }
+
+	/* the dominant share, on its own line above the bars so every column's label
+	   sits on one baseline and none can collide with a tall neighbour */
+	.length-top {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.68rem;
+		font-weight: 700;
+		min-height: 1rem;
+		color: var(--text-subtle);
+	}
+	.length-top.win { color: var(--win); }
+	.length-top.draw { color: var(--draw); }
+	.length-top.loss { color: var(--loss); }
+
+	.length-col { cursor: default; }
+	.length-tip {
+		position: absolute;
+		z-index: 2;
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.25rem 0.45rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		box-shadow: var(--shadow-sm);
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.68rem;
+		font-weight: 700;
+		white-space: nowrap;
+		pointer-events: none;
+		/* horizontal centring only — the vertical anchor is set in JS to the top
+		   of the bar area, so the tooltip never covers the share labels above it */
+		transform: translateX(-50%);
+	}
+	.length-tip-seg.win { color: var(--win); }
+	.length-tip-seg.draw { color: var(--draw); }
+	.length-tip-seg.loss { color: var(--loss); }
+	.length-count {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.7rem;
+		color: var(--text-muted);
+	}
+	.length-label { font-size: 0.62rem; color: var(--text-subtle); }
+
+	/* Recent-form strip: matches, oldest to newest. The *group* is the wrapping
+	   unit — a match never splits across a line break, so the pips above a score
+	   always belong to it. Column gap is wide, row gap wider still, so the eye
+	   reads groups rather than one long dotted run. */
+	.form-strip {
+		/* The column gap is a variable because the separator dot sits at exactly
+		   half of it; hard-coding both let them drift apart. It also has to clear
+		   the newest game's ring, which is drawn 4px outside its pip (2px offset
+		   + 2px stroke) — at 0.7rem the half-gap was 5.6px and the ring ran into
+		   the dot. */
+		--form-gap: 1rem;
+		/* vertical padding on *every* group, matches and lone games alike, so a
+		   match's filled panel has room to breathe without pushing its pips out
+		   of line with the bare pips beside it */
+		--form-pad-y: 0.35rem;
+		display: flex;
+		flex-wrap: wrap;
+		/* top-aligned so every pip sits on one line whatever a group carries
+		   below it — a match has a score under it, a lone game does not */
+		align-items: flex-start;
+		gap: 0.9rem var(--form-gap);
+		margin-top: 0.75rem;
+	}
+	.form-group {
+		position: relative;
+		display: flex;
+		flex: 0 0 auto;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.25rem;
+		padding: var(--form-pad-y) 0;
+	}
+	/* A match reads as one unit by sitting on its own ground — no rules, no
+	   outline. --surface-2 is a step darker than the card in both themes, so the
+	   panel recedes rather than shouting, and the score below is plainly inside
+	   it with the games. Being a background rather than geometry, it also cannot
+	   collide with the accent ring of a game hovered inside it. */
+	.form-group.is-match {
+		padding: var(--form-pad-y) 0.5rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+	}
+	/* Two lone games in a row get a dot between them instead of rules: bracketing
+	   a single pip would be louder than the pip itself, but with the scores gone
+	   the games still need something saying they are separate contests rather
+	   than one run. The adjacent-sibling selector places it only *between* lone
+	   games — never after a match, whose rule already does the separating. */
+	.form-group.is-single + .form-group.is-single .form-pips::before {
+		content: "·";
+		position: absolute;
+		/* dead centre of the gap: `left` positions the box edge and the -50%
+		   translate re-centres it, so this lands the glyph's centre exactly
+		   halfway between the two pips it separates */
+		left: calc(var(--form-gap) / -2);
+		/* anchored to the pip row rather than the group, so it stays centred as
+		   the pips grow to fill a wide card */
+		top: 50%;
+		transform: translate(-50%, -50%);
+		color: var(--text-subtle);
+		opacity: 0.55;
+		font-size: 0.8rem;
+		line-height: 1;
+		pointer-events: none;
+	}
+	/* A group that wraps onto a new line still matches the selector above, which
+	   would strand a dot at the start of a row with nothing to its left. CSS
+	   cannot express "first on its line", so lio-profile.js marks the row starts
+	   and this outranks the rule above (five classes to four). */
+	.form-group.is-single + .form-group.is-single.is-rowstart .form-pips::before {
+		content: none;
+	}
+	/* The pips fill their group, sharing its width equally. align-items is
+	   flex-start so each pip's aspect-ratio governs its height rather than being
+	   stretched to the row. No wrapping here: the *group* is the wrapping unit,
+	   so a long match reflows as a whole rather than splitting in half. */
+	.form-pips {
+		position: relative;
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 0.25rem;
+		width: 100%;
+	}
+	.form-group.is-match { cursor: pointer; }
+	.form-score {
+		text-decoration: none;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.form-score.win { color: var(--win); }
+	.form-score.draw { color: var(--draw); }
+	.form-score.loss { color: var(--loss); }
+	/* a match the page's window cut into: the score is of the games shown, not
+	   the match's final score, so it is marked rather than asserted flatly */
+	.form-score.is-partial::before { content: "\2039\2009"; color: var(--text-subtle); }
+
+	/* The group readout. Always occupies its line, so hovering or tapping a match
+	   fills it without moving anything — and unlike a floating tooltip it can
+	   never cover the streak line above or the groups below. */
+	.form-readout {
+		min-height: 1.15rem;
+		margin-top: 0.6rem;
+		font-size: 0.72rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	/* --text, matching the newest game's ring exactly: the label and the pip it
+	   points at are the same colour, which is the whole reason it exists */
+	.form-readout-latest { font-weight: 700; color: var(--text); }
+	/* the result half wears the same win/draw/loss token the pip does, so one
+	   outcome reads as one colour wherever it appears on the page */
+	.form-readout-result { font-weight: 700; color: var(--text); }
+	.form-readout-result.win { color: var(--win); }
+	.form-readout-result.draw { color: var(--draw); }
+	.form-readout-result.loss { color: var(--loss); }
+	.form-readout-detail { color: var(--text-muted); }
+	/* The flex items of .form-pips are the <li> wrappers, not the anchors inside
+	   them — an <ol>'s children are its items. Sizing has to live here. */
+	.form-pips > li {
+		display: flex;
+		flex: 0 0 auto;
+		width: 1.1rem;
+	}
+	.form-pip {
+		display: block;
+		width: 100%;
+		aspect-ratio: 1;
+		border-radius: var(--radius-sm);
+		transition: transform 150ms var(--ease-snappy);
+	}
+
+	/* Wide viewports only: groups grow in proportion to how many games they hold
+	   (--pips, set server-side since CSS cannot count children) and the pips
+	   inside share that width, so the strip fills the card instead of stranding
+	   whitespace on the right.
+	   Deliberately not applied when the strip wraps: each wrapped row
+	   distributes its own slack, so a sparse last row would balloon its pips to
+	   twice the size of the row above it. Below this width the strip keeps fixed
+	   pips and wraps, which is the behaviour that reads consistently. */
+	@media (min-width: 52rem) {
+		.form-group { flex: var(--pips, 1) 1 auto; }
+		.form-pips > li {
+			flex: 1 1 0;
+			width: auto;
+			min-width: 1.1rem;
+			/* the ceiling that stops a three-game history rendering as three
+			   enormous squares */
+			max-width: 2.4rem;
+		}
+	}
+	.form-pip:hover { transform: scale(1.18); }
+	/* the newest game. An outline draws outside the box, so highlighting it
+	   changes no geometry and shifts nothing around it. */
+	.form-pip.is-latest {
+		outline: 2px solid var(--text);
+		outline-offset: 2px;
+	}
+	/* Whatever is currently being read. The accent is right here where it would
+	   be wrong on a data series: this is an interaction state, the same job
+	   --focus-ring does elsewhere, so following the player's board theme is the
+	   point rather than a hazard. Declared after .is-latest so hovering the
+	   newest game recolours its ring instead of fighting it. */
+	.form-pip.is-focus {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	/* A focused match lifts its own ground a step rather than taking a ring or an
+	   accent wash: the accent belongs to the one thing being pointed at, and a
+	   second outline nested inside the group's would collide with the hovered
+	   game's however either was offset. */
+	.form-group.is-match.is-focus {
+		background: color-mix(in srgb, var(--text) 10%, var(--surface-2));
+	}
+	.form-pip.win { background: var(--win); }
+	.form-pip.draw { background: var(--draw); }
+	.form-pip.loss { background: var(--loss); }
+	.form-streak { font-weight: 700; }
+	.form-streak.win { color: var(--win); }
+	.form-streak.draw { color: var(--draw); }
+	.form-streak.loss { color: var(--loss); }
+
+	/* --- activity heatmap ------------------------------------------------- */
+
+	/* One grid for the whole year, so it can *stretch*. `minmax(--cell-min, 1fr)`
+	   does both jobs at once: on a wide card the columns grow past the minimum
+	   and fill the container, leaving no dead strip on the right; on a phone the
+	   minimum wins, the grid overflows, and the box below scrolls it. The page
+	   itself must never scroll sideways. */
+	.heatmap {
+		--cell-min: 0.72rem;
+		width: 100%;
+	}
+	/* the tooltip's containing block, outside the scrolling box so it cannot be
+	   cropped by it */
+	.heatmap-wrap { position: relative; }
+	.heatmap-scroll {
+		overflow-x: auto;
+		margin-top: 0.75rem;
+		padding-bottom: 0.25rem;
+	}
+	.heatmap-months,
+	.heatmap-grid {
+		display: grid;
+		grid-template-columns: repeat(53, minmax(var(--cell-min), 1fr));
+		gap: 2px;
+	}
+	.heatmap-months {
+		margin-bottom: 0.15rem;
+		font-size: 0.6rem;
+		color: var(--text-subtle);
+	}
+	.heatmap-month { grid-row: 1; white-space: nowrap; }
+	/* seven rows filled column-first, so each column is one week */
+	.heatmap-grid {
+		grid-template-rows: repeat(7, auto);
+		grid-auto-flow: column;
+	}
+
+	.heatmap-day, .heatmap-key {
+		border-radius: 2px;
+		background: var(--surface-2);
+	}
+	/* square at whatever width the column settles on */
+	.heatmap-day { aspect-ratio: 1; width: 100%; }
+	.heatmap-key { width: 0.72rem; height: 0.72rem; }
+
+	/* Volume: a sequential ramp in the accent hue. A single hue for magnitude is
+	   the rule; that it follows the player's board theme is fine here precisely
+	   because there is only one series — there is no second colour for it to
+	   become confusable with. */
+	.heatmap[data-mode="volume"] .heatmap-day.l0,
+	.heatmap-key.l0 { background: var(--surface-2); }
+	.heatmap[data-mode="volume"] .heatmap-day.l1,
+	.heatmap-key.l1 { background: color-mix(in srgb, var(--accent) 28%, var(--surface-2)); }
+	.heatmap[data-mode="volume"] .heatmap-day.l2,
+	.heatmap-key.l2 { background: color-mix(in srgb, var(--accent) 50%, var(--surface-2)); }
+	.heatmap[data-mode="volume"] .heatmap-day.l3,
+	.heatmap-key.l3 { background: color-mix(in srgb, var(--accent) 74%, var(--surface-2)); }
+	.heatmap[data-mode="volume"] .heatmap-day.l4,
+	.heatmap-key.l4 { background: var(--accent); }
+
+	/* Win rate: diverging, two hues around a neutral middle — never a hue at the
+	   midpoint, which would imply a third category. A day with no games stays
+	   empty in this mode too; it has no rate to report. */
+	.heatmap[data-mode="rate"] .heatmap-day.l0 { background: var(--surface-2); }
+	.heatmap[data-mode="rate"] .heatmap-day:not(.l0).r0,
+	.heatmap-key.r0 { background: var(--loss); }
+	.heatmap[data-mode="rate"] .heatmap-day:not(.l0).r1,
+	.heatmap-key.r1 { background: color-mix(in srgb, var(--loss) 55%, var(--surface-2)); }
+	.heatmap[data-mode="rate"] .heatmap-day:not(.l0).r2,
+	.heatmap-key.r2 { background: color-mix(in srgb, var(--draw) 60%, var(--surface-2)); }
+	.heatmap[data-mode="rate"] .heatmap-day:not(.l0).r3,
+	.heatmap-key.r3 { background: color-mix(in srgb, var(--win) 55%, var(--surface-2)); }
+	.heatmap[data-mode="rate"] .heatmap-day:not(.l0).r4,
+	.heatmap-key.r4 { background: var(--win); }
+
+	/* days after today: the calendar starts on a week boundary, so the last
+	   column runs past the present. Holes, not zero-activity days. */
+	.heatmap-day.is-future { background: transparent; }
+
+	/* the hovered square. An outline rather than a border so the cell's geometry
+	   — and therefore the whole grid — does not move under the pointer. */
+	.heatmap-day.is-focus {
+		outline: 2px solid var(--text);
+		outline-offset: 1px;
+		position: relative;
+		z-index: 1;
+	}
+
+	.heatmap-tip {
+		position: absolute;
+		z-index: 3;
+		padding: 0.3rem 0.5rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		box-shadow: var(--shadow-sm);
+		font-size: 0.7rem;
+		line-height: 1.35;
+		white-space: nowrap;
+		pointer-events: none;
+		transform: translate(-50%, -100%);
+	}
+	.heatmap-tip-when { color: var(--text-subtle); }
+	.heatmap-tip-main { display: block; font-weight: 700; color: var(--text); }
+	.heatmap-tip-main .win { color: var(--win); }
+	.heatmap-tip-main .draw { color: var(--draw); }
+	.heatmap-tip-main .loss { color: var(--loss); }
+
+	.heatmap-foot {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-top: 0.6rem;
+	}
+	.heatmap-legend {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: 0.65rem;
+		color: var(--text-subtle);
+	}
+	.heatmap-modes { display: flex; gap: 0.25rem; }
+	.heatmap-mode {
+		padding: 0.15rem 0.5rem;
+		border: 2px solid transparent;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		font-size: 0.65rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: color 150ms var(--ease-snappy), border-color 150ms var(--ease-snappy);
+	}
+	.heatmap-mode:hover { color: var(--text); }
+	.heatmap-mode.is-active { border-color: var(--border-strong); color: var(--text); }
+
+	/* --- most-played opponents + bot ladder -------------------------------- */
+
+	.opponent-row, .rung {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-size: 0.8rem;
+	}
+	.opponent-name {
+		flex: none;
+		width: 7.5rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--text);
+		text-decoration: none;
+	}
+	.opponent-name:hover { color: var(--accent); }
+	/* game count between the name and the bar: the bar shows the *shape* of a
+	   record and the rate its quality, but neither says how much evidence is
+	   behind it */
+	.opponent-games {
+		flex: none;
+		width: 2.6rem;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+	}
+	.opponent-track, .rung-track { flex: 1 1 auto; min-width: 1rem; }
+	/* An average scoring rate ("0.65"), not a percentage: this is points per
+	   game, the figure a scoreboard reports, and a percent sign invites reading
+	   it as a win *rate*, which counts draws as losses. Tinted by which side of
+	   even it falls, with exactly even staying neutral. */
+	.opponent-score, .rung-score {
+		flex: none;
+		width: 2.6rem;
+		text-align: right;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.opponent-score.win, .rung-score.win { color: var(--win); }
+	.opponent-score.draw, .rung-score.draw { color: var(--draw); }
+	.opponent-score.loss, .rung-score.loss { color: var(--loss); }
+
+	.rung-glyph { flex: none; font-size: 0.95rem; color: var(--text-muted); }
+	.game-opponent .piece-glyph { color: var(--text-muted); }
+	.rung-name { flex: none; width: 4rem; color: var(--text); }
+	.rung-score.is-unplayed { color: var(--text-subtle); font-weight: 500; }
+	/* never played: dimmed in place rather than hidden, so the shape of the climb
+	   and what is left of it both stay visible */
+	.rung.is-unplayed { opacity: 0.55; }
+
+	/* --- formations (octad-specific) -------------------------------------- */
+
+	.formation-head {
+		font-size: 0.68rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-subtle);
+	}
+	.formation-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		font-size: 0.8rem;
+	}
+	/* wide enough for the longest formation name ("The Standard") so the tracks
+	   beside them line up into a readable ranking */
+	.formation-name { flex: none; width: 6.5rem; color: var(--text); }
+	.formation-track { flex: 0 1 auto; min-width: 1rem; }
+	.formation-score {
+		flex: none;
+		width: 2.4rem;
+		text-align: right;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	/* below the reporting threshold: the game count instead of a score, muted,
+	   because a percentage off two games is noise dressed as a finding */
+	.formation-score.is-thin { font-weight: 500; color: var(--text-subtle); }
+
+	/* Two columns side by side once there is room, stacked below it. The row gap
+	   only takes effect when they stack — side by side they share one row — so it
+	   costs nothing at width and stops a stacked heading butting against the list
+	   above it. */
+	.formation-cols,
+	.matchup-cols {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1.1rem 0.75rem;
+	}
+	.matchup-cols { margin-top: 1.1rem; }
+	@media (min-width: 52rem) {
+		.formation-cols,
+		.matchup-cols { grid-template-columns: 1fr 1fr; }
+	}
+	.matchup-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		font-size: 0.8rem;
+	}
+	.matchup-name { flex: none; color: var(--text); font-weight: 600; }
+	/* the two formations behind the name, given room to ellipsize rather than
+	   push the score off the row */
+	.matchup-vs {
+		flex: 1 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.7rem;
+		color: var(--text-subtle);
+	}
+	.matchup-score {
+		flex: none;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+	.matchup-score.win { color: var(--win); }
+	.matchup-score.loss { color: var(--loss); }
+
+	/* --- rating curve ----------------------------------------------------- */
+
+	/* Chart ink is deliberately NOT --accent. The accent is retinted by the
+	   player's board theme, so a data series drawn in it would change hue with
+	   an unrelated preference, and it is the same green as --win, so the line
+	   would read as a "win" mark. The curve is neutral ink; only the peak takes
+	   a hue (--warn), which no board theme touches. */
+	.chart-panel {
+		--chart-ink: var(--text-muted);
+		--chart-peak: var(--warn);
+	}
+
+	/* one selector per time control; the rating tiles do this job too, this row
+	   is the fallback when the tiles are scrolled out of view */
+	.chart-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.75rem; }
+	.chart-tab {
+		padding: 0.2rem 0.55rem;
+		border: 2px solid transparent;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: color 150ms var(--ease-snappy), border-color 150ms var(--ease-snappy);
+	}
+	.chart-tab:hover { color: var(--text); }
+	.chart-tab.is-active { border-color: var(--border-strong); color: var(--text); }
+
+	/* the rating tile in its selectable form */
+	.rating-tile.is-selectable {
+		width: 100%;
+		text-align: left;
+		cursor: pointer;
+		transition: border-color 150ms var(--ease-snappy);
+	}
+	.rating-tile.is-selectable:hover { border-color: var(--border-strong); }
+	.rating-tile.is-selectable.is-active { border-color: var(--chart-ink, var(--text-muted)); }
+
+	/* only the active category's panel is in the layout. Panels are swapped, not
+	   resized, and every panel is the same height, so switching cannot shift the
+	   page under the pointer. */
+	.chart-panel { display: none; }
+	.chart-panel.is-active { display: block; }
+
+	.chart-figures { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 0.75rem; }
+	.chart-figure { display: flex; flex-direction: column; gap: 0.1rem; }
+	.chart-figure-label {
+		font-size: 0.62rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-subtle);
+	}
+	.chart-figure-value {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	/* the one genuinely semantic figure: a rating going up is good */
+	.chart-figure-value.is-up { color: var(--win); }
+	.chart-figure-value.is-down { color: var(--loss); }
+	.chart-figure-value.is-flat { color: var(--draw); }
+
+	.chart-plot {
+		position: relative;
+		margin-top: 0.5rem;
+		/* pan-y keeps the page scrollable through the chart while the horizontal
+		   axis belongs to the readout. The callout/selection suppressions stop
+		   iOS turning a press-and-hold on a data point into a text-selection
+		   gesture, which used to yank the reading away. */
+		touch-action: pan-y;
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+	.chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+	/* gridlines are solid hairlines one step off the surface — dashing them adds
+	   visual noise and competes with the data */
+	.chart-grid { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+	.chart-axis, .chart-label {
+		fill: var(--text-subtle);
+		font-family: var(--font-mono);
+		font-size: 10px;
+		font-variant-numeric: tabular-nums;
+	}
+	/* text never wears the data colour; the marker beside it carries identity */
+	.chart-label { fill: var(--text); font-weight: 700; }
+	.chart-label-peak { fill: var(--text-muted); font-weight: 600; }
+
+	.chart-area { fill: var(--chart-ink); opacity: 0.1; stroke: none; }
+	.chart-line {
+		fill: none;
+		stroke: var(--chart-ink);
+		stroke-width: 2;
+		stroke-linejoin: round;
+		stroke-linecap: round;
+		vector-effect: non-scaling-stroke;
+	}
+	/* the provisional stretch: same ink, dashed, because the rating there was
+	   still settling and the curve should not claim equal confidence */
+	.chart-line-prov { stroke-dasharray: 4 3; opacity: 0.65; }
+
+	/* markers carry a 2px ring in the surface colour so they stay legible where
+	   they cross the line */
+	.chart-dot {
+		stroke: var(--surface-2);
+		stroke-width: 2;
+		vector-effect: non-scaling-stroke;
+	}
+	.chart-dot-end { fill: var(--chart-ink); }
+	.chart-dot-peak { fill: var(--chart-peak); }
+
+	.chart-crosshair {
+		stroke: var(--border-strong);
+		stroke-width: 1;
+		vector-effect: non-scaling-stroke;
+		opacity: 0;
+	}
+	.chart-focus {
+		fill: var(--chart-ink);
+		stroke: var(--surface-2);
+		stroke-width: 2;
+		vector-effect: non-scaling-stroke;
+		opacity: 0;
+	}
+	.chart-plot.is-hovering .chart-crosshair,
+	.chart-plot.is-hovering .chart-focus { opacity: 1; }
+
+	.chart-tip {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 2;
+		padding: 0.25rem 0.45rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		box-shadow: var(--shadow-sm);
+		font-size: 0.72rem;
+		white-space: nowrap;
+		pointer-events: none;
+		transform: translate(-50%, -125%);
+	}
+	.chart-tip-rating {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.chart-tip-when { color: var(--text-subtle); }
+
+	/* sits directly under the plot: it annotates the dashed stretch, so distance
+	   from the line it describes is the one thing it cannot afford */
+	.chart-caption { margin-top: 0.15rem; font-size: 0.72rem; color: var(--text-subtle); }
+	.chart-caption-note { font-style: italic; }
+
+	/* the shared empty state for a statistics section. It occupies real height
+	   so a section that has not filled in yet does not resize the page when it
+	   does — the no-layout-shift rule the rest of the site follows. */
+	.stat-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 1.5rem 1rem;
+		border: 2px dashed var(--border);
+		border-radius: var(--radius-sm);
+		margin-top: 0.75rem;
+		text-align: center;
+	}
+	/* ghosted preview of the chart this section will draw. Empty in Phase 1;
+	   later phases pass a skeleton as the component's children. */
+	.stat-empty-ghost:empty { display: none; }
+	.stat-empty-ghost {
+		width: 100%;
+		max-width: 22rem;
+		opacity: 0.28;
+		color: var(--text-subtle);
+	}
+	.stat-empty-copy {
+		max-width: 34rem;
+		font-size: 0.85rem;
+		line-height: 1.45;
+		color: var(--text-muted);
+	}
+	.stat-empty-meter {
+		width: 100%;
+		max-width: 14rem;
+		height: 0.3rem;
+		overflow: hidden;
+		border-radius: 999px;
+		background: var(--surface-2);
+	}
+	/* the meter is progress toward unlocking a section, not a result, so it
+	   uses the neutral foreground rather than a semantic win/loss tint */
+	.stat-empty-fill {
+		height: 100%;
+		border-radius: inherit;
+		background: var(--border-strong);
+		transition: width 300ms var(--ease-snappy);
+	}
+	.stat-empty-progress {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.7rem;
+		color: var(--text-subtle);
 	}
 	.rating-tile-value {
 		font-family: var(--font-mono);
@@ -3096,18 +4057,65 @@
 		gap: 0.5rem;
 		font-size: 0.85rem;
 	}
+	/* Fixed label, elastic bar: the bar is what absorbs a wide card, so the
+	   counts stay beside it rather than being flung to the far edge — which is
+	   why these rows used to be capped instead of filling. */
 	.record-label { flex: 1 1 auto; min-width: 0; color: var(--text); }
+	/* the elastic column: it shrinks to nothing before any of the numbers beside
+	   it are allowed to reflow */
+	.record-track { flex: 1 1 0; min-width: 0.5rem; }
+	/* Fixed sub-columns, not just tabular figures: "24 / 5 / 32" and
+	   "0 / 0 / 2" are different *lengths*, so without a width per number the
+	   separators — and the whole cluster — shift row to row. */
 	.record-wdl {
 		flex: none;
+		/* No explicit width — the three fixed sub-columns already give this a
+		   deterministic size, and pinning it as well left the loss column a
+		   fraction short and wrapping it onto its own line. nowrap is the
+		   guarantee; the bar beside it is what gives way as the row narrows. */
+		white-space: nowrap;
+		text-align: right;
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
 		font-weight: 700;
+	}
+	.record-win, .record-draw, .record-loss {
+		display: inline-block;
+		width: 1.6rem;
+		text-align: right;
 	}
 	.record-win { color: var(--win); }
 	.record-draw { color: var(--draw); }
 	.record-loss { color: var(--loss); }
 	.record-sep { color: var(--text-subtle); padding: 0 0.15em; }
-	.record-total { flex: none; font-size: 0.75rem; color: var(--text-subtle); }
+	/* hidden on a narrow row: the W/D/L beside it already sums to this, and it
+	   is the field a phone can most afford to lose */
+	.record-total { display: none; }
+	@media (min-width: 52rem) {
+		.record-label { flex: none; width: 9rem; }
+		.record-total {
+			display: inline;
+			flex: none;
+			width: 4.6rem;
+			text-align: right;
+			font-size: 0.75rem;
+			color: var(--text-subtle);
+		}
+	}
+	/* the same scoring rate the social sections report, in the same vocabulary */
+	.record-rate {
+		flex: none;
+		width: 2.6rem;
+		text-align: right;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.record-rate.win { color: var(--win); }
+	.record-rate.draw { color: var(--draw); }
+	.record-rate.loss { color: var(--loss); }
 
 	/* one archived game in the recent-games list. Collapses to two lines on
 	   narrow viewports rather than ellipsizing the opponent away. */
@@ -3132,6 +4140,47 @@
 	.game-result.win { color: var(--win); }
 	.game-result.loss { color: var(--loss); }
 	.game-result.draw { color: var(--draw); }
+	/* result and how it ended, as one column */
+	.game-outcome { flex: none; display: flex; align-items: baseline; gap: 0.4rem; }
+	.game-ending {
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	/* The metadata cluster sits together at the right, so widening the card
+	   stretches the opponent column rather than scattering five fields across
+	   the row. Each field is a fixed width and right-aligned, which is what
+	   turns the cluster into columns that line up down the list instead of a
+	   ragged right edge. */
+	.game-meta {
+		flex: none;
+		display: flex;
+		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		text-align: right;
+	}
+	.game-opp-rating {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.72rem;
+		font-weight: 500;
+		color: var(--text-subtle);
+	}
+	.game-moves { flex: none; font-size: 0.75rem; color: var(--text-subtle); }
+	.game-delta {
+		flex: none;
+		text-align: right;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+	.game-delta.win { color: var(--win); }
+	.game-delta.draw { color: var(--draw); }
+	.game-delta.loss { color: var(--loss); }
 	.game-opponent {
 		flex: 1 1 8rem;
 		min-width: 0;
@@ -3148,6 +4197,20 @@
 		flex: none;
 		font-size: 0.75rem;
 		color: var(--text-subtle);
+	}
+
+	/* Fixed widths only once the row has room for them: they are what turns the
+	   metadata into columns that line up down the list, but on a phone the same
+	   widths add up past the card and push the whole page sideways. Below this
+	   the cluster simply wraps. */
+	@media (min-width: 52rem) {
+		.game-outcome { width: 11rem; }
+		.game-meta { flex-wrap: nowrap; }
+		.game-variant { width: 6.5rem; }
+		.game-mode { width: 3.4rem; }
+		.game-moves { width: 4.2rem; }
+		.game-delta { width: 2.4rem; }
+		.game-when { width: 5.8rem; }
 	}
 
 	/* --- moderation bar (moderators only) -------------------------------- */

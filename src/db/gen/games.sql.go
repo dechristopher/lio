@@ -24,7 +24,7 @@ func (q *Queries) CountGames(ctx context.Context) (int64, error) {
 }
 
 const getGameByUUID = `-- name: GetGameByUUID :one
-SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_score, black_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona FROM games WHERE game_id = $1
+SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_match_score, black_match_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona, rating_category FROM games WHERE game_id = $1
 `
 
 func (q *Queries) GetGameByUUID(ctx context.Context, gameID uuid.UUID) (Game, error) {
@@ -37,8 +37,8 @@ func (q *Queries) GetGameByUUID(ctx context.Context, gameID uuid.UUID) (Game, er
 		&i.EndTs,
 		&i.CreatedAt,
 		&i.RaceTo,
-		&i.WhiteScore,
-		&i.BlackScore,
+		&i.WhiteMatchScore,
+		&i.BlackMatchScore,
 		&i.Method,
 		&i.Casual,
 		&i.RoomID,
@@ -62,12 +62,13 @@ func (q *Queries) GetGameByUUID(ctx context.Context, gameID uuid.UUID) (Game, er
 		&i.WhiteRatingDelta,
 		&i.BlackRatingDelta,
 		&i.BotPersona,
+		&i.RatingCategory,
 	)
 	return i, err
 }
 
 const getRoomGameByIndex = `-- name: GetRoomGameByIndex :one
-SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_score, black_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona FROM games WHERE room_id = $1 AND game_index = $2
+SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_match_score, black_match_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona, rating_category FROM games WHERE room_id = $1 AND game_index = $2
 `
 
 type GetRoomGameByIndexParams struct {
@@ -85,8 +86,8 @@ func (q *Queries) GetRoomGameByIndex(ctx context.Context, arg GetRoomGameByIndex
 		&i.EndTs,
 		&i.CreatedAt,
 		&i.RaceTo,
-		&i.WhiteScore,
-		&i.BlackScore,
+		&i.WhiteMatchScore,
+		&i.BlackMatchScore,
 		&i.Method,
 		&i.Casual,
 		&i.RoomID,
@@ -110,6 +111,7 @@ func (q *Queries) GetRoomGameByIndex(ctx context.Context, arg GetRoomGameByIndex
 		&i.WhiteRatingDelta,
 		&i.BlackRatingDelta,
 		&i.BotPersona,
+		&i.RatingCategory,
 	)
 	return i, err
 }
@@ -198,15 +200,15 @@ func (q *Queries) HeadToHeadVsBot(ctx context.Context, arg HeadToHeadVsBotParams
 
 const insertGame = `-- name: InsertGame :one
 INSERT INTO games (
-    game_id, start_ts, end_ts, race_to, white_score, black_score, method,
+    game_id, start_ts, end_ts, race_to, white_match_score, black_match_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
     game_index, white_user_id, black_user_id, creator_user_id, rated,
     white_rating, black_rating, white_rating_delta, black_rating_delta,
-    bot_persona
+    bot_persona, rating_category
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
 )
 RETURNING id
 `
@@ -216,8 +218,8 @@ type InsertGameParams struct {
 	StartTs          pgtype.Timestamptz
 	EndTs            pgtype.Timestamptz
 	RaceTo           int32
-	WhiteScore       float32
-	BlackScore       float32
+	WhiteMatchScore  float32
+	BlackMatchScore  float32
 	Method           int16
 	Casual           bool
 	RoomID           string
@@ -241,6 +243,7 @@ type InsertGameParams struct {
 	WhiteRatingDelta *int16
 	BlackRatingDelta *int16
 	BotPersona       *string
+	RatingCategory   *string
 }
 
 func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (int32, error) {
@@ -249,8 +252,8 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (int32, 
 		arg.StartTs,
 		arg.EndTs,
 		arg.RaceTo,
-		arg.WhiteScore,
-		arg.BlackScore,
+		arg.WhiteMatchScore,
+		arg.BlackMatchScore,
 		arg.Method,
 		arg.Casual,
 		arg.RoomID,
@@ -274,6 +277,7 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (int32, 
 		arg.WhiteRatingDelta,
 		arg.BlackRatingDelta,
 		arg.BotPersona,
+		arg.RatingCategory,
 	)
 	var id int32
 	err := row.Scan(&id)
@@ -282,15 +286,15 @@ func (q *Queries) InsertGame(ctx context.Context, arg InsertGameParams) (int32, 
 
 const insertGameIfNew = `-- name: InsertGameIfNew :one
 INSERT INTO games (
-    game_id, start_ts, end_ts, race_to, white_score, black_score, method,
+    game_id, start_ts, end_ts, race_to, white_match_score, black_match_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
     game_index, white_user_id, black_user_id, creator_user_id, rated,
     white_rating, black_rating, white_rating_delta, black_rating_delta,
-    bot_persona
+    bot_persona, rating_category
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
 )
 ON CONFLICT (pgn_object_key) DO NOTHING
 RETURNING id
@@ -301,8 +305,8 @@ type InsertGameIfNewParams struct {
 	StartTs          pgtype.Timestamptz
 	EndTs            pgtype.Timestamptz
 	RaceTo           int32
-	WhiteScore       float32
-	BlackScore       float32
+	WhiteMatchScore  float32
+	BlackMatchScore  float32
 	Method           int16
 	Casual           bool
 	RoomID           string
@@ -326,6 +330,7 @@ type InsertGameIfNewParams struct {
 	WhiteRatingDelta *int16
 	BlackRatingDelta *int16
 	BotPersona       *string
+	RatingCategory   *string
 }
 
 // Same columns/order as InsertGame (so the generated param structs are
@@ -337,8 +342,8 @@ func (q *Queries) InsertGameIfNew(ctx context.Context, arg InsertGameIfNewParams
 		arg.StartTs,
 		arg.EndTs,
 		arg.RaceTo,
-		arg.WhiteScore,
-		arg.BlackScore,
+		arg.WhiteMatchScore,
+		arg.BlackMatchScore,
 		arg.Method,
 		arg.Casual,
 		arg.RoomID,
@@ -362,6 +367,7 @@ func (q *Queries) InsertGameIfNew(ctx context.Context, arg InsertGameIfNewParams
 		arg.WhiteRatingDelta,
 		arg.BlackRatingDelta,
 		arg.BotPersona,
+		arg.RatingCategory,
 	)
 	var id int32
 	err := row.Scan(&id)
@@ -369,7 +375,7 @@ func (q *Queries) InsertGameIfNew(ctx context.Context, arg InsertGameIfNewParams
 }
 
 const listPlayerGames = `-- name: ListPlayerGames :many
-SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_score, black_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona FROM games
+SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_match_score, black_match_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona, rating_category FROM games
 WHERE white_uid = $1 OR black_uid = $1
 ORDER BY start_ts DESC
 LIMIT $2 OFFSET $3
@@ -397,8 +403,8 @@ func (q *Queries) ListPlayerGames(ctx context.Context, arg ListPlayerGamesParams
 			&i.EndTs,
 			&i.CreatedAt,
 			&i.RaceTo,
-			&i.WhiteScore,
-			&i.BlackScore,
+			&i.WhiteMatchScore,
+			&i.BlackMatchScore,
 			&i.Method,
 			&i.Casual,
 			&i.RoomID,
@@ -422,6 +428,7 @@ func (q *Queries) ListPlayerGames(ctx context.Context, arg ListPlayerGamesParams
 			&i.WhiteRatingDelta,
 			&i.BlackRatingDelta,
 			&i.BotPersona,
+			&i.RatingCategory,
 		); err != nil {
 			return nil, err
 		}
@@ -434,7 +441,7 @@ func (q *Queries) ListPlayerGames(ctx context.Context, arg ListPlayerGamesParams
 }
 
 const listRoomGames = `-- name: ListRoomGames :many
-SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_score, black_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona FROM games WHERE room_id = $1 ORDER BY game_index
+SELECT id, game_id, start_ts, end_ts, created_at, race_to, white_match_score, black_match_score, method, casual, room_id, creator_uid, white_uid, black_uid, variant_name, variant_group, outcome, reason, starting_ofen, moves, pgn_object_key, game_index, white_user_id, black_user_id, creator_user_id, rated, white_rating, black_rating, white_rating_delta, black_rating_delta, bot_persona, rating_category FROM games WHERE room_id = $1 ORDER BY game_index
 `
 
 func (q *Queries) ListRoomGames(ctx context.Context, roomID string) ([]Game, error) {
@@ -453,8 +460,8 @@ func (q *Queries) ListRoomGames(ctx context.Context, roomID string) ([]Game, err
 			&i.EndTs,
 			&i.CreatedAt,
 			&i.RaceTo,
-			&i.WhiteScore,
-			&i.BlackScore,
+			&i.WhiteMatchScore,
+			&i.BlackMatchScore,
 			&i.Method,
 			&i.Casual,
 			&i.RoomID,
@@ -478,6 +485,7 @@ func (q *Queries) ListRoomGames(ctx context.Context, roomID string) ([]Game, err
 			&i.WhiteRatingDelta,
 			&i.BlackRatingDelta,
 			&i.BotPersona,
+			&i.RatingCategory,
 		); err != nil {
 			return nil, err
 		}

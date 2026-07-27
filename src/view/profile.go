@@ -1,11 +1,15 @@
 package view
 
 import (
+	"math"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/title"
 )
@@ -26,6 +30,10 @@ type ProfileModel struct {
 	Username string
 	Title    title.Title
 	Joined   string // "March 2026"
+	// RenderedAt is when the server built this page, as epoch milliseconds. The
+	// page is a snapshot of a history that keeps moving, so it reports its own
+	// age rather than letting a tab left open all afternoon look current.
+	RenderedAt string
 
 	// Closed marks a banned account. The public page then shows a neutral
 	// closed card in place of the stats and suppresses the ratings — no reason,
@@ -36,9 +44,34 @@ type ProfileModel struct {
 	// Ratings, records and games are omitted entirely for a closed account.
 	Ratings  []RatingView
 	Total    RecordView
+	Lifetime LifetimeView
 	Variants []VariantRecordView
 	Bots     []BotRecordView
 	Games    []ProfileGameView
+
+	// Charts are the per-category rating curves. HasCharts reports whether any
+	// of them is actually plottable, which is what decides if the rating tiles
+	// render as curve selectors or as plain tiles — a tile that switches to
+	// nothing is worse than a tile that does not invite a click.
+	Charts    []RatingChartView
+	HasCharts bool
+
+	// Core record analytics (Phase 3). Form is derived from Games rather than
+	// queried, so it is always consistent with the list rendered below it.
+	Colors  []ColorSplitView
+	Endings []EndingView
+	Lengths LengthsView
+	// Formations is the octad-specific section (Phase 4): deploy choices, what
+	// they face, and per-matchup performance.
+	Formations FormationsView
+
+	// Activity & social (Phase 5). BotLadder is derived from Bots rather than
+	// queried, so it can render rungs the account has never played.
+	Activity  ActivityView
+	Opponents []OpponentView
+	BotLadder []BotRungView
+	Form      []FormGroup
+	Streaks   StreakView
 
 	// H2H is the viewer's own record against this account, shown only when the
 	// viewer is logged in, is not this account, and the two have actually met.
@@ -54,9 +87,136 @@ type ProfileModel struct {
 
 // RatingView is one time control's rating on the profile.
 type RatingView struct {
+	// Category is the raw Glicko-2 key (a variant HTMLName, e.g.
+	// "one-two-rapid-deploy"). It is the tile's identity — later phases key the
+	// rating curve off it — and is never displayed.
 	Category string
-	Rating   string // "1653" / "1500?"
-	Games    int
+	// Label / Speed / Mode are the display resolution of Category through
+	// pools.LookupRatingCategory: "1 + 2", "rapid", and "" for the default
+	// deploy mode (surfaced as Octad) or e.g. "Classic".
+	Label string
+	Speed string
+	Mode  string
+	// order is the canonical time-control ordering (bullet < blitz < 1+2 < 3+5)
+	// from the same lookup, so tiles are not at the mercy of the SQL's
+	// alphabetical category sort.
+	order  int
+	known  bool
+	Rating string // "1653" / "1500?"
+	Games  int
+}
+
+// NewRatingView resolves a raw rating category into a displayable tile.
+// pools.LookupRatingCategory is the single source of that mapping — it already
+// backs the account popover, and the profile rendering the raw HTMLName
+// ("one-two-rapid-deploy") was simply a place that never adopted it.
+//
+// An unknown category (a legacy row whose variant is no longer curated) keeps
+// its raw key as the label and sorts last, rather than vanishing: an earned
+// rating should still be visible after its pool is retired.
+func NewRatingView(category, display string, games int) RatingView {
+	v := RatingView{Category: category, Rating: display, Games: games}
+	info, ok := pools.LookupRatingCategory(category)
+	if !ok {
+		v.Label, v.order = category, math.MaxInt
+		return v
+	}
+	v.Label, v.Speed, v.Mode, v.order, v.known = info.TimeControl, info.Speed, info.Mode, info.Order, true
+	return v
+}
+
+// SortRatings puts rating tiles in canonical time-control order, unknown
+// categories last, ties broken by category so the order is stable.
+func SortRatings(rs []RatingView) {
+	sort.SliceStable(rs, func(i, j int) bool {
+		if rs[i].order != rs[j].order {
+			return rs[i].order < rs[j].order
+		}
+		return rs[i].Category < rs[j].Category
+	})
+}
+
+// LifetimeView is the hero card's pair of figures: how many games, and how long
+// has been spent at the board. Values and labels are separate so each renders as
+// a figure tile rather than a sentence.
+//
+// Show is false for an account with no games, which then gets no figures at all
+// rather than two zeroes — "0 games / 0m played" is a worse greeting for a new
+// player than silence.
+type LifetimeView struct {
+	Games  string // "1,204"
+	Played string // "31h" / "2d 3h" / "45m"
+	Show   bool
+}
+
+// NewLifetimeView builds the hero figures. Durations stay coarse — matching the
+// page's posture that a public profile publishes rounded facts, not exact
+// timestamps — and compact, since these are figures rather than prose.
+func NewLifetimeView(r db.Record, l db.Lifetime) LifetimeView {
+	if r.Games == 0 {
+		return LifetimeView{}
+	}
+	return LifetimeView{
+		Games:  commas(r.Games),
+		Played: compactPlayed(l.Played),
+		Show:   true,
+	}
+}
+
+// compactPlayed renders time at the board as a figure: "45m", "3h", "2d 3h".
+// Below a minute it is "—": an account can have finished games whose durations
+// round to nothing, and a blank tile beside a filled one reads as broken.
+//
+// Note this is wall-clock game duration summed across the account's games, so it
+// counts both players' thinking and any idle time in an untimed game — time
+// spent at the board, not time this account's clock ran.
+func compactPlayed(d time.Duration) string {
+	switch {
+	case d >= 24*time.Hour:
+		days := int64(d / (24 * time.Hour))
+		hours := int64((d % (24 * time.Hour)) / time.Hour)
+		out := strconv.FormatInt(days, 10) + "d"
+		if hours > 0 {
+			out += " " + strconv.FormatInt(hours, 10) + "h"
+		}
+		return out
+	case d >= time.Hour:
+		return strconv.FormatInt(int64(d.Hours()), 10) + "h"
+	case d >= time.Minute:
+		return strconv.FormatInt(int64(d.Minutes()), 10) + "m"
+	}
+	return "—"
+}
+
+// plural renders a count with a thousands separator and the right noun.
+func plural(n int64, one, many string) string {
+	noun := many
+	if n == 1 {
+		noun = one
+	}
+	return commas(n) + " " + noun
+}
+
+// commas groups an integer with thousands separators ("1,204"). Counts on this
+// page can reach five figures for an active account, where a bare run of digits
+// is measurably harder to read at a glance.
+func commas(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	if n < 0 || len(s) <= 3 {
+		return s
+	}
+	var b strings.Builder
+	lead := len(s) % 3
+	if lead > 0 {
+		b.WriteString(s[:lead])
+	}
+	for i := lead; i < len(s); i += 3 {
+		if b.Len() > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(s[i : i+3])
+	}
+	return b.String()
 }
 
 // RecordView is a win/draw/loss tally rendered as strings.
@@ -68,6 +228,19 @@ type RecordView struct {
 	// Score reads "12½" — the same half-point notation the match scoreboard
 	// uses, so a player sees one vocabulary across the site.
 	Score string
+	// Empty marks a tally with no games behind it, so the section can show a
+	// placeholder instead of a row of zeroes. Carried as a field rather than
+	// re-derived by string-comparing Games against "0" in the template.
+	Empty bool
+	// Bar is the same tally as a proportional mark. Every record row draws one,
+	// which is what lets the Record card fill a wide card with something worth
+	// reading rather than stranding a label a screen from its numbers.
+	Bar WDLBar
+	// Rate is the average scoring rate ("0.65") with its tint — the same figure
+	// and the same vocabulary the social sections use, so one page does not
+	// report the same quantity two different ways.
+	Rate      string
+	RateClass string
 }
 
 // VariantRecordView is a RecordView for one time control.
@@ -83,17 +256,42 @@ type BotRecordView struct {
 	Persona string
 	Glyph   string
 	RecordView
+	// Bar carries the raw counts the string fields have already formatted away,
+	// which the ladder needs to draw a proportional mark and to ask "has this
+	// rung ever been beaten".
+	Bar WDLBar
 }
 
 // ProfileGameView is one row of the recent-games list.
 type ProfileGameView struct {
-	URL      string // archive permalink
-	When     string // "2 days ago"
-	Variant  string // "½ + 1 blitz"
-	Mode     string // "Rated" / "Casual"
-	Result   string // "Won" / "Lost" / "Drew"
+	// RoomID groups games into matches for the recent-form strip. Empty for a
+	// room-less backfilled game, which then stands alone.
+	RoomID  string
+	URL     string // archive permalink
+	When    string // "2 days ago"
+	Variant string // "½ + 1 blitz"
+	Mode    string // "Rated" / "Casual"
+	Result  string // "Won" / "Lost" / "Drew"
+	// Reason is the DB-canonical method token ("checkmate", "time", …), rendered
+	// into the readout as the phrase that follows the result.
+	Reason   string
 	Class    string // result-tinting class: win / loss / draw
-	Opponent string // "cdpplayer" / "BOT ♛ Queen" / "Anonymous"
+	Opponent string // "cdpplayer" / "BOT Queen" / "Anonymous"
+	// OppRating is the opponent's rating going into the game, shown only when
+	// the game was rated — an unrated game's ratings say nothing about it.
+	OppRating string
+	// Ending phrases how the game finished ("by checkmate"), Moves its length,
+	// and Delta the rating change with its tint. Each is empty when the archive
+	// has nothing to say, so a row never carries a placeholder.
+	Ending     string
+	Moves      string
+	Delta      string
+	DeltaClass string
+	// OppGlyph is the bot persona's piece glyph, kept out of Opponent so the
+	// template can wrap it: these glyphs come from a fallback font whose
+	// baseline sits low, and correcting that needs an element to hang the rule
+	// on. Empty for human and anonymous seats.
+	OppGlyph string
 	OppTitle string // opponent's title code, "" when untitled
 }
 
@@ -152,6 +350,11 @@ func NewRecordView(r db.Record) RecordView {
 		Draws:  strconv.FormatInt(r.Draws, 10),
 		Losses: strconv.FormatInt(r.Losses, 10),
 		Score:  FormatPoints(r.Points()),
+		Empty:  r.Games == 0,
+		Bar:    NewWDLBar(r),
+
+		Rate:      ScoreRate(r),
+		RateClass: RateClass(r),
 	}
 }
 
@@ -171,23 +374,77 @@ func FormatPoints(p float64) string {
 // ProfileMeta builds page metadata for a player page. A closed account gets the
 // same neutral treatment in the title as on the page itself.
 func ProfileMeta(m ProfileModel) Meta {
+	// The title is bracketed here but not on the page itself. On the page it is
+	// a tinted badge, visibly a separate element from the name; in a browser tab,
+	// a search result or a shared link it is bare text, where "GM drewtest" reads
+	// as one two-word name. Brackets restore the separation that the styling
+	// carries everywhere else.
 	who := m.Username
 	if m.Title.Set() {
-		who = m.Title.Code + " " + m.Username
+		who = "[" + m.Title.Code + "] " + m.Username
 	}
 	desc := who + " on " + config.SiteName() + " — octad games, ratings and record."
 	if m.Closed {
 		desc = "This " + config.SiteName() + " account is closed."
 	}
+	// the headline rating rides along in the bare-text contexts, where there is
+	// room for one number and no page to read it off
+	headline := who
+	if r := HeadlineRating(m.Ratings); r != "" {
+		headline += " · " + r
+	}
 	return Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
-		Title:       who + " • " + config.SiteName(),
+		Title:       headline + " • " + config.SiteName(),
 		OGURL:       config.SiteOrigin() + "/@/" + m.Username,
-		OGTitle:     who,
+		OGTitle:     headline,
 		OGImage:     config.SiteOrigin() + "/og/default.png",
 		Description: desc,
 	}
+}
+
+// HeadlineRating picks the one rating worth putting in a page title, as
+// "1712 rapid". Empty when the account has nothing worth quoting.
+//
+// The rule is **most games played, among settled ratings**. The two obvious
+// alternatives are both worse:
+//
+//   - An average across categories is not a number. Glicko ratings come from
+//     separate pools with their own populations and deviations; the mean of a
+//     bullet and a rapid rating describes nobody.
+//   - The highest rating rewards the fluke — four provisional games at 1800 in a
+//     pool they never play would outrank four hundred settled games at 1500, and
+//     it is also the number most likely to move next week.
+//
+// Most-played is the rating with the most evidence behind it (most games means
+// the lowest deviation) and the one a player would name if asked. Provisional
+// ratings are skipped entirely rather than quoted with their "?": a title is
+// read without context, and an unsettled rating asserted there is a claim the
+// account has not earned. An account whose ratings are all provisional gets no
+// number, which is the honest outcome.
+//
+// The speed group names the category rather than the exact time control: "1712
+// rapid" is what a reader parses at a glance, and the precise control is on the
+// page for anyone who wants it.
+func HeadlineRating(ratings []RatingView) string {
+	best := -1
+	for i, r := range ratings {
+		if strings.HasSuffix(r.Rating, "?") {
+			continue
+		}
+		if best == -1 || r.Games > ratings[best].Games {
+			best = i
+		}
+	}
+	if best == -1 {
+		return ""
+	}
+	r := ratings[best]
+	if r.Speed == "" {
+		return r.Rating
+	}
+	return r.Rating + " " + r.Speed
 }
 
 // JoinedMonth renders an account's creation date as "March 2026" — coarse on
@@ -235,20 +492,51 @@ func modHistoryLabel(m ModBarView) string {
 
 // pluralGames renders a game count for a rating tile ("1 game" / "12 games").
 func pluralGames(n int) string {
-	if n == 1 {
-		return "1 game"
-	}
-	return strconv.Itoa(n) + " games"
+	return plural(int64(n), "game", "games")
 }
 
-// botRecordLabel names a bot-persona record row using the same glyph+name pair
-// the clocks and archive show ("♛ Queen"), so one bot reads identically
-// everywhere.
-func botRecordLabel(b BotRecordView) string {
-	if b.Glyph == "" {
-		return b.Persona
+// StatPlaceholder is what a statistics section shows before it has the data to
+// draw. Every section on this page renders its heading and frame unconditionally
+// and swaps in one of these — a section that silently vanishes reads as a broken
+// page to the very players (new ones) who see it most, while a placeholder that
+// names what is coming is the page telling them what playing another game earns.
+//
+// Later phases supply a ghosted skeleton of the real chart as the component's
+// children, so the placeholder previews its own shape.
+type StatPlaceholder struct {
+	// Copy names what will appear here, in the page's plain voice.
+	Copy string
+	// Have / Need drive an optional progress meter. Need == 0 hides it, for
+	// sections gated on something other than a countable threshold.
+	Have int64
+	Need int64
+	// Unit names what is being counted, plural ("rated games", "deploy games").
+	Unit string
+}
+
+// Meter reports whether the placeholder shows progress toward a threshold.
+func (p StatPlaceholder) Meter() bool { return p.Need > 0 && p.Have < p.Need }
+
+// Progress phrases the distance to the threshold ("2 of 5 rated games").
+func (p StatPlaceholder) Progress() string {
+	return commas(p.Have) + " of " + commas(p.Need) + " " + p.Unit
+}
+
+// Width is the meter's fill as a CSS percentage.
+func (p StatPlaceholder) Width() string {
+	if p.Need <= 0 {
+		return "0%"
 	}
-	return b.Glyph + " " + b.Persona
+	pct := p.Have * 100 / p.Need
+	if pct > 100 {
+		pct = 100
+	}
+	// a sliver of fill at zero reads as "this meter is real and empty" rather
+	// than as a missing element
+	if pct < 2 {
+		pct = 2
+	}
+	return strconv.FormatInt(pct, 10) + "%"
 }
 
 // openReportsLabel phrases the unresolved-report count on a player page.

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 
@@ -338,30 +339,30 @@ func TestRenderRoomRated(t *testing.T) {
 // rendering: a gain is a green +N, a loss a red -N, a zero delta shows only the
 // rating (live clocks), and no rating shows nothing at all.
 func TestRenderClockRatingDelta(t *testing.T) {
-	gain := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 8))
+	gain := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 8, ""))
 	mustContain(t, gain, ">1650</span>")
 	mustContain(t, gain, "clockRatingDelta win")
 	mustContain(t, gain, "+8")
 
-	loss := renderSmoke(t, clock(title.Title{}, "cdpplayer", "", "1500?", -8))
+	loss := renderSmoke(t, clock(title.Title{}, "cdpplayer", "", "1500?", -8, ""))
 	mustContain(t, loss, "1500?")
 	mustContain(t, loss, "clockRatingDelta loss")
 	mustContain(t, loss, "-8")
 
 	// zero delta (the live clocks): rating shown, no delta span
-	none := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0))
+	none := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0, ""))
 	mustContain(t, none, ">1650</span>")
 	mustNotContain(t, none, "clockRatingDelta")
 
 	// no rating (casual/anon/bot): no rating block at all
-	empty := renderSmoke(t, clock(title.Title{}, "You", "", "", 0))
+	empty := renderSmoke(t, clock(title.Title{}, "You", "", "", 0, ""))
 	mustNotContain(t, empty, "clockRating")
 
 	// a bot seat: the persona glyph renders as the avatar and the generic CPU
 	// icon is not; a human seat (empty glyph) is the reverse
-	bot := renderSmoke(t, clock(title.Title{}, "Queen", "♛︎", "", 0))
+	bot := renderSmoke(t, clock(title.Title{}, "Queen", "♛︎", "", 0, ""))
 	mustContain(t, bot, `class="clockBotGlyph"`)
-	human := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0))
+	human := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0, ""))
 	mustNotContain(t, human, "clockBotGlyph")
 }
 
@@ -373,16 +374,16 @@ func TestRenderClockRatingDelta(t *testing.T) {
 // exercised at the DOM level here, not the color.
 func TestRenderPlayerTitle(t *testing.T) {
 	titled := renderSmoke(t, clock(
-		title.Title{Code: "GM", Name: "Grandmaster"}, "drewtest", "", "1650", 0))
+		title.Title{Code: "GM", Name: "Grandmaster"}, "drewtest", "", "1650", 0, ""))
 	mustContain(t, titled, `class="player-title"`)
 	mustContain(t, titled, ">GM</span>")
 	mustContain(t, titled, `title="Grandmaster"`)
 
 	nameless := renderSmoke(t, clock(
-		title.Title{Code: "OG"}, "drewtest", "", "1650", 0))
+		title.Title{Code: "OG"}, "drewtest", "", "1650", 0, ""))
 	mustContain(t, nameless, `title="OG"`)
 
-	untitled := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0))
+	untitled := renderSmoke(t, clock(title.Title{}, "drewtest", "", "1650", 0, ""))
 	mustNotContain(t, untitled, "player-title")
 }
 
@@ -617,13 +618,22 @@ func profileFixture() ProfileModel {
 		Title:    title.Title{Code: "OG", Name: "Original Gamer"},
 		Joined:   "March 2026",
 		Ratings: []RatingView{
-			{Category: "half-one-blitz", Rating: "1653", Games: 12},
+			// built through the constructor so the test exercises the real
+			// category → label resolution, not a hand-filled struct
+			NewRatingView("half-one-blitz", "1653", 12),
 		},
 		Total: NewRecordView(db.Record{Games: 3, Wins: 2, Draws: 0, Losses: 1}),
+		Lifetime: NewLifetimeView(
+			db.Record{Games: 3},
+			db.Lifetime{
+				FirstGame: time.Date(2026, 3, 4, 12, 0, 0, 0, time.UTC),
+				Played:    5 * time.Hour,
+			}),
 		Variants: []VariantRecordView{{Name: "½ + 1", Group: "blitz",
 			RecordView: NewRecordView(db.Record{Games: 3, Wins: 2, Losses: 1})}},
 		Bots: []BotRecordView{{Persona: "Queen", Glyph: "♛︎",
-			RecordView: NewRecordView(db.Record{Games: 1, Losses: 1})}},
+			RecordView: NewRecordView(db.Record{Games: 1, Losses: 1}),
+			Bar:        NewWDLBar(db.Record{Games: 1, Losses: 1})}},
 		Games: []ProfileGameView{{
 			URL: "/abc123/1", When: "2 days ago", Variant: "½ + 1 blitz",
 			Mode: "Rated", Result: "Won", Class: "win", Opponent: "cdpplayer",
@@ -636,6 +646,7 @@ func profileFixture() ProfileModel {
 // badge, ratings, records and the games list all present for a normal account.
 func TestRenderProfile(t *testing.T) {
 	m := profileFixture()
+	m.BotLadder = NewBotLadder(m.Bots)
 	out := renderSmoke(t, Profile(ProfileMeta(m), m))
 
 	mustContain(t, out, ">drewtest</span>")
@@ -643,18 +654,154 @@ func TestRenderProfile(t *testing.T) {
 	mustContain(t, out, ">OG</span>")
 	mustContain(t, out, "Member since")
 	mustContain(t, out, "March 2026")
-	mustContain(t, out, "1653")           // rating tile
-	mustContain(t, out, "half-one-blitz") // its category
-	mustContain(t, out, "All games")      // lifetime record row
+	mustContain(t, out, "1653") // rating tile
+	// the tile shows the resolved time control, never the raw HTMLName key
+	mustContain(t, out, "½ + 1")
+	mustContain(t, out, "blitz")
+	mustNotContain(t, out, "half-one-blitz")
+	// the hero's two figures, as tiles rather than prose
+	mustContain(t, out, `class="hero-figure-value"`)
+	mustContain(t, out, ">3<")  // games
+	mustContain(t, out, ">5h<") // played
+	mustNotContain(t, out, "first game")
+	mustContain(t, out, "All games") // lifetime record row
 	mustContain(t, out, "Versus the computer")
-	mustContain(t, out, "♛︎ Queen")         // bot record label
+	// the ladder's glyphs are wrapped so their baseline can be corrected —
+	// these come from a fallback font that sets them low
+	mustContain(t, out, `class="rung-glyph piece-glyph"`)
+	mustContain(t, out, "Queen")
 	mustContain(t, out, `href="/abc123/1"`) // game links into the archive
 	mustContain(t, out, "cdpplayer")
 	// the page title carries the title code, as the OG/meta treatment does
-	mustContain(t, out, templ.EscapeString("OG drewtest"))
+	// the title is bracketed in bare-text contexts (tab, search result, share
+	// card) where the page's badge styling cannot separate it from the name
+	mustContain(t, out, templ.EscapeString("[OG] drewtest"))
 	// no moderation UI for an ordinary viewer
 	mustNotContain(t, out, `id="modForm"`)
 	mustNotContain(t, out, "lio-mod")
+}
+
+// TestRenderProfileRatingHistory covers the rating curve on the page: the SVG
+// renders server-side, the tiles become selectors, exactly one panel opens, and
+// every plotted value is also reachable without hovering.
+func TestRenderProfileRatingHistory(t *testing.T) {
+	m := profileFixture()
+	hist := []db.RatingSeries{{
+		Category: "half-one-blitz",
+		Points: []db.RatingPoint{
+			{Day: chartNow.AddDate(0, 0, -3), Rating: 1500, Provisional: true},
+			{Day: chartNow.AddDate(0, 0, -2), Rating: 1610, Provisional: false},
+		},
+	}}
+	m.Charts = NewRatingCharts(hist, m.Ratings, chartNow)
+	m.HasCharts = true
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	mustContain(t, out, "Rating history")
+	mustContain(t, out, `class="chart-svg"`)
+	mustContain(t, out, `data-chart-panel="half-one-blitz"`)
+	// the tile is the selector, so it must carry the category the panel keys on
+	mustContain(t, out, `data-chart-tab="half-one-blitz"`)
+	mustContain(t, out, "is-selectable")
+	// a provisional prefix means two strokes, one of them dashed by CSS
+	mustContain(t, out, "chart-line-prov")
+	mustContain(t, out, "dashed while provisional")
+	// values are never hover-only: a table carries every point. sr-only sits on
+	// a wrapping div, never on the table itself — a <table> ignores the width,
+	// height and overflow that class relies on, which left the whole table in
+	// the page with only clip-path hiding it.
+	mustContain(t, out, "1610")
+	mustContain(t, out, `<div class="sr-only">`)
+	mustNotContain(t, out, `<table class="sr-only">`)
+	// the page ships the behaviour that drives all of it
+	mustContain(t, out, "lio-profile")
+
+	// exactly one panel opens, so the section is readable with JS disabled
+	if n := strings.Count(out, "chart-panel is-active"); n != 1 {
+		t.Errorf("got %d active panels, want exactly 1", n)
+	}
+}
+
+// TestRenderProfileEmpty locks the placeholder behaviour for a brand-new
+// account: every statistics section still renders its heading, and each shows a
+// placeholder describing what will appear there instead of collapsing to
+// nothing. A section that silently vanishes reads as a broken page to exactly
+// the players who see this state.
+func TestRenderProfileEmpty(t *testing.T) {
+	m := profileFixture()
+	m.Ratings, m.Variants, m.Bots, m.Games = nil, nil, nil, nil
+	m.Total = NewRecordView(db.Record{})
+	m.Lifetime = NewLifetimeView(db.Record{}, db.Lifetime{})
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	// headings survive with no data behind them
+	mustContain(t, out, "Record")
+	mustContain(t, out, "Recent games")
+	// each is a placeholder that says what is coming
+	mustContain(t, out, `class="stat-empty"`)
+	mustContain(t, out, "Wins, draws and losses appear here")
+	mustContain(t, out, "Finished games land here")
+	// the hero states the unrated case in place of a rating row
+	mustContain(t, out, "No rating yet")
+	// no zero-filled record rows masquerading as a real tally
+	mustNotContain(t, out, "All games")
+	// an account with no games claims no lifetime facts. Asserted on the exact
+	// phrases NewLifetimeView emits rather than the bare word "played", which
+	// also appears in placeholder prose and made this a trap for future copy.
+	mustNotContain(t, out, "hero-figure-value")
+}
+
+// TestStatPlaceholderMeter covers the progress meter a threshold-gated section
+// shows: it appears only while short of the threshold, and the fill never
+// exceeds full or vanishes entirely at zero.
+func TestStatPlaceholderMeter(t *testing.T) {
+	short := StatPlaceholder{Copy: "c", Have: 2, Need: 5, Unit: "rated games"}
+	if !short.Meter() {
+		t.Error("meter should show while short of the threshold")
+	}
+	if got := short.Progress(); got != "2 of 5 rated games" {
+		t.Errorf("Progress() = %q", got)
+	}
+	if got := short.Width(); got != "40%" {
+		t.Errorf("Width() = %q, want 40%%", got)
+	}
+	// met, and over-met, both stop showing the meter
+	for _, have := range []int64{5, 9} {
+		p := StatPlaceholder{Have: have, Need: 5}
+		if p.Meter() {
+			t.Errorf("meter should be hidden at have=%d need=5", have)
+		}
+	}
+	// an empty meter still renders a sliver, so it reads as real-and-empty
+	if got := (StatPlaceholder{Have: 0, Need: 5}).Width(); got != "2%" {
+		t.Errorf("Width() at zero = %q, want 2%%", got)
+	}
+	// no threshold means no meter at all
+	if (StatPlaceholder{Copy: "c"}).Meter() {
+		t.Error("meter should be hidden with no threshold")
+	}
+}
+
+// TestSortRatings locks the rating tile order: canonical time-control order
+// from pools, with categories no longer curated sorted last rather than dropped.
+func TestSortRatings(t *testing.T) {
+	rs := []RatingView{
+		NewRatingView("legacy-retired-pool", "1500", 1),
+		NewRatingView("three-five-rapid-deploy", "1600", 5),
+		NewRatingView("quarter-zero-bullet-deploy", "1700", 9),
+	}
+	SortRatings(rs)
+
+	want := []string{"quarter-zero-bullet-deploy", "three-five-rapid-deploy", "legacy-retired-pool"}
+	for i, w := range want {
+		if rs[i].Category != w {
+			t.Errorf("position %d = %q, want %q", i, rs[i].Category, w)
+		}
+	}
+	// an unknown category keeps its raw key visible rather than rendering blank
+	if rs[2].Label != "legacy-retired-pool" {
+		t.Errorf("unknown category label = %q", rs[2].Label)
+	}
 }
 
 // TestRenderProfileClosed locks the public treatment of a banned account: a
@@ -1378,4 +1525,52 @@ func TestRenderLiveOps(t *testing.T) {
 	quiet := systemFixture()
 	quiet.Live = LiveOps{}
 	mustContain(t, renderSmoke(t, System(SystemMeta(), quiet)), "No rooms are live.")
+}
+
+// TestClockSeatLinksToProfile covers the username-linking convention: a seat
+// backed by a real account reaches that account's page, while "You",
+// "Anonymous" and "BOT" are labels with no page to point at and stay plain text.
+func TestClockSeatLinksToProfile(t *testing.T) {
+	linked := renderSmoke(t, clock(
+		title.Title{Code: "GM"}, "drewtest", "", "1650", 0, "/@/drewtest"))
+	mustContain(t, linked, `href="/@/drewtest"`)
+	mustContain(t, linked, `class="player-link"`)
+	// the title badge travels inside the link, so the whole identity is one target
+	mustContain(t, linked, ">GM</span>")
+
+	// a bot seat has no account behind it
+	bot := renderSmoke(t, clock(title.Title{}, "BOT", "♛︎", "", 0, ""))
+	mustNotContain(t, bot, "player-link")
+	mustNotContain(t, bot, "/@/")
+}
+
+// TestProfilePopoverLinksToOwnProfile covers the account popover's username: it
+// is the viewer's own name, and it should reach their page like any other
+// username on the site.
+func TestProfilePopoverLinksToOwnProfile(t *testing.T) {
+	out := renderSmoke(t, profilePopover("drewtest", title.Title{Code: "OG", Name: "Original Gamer"}))
+	mustContain(t, out, `href="/@/drewtest"`)
+	mustContain(t, out, `class="player-link"`)
+	// the title badge travels inside the link with the name
+	mustContain(t, out, ">OG</span>")
+	mustContain(t, out, ">drewtest</span>")
+}
+
+// TestTimelineNameLinks covers the match timeline's seat identity: a real
+// account reaches its page, while an anonymous or bot seat has none to reach.
+// The timeline renders in both the live room and the archive, so the rule has
+// to be one component or the two drift apart.
+func TestTimelineNameLinks(t *testing.T) {
+	linked := renderSmoke(t, timelineName(
+		title.Title{Code: "GM"}, "drewtest", "/@/drewtest"))
+	mustContain(t, linked, `href="/@/drewtest"`)
+	mustContain(t, linked, `class="player-link"`)
+	mustContain(t, linked, `class="tl-name"`)
+	mustContain(t, linked, ">GM</span>")
+
+	// anonymous / bot seats: a label, not an account
+	plain := renderSmoke(t, timelineName(title.Title{}, "Anonymous", ""))
+	mustNotContain(t, plain, "player-link")
+	mustNotContain(t, plain, "/@/")
+	mustContain(t, plain, "Anonymous")
 }

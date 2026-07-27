@@ -131,7 +131,7 @@ func TestArchiveGameIfNewIdempotent(t *testing.T) {
 	plies, blob, startOFEN := buildGamePlies(t, 4)
 	key := "backfill-test/" + uuid.NewString() + ".pgn"
 	rec := GameRecord{
-		RoomID: "", Creator: "", RaceTo: 0, WhiteScore: 0, BlackScore: 0,
+		RoomID: "", Creator: "", RaceTo: 0, WhiteMatchScore: 0, BlackMatchScore: 0,
 		Reason: "checkmate", GameID: uuid.NewString(),
 		StartTs: time.Now(), EndTs: time.Now(),
 		WhiteUID: "bf_w", BlackUID: "bf_b",
@@ -181,7 +181,7 @@ func TestArchiveGameRoundTrip(t *testing.T) {
 
 	rec := GameRecord{
 		RoomID: "testroom", Creator: "u_white", RaceTo: 0,
-		WhiteScore: 1, BlackScore: 0, Reason: "checkmate",
+		WhiteMatchScore: 1, BlackMatchScore: 0, Reason: "checkmate",
 		GameID: uuid.NewString(), StartTs: time.Now(), EndTs: time.Now(),
 		WhiteUID: "u_white", BlackUID: "u_black",
 		VariantName: "Test", VariantGroup: "blitz", Casual: false,

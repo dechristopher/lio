@@ -131,3 +131,42 @@ func LookupRatingCategory(htmlName string) (RatingCategoryInfo, bool) {
 	info, ok := ratingCategories[htmlName]
 	return info, ok
 }
+
+// speedByNameGroup resolves the (variant_name, variant_group) pair an archived
+// game row stores to that variant's speed class. The archive does not keep the
+// HTMLName for unrated games, so this pair is all a profile row has to go on.
+//
+// The two unlimited casual variants share a (name, group) pair — they differ
+// only by whether the deploy pre-game runs — but they share a speed class too,
+// so the collision cannot produce a wrong answer here.
+var speedByNameGroup = map[string]string{}
+
+func init() {
+	for _, v := range Map {
+		label := v.SpeedGroup().String()
+		// Deploy is the default mode and adds nothing, but the *classic* form of
+		// a control resolves to the same speed class — "½ + 1 blitz" for both —
+		// so the non-default mode has to be named or two distinct variants
+		// render identically in any per-variant list.
+		if info, ok := ratingCategories[v.HTMLName]; ok && info.Mode != "" {
+			label += " " + info.Mode
+		}
+		speedByNameGroup[v.Name+"\x00"+string(v.Group)] = label
+	}
+}
+
+// SpeedFor returns the display qualifier for an archived game's time control —
+// its speed class ("bullet"/"blitz"/"rapid"/…), plus the mode when that is not
+// the default ("blitz Classic"). It falls back to the stored group for a variant
+// no longer curated, so a retired pool still reads as something rather than as
+// nothing.
+//
+// This is what keeps "deploy" off the player page: deploy is the default mode,
+// so labelling every row with it says nothing, while the speed class is the
+// distinction a player actually reads (see variant.SpeedGroup).
+func SpeedFor(name, group string) string {
+	if s, ok := speedByNameGroup[name+"\x00"+group]; ok {
+		return s
+	}
+	return group
+}

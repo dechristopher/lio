@@ -26,6 +26,15 @@ import (
 // carries the full match history inline (view.ArchiveData) and never opens a
 // websocket. Without Postgres every path here degrades to today's 404s.
 
+// profileURL links a seat to its player page, empty for a seat with no account
+// behind it (anonymous or bot, both of which arrive here as an empty username).
+func profileURL(username string) string {
+	if username == "" {
+		return ""
+	}
+	return "/@/" + username
+}
+
 // notFound falls through to the site-wide 404 page.
 func notFound(c fiber.Ctx) error {
 	return c.Status(fiber.StatusNotFound).Next()
@@ -269,17 +278,21 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 	}
 
 	model := view.ArchiveModel{
-		RoomID:            selected.RoomID,
-		VariantName:       selected.VariantName,
-		VariantGroup:      selected.VariantGroup,
-		Casual:            selected.Casual,
-		RaceTo:            int(selected.RaceTo),
-		N:                 n,
-		Count:             len(games),
-		Standalone:        standalone,
-		Orientation:       orientation,
-		TopName:           seatLabel(topUID, topName, topUserID, uid, derefStr(selected.BotPersona)),
-		BottomName:        seatLabel(bottomUID, bottomName, bottomUserID, uid, derefStr(selected.BotPersona)),
+		RoomID:       selected.RoomID,
+		VariantName:  selected.VariantName,
+		VariantGroup: selected.VariantGroup,
+		Casual:       selected.Casual,
+		RaceTo:       int(selected.RaceTo),
+		N:            n,
+		Count:        len(games),
+		Standalone:   standalone,
+		Orientation:  orientation,
+		TopName:      seatLabel(topUID, topName, topUserID, uid, derefStr(selected.BotPersona)),
+		BottomName:   seatLabel(bottomUID, bottomName, bottomUserID, uid, derefStr(selected.BotPersona)),
+		// the raw account username, not the seat *label*: the label may read
+		// "You" or "BOT", neither of which addresses a page
+		TopProfile:        profileURL(topName),
+		BottomProfile:     profileURL(bottomName),
 		TopTitle:          topTitle,
 		BottomTitle:       bottomTitle,
 		TopRating:         topRating,
@@ -489,9 +502,11 @@ func buildArchiveData(games []gen.Game, selected gen.Game, og *game.OctadGame) v
 	}
 
 	// cumulative match score after the last game, mapped onto the selected
-	// game's seats (players swap colors between games of a match)
+	// game's seats (players swap colors between games of a match). These are the
+	// match-grain columns — the ones 00019 renamed precisely so this read is
+	// obviously not a per-game result.
 	last := games[len(games)-1]
-	lastWhiteFinal, lastBlackFinal := float64(last.WhiteScore), float64(last.BlackScore)
+	lastWhiteFinal, lastBlackFinal := float64(last.WhiteMatchScore), float64(last.BlackMatchScore)
 	if last.WhiteUid == selected.WhiteUid {
 		data.Score = proto.ScorePayload{"w": lastWhiteFinal, "b": lastBlackFinal}
 	} else {
@@ -549,13 +564,5 @@ func winnerFromOutcome(outcome string) string {
 
 // pointsFromOutcome maps a PGN result token to (white, black) game points.
 func pointsFromOutcome(outcome string) (float64, float64) {
-	switch outcome {
-	case "1-0":
-		return 1, 0
-	case "0-1":
-		return 0, 1
-	case "1/2-1/2":
-		return 0.5, 0.5
-	}
-	return 0, 0
+	return float64(db.SeatScore(outcome, true)), float64(db.SeatScore(outcome, false))
 }

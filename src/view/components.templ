@@ -886,6 +886,22 @@ templ board(payload message.RoomTemplatePayload) {
 // the big time on its own full-width line. Stacking decouples the time from the
 // name so a long name only ellipsizes within its row and never compresses the
 // clock horizontally.
+// timelineName renders a match-timeline seat's title and name, linking to the
+// player's page when the seat is a real account. Its own component because the
+// timeline appears in both the live room and the archive, and the two must not
+// drift into linking on different rules.
+templ timelineName(t title.Title, name, href string) {
+	if href == "" {
+		@playerTitle(t)
+		<span class="tl-name">{ name }</span>
+	} else {
+		<a class="player-link" href={ templ.SafeURL(href) }>
+			@playerTitle(t)
+			<span class="tl-name">{ name }</span>
+		</a>
+	}
+}
+
 // playerTitle renders a player's optional account display title as a compact
 // accent-colored badge to the left of their name (lichess-style "GM"/"WFM"/…).
 // The badge shows the titles row's short code and hovers its full name as the
@@ -895,13 +911,33 @@ templ board(payload message.RoomTemplatePayload) {
 // nothing for an unset title — anonymous/bot seats and untitled accounts — so
 // it can be dropped in unconditionally before any name. Assigned by pointing
 // users.title_id at a titles row (no in-app assignment UI).
+// playerName renders an account's title and username as a link to their profile.
+// One component so the convention — a username on this site is a way to reach
+// that player's page — is applied the same way everywhere rather than
+// re-decided per surface.
+//
+// username must be a real account name: "Anonymous", "BOT" and the viewer's own
+// "You" are labels, not accounts, and have no page to point at. Callers that
+// cannot tell the difference pass an empty href and get plain text.
+templ playerName(t title.Title, username, href string) {
+	if href == "" {
+		@playerTitle(t)
+		<span class="min-w-0 truncate">{ username }</span>
+	} else {
+		<a class="player-link" href={ templ.SafeURL(href) }>
+			@playerTitle(t)
+			<span class="min-w-0 truncate">{ username }</span>
+		</a>
+	}
+}
+
 templ playerTitle(t title.Title) {
 	if t.Set() {
 		<span class="player-title" title={ t.Tooltip() }>{ t.Code }</span>
 	}
 }
 
-templ clock(seatTitle title.Title, name string, botGlyph string, rating string, ratingDelta int) {
+templ clock(seatTitle title.Title, name string, botGlyph string, rating string, ratingDelta int, profile string) {
 	<div class="clock">
 		<div class="clockProgress">
 			<div class="clockProgressBg"></div>
@@ -919,8 +955,18 @@ templ clock(seatTitle title.Title, name string, botGlyph string, rating string, 
 				if botGlyph != "" {
 					<span class="clockBotGlyph" aria-hidden="true">{ botGlyph }</span>
 				}
-				@playerTitle(seatTitle)
-				<span class="clockName">{ name }</span>
+				<!-- a seat that is a real account links to its page; "You",
+				     "Anonymous" and "BOT" are labels, not accounts, so the caller
+				     passes no href for them -->
+				if profile != "" {
+					<a class="player-link" href={ templ.SafeURL(profile) }>
+						@playerTitle(seatTitle)
+						<span class="clockName">{ name }</span>
+					</a>
+				} else {
+					@playerTitle(seatTitle)
+					<span class="clockName">{ name }</span>
+				}
 				if rating != "" {
 					<span class="clockRating">
 						<span class="clockRatingNumber">{ rating }</span>

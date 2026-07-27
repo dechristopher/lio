@@ -26,9 +26,15 @@ type GameRecord struct {
 	CreatorUserID *int64
 	RaceTo        int
 	Rated         bool
-	WhiteScore    float64
-	BlackScore    float64
-	Reason        string
+	// WhiteMatchScore / BlackMatchScore are the *cumulative match score* after
+	// this game, not its own result — player.Score() accumulates across a
+	// room's games. Archived to games.white_match_score (00019 renamed the
+	// column to stop it reading as a per-game score) and to the rooms row,
+	// where a match-grain score is what belongs. A per-game result comes from
+	// Outcome via SeatScore.
+	WhiteMatchScore float64
+	BlackMatchScore float64
+	Reason          string
 
 	// account identity of each seat, captured under stateMu alongside the
 	// scores (arch/ACCOUNTS_AUTH_RATINGS.md Phase 2). UserIDs stamp the new
@@ -200,8 +206,8 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 		StartTs:          ts(rec.StartTs),
 		EndTs:            ts(rec.EndTs),
 		RaceTo:           int32(rec.RaceTo),
-		WhiteScore:       float32(rec.WhiteScore),
-		BlackScore:       float32(rec.BlackScore),
+		WhiteMatchScore:  float32(rec.WhiteMatchScore),
+		BlackMatchScore:  float32(rec.BlackMatchScore),
 		Method:           rec.Method,
 		Casual:           rec.Casual,
 		RoomID:           rec.RoomID,
@@ -227,6 +233,13 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 	}
 	if rec.BotPersona != "" {
 		params.BotPersona = &rec.BotPersona
+	}
+	// Only a rated game's category is meaningful. Stamping it on unrated rows
+	// would put a category on games that never touched a rating, which is
+	// exactly what the rating curve's `WHERE rated AND rating_category IS NOT
+	// NULL` (and its partial index) reads — so NULL here keeps the two in step.
+	if rec.Rated && rec.RatingCategory != "" {
+		params.RatingCategory = &rec.RatingCategory
 	}
 
 	var gameRef int32
@@ -259,8 +272,8 @@ func archiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord, ifNew b
 			CreatorUid:    rec.Creator,
 			WhiteUid:      rec.WhiteUID,
 			BlackUid:      rec.BlackUID,
-			WhiteScore:    float32(rec.WhiteScore),
-			BlackScore:    float32(rec.BlackScore),
+			WhiteScore:    float32(rec.WhiteMatchScore),
+			BlackScore:    float32(rec.BlackMatchScore),
 			VariantName:   rec.VariantName,
 			VariantGroup:  rec.VariantGroup,
 			CreatorUserID: rec.CreatorUserID,

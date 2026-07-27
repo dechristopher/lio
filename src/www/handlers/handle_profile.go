@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/view"
 )
@@ -25,6 +27,10 @@ import (
 // recentGamesShown bounds the recent-games list. Deep history lives in the
 // archive; this is a glance, not a paginated log.
 const recentGamesShown = 20
+
+// opponentsShown bounds the most-played list. Enough to show who someone
+// actually plays, short of becoming a directory.
+const opponentsShown = 8
 
 // modHistoryShown bounds the per-account moderation history in the mod bar.
 const modHistoryShown = 20
@@ -48,11 +54,12 @@ func ProfileHandler(c fiber.Ctx) error {
 	}
 
 	m := view.ProfileModel{
-		UserID:   rec.ID,
-		Username: rec.Username,
-		Title:    rec.Title,
-		Joined:   view.JoinedMonth(rec.CreatedAt),
-		Closed:   rec.Ban.Banned,
+		RenderedAt: strconv.FormatInt(time.Now().UnixMilli(), 10),
+		UserID:     rec.ID,
+		Username:   rec.Username,
+		Title:      rec.Title,
+		Joined:     view.JoinedMonth(rec.CreatedAt),
+		Closed:     rec.Ban.Banned,
 	}
 
 	// A closed account publishes nothing: no ratings, no record, no games. The
@@ -69,56 +76,174 @@ func ProfileHandler(c fiber.Ctx) error {
 	return view.Render(c, fiber.StatusOK, view.Profile(view.ProfileMeta(m), m))
 }
 
+// statReadLimit bounds how many of the profile's reads are in flight at once.
+// pgxpool defaults to max(4, NumCPU) connections, so an unbounded fan-out could
+// have one page render hold the whole pool while other requests wait on it.
+const statReadLimit = 4
+
 // fillProfileStats loads the public statistics block. Each read degrades to
 // empty on error rather than failing the page: a profile missing its bot record
 // is worth more to a visitor than a 500.
+//
+// The reads are independent and all scan the same indexed row set, so they run
+// concurrently — the page costs the slowest one rather than their sum. errgroup
+// is here for SetLimit, not for error propagation: every leg swallows its own
+// error to keep the degrade-quietly contract, so the group never fails. Each
+// leg writes to a distinct field of m, which is what makes this safe without a
+// mutex.
 func fillProfileStats(m *view.ProfileModel, userID int64) {
-	if ratings, err := db.ListRatingsForUser(userID); err == nil {
+	var g errgroup.Group
+	g.SetLimit(statReadLimit)
+
+	// Ratings and their history are one leg, not two: the curve needs the tiles
+	// to exist first (each stored point is a rating carried *into* a game, so
+	// only the live rating can close a series) and running them in parallel
+	// would mean synchronising two writers onto the same model.
+	g.Go(func() error {
+		ratings, err := db.ListRatingsForUser(userID)
+		if err != nil {
+			return nil
+		}
 		for _, r := range ratings {
-			m.Ratings = append(m.Ratings, view.RatingView{
-				Category: r.Category,
-				Rating:   r.Rating.Display(),
-				Games:    r.Rating.Games,
-			})
+			m.Ratings = append(m.Ratings, view.NewRatingView(
+				r.Category, r.Rating.Display(), r.Rating.Games))
 		}
-	}
-	if total, err := db.TotalsForUser(userID); err == nil {
-		m.Total = view.NewRecordView(total)
-	}
-	if variants, err := db.VariantRecordsForUser(userID); err == nil {
-		for _, v := range variants {
-			m.Variants = append(m.Variants, view.VariantRecordView{
-				Name:       v.Name,
-				Group:      v.Group,
-				RecordView: view.NewRecordView(v.Record),
-			})
+		view.SortRatings(m.Ratings)
+
+		history, err := db.RatingHistoryForUser(userID)
+		if err != nil {
+			return nil // tiles without curves beat no ratings section at all
 		}
-	}
-	if bots, err := db.BotRecordsForUser(userID); err == nil {
-		for _, b := range bots {
-			m.Bots = append(m.Bots, view.BotRecordView{
-				// an empty persona key is a pre-ladder game: resolve it to the
-				// Queen exactly as the archive and clocks do
-				Persona:    view.BotSeatLabel(b.Persona),
-				Glyph:      view.BotSeatGlyph(b.Persona),
-				RecordView: view.NewRecordView(b.Record),
-			})
+		m.Charts = view.NewRatingCharts(history, m.Ratings, time.Now())
+		for _, c := range m.Charts {
+			if c.Ready {
+				m.HasCharts = true
+				break
+			}
 		}
-	}
-	if games, err := db.ListGamesForUser(userID, recentGamesShown, 0); err == nil {
+		return nil
+	})
+	g.Go(func() error {
+		if total, life, err := db.TotalsForUser(userID); err == nil {
+			m.Total = view.NewRecordView(total)
+			m.Lifetime = view.NewLifetimeView(total, life)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if variants, err := db.VariantRecordsForUser(userID); err == nil {
+			for _, v := range variants {
+				m.Variants = append(m.Variants, view.VariantRecordView{
+					Name: v.Name,
+					// speed class, not the stored "deploy" group — see the note
+					// in profileGameView
+					Group:      pools.SpeedFor(v.Name, v.Group),
+					RecordView: view.NewRecordView(v.Record),
+				})
+			}
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if bots, err := db.BotRecordsForUser(userID); err == nil {
+			for _, b := range bots {
+				m.Bots = append(m.Bots, view.BotRecordView{
+					// an empty persona key is a pre-ladder game: resolve it to
+					// the Queen exactly as the archive and clocks do
+					Persona:    view.BotSeatLabel(b.Persona),
+					Glyph:      view.BotSeatGlyph(b.Persona),
+					RecordView: view.NewRecordView(b.Record),
+					Bar:        view.NewWDLBar(b.Record),
+				})
+			}
+		}
+		return nil
+	})
+	// One game past the display limit is fetched but never rendered. It answers
+	// exactly one question: does the oldest shown match continue past the window?
+	// Without it the form strip would have to guess whether its first group is
+	// complete, and a match score is not a thing to guess at.
+	var olderRoomID string
+	g.Go(func() error {
+		games, err := db.ListGamesForUser(userID, recentGamesShown+1, 0)
+		if err != nil {
+			return nil
+		}
+		if len(games) > recentGamesShown {
+			olderRoomID = games[recentGamesShown].RoomID
+			games = games[:recentGamesShown]
+		}
 		for _, g := range games {
 			m.Games = append(m.Games, profileGameView(g))
 		}
-	}
+		return nil
+	})
+	g.Go(func() error {
+		if colors, err := db.ColorSplitForUser(userID); err == nil {
+			m.Colors = view.NewColorSplits(colors)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if endings, err := db.EndingsForUser(userID); err == nil {
+			m.Endings = view.NewEndings(endings)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if lengths, err := db.LengthsForUser(userID); err == nil {
+			m.Lengths = view.NewLengths(lengths)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if streaks, err := db.StreaksForUser(userID); err == nil {
+			m.Streaks = view.NewStreakView(streaks)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if forms, err := db.FormationsForUser(userID); err == nil {
+			m.Formations = view.NewFormations(forms)
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if acts, err := db.ActivityForUser(userID); err == nil {
+			m.Activity = view.NewActivityView(acts, time.Now())
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if opps, err := db.OpponentsForUser(userID, opponentsShown); err == nil {
+			m.Opponents = view.NewOpponents(opps)
+		}
+		return nil
+	})
+
+	_ = g.Wait() // never non-nil; every leg degrades in place
+
+	// The bot ladder is derived from the records loaded above, so it renders
+	// every rung — including ones never played — rather than only what a query
+	// happened to return.
+	m.BotLadder = view.NewBotLadder(m.Bots)
+
+	// The form strip is derived, not queried: it reuses the games list above, so
+	// it can never disagree with the rows rendered under it. That makes it
+	// ordering-dependent, hence after Wait rather than in a leg of its own.
+	m.Form = view.NewFormGroups(m.Games, olderRoomID)
 }
 
 // profileGameView renders one archived game for the recent-games list.
 func profileGameView(g db.ProfileGame) view.ProfileGameView {
 	result, class := view.ResultClass(g.Score)
-	opponent := g.OpponentName
+	opponent, glyph := g.OpponentName, ""
 	switch {
 	case g.OpponentIsBot:
-		opponent = "BOT " + view.BotSeatGlyph(g.BotPersona) + " " + view.BotSeatLabel(g.BotPersona)
+		// the glyph rides separately so the template can wrap it — see
+		// ProfileGameView.OppGlyph
+		opponent = "BOT " + view.BotSeatLabel(g.BotPersona)
+		glyph = view.BotSeatGlyph(g.BotPersona)
 	case opponent == "":
 		opponent = "Anonymous"
 	}
@@ -126,16 +251,30 @@ func profileGameView(g db.ProfileGame) view.ProfileGameView {
 	if g.Rated {
 		mode = "Rated"
 	}
-	return view.ProfileGameView{
-		URL:      archiveURL(g),
-		When:     relativeDay(g.Start),
-		Variant:  g.VariantName + " " + g.VariantGroup,
+	v := view.ProfileGameView{
+		RoomID: g.RoomID,
+		URL:    archiveURL(g),
+		When:   relativeDay(g.Start),
+		// the speed class, never the stored group: every game here is deploy
+		// (the default mode), so "deploy" labels nothing, while bullet/blitz/
+		// rapid is the distinction a player reads (variant.SpeedGroup)
+		Variant:  g.VariantName + " " + pools.SpeedFor(g.VariantName, g.VariantGroup),
+		Reason:   g.Reason,
 		Mode:     mode,
 		Result:   result,
 		Class:    class,
 		Opponent: opponent,
+		OppGlyph: glyph,
 		OppTitle: g.OpponentTitle,
+		Ending:   view.ReasonPhrase(g.Reason),
 	}
+	v.Moves = view.MoveCount(g.Plies)
+	// ratings only mean something on a rated game
+	if g.Rated {
+		v.OppRating = g.OppRating
+		v.Delta, v.DeltaClass = view.RatingDelta(g.Delta)
+	}
+	return v
 }
 
 // archiveURL links a game to its permalink: the canonical /<room>/<n> when the

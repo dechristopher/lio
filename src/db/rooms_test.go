@@ -26,7 +26,7 @@ func TestArchiveRoomsAndOrdinals(t *testing.T) {
 	plies, blob, startOFEN := buildGamePlies(t, 4)
 	rec := GameRecord{
 		RoomID: roomID, Creator: "u_creator", RaceTo: 3,
-		WhiteScore: 1, BlackScore: 0, Reason: "checkmate",
+		WhiteMatchScore: 1, BlackMatchScore: 0, Reason: "checkmate",
 		GameID: uuid.NewString(), StartTs: time.Now(), EndTs: time.Now(),
 		WhiteUID: "u_white", BlackUID: "u_black",
 		VariantName: "Test", VariantGroup: "blitz", Casual: false,
@@ -46,7 +46,7 @@ func TestArchiveRoomsAndOrdinals(t *testing.T) {
 	rec2 := rec
 	rec2.GameID = uuid.NewString()
 	rec2.WhiteUID, rec2.BlackUID = "u_black", "u_white"
-	rec2.WhiteScore, rec2.BlackScore = 1, 1
+	rec2.WhiteMatchScore, rec2.BlackMatchScore = 1, 1
 	rec2.Outcome = "0-1"
 	rec2.PGNObjectKey = "test/rooms-" + rec1Key()
 	if _, err := ArchiveGame(ctx, rec2, plies); err != nil {

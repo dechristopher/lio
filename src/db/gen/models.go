@@ -16,8 +16,8 @@ type Game struct {
 	EndTs            pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
 	RaceTo           int32
-	WhiteScore       float32
-	BlackScore       float32
+	WhiteMatchScore  float32
+	BlackMatchScore  float32
 	Method           int16
 	Casual           bool
 	RoomID           string
@@ -41,6 +41,7 @@ type Game struct {
 	WhiteRatingDelta *int16
 	BlackRatingDelta *int16
 	BotPersona       *string
+	RatingCategory   *string
 }
 
 type ModAction struct {

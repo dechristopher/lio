@@ -486,6 +486,40 @@ func bottomClockName(payload message.RoomTemplatePayload) string {
 	return seatColorLabel(payload, bottomClockColor(payload), bottomClockIsBot(payload))
 }
 
+// topClockProfile / bottomClockProfile link a live seat to its player page.
+//
+// payload.WhiteName / BlackName carry the seat's *account username*, empty for
+// an anonymous human — which is exactly the test for whether there is a page to
+// link to. A bot never has one. The viewer's own seat reads "You" but is still a
+// real account, so it links too.
+func topClockProfile(payload message.RoomTemplatePayload) string {
+	return seatColorProfile(payload, topClockColor(payload), topClockIsBot(payload))
+}
+
+func bottomClockProfile(payload message.RoomTemplatePayload) string {
+	return seatColorProfile(payload, bottomClockColor(payload), bottomClockIsBot(payload))
+}
+
+// seatColorProfile is the URL twin of seatColorLabel: same seat resolution, but
+// it yields a link target rather than a display label, so a seat labelled "You"
+// or "Anonymous" is never mistaken for one.
+func seatColorProfile(payload message.RoomTemplatePayload, color string, isBot bool) string {
+	if isBot {
+		return ""
+	}
+	name := ""
+	switch color {
+	case "w":
+		name = payload.WhiteName
+	case "b":
+		name = payload.BlackName
+	}
+	if name == "" {
+		return "" // anonymous: a session, not an account
+	}
+	return "/@/" + name
+}
+
 // topClockIsBot / bottomClockIsBot drive the data-bot attribute that the
 // client's engine "thinking" indicator keys off. For a player the top clock is
 // the opponent and the bottom (their own) is never a bot; for a spectator the

@@ -90,6 +90,10 @@ type ArchiveModel struct {
 	// the engine, "PLAYER" otherwise.
 	TopName    string
 	BottomName string
+	// TopProfile / BottomProfile link a seat to its player page, empty when the
+	// seat is anonymous or a bot — neither is an account with a page.
+	TopProfile    string
+	BottomProfile string
 	// Top/BottomTitle are each account seat's optional display title ("GM"
 	// badge, "Grandmaster" tooltip), rendered to the left of the name in the
 	// theme accent color. Zero for anon/bot seats and untitled accounts.

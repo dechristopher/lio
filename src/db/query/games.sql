@@ -1,14 +1,14 @@
 -- name: InsertGame :one
 INSERT INTO games (
-    game_id, start_ts, end_ts, race_to, white_score, black_score, method,
+    game_id, start_ts, end_ts, race_to, white_match_score, black_match_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
     game_index, white_user_id, black_user_id, creator_user_id, rated,
     white_rating, black_rating, white_rating_delta, black_rating_delta,
-    bot_persona
+    bot_persona, rating_category
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
 )
 RETURNING id;
 
@@ -17,15 +17,15 @@ RETURNING id;
 -- identical and convert directly) but a no-op on a pgn_object_key conflict —
 -- the archive backfill's idempotency + dedup-against-live path.
 INSERT INTO games (
-    game_id, start_ts, end_ts, race_to, white_score, black_score, method,
+    game_id, start_ts, end_ts, race_to, white_match_score, black_match_score, method,
     casual, room_id, creator_uid, white_uid, black_uid, variant_name,
     variant_group, outcome, reason, starting_ofen, moves, pgn_object_key,
     game_index, white_user_id, black_user_id, creator_user_id, rated,
     white_rating, black_rating, white_rating_delta, black_rating_delta,
-    bot_persona
+    bot_persona, rating_category
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+    $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30
 )
 ON CONFLICT (pgn_object_key) DO NOTHING
 RETURNING id;

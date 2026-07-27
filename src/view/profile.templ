@@ -11,48 +11,152 @@ templ Profile(meta Meta, m ProfileModel) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header("w-[92vw] max-w-[44rem]")
-				<main class="w-[92vw] max-w-[44rem] text-left">
+				@header("w-[92vw] max-w-[60rem]")
+				<main class="w-[92vw] max-w-[60rem] text-left">
 					@profileIdentity(m)
 					if m.Closed {
 						@profileClosed()
 					} else {
-						@profileRatings(m)
+						@profileRatingHistory(m)
+						@profileForm(m)
+						@profileActivity(m)
+						<div class="stat-pair">
+							@profileOpponents(m)
+							@profileBotLadder(m)
+						</div>
 						@profileRecords(m)
+						<!-- the two distribution cards pair up on a wide viewport:
+						     both answer "what shape is a typical game", and side by
+						     side they use the width the column was widened for. -->
+						<div class="stat-pair">
+							@profileEndings(m)
+							@profileLengths(m)
+						</div>
+						@profileFormations(m)
 						@profileGames(m)
 					}
 					if m.ShowMod {
 						@modBar(m)
 					}
 				</main>
-				@footer(meta, "max-w-[44rem]")
+				@footer(meta, "max-w-[60rem]")
 			</div>
 			if m.ShowMod {
 				@confirmActionModal()
 			}
 		</body>
 		@scriptsBase(meta)
+		if !m.Closed {
+			<script src={ asset("lio-profile.js") }></script>
+		}
 		if m.ShowMod {
 			<script src={ asset("lio-mod.js") }></script>
 		}
 	}
 }
 
-// profileIdentity is the name header: title badge, username, join month, and
-// the viewer's own head-to-head against this account when the two have met.
+// profileIdentity is the hero: who this is, the two figures that summarise a
+// whole history, and every rating they hold. It is the page's high-level view,
+// and the surface trophies and customisation will hang off later — so it stays
+// composed of separate blocks rather than one dense line.
 templ profileIdentity(m ProfileModel) {
-	<div class="card mb-3">
-		<h1 class="flex min-w-0 flex-wrap items-center gap-1.5 font-display text-xl font-bold">
-			@playerTitle(m.Title)
-			<span class="min-w-0 truncate">{ m.Username }</span>
-		</h1>
-		<p class="mt-1 text-sm text-fg-subtle">
-			if m.Joined != "" {
-				Member since { m.Joined }
-			}
-		</p>
+	<div class="card hero mb-3">
+		<div class="hero-top">
+			<div class="hero-id">
+				<h1 class="hero-name">
+					@playerTitle(m.Title)
+					<span class="min-w-0 truncate">{ m.Username }</span>
+				</h1>
+				if m.Joined != "" {
+					<p class="hero-since">Member since { m.Joined }</p>
+				}
+			</div>
+			<div class="hero-aside">
+				if m.Lifetime.Show {
+					<!-- the two figures that summarise a whole history, as tiles
+					     rather than prose: they are the numbers a visitor scans for -->
+					<div class="hero-figures">
+						<div class="hero-figure">
+							<span class="hero-figure-value">{ m.Lifetime.Games }</span>
+							<span class="hero-figure-label">games</span>
+						</div>
+						<div class="hero-figure">
+							<span class="hero-figure-value">{ m.Lifetime.Played }</span>
+							<span class="hero-figure-label">played</span>
+						</div>
+					</div>
+				}
+				<!-- The page is a snapshot of a history that keeps moving, so it
+				     says how old it is. data-rendered is the server's render time;
+				     lio-profile.js keeps the label current and reloads on a timer. -->
+				<p class="refresh-row" data-refresh-row data-rendered={ m.RenderedAt }>
+					<span data-refresh-label>Refreshed just now</span>
+					<button type="button" class="refresh-btn" data-refresh aria-label="Refresh profile" title="Refresh profile">
+						@iconRefresh()
+					</button>
+				</p>
+			</div>
+		</div>
+		if !m.Closed {
+			@heroRatings(m)
+		}
 		if m.H2HShow {
-			<p class="mt-2 text-sm text-fg-muted">Your record against { m.Username }: <span class="font-semibold text-fg">{ m.H2H }</span></p>
+			<p class="hero-h2h">Your record against { m.Username } <span class="hero-h2h-score">{ m.H2H }</span></p>
+		}
+	</div>
+}
+
+// iconRefresh is the refresh control's glyph.
+templ iconRefresh() {
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+		<polyline points="21 3 21 9 15 9"></polyline>
+	</svg>
+}
+
+// heroRatings is the ratings row inside the hero. It keeps the tiles' job as the
+// rating-curve selector — the categories a player has are the categories they
+// can chart, so there is no second list to keep in step.
+templ heroRatings(m ProfileModel) {
+	<div class="hero-ratings">
+		if len(m.Ratings) == 0 {
+			<p class="hero-ratings-empty">No rating yet — finish a rated game to earn your first.</p>
+		} else {
+			<ul class="hero-rating-list">
+				for _, r := range m.Ratings {
+					<li>
+						if m.HasCharts {
+							<button type="button" class="rating-tile is-selectable" data-chart-tab={ r.Category }>
+								@ratingTileBody(r)
+							</button>
+						} else {
+							<div class="rating-tile">
+								@ratingTileBody(r)
+							</div>
+						}
+					</li>
+				}
+			</ul>
+		}
+	</div>
+}
+
+// statPlaceholder is the shared empty state for every statistics section: it
+// names what will appear here and, when the gate is a countable threshold, how
+// far off it is. Children are an optional ghosted preview of the chart to come
+// (supplied from Phase 2 onward), hidden from assistive tech since it carries no
+// information the copy does not already state.
+templ statPlaceholder(p StatPlaceholder) {
+	<div class="stat-empty">
+		<div class="stat-empty-ghost" aria-hidden="true">
+			{ children... }
+		</div>
+		<p class="stat-empty-copy">{ p.Copy }</p>
+		if p.Meter() {
+			<div class="stat-empty-meter" role="presentation">
+				<div class="stat-empty-fill" style={ "width:" + p.Width() }></div>
+			</div>
+			<p class="stat-empty-progress">{ p.Progress() }</p>
 		}
 	</div>
 }
@@ -68,34 +172,170 @@ templ profileClosed() {
 	</div>
 }
 
-// profileRatings lists the account's rating per time control it has actually
-// played. Nothing renders for an account with no rated games — a rating that
-// has never been earned is not worth a placeholder.
-templ profileRatings(m ProfileModel) {
-	if len(m.Ratings) > 0 {
-		<div class="card mb-3">
-			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Ratings</p>
-			<ul class="mt-3 flex flex-wrap gap-2">
-				for _, r := range m.Ratings {
-					<li class="rating-tile">
-						<span class="rating-tile-cat">{ r.Category }</span>
-						<span class="rating-tile-value">{ r.Rating }</span>
-						<span class="rating-tile-games">{ pluralGames(r.Games) }</span>
-					</li>
+// ratingTileBody is the tile's contents, shared by its static and selectable
+// forms so the two cannot drift apart.
+templ ratingTileBody(r RatingView) {
+	<span class="rating-tile-cat">
+		{ r.Label }
+		if r.Speed != "" {
+			<span class="rating-tile-speed">{ r.Speed }</span>
+		}
+		if r.Mode != "" {
+			<span class="rating-tile-speed">{ r.Mode }</span>
+		}
+	</span>
+	<span class="rating-tile-value">{ r.Rating }</span>
+	<span class="rating-tile-games">{ pluralGames(r.Games) }</span>
+}
+
+// profileRatingHistory is the rating curve, one panel per time control with the
+// rating tiles above acting as the selector. The server marks one panel active
+// so the section works with JavaScript disabled — lio-profile.js only swaps
+// which one that is.
+templ profileRatingHistory(m ProfileModel) {
+	<div class="card mb-3" id="ratingHistory">
+		<h2 class="stat-title">Rating history</h2>
+		if len(m.Charts) == 0 {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "Your rating over time is charted here — one curve per time control, with your peak and recent form.",
+			})
+		} else {
+			if len(m.Charts) > 1 {
+				<div class="chart-tabs" role="tablist" aria-label="Rating time control">
+					for _, c := range m.Charts {
+						<button
+							type="button"
+							class={ "chart-tab", templ.KV("is-active", c.Active) }
+							role="tab"
+							aria-selected={ boolAttr(c.Active) }
+							data-chart-tab={ c.Category }
+						>{ c.Label }</button>
+					}
+				</div>
+			}
+			for _, c := range m.Charts {
+				@ratingChartPanel(c)
+			}
+		}
+	</div>
+}
+
+// ratingChartPanel is one category's curve: the summary figures, the plot, and
+// a visually-hidden table of the same numbers so the values are never locked
+// behind a hover.
+templ ratingChartPanel(c RatingChartView) {
+	<figure
+		class={ "chart-panel", templ.KV("is-active", c.Active) }
+		data-chart-panel={ c.Category }
+		role="tabpanel"
+	>
+		if !c.Ready {
+			@statPlaceholder(c.Placeholder)
+		} else {
+			<div class="chart-figures">
+				<div class="chart-figure">
+					<span class="chart-figure-label">Current</span>
+					<span class="chart-figure-value">{ c.Current }</span>
+				</div>
+				<div class="chart-figure">
+					<span class="chart-figure-label">Peak</span>
+					<span class="chart-figure-value">{ c.Best }</span>
+				</div>
+				if c.Change != "" {
+					<div class="chart-figure">
+						<span class="chart-figure-label">Overall</span>
+						<span class={ "chart-figure-value", chartChangeClass(c) }>{ c.Change }</span>
+					</div>
 				}
-			</ul>
-		</div>
-	}
+			</div>
+			<div class="chart-plot" data-chart-hover>
+				<svg
+					viewBox={ chartViewBox() }
+					class="chart-svg"
+					preserveAspectRatio="xMidYMid meet"
+					role="img"
+					aria-label={ "Rating history for " + c.Label }
+				>
+					<!-- gridlines: solid hairlines one step off the surface -->
+					for _, t := range c.Ticks {
+						<line class="chart-grid" x1={ chartPlotLeft() } x2={ chartPlotRight() } y1={ t.Y } y2={ t.Y }></line>
+						<text class="chart-axis" x={ chartAxisX() } y={ t.Y } dy="0.32em" text-anchor="end">{ t.Label }</text>
+					}
+					<path class="chart-area" d={ c.Area }></path>
+					if c.Prov != "" {
+						<!-- the provisional stretch: the rating was still settling,
+						     so the stroke says so rather than implying equal confidence -->
+						<polyline class="chart-line chart-line-prov" points={ c.Prov }></polyline>
+					}
+					if c.Line != "" {
+						<polyline class="chart-line" points={ c.Line }></polyline>
+					}
+					if c.PeakShow {
+						<circle class="chart-dot chart-dot-peak" cx={ c.Peak.X } cy={ c.Peak.Y } r="4"></circle>
+						<text class="chart-label chart-label-peak" x={ c.Peak.X } y={ c.Peak.Y } dy="-0.9em" text-anchor="middle">{ c.Peak.Rating }</text>
+					}
+					<circle class="chart-dot chart-dot-end" cx={ c.End.X } cy={ c.End.Y } r="4"></circle>
+					<text class="chart-label" x={ chartEndLabelX(c) } y={ c.End.Y } dy="0.32em">{ c.End.Rating }</text>
+					<!-- hover layer, driven by lio-profile.js -->
+					<line class="chart-crosshair" y1={ chartPlotTop() } y2={ chartPlotBottom() } x1="0" x2="0"></line>
+					<circle class="chart-focus" r="4" cx="0" cy="0"></circle>
+				</svg>
+				<div class="chart-tip" hidden></div>
+			</div>
+			if c.Prov != "" {
+				<figcaption class="chart-caption">
+					{ c.Label }
+					<span class="chart-caption-note">— dashed while provisional</span>
+				</figcaption>
+			}
+			<!-- The same numbers as a table, for screen readers and anyone who
+			     cannot use a hover readout. The wrapper carries sr-only, not the
+			     table: `sr-only` pins width/height to 1px with overflow hidden,
+			     and a <table> obeys none of that — table layout sizes to its
+			     content and ignores overflow, so the class left a full 209x360
+			     table in the page (clip-path was the only thing hiding it, and
+			     not reliably in every browser). A plain div hides properly. -->
+			<div class="sr-only">
+				<table>
+					<caption>{ "Rating history for " + c.Label }</caption>
+					<thead><tr><th scope="col">Date</th><th scope="col">Rating</th></tr></thead>
+					<tbody>
+						for _, d := range c.Dots {
+							<tr><td>{ d.When }</td><td>{ d.Rating }</td></tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			@templ.JSONScript("chartData-"+c.Category, c.Dots)
+		}
+	</figure>
 }
 
 // profileRecords is the win/draw/loss picture: lifetime, split by time control,
 // and against each bot persona.
 templ profileRecords(m ProfileModel) {
 	<div class="card mb-3">
-		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Record</p>
+		<h2 class="stat-title">Record</h2>
+		if m.Total.Empty {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "Wins, draws and losses appear here — overall, split by time control, and against each bot.",
+			})
+		} else {
 		<div class="mt-3">
 			@recordRow("All games", m.Total)
 		</div>
+		if len(m.Colors) > 0 {
+			<!-- the seat split renders through the same row component as every
+			     other tally, so its bars and numbers line up with them instead of
+			     forming a second column layout beside them -->
+			<ul class="mt-2 flex flex-col gap-1.5">
+				for _, c := range m.Colors {
+					<li>
+						@recordRow(c.Label, c.RecordView)
+					</li>
+				}
+			</ul>
+		}
 		if len(m.Variants) > 0 {
 			<ul class="mt-2 flex flex-col gap-1">
 				for _, v := range m.Variants {
@@ -105,23 +345,446 @@ templ profileRecords(m ProfileModel) {
 				}
 			</ul>
 		}
-		if len(m.Bots) > 0 {
-			<p class="mt-4 text-xs font-semibold uppercase tracking-wider text-fg-muted">Versus the computer</p>
-			<ul class="mt-2 flex flex-col gap-1">
-				for _, b := range m.Bots {
-					<li>
-						@recordRow(botRecordLabel(b), b.RecordView)
-					</li>
-				}
-			</ul>
 		}
 	</div>
 }
 
-// recordRow renders one labeled W/D/L line.
+// profileForm is the recent-form strip: the last games as a left-to-right run
+// of result pips, with the current and best streak beside it. It reads as a
+// timeline, so it runs oldest to newest — the opposite of the games list below.
+templ profileForm(m ProfileModel) {
+	<div class="card form-card mb-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<h2 class="stat-title">Recent form</h2>
+			if m.Streaks.Show {
+				<p class="text-xs text-fg-subtle">
+					if m.Streaks.Current != "" {
+						<span>Current </span><span class={ "form-streak", m.Streaks.Class }>{ m.Streaks.Current }</span>
+					}
+					if m.Streaks.Current != "" && m.Streaks.Best != "" {
+						<span class="record-sep">·</span>
+					}
+					if m.Streaks.Best != "" {
+						<span>Best </span><span class="form-streak win">{ m.Streaks.Best }</span>
+					}
+				</p>
+			}
+		</div>
+		if len(m.Form) == 0 {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "Your last games show here as a run of results, oldest to newest, grouped into the matches they belong to.",
+			})
+		} else {
+			<!-- Matches are the wrapping unit, so a narrow viewport reflows whole
+			     groups and never splits one across a line break. The strip itself
+			     stays bare pips + score; opponent and time control live in the
+			     readout, which costs no width. -->
+			<ol class="form-strip" aria-label="Recent matches, oldest first">
+				for _, fg := range m.Form {
+					<li
+						class={ "form-group",
+							templ.KV("is-match", fg.Match()),
+							templ.KV("is-single", !fg.Match()) }
+						style={ "--pips:" + fg.PipCount }
+						data-form-result={ fg.Result }
+						data-form-detail={ fg.Detail }
+						data-form-class={ fg.Class }
+						if fg.Match() {
+							data-form-href={ fg.FirstURL }
+						}
+					>
+						<ol class="form-pips">
+							for _, p := range fg.Pips {
+								<li>
+									<!-- each pip carries its own readout, so hovering one
+									     game inside a match reports that game and not the
+									     match around it -->
+									<a
+										class={ "form-pip", p.Class, templ.KV("is-latest", p.Latest) }
+										href={ templ.SafeURL(p.URL) }
+										title={ p.Label }
+										data-form-result={ p.Result }
+										data-form-detail={ p.Detail }
+										data-form-class={ p.Class }
+									>
+										<span class="sr-only">{ p.Label }</span>
+									</a>
+								</li>
+							}
+						</ol>
+						if fg.Match() {
+							<!-- Only a real match carries a score. On a lone game the
+							     score restates what the pip's colour already says, and a
+							     row of "1–0 0–1 1–0" drowns out the matches that are the
+							     point of grouping at all.
+							     A real anchor so the match is keyboard-reachable and
+							     opens in a new tab like any link; the surrounding
+							     container forwards a click here too (lio-profile.js), so
+							     the whole match is a target and not just its score. -->
+							<a
+								class={ "form-score", fg.Class, templ.KV("is-partial", fg.Partial) }
+								href={ templ.SafeURL(fg.FirstURL) }
+								title={ "Open " + fg.Result + " · game 1 of this match" }
+							>{ fg.Score }</a>
+						}
+					</li>
+				}
+			</ol>
+			<!-- A reserved line rather than a floating tooltip: a tip anchored to a
+			     wrapped group covers whatever sits above it (here, the streak
+			     line), and clamping it inside the card is positioning maths that
+			     buys nothing. The line always occupies its height, so filling it
+			     shifts nothing. -->
+			<!-- Split so the result half carries the win/draw/loss tint the pips
+			     use: the same outcome should read the same colour wherever it
+			     appears on the page. -->
+			<p class="form-readout" aria-live="polite">
+				{{ d := FormReadoutDefault(m.Form) }}
+				<!-- Named only while the line is describing the newest game, and set
+				     in the same colour as that game's ring, so the label and the
+				     highlight it refers to are visibly the same thing. Hidden the
+				     moment a hover takes over, since the line then describes
+				     whatever is ringed in accent instead. -->
+				<span class="form-readout-latest">Latest:</span>
+				<span class={ "form-readout-result", d.Class }>{ d.Result }</span>
+				<span class="form-readout-detail">{ d.Detail }</span>
+			</p>
+		}
+	</div>
+}
+
+// profileEndings is the how-games-end breakdown: one row per method, ranked by
+// frequency, each row's bar split into the results it produced. Answers "you win
+// by checkmate and lose on time", which a bare frequency count cannot.
+templ profileEndings(m ProfileModel) {
+	<div class="card mb-3">
+		<h2 class="stat-title">How games end</h2>
+		if len(m.Endings) == 0 {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "Checkmate, resignation, flagging — how your games finish, and how each one tends to go for you.",
+			})
+		} else {
+			<ul class="mt-3 flex flex-col gap-2">
+				for _, e := range m.Endings {
+					<li class="ending-row">
+						<span class="ending-label">{ e.Label }</span>
+						<span class="ending-track" style={ "width:" + e.Width }>
+							@wdlBar(e.Bar)
+						</span>
+						<span class="ending-count">{ e.Games }</span>
+					</li>
+				}
+			</ul>
+			@wdlLegend()
+		}
+	</div>
+}
+
+// profileLengths is the game-length histogram in plies.
+templ profileLengths(m ProfileModel) {
+	<div class="card mb-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<h2 class="stat-title">Game length</h2>
+			if m.Lengths.Median != "" {
+				<p class="text-xs text-fg-subtle">Median { m.Lengths.Median }</p>
+			}
+		</div>
+		if len(m.Lengths.Buckets) == 0 {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "How long your games run, in plies — whether you win short and sharp or grind out endgames.",
+			})
+		} else {
+			<div class="length-chart">
+				for _, b := range m.Lengths.Buckets {
+					<div
+						class="length-col"
+						if b.Games > 0 {
+							data-len-win={ b.Win }
+							data-len-draw={ b.Draw }
+							data-len-loss={ b.Loss }
+						}
+					>
+						<!-- the dominant share, tinted like the segment it names. It
+						     frames the column: with the biggest share and its colour
+						     stated, the two remaining bands are readable at a glance,
+						     which three unlabelled bands are not. -->
+						<span class={ "length-top", b.TopClass }>{ b.Top }</span>
+						<div class="length-bar-wrap">
+							<div class="length-bar" style={ "height:" + b.Height }>
+								@wdlBar(b.Bar)
+							</div>
+						</div>
+						<span class="length-count">{ b.Count }</span>
+						<span class="length-label">{ b.Label }</span>
+					</div>
+				}
+				<div class="length-tip" hidden>
+					<span class="length-tip-seg win"></span>
+					<span class="length-tip-seg draw"></span>
+					<span class="length-tip-seg loss"></span>
+				</div>
+			</div>
+			@wdlLegend()
+		}
+	</div>
+}
+
+// profileFormations is the octad-specific section: what the account deploys,
+// what it faces, and which specific clashes it wins. The deploy is blind — made
+// without seeing the opponent's — so this is the only feedback a player gets on
+// a decision they make every game with no information.
+templ profileFormations(m ProfileModel) {
+	<div class="card mb-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<h2 class="stat-title">Formations</h2>
+			if m.Formations.Games > 0 {
+				<p class="text-xs text-fg-subtle">{ pluralGames(int(m.Formations.Games)) }</p>
+			}
+		</div>
+		if len(m.Formations.Mine) == 0 {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "Every game opens with a blind deploy. Once you have played a few, this names the formations you choose, the ones you face, and how each one scores for you.",
+			})
+		} else {
+			<div class="formation-cols mt-3">
+				@formationColumn("You deploy", m.Formations.Mine)
+				@formationColumn("You face", m.Formations.Theirs)
+			</div>
+			if len(m.Formations.Best) > 0 {
+				<div class="matchup-cols">
+					@matchupList("Best matchups", m.Formations.Best, "win")
+					if len(m.Formations.Worst) > 0 {
+						@matchupList("Worst matchups", m.Formations.Worst, "loss")
+					}
+				</div>
+			}
+			@wdlLegend()
+		}
+	</div>
+}
+
+// formationColumn is one ranked column of formations. The track width ranks by how
+// often each is played; the score beside it says how it went.
+templ formationColumn(heading string, fs []FormationView) {
+	<div>
+		<p class="formation-head">{ heading }</p>
+		<ul class="mt-2 flex flex-col gap-1.5">
+			for _, f := range fs {
+				<li class="formation-row" title={ f.Games + " games" }>
+					<span class="formation-name">{ f.Name }</span>
+					<span class="formation-track" style={ "width:" + f.Width }>
+						@wdlBar(f.Bar)
+					</span>
+					if f.Thin {
+						<!-- too few games to score: the row still shows, because
+						     having tried a formation twice is worth seeing, but it
+						     makes no claim about how it went -->
+						<span class="formation-score is-thin">{ f.Games }</span>
+					} else {
+						<span class="formation-score">{ f.Score }</span>
+					}
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// matchupList names specific clashes. The matchup's own proper name leads,
+// since that is the thing two players can actually talk about.
+templ matchupList(heading string, ms []MatchupView, tint string) {
+	<div>
+		<p class="formation-head">{ heading }</p>
+		<ul class="mt-2 flex flex-col gap-1.5">
+			for _, mu := range ms {
+				<li class="matchup-row">
+					<span class="matchup-name">{ mu.Name }</span>
+					<!-- the seat is not decoration: a matchup name is a
+					     White-vs-Black clash, so the same name is two opposite
+					     experiences and the row has to say which it reports -->
+					<span class="matchup-vs">{ mu.Mine } vs { mu.Them } · { mu.Seat }</span>
+					<span class={ "matchup-score", tint }>{ mu.Score }</span>
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// profileActivity is the year heatmap. Days are UTC and day-grained on purpose:
+// a public record of when someone plays is a public record of when they are
+// awake, so there is no hour-of-day breakdown here and never will be.
+templ profileActivity(m ProfileModel) {
+	<div class="card mb-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<h2 class="stat-title">Activity</h2>
+			if m.Activity.Show {
+				<p class="text-xs text-fg-subtle">{ m.Activity.Total } across { m.Activity.Days } · { m.Activity.Busiest }</p>
+			}
+		</div>
+		if !m.Activity.Show {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "A year of play, one square per day. The more you play in a day, the brighter its square.",
+			})
+		} else {
+			<!-- Both ramps ship on every cell and the mode swaps which one the
+			     stylesheet reads, so toggling a year of squares costs no round
+			     trip and no re-render. -->
+			<!-- the tooltip lives outside the scroll box: `overflow-x: auto` makes
+			     overflow-y compute to auto as well, so a tip anchored inside it
+			     gets cropped the moment it reaches above the first row -->
+			<div class="heatmap-wrap">
+			<div class="heatmap-scroll">
+				<div class="heatmap" data-heatmap data-mode="volume">
+					<div class="heatmap-months">
+						for _, mo := range m.Activity.Months {
+							<span class="heatmap-month" style={ "grid-column:" + mo.Col }>{ mo.Name }</span>
+						}
+					</div>
+					<div class="heatmap-grid">
+						for _, w := range m.Activity.Weeks {
+							for _, d := range w.Days {
+								if d.Future {
+									<span class="heatmap-day is-future"></span>
+								} else {
+									<span
+										class={ "heatmap-day", heatLevel(d.Level), heatRate(d.Rate) }
+										data-when={ d.When }
+										data-games={ d.Games }
+										data-score={ d.Score }
+										aria-label={ d.Label }
+									></span>
+								}
+							}
+						}
+					</div>
+				</div>
+			</div>
+			<div class="heatmap-tip" hidden></div>
+			</div>
+			<div class="heatmap-foot">
+				<p class="heatmap-legend" data-legend="volume">
+					Less
+					<span class="heatmap-key l0"></span>
+					<span class="heatmap-key l1"></span>
+					<span class="heatmap-key l2"></span>
+					<span class="heatmap-key l3"></span>
+					<span class="heatmap-key l4"></span>
+					More
+				</p>
+				<p class="heatmap-legend" data-legend="rate" hidden>
+					Losing
+					<span class="heatmap-key r0"></span>
+					<span class="heatmap-key r1"></span>
+					<span class="heatmap-key r2"></span>
+					<span class="heatmap-key r3"></span>
+					<span class="heatmap-key r4"></span>
+					Winning
+				</p>
+				<div class="heatmap-modes" role="group" aria-label="Heatmap colouring">
+					<button type="button" class="heatmap-mode is-active" data-heatmap-mode="volume">Games</button>
+					<button type="button" class="heatmap-mode" data-heatmap-mode="rate">Win rate</button>
+				</div>
+			</div>
+		}
+	</div>
+}
+
+// profileOpponents is who this account actually plays. Anonymous and bot seats
+// are absent by design: a session is not a person to have a rivalry with, and
+// the bots have their own ladder beside this.
+templ profileOpponents(m ProfileModel) {
+	<div class="card mb-3">
+		<h2 class="stat-title">Most played</h2>
+		if len(m.Opponents) == 0 {
+			@statPlaceholder(StatPlaceholder{
+				Copy: "The opponents you meet most appear here, with your record against each.",
+			})
+		} else {
+			<ul class="mt-3 flex flex-col gap-1.5">
+				for _, o := range m.Opponents {
+					<li class="opponent-row">
+						<a class="opponent-name" href={ templ.SafeURL(o.URL) }>
+							if o.Title != "" {
+								<span class="player-title">{ o.Title }</span>
+							}
+							{ o.Username }
+						</a>
+						<span class="opponent-games">{ o.Games }</span>
+						<span class="opponent-track">
+							@wdlBar(o.Bar)
+						</span>
+						<span class={ "opponent-score", o.Class }>{ o.Score }</span>
+					</li>
+				}
+			</ul>
+			@wdlLegend()
+		}
+	</div>
+}
+
+// profileBotLadder is the Pawn→Queen climb. Every rung renders, played or not:
+// the ladder is the shape of the climb, and a gap in it is information.
+templ profileBotLadder(m ProfileModel) {
+	<div class="card mb-3">
+		<h2 class="stat-title">Versus the computer</h2>
+		<ul class="mt-3 flex flex-col gap-1.5">
+			for _, r := range m.BotLadder {
+				<li class={ "rung", templ.KV("is-unplayed", !r.Played) }>
+					<span class="rung-glyph piece-glyph">{ r.Glyph }</span>
+					<span class="rung-name">{ r.Name }</span>
+					if r.Played {
+						<span class="rung-track">
+							@wdlBar(r.Bar)
+						</span>
+						<span class={ "rung-score", r.Class }>{ r.Score }</span>
+					} else {
+						<span class="rung-track"></span>
+						<span class="rung-score is-unplayed">—</span>
+					}
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// wdlBar is the shared proportional win/draw/loss mark. Segments are flex-grown
+// from the raw counts rather than percentage widths, so they always total the
+// track exactly — percentage rounding leaves a sliver of track showing at the
+// end, which reads as a fourth result that does not exist. A zero count
+// collapses to nothing rather than a hairline.
+templ wdlBar(b WDLBar) {
+	<span class="wdl-bar">
+		if b.Wins > 0 {
+			<span class="wdl-seg win" style={ "flex-grow:" + b.Grow(b.Wins) }></span>
+		}
+		if b.Draws > 0 {
+			<span class="wdl-seg draw" style={ "flex-grow:" + b.Grow(b.Draws) }></span>
+		}
+		if b.Losses > 0 {
+			<span class="wdl-seg loss" style={ "flex-grow:" + b.Grow(b.Losses) }></span>
+		}
+	</span>
+}
+
+// wdlLegend names the three colours once per card. Colour alone is never the
+// only channel: every bar sits beside its own W/D/L counts too.
+templ wdlLegend() {
+	<p class="wdl-legend">
+		<span class="wdl-key win"></span>Won
+		<span class="wdl-key draw"></span>Drew
+		<span class="wdl-key loss"></span>Lost
+	</p>
+}
+
+// recordRow renders one labeled W/D/L line. The bar between the label and the
+// counts is what lets the card fill a wide viewport with something worth
+// reading rather than a label stranded from its numbers.
 templ recordRow(label string, r RecordView) {
 	<div class="record-row">
 		<span class="record-label">{ label }</span>
+		<span class="record-track">
+			@wdlBar(r.Bar)
+		</span>
+		<span class={ "record-rate", r.RateClass }>{ r.Rate }</span>
 		<span class="record-wdl">
 			<span class="record-win">{ r.Wins }</span>
 			<span class="record-sep">/</span>
@@ -136,24 +799,48 @@ templ recordRow(label string, r RecordView) {
 // profileGames is the recent-games list, each row linking into the archive.
 templ profileGames(m ProfileModel) {
 	<div class="card mb-3">
-		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Recent games</p>
+		<h2 class="stat-title">Recent games</h2>
 		if len(m.Games) == 0 {
-			<p class="mt-3 text-sm text-fg-subtle">No games yet.</p>
+			@statPlaceholder(StatPlaceholder{
+				Copy: "Finished games land here, newest first, each linking to a full replay in the archive.",
+			})
 		} else {
 			<ul class="mt-3 flex flex-col gap-1">
 				for _, g := range m.Games {
 					<li>
 						<a href={ templ.SafeURL(g.URL) } class="game-row">
-							<span class={ "game-result " + g.Class }>{ g.Result }</span>
+							<span class="game-outcome">
+								<span class={ "game-result " + g.Class }>{ g.Result }</span>
+								if g.Ending != "" {
+									<span class="game-ending">{ g.Ending }</span>
+								}
+							</span>
 							<span class="game-opponent">
 								if g.OppTitle != "" {
 									<span class="player-title">{ g.OppTitle }</span>
 								}
+								if g.OppGlyph != "" {
+									<span class="piece-glyph">{ g.OppGlyph }</span>
+								}
 								{ g.Opponent }
+								if g.OppRating != "" {
+									<span class="game-opp-rating">{ g.OppRating }</span>
+								}
 							</span>
-							<span class="game-variant">{ g.Variant }</span>
-							<span class="game-mode">{ g.Mode }</span>
-							<span class="game-when">{ g.When }</span>
+							<!-- the metadata sits together at the right, so widening the card
+							     stretches the opponent column rather than scattering five
+							     separate fields across the row -->
+							<span class="game-meta">
+								<span class="game-variant">{ g.Variant }</span>
+								<span class="game-mode">{ g.Mode }</span>
+								if g.Moves != "" {
+									<span class="game-moves">{ g.Moves }</span>
+								}
+								if g.Delta != "" {
+									<span class={ "game-delta", g.DeltaClass }>{ g.Delta }</span>
+								}
+								<span class="game-when">{ g.When }</span>
+							</span>
 						</a>
 					</li>
 				}

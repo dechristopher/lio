@@ -16,8 +16,7 @@ templ profilePopover(username string, t title.Title) {
 	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
 		<div class="mt-1 flex items-center gap-2">
 			<p class="flex min-w-0 flex-1 items-center gap-1.5 truncate text-md font-semibold text-fg">
-				@playerTitle(t)
-				<span class="min-w-0 truncate">{ username }</span>
+				@playerName(t, username, "/@/"+username)
 			</p>
 			<button type="button" id="editProfileButton" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:border-line-strong hover:text-fg" aria-label="Edit profile" title="Edit profile">
 				@iconPencil()
