@@ -17,6 +17,13 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Player Profiles & Stats",
+		Date:  "Jul 27, 2026",
+		Body: "We added player profiles and in-depth stats, so you can see how you're " +
+			"improving. Also landed: a light mode overhaul and a way for logged in " +
+			"players to send feedback and report bugs.",
+	},
+	{
 		Title: "We've moved to octad.gg",
 		Date:  "Jul 24, 2026",
 		Body: "Octad has a shorter, snappier home: octad.gg. Old lioctad.org links " +
@@ -33,7 +40,7 @@ var Items = []Item{
 			"be one of the final steps in getting there.",
 	},
 	{
-		Title: "v1.3.1: Analysis board & UX improvements",
+		Title: "v1.3.1: Analysis Board & UX improvements",
 		Date:  "Jul 21, 2026",
 		Body: "Today's release includes quality of live improvements to the analysis board, especially " +
 			"relating to the exploration of alternate lines. The board will now show annotations for " +
@@ -42,20 +49,20 @@ var Items = []Item{
 			"see how you fare over time.",
 	},
 	{
-		Title: "More bot personas",
+		Title: "More Bot Personas",
 		Date:  "Jul 21, 2026",
 		Body: "We've added various bot difficulty levels, so players both new and veteran can face a " +
 			"proper challenge. We've also added study mode to analysis boards, so different lines of " +
 			"moves can be explored.",
 	},
 	{
-		Title: "Octad has arrived",
+		Title: "Octad Has Arrived",
 		Date:  "Jul 21, 2026",
 		Body: "The first full release of Octad, the new chess variant, is now available. Play it " +
 			"against other players, or against the computer, and let us know what you think.",
 	},
 	{
-		Title: "Games that count",
+		Title: "Games That Count",
 		Date:  "Jul 20, 2026",
 		Body: "Timed games against another player are now rated. Win, lose, or draw and your rating " +
 			"shifts, shown right next to your name on the clocks — with a separate rating for each " +
