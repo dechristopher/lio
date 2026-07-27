@@ -1757,8 +1757,8 @@ func TestFeedbackPromptAndModal(t *testing.T) {
 	mustContain(t, prompt, `id="feedbackButton"`)
 	// the invitation has to cover praise as well as problems, or it only ever
 	// collects complaints
-	mustContain(t, prompt, "Something broken, or something you love")
-	mustContain(t, prompt, "Tell us how it")
+	mustContain(t, prompt, "Tell us how it's going")
+	mustContain(t, prompt, "We read all of it.")
 
 	modal := renderSmoke(t, feedbackModal())
 	mustContain(t, modal, `id="modalFeedback"`)
