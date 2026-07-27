@@ -135,7 +135,7 @@ templ iconRefresh() {
 templ heroRatings(m ProfileModel) {
 	<div class="hero-ratings">
 		if len(m.Ratings) == 0 {
-			<p class="hero-ratings-empty">No rating yet — finish a rated game to earn your first.</p>
+			<p class="hero-ratings-empty">No rating yet! Finish a rated game to earn your first.</p>
 		} else {
 			<ul class="hero-rating-list">
 				for _, r := range m.Ratings {
@@ -212,7 +212,7 @@ templ profileRatingHistory(m ProfileModel) {
 		<h2 class="stat-title">Rating history</h2>
 		if len(m.Charts) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Your rating over time is charted here — one curve per time control, with your peak and recent form.",
+				Copy: "Your rating over time is charted here, with one curve per time control showing your peak and recent form.",
 			})
 		} else {
 			if len(m.Charts) > 1 {
@@ -333,7 +333,7 @@ templ profileRecords(m ProfileModel) {
 		<h2 class="stat-title">Record</h2>
 		if m.Total.Empty {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Wins, draws and losses appear here — overall, split by time control, and against each bot.",
+				Copy: "Wins, draws and losses appear here: overall, split by time control, and against each bot.",
 			})
 		} else {
 		<div class="mt-3">
@@ -476,7 +476,7 @@ templ profileEndings(m ProfileModel) {
 		<h2 class="stat-title">How games end</h2>
 		if len(m.Endings) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Checkmate, resignation, flagging — how your games finish, and how each one tends to go for you.",
+				Copy: "Checkmate, resignation, flagging.. how your games finish, and how they tend to go for you.",
 			})
 		} else {
 			<ul class="mt-3 flex flex-col gap-2">
@@ -506,7 +506,7 @@ templ profileLengths(m ProfileModel) {
 		</div>
 		if len(m.Lengths.Buckets) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "How long your games run, in plies — whether you win short and sharp or grind out endgames.",
+				Copy: "How long your games run, in plies: whether you win short and sharp or grind out endgames.",
 			})
 		} else {
 			<div class="length-chart">

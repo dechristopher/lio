@@ -50,7 +50,7 @@ func feedbackPrompt() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span> <span class=\"feedback-prompt-text\"><span class=\"feedback-prompt-title\">Tell us how it's going</span> <span class=\"feedback-prompt-sub\">Something broken, or something you love — we read all of it.</span></span></button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span> <span class=\"feedback-prompt-text\"><span class=\"feedback-prompt-title\">Tell us how it's going</span> <span class=\"feedback-prompt-sub\">We read all of it.</span></span></button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

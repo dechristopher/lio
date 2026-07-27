@@ -523,7 +523,7 @@ func heroRatings(m ProfileModel) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(m.Ratings) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"hero-ratings-empty\">No rating yet — finish a rated game to earn your first.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"hero-ratings-empty\">No rating yet! Finish a rated game to earn your first.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -862,7 +862,7 @@ func profileRatingHistory(m ProfileModel) templ.Component {
 		}
 		if len(m.Charts) == 0 {
 			templ_7745c5c3_Err = statPlaceholder(StatPlaceholder{
-				Copy: "Your rating over time is charted here — one curve per time control, with your peak and recent form.",
+				Copy: "Your rating over time is charted here, with one curve per time control showing your peak and recent form.",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1554,7 +1554,7 @@ func profileRecords(m ProfileModel) templ.Component {
 		}
 		if m.Total.Empty {
 			templ_7745c5c3_Err = statPlaceholder(StatPlaceholder{
-				Copy: "Wins, draws and losses appear here — overall, split by time control, and against each bot.",
+				Copy: "Wins, draws and losses appear here: overall, split by time control, and against each bot.",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2131,7 +2131,7 @@ func profileEndings(m ProfileModel) templ.Component {
 		}
 		if len(m.Endings) == 0 {
 			templ_7745c5c3_Err = statPlaceholder(StatPlaceholder{
-				Copy: "Checkmate, resignation, flagging — how your games finish, and how each one tends to go for you.",
+				Copy: "Checkmate, resignation, flagging.. how your games finish, and how they tend to go for you.",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -2262,7 +2262,7 @@ func profileLengths(m ProfileModel) templ.Component {
 		}
 		if len(m.Lengths.Buckets) == 0 {
 			templ_7745c5c3_Err = statPlaceholder(StatPlaceholder{
-				Copy: "How long your games run, in plies — whether you win short and sharp or grind out endgames.",
+				Copy: "How long your games run, in plies: whether you win short and sharp or grind out endgames.",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
