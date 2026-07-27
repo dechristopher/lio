@@ -81,9 +81,15 @@ templ header(width string) {
 				// it shrink to an ellipsis under space pressure on narrow phones
 				// instead of pushing the icon controls off-screen. Keeps the name in
 				// --text and the accent-tinted title badge, matching the rest of the app.
-				<button type="button" id="profileButton" class="flex min-w-0 mr-1 ml-8 items-center gap-1.5 whitespace-nowrap text-sm hover:text-accent-hover font-semibold text-fg cursor-pointer">
+				<button type="button" id="profileButton" data-unread-anchor class="flex min-w-0 mr-1 ml-8 items-center gap-1.5 whitespace-nowrap text-sm hover:text-accent-hover font-semibold text-fg cursor-pointer">
 					@playerTitle(viewer(ctx).Title)
 					<span class="min-w-0 truncate">{ viewer(ctx).Username }</span>
+					// unread feedback marker, moderators only: the menu behind this
+					// button is the only way into /system, so the dot has to live
+					// on the button itself to be seen without opening it.
+					// data-unread-anchor marks where lio-notify.js keeps it current
+					// on a page that is never reloaded.
+					@unreadDot(viewer(ctx).UnreadFeedback)
 				</button>
 			} else if viewer(ctx).AccountsEnabled {
 				// Logged-out control: bare accent-colored text (no button chrome),
@@ -120,6 +126,20 @@ templ header(width string) {
 	if viewer(ctx).LoggedIn {
 		@securityModal()
 		@editProfileModal(viewer(ctx).Username)
+		@feedbackModal()
+		// the feedback dialog is reachable from every page's header, so its
+		// controller loads with the header rather than per-page. Deferred and
+		// only for a logged-in viewer, who is the only one the prompt renders for.
+		<script defer src={ asset("lio-feedback.js") }></script>
+		// The unread-feedback badge rides in this header on every page, so its
+		// poller loads here for the same reason — the per-page script bundles
+		// (scriptsBase/scriptsTV/scriptsAbout) each cover only a family of
+		// pages, and a badge that stopped updating on the home page would be
+		// worse than one that never moved. Moderators only: nobody else can
+		// see the dot or read the endpoint.
+		if viewer(ctx).Role.CanModerate() {
+			<script defer src={ asset("lio-notify.js") }></script>
+		}
 	}
 	@navScript()
 	@connScript()

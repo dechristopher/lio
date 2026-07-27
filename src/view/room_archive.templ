@@ -18,9 +18,16 @@ templ RoomArchive(meta Meta, m ArchiveModel) {
 				@header("w-[min(96vw,60rem)] min-[900px]:w-[min(96vw,48rem)]")
 				@archiveGame(meta, m)
 			</div>
+			// the report dialog, mounted only where its control can appear
+			if m.ReportTarget != "" {
+				@reportModal()
+			}
 		</body>
 		@scriptsBase(meta)
 		@scriptsRoom(meta)
+		if m.ReportTarget != "" {
+			<script src={ asset("lio-report.js") }></script>
+		}
 	}
 }
 
@@ -119,6 +126,22 @@ templ archiveGame(meta Meta, m ArchiveModel) {
 					</span>
 					·
 					<span>{ m.EndedDate }</span>
+					if m.ReportTarget != "" {
+						<!-- Reporting the opponent, offered to a returning player of
+						     this game. Understated and last in the line on purpose:
+						     the archive is somewhere people come to review a game,
+						     not to complain about one.
+
+						     Grouped with its separator rather than sitting beside it
+						     as a bare text node: the info bar wraps, and a loose "·"
+						     is its own flex item that would be left stranded at the
+						     end of the line above. lio-report.js drops the separator
+						     entirely once the group wraps to its own line. -->
+						<span class="info-report-group">
+							<span class="info-sep" aria-hidden="true">·</span>
+							<button type="button" class="info-report" data-report-target={ m.ReportTarget }>Report { m.ReportTarget }</button>
+						</span>
+					}
 				</div>
 			</div>
 			<footer class="ga-foot flex flex-col items-center gap-1.5 pt-3 pb-1 text-xs text-fg-subtle">

@@ -56,6 +56,7 @@ templ profilePopover(username string, t title.Title) {
 				Account Security
 			</button>
 		</div>
+		@feedbackPrompt()
 		if viewer(ctx).Role.CanModerate() {
 			@staffLinks()
 		}
@@ -79,7 +80,13 @@ templ profilePopover(username string, t title.Title) {
 // piles up.
 templ staffLinks() {
 	<div class="mt-3 flex items-stretch gap-2 border-t border-line pt-3">
-		<a href="/system" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm no-underline">System</a>
+		// the System link carries the unread-feedback dot: the inbox lives on
+		// that page, so this is the step between seeing that there is something
+		// and reading it
+		<a href="/system" data-unread-anchor class="btn btn-ghost flex-1 justify-center gap-1.5 py-1.5 text-sm no-underline">
+			System
+			@unreadDot(viewer(ctx).UnreadFeedback)
+		</a>
 		<a href="/moderation" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm no-underline">Moderation</a>
 	</div>
 }

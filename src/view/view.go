@@ -17,6 +17,7 @@ import (
 	"github.com/dechristopher/lio/assets"
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
@@ -121,6 +122,11 @@ type Viewer struct {
 	// visitors and ordinary accounts. Rendering off it is cosmetic — every
 	// privileged route re-checks server-side.
 	Role role.Role
+	// UnreadFeedback is how much player feedback nobody has read yet, driving
+	// the red dot on the header username and the popover's System link. Only
+	// ever populated for a viewer who can moderate — an ordinary account has
+	// nowhere to act on it, so it is not worth the count.
+	UnreadFeedback int64
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -136,6 +142,11 @@ func viewerFrom(c fiber.Ctx) Viewer {
 			v.Username = uc.Account.Username
 			v.Title = uc.Account.Title
 			v.Role = uc.Account.Role
+			if v.Role.CanModerate() {
+				// cached behind a short TTL in the db package, so this stays a
+				// map lookup on the render path rather than a query per page
+				v.UnreadFeedback = db.UnreadFeedback()
+			}
 		}
 	}
 	return v

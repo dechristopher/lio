@@ -96,3 +96,87 @@ func TestArchivePGNRebuild(t *testing.T) {
 		t.Errorf("replayed %d moves, want %d", got, want)
 	}
 }
+
+// TestReportTargetForSeats locks the archive page's report gating: it names the
+// seat the viewer did *not* sit in, only for a seat that is a real account, and
+// nothing at all for a visitor who did not play the game.
+//
+// Participation resolves by account id first and session uid second, so a
+// player still recognises their own game from a new session, and a game played
+// anonymously on the current session still resolves.
+func TestReportTargetForSeats(t *testing.T) {
+	const (
+		drew = int64(1)
+		cdp  = int64(2)
+	)
+	acct := func(id int64) *int64 { return &id }
+
+	cases := []struct {
+		name      string
+		game      gen.Game
+		viewerID  int64
+		viewerUID string
+		whiteName string
+		blackName string
+		want      string
+	}{{
+		name:      "viewer played white, reports black",
+		game:      gen.Game{WhiteUserID: acct(drew), BlackUserID: acct(cdp)},
+		viewerID:  drew,
+		whiteName: "drewtest", blackName: "cdpplayer",
+		want: "cdpplayer",
+	}, {
+		name:      "viewer played black, reports white",
+		game:      gen.Game{WhiteUserID: acct(cdp), BlackUserID: acct(drew)},
+		viewerID:  drew,
+		whiteName: "cdpplayer", blackName: "drewtest",
+		want: "cdpplayer",
+	}, {
+		// a spectator or a stranger browsing the permalink
+		name:      "viewer played neither seat",
+		game:      gen.Game{WhiteUserID: acct(cdp), BlackUserID: acct(drew)},
+		viewerID:  99,
+		whiteName: "cdpplayer", blackName: "drewtest",
+		want: "",
+	}, {
+		// the bot has no account and no name to report
+		name:      "opponent is the engine",
+		game:      gen.Game{WhiteUserID: acct(drew), BlackUid: ""},
+		viewerID:  drew,
+		whiteName: "drewtest", blackName: "",
+		want: "",
+	}, {
+		// an anonymous human has nothing to sanction
+		name:      "opponent is anonymous",
+		game:      gen.Game{WhiteUserID: acct(drew), BlackUid: "uid_anon"},
+		viewerID:  drew,
+		whiteName: "drewtest", blackName: "",
+		want: "",
+	}, {
+		// played anonymously, signed in since — the uid still identifies the seat
+		name:      "viewer matched by session uid",
+		game:      gen.Game{WhiteUid: "uid_mine", BlackUserID: acct(cdp)},
+		viewerID:  drew,
+		viewerUID: "uid_mine",
+		whiteName: "", blackName: "cdpplayer",
+		want: "cdpplayer",
+	}, {
+		// an empty uid must never match an account-less seat
+		name:      "empty uid matches nothing",
+		game:      gen.Game{WhiteUid: "", BlackUid: ""},
+		viewerID:  drew,
+		viewerUID: "",
+		whiteName: "", blackName: "",
+		want: "",
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := reportTargetForSeats(tc.game, tc.viewerID, tc.viewerUID,
+				tc.whiteName, tc.blackName)
+			if got != tc.want {
+				t.Errorf("reportTargetForSeats = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

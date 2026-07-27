@@ -33,6 +33,10 @@ type SystemModel struct {
 	Feed AuditFeed
 	// Live is what the site is doing right now.
 	Live LiveOps
+	// Feedback is what players have said about the site. Shown to every
+	// moderator, not just admins: it is not a control and nothing in it acts on
+	// anyone, so gating it would only mean fewer people read it.
+	Feedback FeedbackInbox
 }
 
 // LiveOps is the operational picture: who is here and what is running. It is an

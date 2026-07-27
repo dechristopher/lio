@@ -1,19 +1,25 @@
-// Player reporting (arch/ADMIN_MODERATION.md Phase 4): the dialog behind the
-// "Report <opponent>" control on the game-over panel.
+// Player reporting (arch/ADMIN_MODERATION.md Phase 4): the dialog behind every
+// "Report <player>" control — the live game-over panel, the archive page's info
+// bar, and a player's profile.
 //
 // This is the one moderation surface an ordinary player sees, and most will see
 // it once. So it says what will happen in plain terms, confirms that the report
 // landed, and then gets out of the way — there is no status to track, no appeal
 // thread, and deliberately no feedback about what a moderator decided.
 //
+// The control is found by its data-report-target rather than by id, so a page
+// that grows another entry point needs no change here; the attribute also
+// carries *who* it reports, which is why the target is read per-click instead of
+// once at load.
+//
 // The server re-checks everything the control's visibility implies (logged in,
-// opponent is a real account, not yourself); nothing here is a gate.
+// target is a real account, not yourself); nothing here is a gate.
 (function () {
   "use strict";
 
   const modal = document.getElementById("modalReport");
-  const openBtn = document.getElementById("result-report");
-  if (!modal || !openBtn) return;
+  const openBtns = document.querySelectorAll("[data-report-target]");
+  if (!modal || !openBtns.length) return;
 
   const form = document.getElementById("reportForm");
   const targetEl = document.getElementById("reportTarget");
@@ -24,7 +30,8 @@
   const submitBtn = document.getElementById("reportSubmit");
   const cancelBtn = document.getElementById("reportCancel");
 
-  const target = openBtn.dataset.reportTarget || "";
+  // whoever the control that opened the dialog names
+  let target = "";
   // the game this report comes out of, when the page knows it — the archive
   // data block carries the id on a finished game
   const gameId = (function () {
@@ -47,7 +54,8 @@
     okEl.classList.toggle("hidden", !text);
   }
 
-  function open() {
+  function open(btn) {
+    target = btn.dataset.reportTarget || "";
     targetEl.textContent = target;
     setError("");
     setOk("");
@@ -107,7 +115,9 @@
     submitBtn.disabled = false;
   }
 
-  openBtn.addEventListener("click", open);
+  openBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () { open(btn); });
+  });
   cancelBtn.addEventListener("click", close);
   form.addEventListener("submit", send);
   modal.addEventListener("click", function (ev) {
@@ -116,4 +126,28 @@
   document.addEventListener("keydown", function (ev) {
     if (ev.key === "Escape" && modal.classList.contains("open")) close();
   });
+
+  // The archive page's info bar is a wrapping, centred flex row ("Archived
+  // game · <date> · Report <player>"). Once the control no longer fits beside
+  // the date, the separator ahead of it should go rather than dangle at the end
+  // of the line above — and CSS cannot see a line break, so measure it.
+  //
+  // Always measure with the group in its natural state: the applied state
+  // changes the group's width, so letting it feed into the next decision would
+  // make the control flip between lines around the wrap point.
+  (function () {
+    const group = document.querySelector(".info-report-group");
+    if (!group || !group.previousElementSibling) return;
+    const prev = group.previousElementSibling;
+
+    function syncWrap() {
+      group.classList.remove("is-wrapped");
+      if (group.offsetTop > prev.offsetTop) group.classList.add("is-wrapped");
+    }
+
+    syncWrap();
+    window.addEventListener("resize", syncWrap);
+    // a late webfont swap reflows the bar without ever firing resize
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncWrap);
+  })();
 })();

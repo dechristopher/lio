@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/www/handlers/api/account"
+	"github.com/dechristopher/lio/www/handlers/api/feedback"
 	"github.com/dechristopher/lio/www/handlers/api/mod"
 	"github.com/dechristopher/lio/www/handlers/api/pools"
 	"github.com/dechristopher/lio/www/handlers/api/report"
@@ -29,6 +30,12 @@ func Wire(a fiber.Router) {
 	// limited because it is reachable by any logged-in visitor, and a queue is
 	// only useful while someone can still read it.
 	report.Wire(a.Group("/report", middleware.AuthAPILimiter()))
+
+	// site feedback, reachable by any logged-in visitor. Its own limiter rather
+	// than the auth one: this is a burst bound on a single deliberate action
+	// (nobody sends feedback twice a second), and the per-account rolling cap
+	// inside the handler is what actually bounds one person's volume.
+	feedback.Wire(a.Group("/feedback", middleware.FeedbackLimiter()))
 
 	// statistics API group
 	stat := a.Group("/stat")

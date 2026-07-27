@@ -143,7 +143,13 @@ type ArchiveModel struct {
 	Matchup         string
 	BottomFormation string
 	TopFormation    string
-	Data            ArchiveData
+	// ReportTarget is the opponent's account username when this viewer may
+	// report them from this page, else "" — the archive analogue of the live
+	// game-over control (arch/ADMIN_MODERATION.md Phase 4). Resolved entirely
+	// server-side (it needs the game's seat account ids, which the view model
+	// otherwise has no reason to carry), so the template gates on it alone.
+	ReportTarget string
+	Data         ArchiveData
 }
 
 // archiveModeLabel mirrors the live rail's Casual/Competitive tag.

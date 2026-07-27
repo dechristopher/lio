@@ -78,6 +78,12 @@ type ProfileModel struct {
 	H2H     string
 	H2HShow bool
 
+	// ShowReport offers the report control (arch/ADMIN_MODERATION.md Phase 4)
+	// to a logged-in visitor looking at somebody else's open account. Mutually
+	// exclusive with ShowMod: a moderator who can act on this account has the
+	// tools right there, and asking themselves to look is not a workflow.
+	ShowReport bool
+
 	// Mod is the moderation bar's state, populated only when the viewing
 	// account may moderate this one. Rendering is gated on ShowMod; every
 	// action it offers is independently re-authorized server-side.

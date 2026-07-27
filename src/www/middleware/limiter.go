@@ -75,6 +75,29 @@ func AnalysisLimiter() fiber.Handler {
 	})
 }
 
+// feedbackMax is the per-client budget for the /api/feedback endpoint per
+// window. Sending feedback is a deliberate, one-at-a-time act, so this is a
+// pure burst bound — the rolling per-account cap inside the handler is what
+// limits how much one person can file overall, and it is the check that
+// survives someone changing IP.
+const feedbackMax = 6
+
+// feedbackWindow is the rolling window feedbackMax is measured over.
+const feedbackWindow = time.Minute
+
+// FeedbackLimiter rate-limits the /api/feedback endpoint per client IP.
+func FeedbackLimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:          feedbackMax,
+		Expiration:   feedbackWindow,
+		KeyGenerator: clientIP,
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).
+				JSON(fiber.Map{"error": "too many requests - slow down"})
+		},
+	})
+}
+
 // ClientIP exposes the resolved client address to handlers outside this
 // package (the login rate limiter keys off it).
 func ClientIP(c fiber.Ctx) string {

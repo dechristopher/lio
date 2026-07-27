@@ -2,6 +2,7 @@ package view
 
 import (
 	"context"
+	"html"
 	"strconv"
 	"strings"
 	"testing"
@@ -493,6 +494,33 @@ func TestRenderRoomArchive(t *testing.T) {
 	// explored promotion pushes) and the hidden explore nudge
 	mustContain(t, out, `id="promo-select"`)
 	mustContain(t, out, `id="explore-hint"`)
+}
+
+// TestArchiveReportControl: a returning player of an archived game gets the
+// report control *and* the dialog it opens; everyone else gets neither. The
+// server resolves eligibility into ReportTarget, so the page's only job is to
+// render both halves together or not at all — a control with no dialog behind
+// it would be a dead button, and a dialog with no control is dead weight on
+// every archive page on the site.
+func TestArchiveReportControl(t *testing.T) {
+	m := ArchiveModel{
+		RoomID: "abc", VariantName: "½ + 1", N: 1, Count: 1,
+		Orientation: "w", TopName: "cdpplayer", BottomName: "drewtest",
+		EndedDate: "Jan 1, 2026",
+		Data:      ArchiveData{GameID: "g-uuid", N: 1, Count: 1},
+	}
+
+	plain := renderSmoke(t, RoomArchive(ArchiveMeta(m), m))
+	mustNotContain(t, plain, "data-report-target")
+	mustNotContain(t, plain, `id="modalReport"`)
+	mustNotContain(t, plain, "lio-report")
+
+	m.ReportTarget = "cdpplayer"
+	out := renderSmoke(t, RoomArchive(ArchiveMeta(m), m))
+	mustContain(t, out, `data-report-target="cdpplayer"`)
+	mustContain(t, out, "Report cdpplayer")
+	mustContain(t, out, `id="modalReport"`)
+	mustContain(t, out, "lio-report")
 }
 
 // TestRenderNews locks the paginated news page: the full page shell, the first
@@ -1398,6 +1426,27 @@ func TestRenderModBarConfirmFlow(t *testing.T) {
 	mustNotContain(t, renderSmoke(t, Profile(ProfileMeta(plain), plain)), `id="modalConfirmChange"`)
 }
 
+// TestProfileReportControl: a logged-in visitor on someone else's open account
+// gets the report control and the dialog behind it. ShowReport is resolved
+// server-side — including its mutual exclusion with the mod bar, since a
+// moderator who can act on this account has no reason to file a report about it
+// — so the page renders both halves off that one flag.
+func TestProfileReportControl(t *testing.T) {
+	m := profileFixture()
+
+	plain := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustNotContain(t, plain, "data-report-target")
+	mustNotContain(t, plain, `id="modalReport"`)
+	mustNotContain(t, plain, "lio-report")
+
+	m.ShowReport = true
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, out, `data-report-target="drewtest"`)
+	mustContain(t, out, "Report drewtest")
+	mustContain(t, out, `id="modalReport"`)
+	mustContain(t, out, "lio-report")
+}
+
 // TestRenderModHistoryChips: the player page renders the same audit row the
 // /system feed does — payload chips and tooltips included — minus the target,
 // which on that page is the page itself.
@@ -1573,4 +1622,161 @@ func TestTimelineNameLinks(t *testing.T) {
 	mustNotContain(t, plain, "player-link")
 	mustNotContain(t, plain, "/@/")
 	mustContain(t, plain, "Anonymous")
+}
+
+// feedbackFixture is one unread and one read submission, covering both row
+// shapes the inbox renders.
+func feedbackFixture() FeedbackInbox {
+	return FeedbackInbox{
+		Unread: 1,
+		Total:  2,
+		Shown:  2,
+		Items: []FeedbackView{
+			{ID: "7", When: "just now", WhenExact: "2026-07-26 12:00:00 UTC",
+				Kind: "problem", Class: FeedbackKindClass("problem"),
+				Label: FeedbackKindLabel("problem"),
+				Body:  "the clock jumps on my phone", Author: "drewtest",
+				Path: "/Ab3xY9", Unread: true},
+			{ID: "6", When: "yesterday", WhenExact: "2026-07-25 09:00:00 UTC",
+				Kind: "praise", Class: FeedbackKindClass("praise"),
+				Label: FeedbackKindLabel("praise"),
+				Body:  "the new board themes are lovely", Author: "cdpplayer",
+				Reader: "drewtest"},
+		},
+	}
+}
+
+// TestRenderFeedbackInbox covers the /system feedback section: both row states,
+// the kind tint, the page-path link back into the site, and the mark-read
+// controls that only exist while something is unread.
+func TestRenderFeedbackInbox(t *testing.T) {
+	out := renderSmoke(t, FeedbackInboxSection(feedbackFixture()))
+	mustContain(t, out, "1 unread")
+	mustContain(t, out, "the clock jumps on my phone")
+	mustContain(t, out, "the new board themes are lovely")
+	mustContain(t, out, `href="/@/drewtest"`) // the author reaches their page
+	mustContain(t, out, `href="/Ab3xY9"`)     // where they were when they wrote it
+	mustContain(t, out, "fb-problem")         // tinted by kind, not by severity
+	mustContain(t, out, "fb-praise")
+	mustContain(t, out, "is-unread")
+	mustContain(t, out, `data-feedback-read="7"`) // the unread row offers the action
+	mustContain(t, out, "data-feedback-read-all")
+	mustContain(t, out, "read by drewtest") // the read row states who read it
+	mustNotContain(t, out, `data-feedback-read="6"`)
+
+	// nothing unread: no mark-read controls anywhere, and no dot
+	allRead := feedbackFixture()
+	allRead.Unread = 0
+	allRead.Items[0].Unread = false
+	allRead.Items[0].Reader = "drewtest"
+	read := renderSmoke(t, FeedbackInboxSection(allRead))
+	mustContain(t, read, "all read")
+	mustNotContain(t, read, "data-feedback-read-all")
+	mustNotContain(t, read, "unread-dot")
+
+	// an empty inbox says where feedback comes from rather than just "none"
+	empty := renderSmoke(t, FeedbackInboxSection(FeedbackInbox{}))
+	mustContain(t, empty, "Nothing yet.")
+	mustNotContain(t, empty, "unread-dot")
+}
+
+// TestFeedbackInboxMore: a bounded page states what it is leaving out, so a
+// long history never looks like the whole of it.
+func TestFeedbackInboxMore(t *testing.T) {
+	f := feedbackFixture()
+	if got := f.More(); got != 0 {
+		t.Errorf("More() = %d with everything shown, want 0", got)
+	}
+	f.Total = 40
+	if got := f.More(); got != 38 {
+		t.Errorf("More() = %d, want 38", got)
+	}
+	mustContain(t, renderSmoke(t, FeedbackInboxSection(f)), "38 older not shown.")
+}
+
+// TestUnreadDotOnlyWhenUnread: the red marker is a signal, and a marker that is
+// always present is one nobody looks at.
+func TestUnreadDotOnlyWhenUnread(t *testing.T) {
+	mustNotContain(t, renderSmoke(t, unreadDot(0)), "unread-dot")
+	on := renderSmoke(t, unreadDot(3))
+	mustContain(t, on, "unread-dot")
+	// the count travels with the dot: "there is something" is not the same
+	// answer as "there are three things"
+	mustContain(t, on, "3 unread feedback messages")
+	mustContain(t, renderSmoke(t, unreadDot(1)), "1 unread feedback message")
+}
+
+// TestFeedbackPromptAndModal covers the player-facing half: the popover prompt
+// names both halves of what we want to hear about, and the dialog offers every
+// kind the database accepts plus the honeypot the server checks.
+func TestFeedbackPromptAndModal(t *testing.T) {
+	prompt := renderSmoke(t, feedbackPrompt())
+	mustContain(t, prompt, `id="feedbackButton"`)
+	// the invitation has to cover praise as well as problems, or it only ever
+	// collects complaints
+	mustContain(t, prompt, "Something broken, or something you love")
+	mustContain(t, prompt, "Tell us how it")
+
+	modal := renderSmoke(t, feedbackModal())
+	mustContain(t, modal, `id="modalFeedback"`)
+	mustContain(t, modal, `id="feedbackForm"`)
+	// every kind the CHECK constraint accepts is offered, so the picker cannot
+	// drift from what the database will store. The prompts are compared escaped
+	// because they contain apostrophes, which is what templ writes out.
+	for _, k := range FeedbackKinds() {
+		mustContain(t, modal, `value="`+k+`"`)
+		mustContain(t, modal, html.EscapeString(FeedbackKindPrompt(k)))
+	}
+	// the honeypot is present and empty; a filled one is how the server spots a
+	// form-filling bot
+	mustContain(t, modal, `name="website"`)
+	mustContain(t, modal, "feedback-hp")
+}
+
+// TestFeedbackPromptShownToEveryAccount: the prompt is not a staff control. It
+// renders for an ordinary account, while the moderator-only staff links and the
+// unread dot do not.
+func TestFeedbackPromptShownToEveryAccount(t *testing.T) {
+	player := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
+		profilePopover("drewtest", title.Title{}))
+	mustContain(t, player, `id="feedbackButton"`)
+	mustNotContain(t, player, `href="/system"`)
+	mustNotContain(t, player, "unread-dot")
+
+	// a moderator with unread feedback gets the dot on the System link, which
+	// is the step between noticing and reading
+	mod := renderSmokeViewer(t,
+		Viewer{LoggedIn: true, Username: "drewtest", Role: role.Mod, UnreadFeedback: 4},
+		profilePopover("drewtest", title.Title{}))
+	mustContain(t, mod, `href="/system"`)
+	mustContain(t, mod, "unread-dot")
+	mustContain(t, mod, "4 unread feedback messages")
+}
+
+// TestUnreadPollerGating: the badge poller ships only to a moderator — the one
+// viewer the dot can appear for — and the anchors it updates are present
+// whether or not a dot is currently rendered, since the poller's whole job is
+// to add one that was not there at render time.
+//
+// It is asserted against the *header*, not a page-script bundle: the badge is
+// in the header on every page, while scriptsBase covers only some of them.
+func TestUnreadPollerGating(t *testing.T) {
+	anon := renderSmokeViewer(t, Viewer{}, header(""))
+	mustNotContain(t, anon, "lio-notify")
+
+	player := renderSmokeViewer(t,
+		Viewer{LoggedIn: true, Username: "drewtest"}, header(""))
+	mustNotContain(t, player, "lio-notify")
+
+	mod := renderSmokeViewer(t,
+		Viewer{LoggedIn: true, Username: "drewtest", Role: role.Mod}, header(""))
+	mustContain(t, mod, "lio-notify")
+
+	// a moderator with nothing unread still gets the anchors: the poller needs
+	// somewhere to put the dot when the count goes above zero
+	quiet := renderSmokeViewer(t,
+		Viewer{LoggedIn: true, Username: "drewtest", Role: role.Mod},
+		profilePopover("drewtest", title.Title{}))
+	mustContain(t, quiet, "data-unread-anchor")
+	mustNotContain(t, quiet, "unread-dot")
 }

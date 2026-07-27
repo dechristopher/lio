@@ -72,6 +72,9 @@ func ProfileHandler(c fiber.Ctx) error {
 	}
 
 	fillModBar(c, &m, rec)
+	// after fillModBar: the report control stands down when the viewer already
+	// has the moderation bar on this account
+	fillReportControl(c, &m, rec.ID)
 
 	return view.Render(c, fiber.StatusOK, view.Profile(view.ProfileMeta(m), m))
 }
@@ -301,6 +304,21 @@ func fillViewerH2H(c fiber.Ctx, m *view.ProfileModel, userID int64) {
 	}
 	m.H2HShow = true
 	m.H2H = view.FormatPoints(h2h.AScore) + " – " + view.FormatPoints(h2h.BScore)
+}
+
+// fillReportControl decides whether the page offers the report control: a
+// logged-in visitor looking at someone else's open account.
+//
+// The profile is where a player ends up when they want to do something about an
+// opponent but no longer have the game in front of them, so it is the surface
+// that has to work without a game at all — the report simply carries no
+// evidence link. A closed account is already sanctioned and a moderator holding
+// the mod bar has direct tools, so neither is asked to file anything.
+//
+// Must run after fillModBar, which is what ShowMod is read from.
+func fillReportControl(c fiber.Ctx, m *view.ProfileModel, userID int64) {
+	acct := user.GetAccount(c)
+	m.ShowReport = acct != nil && acct.ID != userID && !m.Closed && !m.ShowMod
 }
 
 // fillModBar populates the moderator-only controls, but only for a viewer who

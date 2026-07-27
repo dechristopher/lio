@@ -293,6 +293,7 @@ func renderArchive(c fiber.Ctx, games []gen.Game, n int, standalone bool) error 
 		// "You" or "BOT", neither of which addresses a page
 		TopProfile:        profileURL(topName),
 		BottomProfile:     profileURL(bottomName),
+		ReportTarget:      archiveReportTarget(c, selected, whiteName, blackName),
 		TopTitle:          topTitle,
 		BottomTitle:       bottomTitle,
 		TopRating:         topRating,
@@ -369,6 +370,52 @@ func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID, botPe
 		return "You"
 	}
 	return "Anonymous"
+}
+
+// archiveReportTarget names the opponent this viewer may report from an archive
+// page, or "" when there is nobody to report.
+//
+// The conditions mirror the live game-over control: the viewer must be logged
+// in, must have actually played this game, and the *other* seat must be a real
+// account — a bot has no account and an anonymous opponent has nothing to
+// sanction. Takes the unswapped white/black usernames rather than the oriented
+// top/bottom pair, so the seat it picks is the one it checked.
+//
+// Reporting is offered from the archive and not only from the game-over card
+// because the card is easy to miss: it closes on a rematch, on a navigation, or
+// on the tab being shut, and a player who decides hours later that their
+// opponent was cheating otherwise has nowhere to say so. The API re-checks
+// every one of these conditions regardless.
+func archiveReportTarget(c fiber.Ctx, g gen.Game, whiteName, blackName string) string {
+	acct := user.GetAccount(c)
+	if acct == nil {
+		return ""
+	}
+	return reportTargetForSeats(g, acct.ID, user.GetID(c), whiteName, blackName)
+}
+
+// reportTargetForSeats is archiveReportTarget's decision with the request taken
+// out of it. Split out because this is the half that is easy to get backwards:
+// the report names the seat the viewer did *not* sit in.
+func reportTargetForSeats(g gen.Game, viewerID int64, viewerUID, whiteName, blackName string) string {
+	switch {
+	case seatIsViewer(g.WhiteUserID, g.WhiteUid, viewerID, viewerUID):
+		return blackName
+	case seatIsViewer(g.BlackUserID, g.BlackUid, viewerID, viewerUID):
+		return whiteName
+	}
+	return ""
+}
+
+// seatIsViewer reports whether a seat was occupied by the viewing account.
+// Account id first so a player still recognises their own game from a new
+// session; the session uid is the fallback that also covers a game played
+// anonymously by someone who has since signed in on that same session.
+func seatIsViewer(seatUserID *int64, seatUID string, viewerID int64, viewerUID string) bool {
+	if seatUserID != nil {
+		return *seatUserID == viewerID
+	}
+	return seatUID != "" && seatUID == viewerUID
 }
 
 // seatGlyph is a bot seat's difficulty-persona piece glyph (the archive clock's

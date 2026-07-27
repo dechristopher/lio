@@ -1,0 +1,175 @@
+package view
+
+import "strconv"
+
+// The player feedback channel: the prompt in the profile popover, the dialog it
+// opens, and the inbox on /system that the resulting messages land in.
+
+// feedbackPrompt is the invitation in the profile popover. A prompt rather than
+// a bare "Feedback" link on purpose: a labelled button gets clicked by people
+// who already know they want to complain, while naming both halves — something
+// broken, something good — is what gets the site told about the things nobody
+// would file a report over.
+//
+// It sits in the popover's own block above the staff/logout rows, so it reads
+// as an invitation rather than as one more account setting.
+templ feedbackPrompt() {
+	<div class="mt-3 border-t border-line pt-3">
+		<button type="button" id="feedbackButton" class="feedback-prompt">
+			<span class="feedback-prompt-icon">
+				@iconMessage()
+			</span>
+			<span class="feedback-prompt-text">
+				<span class="feedback-prompt-title">Tell us how it's going</span>
+				<span class="feedback-prompt-sub">Something broken, or something you love — we read all of it.</span>
+			</span>
+		</button>
+	</div>
+}
+
+// iconMessage is the lucide "message-square" glyph backing the feedback prompt.
+templ iconMessage() {
+	<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+	</svg>
+}
+
+// unreadDot is the red notification marker: on the header username and on the
+// popover's System link, wherever there is feedback nobody has read yet.
+//
+// Rendered only for a viewer who can act on it, and only when the count is
+// non-zero — a permanently-present dot that sometimes means something is a dot
+// nobody looks at. It carries the count as its accessible name and tooltip,
+// because the dot alone says "there is something" without saying whether that
+// is one note or forty.
+templ unreadDot(n int64) {
+	if n > 0 {
+		<span class="unread-dot" role="status" title={ UnreadBadgeLabel(n) } aria-label={ UnreadBadgeLabel(n) }></span>
+	}
+}
+
+// feedbackModal is the dialog behind the prompt. Deliberately not the report
+// modal's twin: reporting is an accusation and reads as one (a severity-tinted
+// category list, a warning that a moderator will review it), while this is
+// somebody volunteering to help. The kind picker leads with the person's own
+// framing rather than the site's taxonomy, and nothing here is tinted as a
+// severity.
+//
+// The honeypot is the one piece of machinery visible in the markup: a real
+// field name, hidden from people and left empty, that a form-filling bot will
+// populate. The server treats a filled one as a silent no-op — see the feedback
+// API package for why it answers success rather than an error.
+templ feedbackModal() {
+	<div id="modalFeedback" class="modal-shade">
+		<div class="modal card">
+			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
+			<h2>Send feedback</h2>
+			<div class="mt-3 text-left">
+				<p class="text-sm text-fg-muted">
+					This goes straight to the people who run the site. There's no reply
+					thread, so if you want an answer, please include a way to reach you.
+				</p>
+				<form id="feedbackForm" class="mt-3 flex flex-col gap-3" novalidate>
+					<fieldset class="feedback-kinds">
+						<legend class="auth-label">What's this about?</legend>
+						for i, k := range FeedbackKinds() {
+							<label class="feedback-kind">
+								<input type="radio" name="kind" value={ k } checked?={ i == 0 }/>
+								<span class="feedback-kind-title">{ FeedbackKindPrompt(k) }</span>
+								<span class="feedback-kind-hint">{ FeedbackKindHint(k) }</span>
+							</label>
+						}
+					</fieldset>
+					<label class="auth-label">
+						Your message
+						<textarea id="feedbackBody" class="auth-input" name="body" rows="5" maxlength="2000" placeholder="Problem, praise, idea?"></textarea>
+					</label>
+					<!-- honeypot: hidden from people, irresistible to form fillers.
+					     aria-hidden + tabindex=-1 keep it out of the keyboard and
+					     screen-reader path so nobody can reach it by accident. -->
+					<div class="feedback-hp" aria-hidden="true">
+						<label>
+							Website
+							<input type="text" name="website" tabindex="-1" autocomplete="off"/>
+						</label>
+					</div>
+					<p id="feedbackError" class="auth-error hidden" role="alert"></p>
+					<p id="feedbackOk" class="auth-ok hidden" role="status"></p>
+					<div class="flex items-stretch gap-2">
+						<button type="button" id="feedbackCancel" class="btn btn-ghost flex-1 justify-center py-2">Cancel</button>
+						<button type="submit" id="feedbackSubmit" class="btn btn-primary flex-1 justify-center py-2">Send</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+}
+
+// FeedbackInboxSection is the /system console's feedback section: what players
+// have said about the site, newest first.
+//
+// It sits on /system rather than /moderation because it is not about a person.
+// The moderation queue is a list of accounts somebody has complained about and
+// every row there ends in a decision about one of them; feedback is site state,
+// which is what /system is for.
+//
+// Exported so the page can compose it; the row helpers below stay unexported.
+templ FeedbackInboxSection(f FeedbackInbox) {
+	<div class="card mt-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+				Feedback
+				@unreadDot(f.Unread)
+			</p>
+			<p class="text-xs text-fg-subtle">{ FeedbackCountLabel(f.Unread, f.Total) }</p>
+		</div>
+		if len(f.Items) == 0 {
+			<p class="mt-3 text-sm text-fg-subtle">
+				Nothing yet. Players can send feedback from the menu under their name.
+			</p>
+		} else {
+			if f.Unread > 0 {
+				<div class="mt-3 flex justify-end">
+					<button type="button" class="btn btn-ghost" data-feedback-read-all>Mark all read</button>
+				</div>
+			}
+			<ul class="mt-3 flex flex-col gap-2">
+				for _, item := range f.Items {
+					@feedbackRow(item)
+				}
+			</ul>
+			if f.More() > 0 {
+				<p class="mt-2 text-xs text-fg-subtle">
+					{ strconv.FormatInt(f.More(), 10) } older not shown.
+				</p>
+			}
+		}
+	</div>
+}
+
+// feedbackRow renders one submission. An unread row is marked down its left
+// edge and carries the only action there is; a read one keeps its shape but
+// states who read it, so the section reads as a history rather than a queue
+// that empties into nothing.
+templ feedbackRow(f FeedbackView) {
+	<li class={ "feedback-row " + f.Class + " " + feedbackReadClass(f) }>
+		<div class="feedback-head">
+			<span class="feedback-kind-chip">{ f.Label }</span>
+			<a class="audit-actor" href={ templ.SafeURL("/@/" + f.Author) } title="Who sent this">{ f.Author }</a>
+			if f.Path != "" {
+				<a class="feedback-path" href={ templ.SafeURL(f.Path) } title="The page they were on">{ f.Path }</a>
+			}
+			<time class="audit-when" title={ f.WhenExact }>{ f.When }</time>
+		</div>
+		<p class="feedback-body">{ f.Body }</p>
+		<div class="feedback-actions">
+			if f.Unread {
+				<button type="button" class="btn btn-ghost" data-feedback-read={ f.ID }>Mark read</button>
+			} else if f.Reader != "" {
+				<span class="feedback-readby" title="Who marked this read">read by { f.Reader }</span>
+			} else {
+				<span class="feedback-readby">read</span>
+			}
+		</div>
+	</li>
+}

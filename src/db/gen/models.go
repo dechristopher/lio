@@ -9,6 +9,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Feedback struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	UserID    int64
+	Kind      string
+	Body      string
+	Path      string
+	ReadAt    pgtype.Timestamptz
+	ReadBy    *int64
+}
+
 type Game struct {
 	ID               int32
 	GameID           uuid.UUID

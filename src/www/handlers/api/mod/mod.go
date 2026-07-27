@@ -46,6 +46,12 @@ func Wire(g fiber.Router) {
 	// report queue (see reports.go)
 	g.Post("/report/resolve", ResolveReportHandler)
 
+	// feedback inbox (see feedback.go). The unread count is a GET because it is
+	// polled by every moderator's open page to keep the badge current.
+	g.Get("/feedback/unread", UnreadFeedbackHandler)
+	g.Post("/feedback/read", ReadFeedbackHandler)
+	g.Post("/feedback/read-all", ReadAllFeedbackHandler)
+
 	// live ops: force-close a room (admin-only; see rooms.go)
 	g.Post("/room/close", CloseRoomHandler)
 

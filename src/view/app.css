@@ -1224,6 +1224,36 @@
 	.info-bar #info:empty { display: none; }
 	.info-bar #info { font-weight: 600; color: var(--text); }
 	.info-bar .unit { font-size: 0.62rem; }
+	/* The report control travels with its own separator so the wrapping info bar
+	   cannot strand a lone "·" at the end of the line above. When the group does
+	   wrap, lio-report.js adds .is-wrapped: the separator goes entirely (a dot
+	   leading its own line reads as a bullet) and the group is pinned to a full
+	   line. Pinning matters — without it, dropping the separator frees just
+	   enough width for the control to jump back up beside the date, separator-less. */
+	.info-report-group {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.info-report-group.is-wrapped {
+		flex-basis: 100%;
+		justify-content: center;
+	}
+	.info-report-group.is-wrapped .info-sep { display: none; }
+
+	/* the archive page's report control: same restraint as the live result
+	   card's .result-report, sized to the info bar it sits in */
+	.info-report {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: var(--text-subtle);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		cursor: pointer;
+	}
+	.info-report:hover { color: var(--loss); }
 
 	/* ---- game-end result overlay (sized to the board) ---- */
 	.result-overlay {
@@ -3193,6 +3223,20 @@
 		color: var(--text);
 	}
 
+	/* the profile's report control, kept quiet at the foot of the hero */
+	.hero-report { margin-top: 0.6rem; }
+	.hero-report-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		cursor: pointer;
+	}
+	.hero-report-btn:hover { color: var(--loss); }
+
 	/* one rating per time control the account has actually played */
 	.rating-tile {
 		display: flex;
@@ -4446,6 +4490,210 @@
 		cursor: pointer;
 	}
 	.result-report:hover { color: var(--loss); }
+
+	/* --- player feedback --------------------------------------------------- */
+
+	/* The prompt in the profile popover. A two-line invitation rather than a
+	   "Feedback" link: the one-word version gets clicked by people who already
+	   arrived wanting to complain, and the whole point is to also hear from the
+	   ones who would never file anything. */
+	.feedback-prompt {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.55rem;
+		width: 100%;
+		padding: 0.55rem 0.65rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		text-align: left;
+		cursor: pointer;
+		transition: border-color 150ms var(--ease-snappy), color 150ms var(--ease-snappy);
+	}
+	.feedback-prompt:hover {
+		border-color: var(--accent);
+	}
+	.feedback-prompt-icon {
+		flex: none;
+		margin-top: 0.1rem;
+		color: var(--accent);
+	}
+	.feedback-prompt-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		min-width: 0;
+	}
+	.feedback-prompt-title {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text);
+	}
+	.feedback-prompt-sub {
+		font-size: 0.72rem;
+		line-height: 1.35;
+		color: var(--text-subtle);
+	}
+
+	/* The kind picker in the send dialog: three stacked cards, selected purely
+	   in CSS off the radio inside each. Cards rather than a <select> because
+	   each choice needs its own line of explanation — a dropdown can carry the
+	   label but not the "what to write here" that makes the message useful. */
+	.feedback-kinds {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.feedback-kinds legend {
+		margin-bottom: 0.35rem;
+	}
+	.feedback-kind {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0 0.55rem;
+		padding: 0.5rem 0.6rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: border-color 150ms var(--ease-snappy), background 150ms var(--ease-snappy);
+	}
+	.feedback-kind:hover { border-color: var(--border-strong); }
+	.feedback-kind input {
+		grid-row: 1 / span 2;
+		align-self: center;
+		accent-color: var(--accent);
+	}
+	.feedback-kind:has(input:checked) {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 8%, transparent);
+	}
+	/* keyboard focus has to land on the card, since the radio itself is the only
+	   focusable thing in it and is visually secondary */
+	.feedback-kind:has(input:focus-visible) {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 2px;
+	}
+	.feedback-kind-title {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text);
+	}
+	.feedback-kind-hint {
+		font-size: 0.72rem;
+		line-height: 1.35;
+		color: var(--text-subtle);
+	}
+
+	/* The honeypot. Not display:none and not hidden — both are exactly what a
+	   form filler checks for. It is pushed out of the viewport instead, so a bot
+	   parsing the DOM sees an ordinary text input while nobody can see or tab to
+	   it (the markup also carries aria-hidden + tabindex=-1). */
+	.feedback-hp {
+		position: absolute;
+		left: -9999px;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+	}
+
+	/* --- feedback inbox (/system) ----------------------------------------- */
+
+	/* The red notification marker, on the header username and the popover's
+	   System link. --loss rather than a bespoke red: it is the site's existing
+	   "this needs you" color, and it retints with the theme like everything
+	   else. */
+	.unread-dot {
+		display: inline-block;
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--loss);
+		vertical-align: 0.15em;
+		cursor: help;
+	}
+	/* The dot's two flex hosts (the header username button, the popover's System
+	   link) space it with their own gap. In the inbox heading it follows a bare
+	   text node, where there is no gap to inherit and it would otherwise touch
+	   the "Feedback" label. */
+	:where(p) > .unread-dot {
+		margin-left: 0.35em;
+	}
+
+	.feedback-row {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		padding: 0.55rem 0.65rem;
+		border: 2px solid var(--border);
+		/* the kind's tint is carried on the left edge only: a submission is not
+		   a severity, and tinting the whole row would make "the pieces look
+		   great" shout as loudly as an outage */
+		border-left-width: 4px;
+		border-radius: var(--radius-sm);
+	}
+	/* unread is the one state worth marking, and it is marked by weight rather
+	   than color so it does not compete with the kind stripe */
+	.feedback-row.is-unread {
+		border-color: var(--border-strong);
+		background: color-mix(in srgb, var(--text) 5%, transparent);
+	}
+	.fb-problem { border-left-color: var(--loss); }
+	.fb-praise { border-left-color: var(--win); }
+	.fb-idea { border-left-color: var(--accent); }
+	.feedback-row.is-unread.fb-problem { border-left-color: var(--loss); }
+	.feedback-row.is-unread.fb-praise { border-left-color: var(--win); }
+	.feedback-row.is-unread.fb-idea { border-left-color: var(--accent); }
+
+	.feedback-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.3rem 0.5rem;
+		font-size: 0.82rem;
+	}
+	.feedback-kind-chip {
+		flex: none;
+		padding: 0.05em 0.45em;
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--text) 10%, transparent);
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: var(--text-muted);
+	}
+	/* where they were when they wrote it, in mono so it reads as a path rather
+	   than as part of the sentence */
+	.feedback-path {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+		text-decoration: none;
+		overflow-wrap: anywhere;
+	}
+	.feedback-path:hover { color: var(--accent); text-decoration: underline; }
+	.feedback-body {
+		font-size: 0.85rem;
+		line-height: 1.5;
+		color: var(--text);
+		/* preserve the line breaks somebody typed: a numbered list of three
+		   things that reflows into one paragraph is a report of one thing */
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.feedback-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.feedback-actions .btn { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+	.feedback-readby {
+		font-size: 0.72rem;
+		font-style: italic;
+		color: var(--text-subtle);
+	}
 
 	/* audit log pager */
 	.audit-pager {

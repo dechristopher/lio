@@ -33,6 +33,10 @@ const (
 	// page listing every room becomes unreadable exactly when it matters most;
 	// the remainder is counted rather than dropped silently.
 	liveRoomsShown = 40
+	// feedbackShown bounds the feedback inbox. Unlike the report queue it is not
+	// worked to empty — read messages stay as history — so the section shows a
+	// recent window and counts the rest.
+	feedbackShown = 30
 )
 
 // SystemHandler renders the moderation console for a moderator, and a 404 for
@@ -50,6 +54,7 @@ func SystemHandler(c fiber.Ctx) error {
 		Active:   view.ActiveNoticesOf(current),
 		Feed:     auditFeed(c),
 		Live:     liveOps(),
+		Feedback: feedbackInbox(),
 	}
 	return view.Render(c, fiber.StatusOK, view.System(view.SystemMeta(), m))
 }
@@ -210,6 +215,40 @@ func liveOps() view.LiveOps {
 		})
 	}
 	return ops
+}
+
+// feedbackInbox loads the /system feedback section: a recent window of what
+// players have sent, plus the counts that let the section say what it is not
+// showing. A read failure degrades to an empty section rather than failing the
+// page — the console's job during an incident is the switches above it, and
+// those must still render when this query does not.
+func feedbackInbox() view.FeedbackInbox {
+	inbox := view.FeedbackInbox{Unread: db.UnreadFeedback()}
+	if total, err := db.CountFeedback(); err == nil {
+		inbox.Total = total
+	}
+	items, err := db.ListFeedback(feedbackShown, 0)
+	if err != nil {
+		util.Error(str.CDB, "feedback inbox load failed error=%s", err.Error())
+		return inbox
+	}
+	for _, f := range items {
+		inbox.Items = append(inbox.Items, view.FeedbackView{
+			ID:        strconv.FormatInt(f.ID, 10),
+			When:      relativeDay(f.Created),
+			WhenExact: f.Created.UTC().Format("2006-01-02 15:04:05 MST"),
+			Kind:      f.Kind,
+			Class:     view.FeedbackKindClass(f.Kind),
+			Label:     view.FeedbackKindLabel(f.Kind),
+			Body:      f.Body,
+			Author:    f.Author,
+			Path:      f.Path,
+			Unread:    f.Unread(),
+			Reader:    f.Reader,
+		})
+	}
+	inbox.Shown = len(inbox.Items)
+	return inbox
 }
 
 // reportView renders one report for the queue.

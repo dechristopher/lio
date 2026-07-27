@@ -44,6 +44,10 @@ templ Profile(meta Meta, m ProfileModel) {
 			if m.ShowMod {
 				@confirmActionModal()
 			}
+			// the report dialog, mounted only where its control can appear
+			if m.ShowReport {
+				@reportModal()
+			}
 		</body>
 		@scriptsBase(meta)
 		if !m.Closed {
@@ -51,6 +55,9 @@ templ Profile(meta Meta, m ProfileModel) {
 		}
 		if m.ShowMod {
 			<script src={ asset("lio-mod.js") }></script>
+		}
+		if m.ShowReport {
+			<script src={ asset("lio-report.js") }></script>
 		}
 	}
 }
@@ -102,6 +109,14 @@ templ profileIdentity(m ProfileModel) {
 		}
 		if m.H2HShow {
 			<p class="hero-h2h">Your record against { m.Username } <span class="hero-h2h-score">{ m.H2H }</span></p>
+		}
+		if m.ShowReport {
+			<!-- Last thing in the hero, and deliberately quiet: a profile is
+			     somewhere people mostly come to read, and a prominent Report
+			     button would invite use as a reaction to losing. -->
+			<p class="hero-report">
+				<button type="button" class="hero-report-btn" data-report-target={ m.Username }>Report { m.Username }</button>
+			</p>
 		}
 	</div>
 }
