@@ -10,11 +10,14 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/dechristopher/lio/cache"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/news"
 	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/settings"
+	"github.com/dechristopher/lio/store"
+	"github.com/dechristopher/lio/sysinfo"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/variant"
 )
@@ -947,6 +950,46 @@ func TestRenderSystemConsole(t *testing.T) {
 		"Nothing has been actioned yet.")
 	empty := AuditFeed{Filtered: true, Query: "nobody", Page: 1, Pages: 1}
 	mustContain(t, renderSmoke(t, AuditFeedBody(empty)), "No actions match that search.")
+}
+
+// TestRenderInstancePanel covers the perf panel: admins get it, moderators do
+// not (it names infrastructure, which is not their business), and the polling
+// contract that keeps it live without collapsing the disclosure holds.
+func TestRenderInstancePanel(t *testing.T) {
+	m := systemFixture()
+	m.Stats = SystemStatsOf(
+		sysinfo.Runtime{Version: "v9.9.9+abc", Env: "local", GoVer: "go1.22.0",
+			Platform: "darwin/arm64", NumCPU: 8, GOMAXPROCS: 8, Goroutines: 42},
+		db.Stats{Configured: true, Reachable: true, MaxConns: 4},
+		cache.Stats{Configured: true, Reachable: true, Addr: "localhost:6379"},
+		store.Stats{Configured: true, Reachable: true, Endpoint: "obj.example", Bucket: "pgn"},
+	)
+
+	admin := renderSmoke(t, System(SystemMeta(), m))
+	mustContain(t, admin, `id="systemStats"`)
+	mustContain(t, admin, "v9.9.9+abc")
+	mustContain(t, admin, "Goroutines")
+	mustContain(t, admin, "Postgres")
+	mustContain(t, admin, "localhost:6379")
+	mustContain(t, admin, "obj.example / pgn")
+	// the poll refreshes the sample but pauses in a background tab
+	mustContain(t, admin, `hx-get="/system/stats"`)
+	mustNotContain(t, admin, "document.visibilityState") // CSP forbids htmx filter eval; gating lives in lio-mod.js
+	// the disclosure sits outside the swapped region, so a refresh cannot
+	// collapse it under the operator
+	before, _, ok := strings.Cut(admin, `id="systemStats"`)
+	if !ok || !strings.Contains(before, `id="sysDetail"`) {
+		t.Error("the detail toggle must precede the polled region, or every refresh closes it")
+	}
+
+	// a moderator who is not an admin does not get the panel at all
+	m.IsAdmin = false
+	mod := renderSmoke(t, System(SystemMeta(), m))
+	mustNotContain(t, mod, `id="systemStats"`)
+	mustNotContain(t, mod, "localhost:6379")
+
+	// the fragment renders standalone, which is how the poll receives it
+	mustContain(t, renderSmoke(t, SystemStatsBody(m.Stats)), "Postgres")
 }
 
 // TestRenderAuditPager: the pager appears only past one page, disables the end

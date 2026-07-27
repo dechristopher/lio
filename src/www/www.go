@@ -204,6 +204,8 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	r.Get("/system", handlers.SystemHandler)
 	// the audit feed on its own, for the filter form + pager's htmx swaps
 	r.Get("/system/actions", handlers.SystemActionsHandler)
+	// the instance panel on its own, for its self-poll (admin only)
+	r.Get("/system/stats", handlers.SystemStatsHandler)
 	r.Get("/moderation", handlers.ModerationHandler)
 
 	// public player pages. Registered before the room wildcards for the same

@@ -33,6 +33,10 @@ type SystemModel struct {
 	Feed AuditFeed
 	// Live is what the site is doing right now.
 	Live LiveOps
+	// Stats is the process and its backing services. Admin-only (see
+	// instancePanel) and only populated for an admin, so a moderator's page
+	// render never pays for the probes behind it.
+	Stats SystemStats
 	// Feedback is what players have said about the site. Shown to every
 	// moderator, not just admins: it is not a control and nothing in it acts on
 	// anyone, so gating it would only mean fewer people read it.

@@ -14,6 +14,9 @@ templ System(meta Meta, m SystemModel) {
 				<main class="w-[92vw] max-w-[44rem] text-left">
 					<h1 class="font-display text-xl font-bold">System</h1>
 					@liveOps(m)
+					if m.IsAdmin {
+						@instancePanel(m.Stats)
+					}
 					@FeedbackInboxSection(m.Feedback)
 					if m.IsAdmin {
 						@activeNotices(m)
@@ -91,6 +94,117 @@ templ liveStat(label string, value string, help string) {
 	<div class="live-stat" title={ help }>
 		<span class="live-stat-value">{ value }</span>
 		<span class="live-stat-label">{ label }</span>
+	</div>
+}
+
+// instancePanel is the process and the services behind it: how the Go runtime
+// is doing, and whether Postgres, Redis and the object store are answering.
+//
+// It is admin-only. Nothing here is a control and nothing acts on a player, but
+// it names infrastructure — hostnames, buckets, memory ceilings — which is the
+// operator's business rather than the moderator's.
+//
+// The summary (build line, four headline numbers, a status pill per backend) is
+// always visible; the full breakdown sits behind a disclosure, because ~35
+// labelled figures above the site controls would bury them exactly when someone
+// is reaching for them.
+//
+// The disclosure is a checkbox rather than a <details>, and it lives *outside*
+// the htmx-swapped region on purpose: the panel refreshes itself every few
+// seconds, and any open/closed state stored inside the swapped markup would
+// snap shut under the operator mid-read.
+//
+// The poll pauses while the tab is hidden — every tick probes three backends,
+// and a console left open in a background tab overnight should not keep pinging
+// them. That gating lives in lio-mod.js rather than in an hx-trigger filter,
+// because htmx evaluates filter expressions with the Function constructor and
+// the site's CSP has no 'unsafe-eval': the inline form parses, then throws on
+// every page load and gates nothing.
+templ instancePanel(s SystemStats) {
+	<div class="card mt-3">
+		<input id="sysDetail" type="checkbox" class="sys-detail-toggle"/>
+		<div class="sys-head flex flex-wrap items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Instance</p>
+			<label class="sys-toggle" for="sysDetail">
+				<span class="sys-toggle-more">Show details</span>
+				<span class="sys-toggle-less">Hide details</span>
+			</label>
+		</div>
+		<div
+			id="systemStats"
+			class="sys-body"
+			hx-get="/system/stats"
+			hx-trigger="every 10s"
+			hx-target="this"
+			hx-swap="innerHTML"
+		>
+			@SystemStatsBody(s)
+		</div>
+	</div>
+}
+
+// SystemStatsBody is the swappable sample. Exported because it is served on its
+// own as the polling fragment.
+templ SystemStatsBody(s SystemStats) {
+	<p class="sys-ident">
+		<span class="sys-ident-build" title={ "Booted " + s.Runtime.BootExact }>{ s.Runtime.Version }</span>
+		<span class="sys-ident-env" title="Deployment environment">{ s.Runtime.Env }</span>
+		<span title="Go toolchain this binary was built with">{ s.Runtime.GoVer }</span>
+		<span title="Operating system and architecture">{ s.Runtime.Platform }</span>
+		<span title={ "Booted " + s.Runtime.BootExact }>up { s.Runtime.Uptime }</span>
+	</p>
+	<div class="mt-3 flex flex-wrap gap-2">
+		for _, t := range s.Runtime.Tiles {
+			<div class={ "live-stat", t.Class } title={ t.Help }>
+				<span class="live-stat-value">{ t.Value }</span>
+				<span class="live-stat-label">{ t.Label }</span>
+			</div>
+		}
+	</div>
+	<ul class="sys-backends">
+		for _, b := range s.Backends {
+			<li class="sys-backend">
+				<span class={ "sys-dot", b.Class } aria-hidden="true"></span>
+				<span class="sys-backend-name">{ b.Name }</span>
+				<span class={ "sys-backend-status", b.Class }>{ b.Status }</span>
+				if b.Latency != "" {
+					<span class="sys-backend-latency" title="Round trip of a liveness probe just now">{ b.Latency }</span>
+				}
+				if b.Err != "" {
+					<span class="sys-backend-err" title={ b.Err }>{ b.Err }</span>
+				}
+			</li>
+		}
+	</ul>
+	<div class="sys-detail">
+		@statSections("Go runtime", s.Runtime.Sections)
+		for _, b := range s.Backends {
+			if len(b.Sections) > 0 {
+				@statSections(b.Name+" — "+b.Detail, b.Sections)
+			}
+		}
+	</div>
+	<p class="sys-sampled" title="This panel refreshes itself every 10 seconds">Sampled { s.Sampled } · this instance only</p>
+}
+
+// statSections renders one source's breakdown: a heading, then each group of
+// labelled figures. Every row carries a tooltip because the vocabulary is
+// internal — "EmptyAcquireCount" is obvious to whoever read pgxpool's source
+// and opaque to the person reading this panel at 3am.
+templ statSections(title string, sections []StatSection) {
+	<div class="sys-group">
+		<p class="sys-group-title">{ title }</p>
+		for _, sec := range sections {
+			<p class="sys-section-title">{ sec.Title }</p>
+			<dl class="sys-rows">
+				for _, r := range sec.Rows {
+					<div class="sys-row" title={ r.Help }>
+						<dt class="sys-row-label">{ r.Label }</dt>
+						<dd class={ "sys-row-value", r.Class }>{ r.Value }</dd>
+					</div>
+				}
+			</dl>
+		}
 	</div>
 }
 

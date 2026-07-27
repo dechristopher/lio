@@ -134,6 +134,13 @@ func BuildPlies(g *octad.Game, times []game.MoveTime) ([]byte, []PlyRecord) {
 // each side's delta and the clocks refresh for a rematch.
 func ArchiveGame(ctx context.Context, rec GameRecord, plies []PlyRecord) (*RatingResult, error) {
 	_, res, err := archiveGame(ctx, rec, plies, false)
+	// only the live seam is counted for the console's archive health: the
+	// backfill (ArchiveGameIfNew) reports its own progress, and folding a
+	// one-off replay of years of history into "writes since boot" would drown
+	// the signal the panel exists to show
+	if Pool != nil {
+		noteArchive(err)
+	}
 	return res, err
 }
 

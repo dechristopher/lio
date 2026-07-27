@@ -343,3 +343,19 @@
     if (f) f.addEventListener("submit", function (ev) { ev.preventDefault(); });
   });
 })();
+
+// Pause the instance panel's self-poll while the tab is hidden. Each tick
+// probes Postgres, Redis and the object store, so a console left open in a
+// background tab would keep three services busy for nobody's benefit.
+//
+// This is an htmx:beforeRequest listener rather than an hx-trigger filter
+// because htmx compiles filter expressions with the Function constructor, which
+// the site's CSP (no 'unsafe-eval') refuses — the inline form throws on every
+// page load and gates nothing.
+(function () {
+  document.addEventListener("htmx:beforeRequest", function (ev) {
+    var el = ev.detail && ev.detail.elt;
+    if (!el || el.id !== "systemStats") return;
+    if (document.visibilityState !== "visible") ev.preventDefault();
+  });
+})();

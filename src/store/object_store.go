@@ -80,13 +80,13 @@ func (b Bucket) GetObject(key string) ([]byte, error) {
 		key, minio.GetObjectOptions{})
 
 	if err != nil {
-		return nil, err
+		return nil, note("get", key, err, &getOK, &getFail)
 	}
 
 	// stat object for size of array to create
 	info, err := obj.Stat()
 	if err != nil {
-		return nil, err
+		return nil, note("get", key, err, &getOK, &getFail)
 	}
 
 	// read the object into a fully-sized array. io.ReadFull (not a single Read,
@@ -94,7 +94,11 @@ func (b Bucket) GetObject(key string) ([]byte, error) {
 	// archive backfill parses these bytes as complete PGNs.
 	data := make([]byte, info.Size)
 	_, err = io.ReadFull(obj, data)
-	return data, err
+	if err != nil {
+		return nil, note("get", key, err, &getOK, &getFail)
+	}
+	_ = note("get", key, nil, &getOK, &getFail)
+	return data, nil
 }
 
 // Configured reports whether an object store connection is available.
@@ -132,5 +136,5 @@ func (b Bucket) PutObject(key string, value []byte) error {
 			UserMetadata: nil,
 		})
 
-	return err
+	return note("put", key, err, &putOK, &putFail)
 }

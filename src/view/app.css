@@ -4891,6 +4891,261 @@
 		border-color: var(--border-strong);
 		color: var(--text);
 	}
+
+	/* --- live ops: counters and running rooms (/system) -------------------- */
+
+	/* Same tile as the profile page's .hero-figure, deliberately: an operator
+	   should recognise "big mono number over a small caption" as one thing
+	   across the site rather than learning a second dialect for the console. */
+	.live-stat {
+		display: flex;
+		min-width: 4.5rem;
+		flex: 1 1 4.5rem;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.05rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+	}
+	.live-stat-value {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 1.15rem;
+		font-weight: 700;
+		line-height: 1.1;
+		color: var(--text);
+	}
+	.live-stat-label {
+		font-size: 0.62rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-subtle);
+	}
+	/* a tinted tile keeps the caption neutral: colouring both would read as a
+	   category rather than as "look at this number" */
+	.live-stat.sys-warn .live-stat-value { color: var(--warn); }
+	.live-stat.sys-bad .live-stat-value { color: var(--loss); }
+
+	/* One running room. A dense single line per room so a busy site stays
+	   scannable; the id leads because it is what an operator copies, follows or
+	   types into a close confirmation. */
+	.live-room {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.4rem;
+		padding: 0.3rem 0.5rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+	}
+	.live-room-id {
+		font-family: var(--font-mono);
+		font-weight: 700;
+		color: var(--text);
+	}
+	.live-room-kind {
+		font-size: 0.62rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--accent);
+	}
+	.live-room-variant { color: var(--text-muted); }
+	.live-room-bot {
+		padding: 0 0.3rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
+		font-size: 0.62rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--accent);
+	}
+	/* the move count is the room's progress, pushed right so the column of them
+	   reads as a column */
+	.live-room-moves {
+		margin-left: auto;
+		font-variant-numeric: tabular-nums;
+		color: var(--text-subtle);
+	}
+	.live-room-close {
+		flex: none;
+		padding: 0.1rem 0.45rem;
+		font-size: 0.7rem;
+	}
+
+	/* --- instance panel (/system, admin) ---------------------------------- */
+
+	/* The disclosure control. Visually hidden but focusable and in the tab order:
+	   this is the only way to reach the detail, so it must not be display:none.
+	   It sits outside the polled region so its state survives every refresh. */
+	.sys-detail-toggle {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
+	}
+	.sys-toggle {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		cursor: pointer;
+		user-select: none;
+	}
+	.sys-toggle:hover { color: var(--accent); }
+	.sys-detail-toggle:focus-visible ~ .sys-head .sys-toggle {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-sm);
+	}
+	.sys-toggle-less { display: none; }
+	.sys-detail-toggle:checked ~ .sys-head .sys-toggle-more { display: none; }
+	.sys-detail-toggle:checked ~ .sys-head .sys-toggle-less { display: inline; }
+	.sys-detail { display: none; }
+	.sys-detail-toggle:checked ~ .sys-body .sys-detail { display: block; }
+
+	/* Build identity: version, environment, toolchain, platform, uptime. Mono
+	   throughout — every field is an identifier someone may need to paste into a
+	   ticket or compare against a deploy log character by character. */
+	.sys-ident {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem 0.6rem;
+		margin-top: 0.5rem;
+		font-family: var(--font-mono);
+		font-size: 0.7rem;
+		color: var(--text-subtle);
+	}
+	.sys-ident-build { font-weight: 700; color: var(--text); }
+	.sys-ident-env {
+		padding: 0 0.3rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
+		font-weight: 700;
+		color: var(--accent);
+	}
+
+	/* One line per backing service: a status dot, its name, its state, and how
+	   long the probe took. This strip is the whole panel for most visits — the
+	   question is almost always "is everything up", not "what is the pool doing". */
+	.sys-backends {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		margin-top: 0.75rem;
+	}
+	.sys-backend {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.4rem;
+		padding: 0.3rem 0.5rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		font-size: 0.75rem;
+	}
+	.sys-backend-name { font-weight: 700; color: var(--text); }
+	.sys-backend-status {
+		font-size: 0.62rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.sys-backend-latency {
+		margin-left: auto;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		color: var(--text-subtle);
+	}
+	/* the message wraps to its own full-width line rather than squeezing the
+	   fields above it — an error is the one thing here worth reading in full */
+	.sys-backend-err {
+		flex: 1 0 100%;
+		font-size: 0.7rem;
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+	.sys-dot {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 999px;
+		background: currentcolor;
+	}
+
+	/* Status and value tints. Semantic tokens, so an unreachable database reads
+	   the same red as a lost game — and the board theme deliberately does not
+	   retint these. */
+	.sys-ok { color: var(--win); }
+	.sys-warn { color: var(--warn); }
+	.sys-bad { color: var(--loss); }
+	.sys-off { color: var(--text-subtle); }
+
+	/* The expanded breakdown: one group per source, each a stack of labelled
+	   figures. */
+	.sys-group {
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--border);
+	}
+	.sys-group-title {
+		font-size: 0.8rem;
+		font-weight: 700;
+		color: var(--text);
+		overflow-wrap: anywhere;
+	}
+	.sys-section-title {
+		margin-top: 0.6rem;
+		font-size: 0.62rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-subtle);
+	}
+	/* Two columns once there is width for them. Thirty-odd rows in one column is
+	   a page nobody scrolls to the bottom of. */
+	.sys-rows {
+		display: grid;
+		grid-template-columns: 1fr;
+		margin-top: 0.2rem;
+	}
+	@media (min-width: 34rem) {
+		.sys-rows { grid-template-columns: 1fr 1fr; column-gap: 1.25rem; }
+	}
+	/* A dotted leader carries the eye across the gap, so a label and its value
+	   stay paired even when the row is wide and the value is short. */
+	.sys-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		padding: 0.15rem 0;
+		font-size: 0.72rem;
+		border-bottom: 1px dotted color-mix(in srgb, var(--border) 70%, transparent);
+	}
+	.sys-row-label {
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+	.sys-row-value {
+		margin-left: auto;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-weight: 600;
+		color: var(--text);
+		text-align: right;
+		overflow-wrap: anywhere;
+	}
+
+	.sys-sampled {
+		margin-top: 0.6rem;
+		font-size: 0.65rem;
+		color: var(--text-subtle);
+	}
 }
 
 @keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }

@@ -6,11 +6,14 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/dechristopher/lio/cache"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/settings"
+	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/sysinfo"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/view"
@@ -56,7 +59,36 @@ func SystemHandler(c fiber.Ctx) error {
 		Live:     liveOps(),
 		Feedback: feedbackInbox(),
 	}
+	// the instance panel probes three backends, so it is sampled only for the
+	// admin who can actually see it — a moderator's page load does no I/O it
+	// would then throw away
+	if m.IsAdmin {
+		m.Stats = instanceStats()
+	}
 	return view.Render(c, fiber.StatusOK, view.System(view.SystemMeta(), m))
+}
+
+// SystemStatsHandler serves the instance panel on its own, for its self-poll.
+// Admin-gated like the panel it refreshes: the fragment is a route in its own
+// right and re-checks the role rather than trusting that its only caller is the
+// page that already did.
+func SystemStatsHandler(c fiber.Ctx) error {
+	acct := user.GetAccount(c)
+	if acct == nil || !acct.Role.CanAdmin() {
+		return view.Render(c, fiber.StatusNotFound, view.NotFound(view.PageMeta("404")))
+	}
+	// a sample is stale the instant it is taken; a cached copy would show an
+	// operator a process state that no longer holds
+	c.Set("Cache-Control", "no-store")
+	return view.Render(c, fiber.StatusOK, view.SystemStatsBody(instanceStats()))
+}
+
+// instanceStats samples the process and each backing service. Every probe has
+// its own short deadline and reports failure as a value rather than an error,
+// so a backend being down renders as a red pill on an otherwise working page —
+// which is precisely the moment this panel needs to render.
+func instanceStats() view.SystemStats {
+	return view.SystemStatsOf(sysinfo.Sample(), db.GetStats(), cache.GetStats(), store.GetStats())
 }
 
 // SystemActionsHandler serves the audit feed on its own, for the filter form

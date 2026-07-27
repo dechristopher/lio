@@ -3,14 +3,11 @@ package www
 import (
 	"encoding/json"
 	"net/http"
-	"runtime"
 	"time"
 
-	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/config"
-	"github.com/dechristopher/lio/lag"
-	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/sysinfo"
 	"github.com/dechristopher/lio/util"
 )
 
@@ -35,32 +32,22 @@ type status struct {
 	GCRuns     uint32 `json:"gc_runs"`    // completed GC cycles since boot
 }
 
-// currentStatus samples the process for the health payload. Everything read
-// here is independently synchronized (sync.Maps, the lag monitor's mutex), so
-// sampling is safe from the health listener's goroutine; ReadMemStats' brief
-// stop-the-world is negligible at healthcheck cadence.
+// currentStatus projects a sysinfo sample onto the health payload. The sample
+// is the same one the /system console renders, so the container probe and the
+// page an operator reads during an incident cannot disagree about the process
+// they both describe.
 func currentStatus() status {
-	players := 0
-	channel.Map.Range(func(_, raw any) bool {
-		if sockMap, ok := raw.(*channel.SockMap); ok {
-			players += sockMap.Length()
-		}
-		return true
-	})
-
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-
+	s := sysinfo.Sample()
 	return status{
 		Version:    config.Version,
-		Uptime:     util.TimeSinceBoot().Seconds(),
-		BootTime:   config.BootTime.UnixNano(),
-		MoveLagMs:  float64(lag.Move.Get()) / float64(time.Millisecond),
-		Rooms:      room.Count(),
-		Players:    players,
-		Goroutines: runtime.NumGoroutine(),
-		HeapBytes:  mem.HeapAlloc,
-		GCRuns:     mem.NumGC,
+		Uptime:     s.Uptime.Seconds(),
+		BootTime:   s.BootTime.UnixNano(),
+		MoveLagMs:  float64(s.MoveLag) / float64(time.Millisecond),
+		Rooms:      s.Rooms,
+		Players:    s.Sockets,
+		Goroutines: s.Goroutines,
+		HeapBytes:  s.HeapAlloc,
+		GCRuns:     s.NumGC,
 	}
 }
 
