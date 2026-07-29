@@ -154,7 +154,7 @@ func auditFeed(c fiber.Ctx) view.AuditFeed {
 	}
 	for _, a := range actions {
 		feed.Actions = append(feed.Actions, view.ModFeedEntry{
-			When:      relativeDay(a.CreatedAt),
+			When:      view.RelativeDay(a.CreatedAt),
 			WhenExact: a.CreatedAt.UTC().Format("2006-01-02 15:04:05 MST"),
 			Actor:     a.Actor,
 			Action:    a.Action,
@@ -214,7 +214,9 @@ func ModerationHandler(c fiber.Ctx) error {
 func liveOps() view.LiveOps {
 	live, challenges, stats, present := room.HomeListing()
 	ops := view.LiveOps{
-		Online:         presence.Online(present),
+		// the console wants the headcount only; no roster is rendered here, so
+		// it asks for no named members
+		Online:         presence.Online(present, 0).Total,
 		LiveGames:      stats.LiveGames,
 		OpenChallenges: stats.OpenChallenges,
 	}
@@ -267,7 +269,7 @@ func feedbackInbox() view.FeedbackInbox {
 	for _, f := range items {
 		inbox.Items = append(inbox.Items, view.FeedbackView{
 			ID:        strconv.FormatInt(f.ID, 10),
-			When:      relativeDay(f.Created),
+			When:      view.RelativeDay(f.Created),
 			WhenExact: f.Created.UTC().Format("2006-01-02 15:04:05 MST"),
 			Kind:      f.Kind,
 			Class:     view.FeedbackKindClass(f.Kind),
@@ -287,7 +289,7 @@ func feedbackInbox() view.FeedbackInbox {
 func reportView(r db.Report, resolved bool) view.ReportView {
 	v := view.ReportView{
 		ID:        strconv.FormatInt(r.ID, 10),
-		When:      relativeDay(r.Created),
+		When:      view.RelativeDay(r.Created),
 		WhenExact: r.Created.UTC().Format("2006-01-02 15:04:05 MST"),
 		Category:  r.Category,
 		Class:     view.ReportCategoryClass(r.Category),
@@ -300,7 +302,7 @@ func reportView(r db.Report, resolved bool) view.ReportView {
 		v.GameURL = "/game/" + r.GameID
 	}
 	if resolved {
-		v.Resolved = relativeDay(r.Resolved)
+		v.Resolved = view.RelativeDay(r.Resolved)
 		v.WhenExact = r.Resolved.UTC().Format("2006-01-02 15:04:05 MST")
 		v.Resolver = r.Resolver
 		v.Resolution = r.Resolution

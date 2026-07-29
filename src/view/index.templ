@@ -6,7 +6,7 @@ import "github.com/dechristopher/lio/message"
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
-templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats) {
+templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats, community message.Community) {
 	@base(meta) {
 		<body>
 			<div class="page">
@@ -24,11 +24,16 @@ templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteSta
 							@createGameButton()
 						</div>
 						@tvWidget()
-						@HomeActivity(challenges, stats)
+						// the account pitch sits after the proof that the site is alive
+						// (quick game, live boards) and before the people panels it is
+						// asking the visitor to join — never as the page's opening move
+						@homeWelcome()
+						@HomeActivity(challenges, stats, community)
 						@homeFooter(meta)
 					</div>
 					<div class="flex flex-col gap-4 md:col-span-5">
 						@octadAbout()
+						@leaderboardCard(community)
 						@homeNews()
 					</div>
 				</main>

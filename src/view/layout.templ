@@ -80,12 +80,17 @@ templ head(meta Meta) {
 					try { localStorage.setItem("piece", name); } catch (e) {}
 				};
 
-				// Room "create account" shim: a persisted dismissal hides it
-				// before first paint (CSS html[data-roomcta="off"]) so it never
-				// flashes back after the anonymous viewer closes it.
+				// The two "create account" pitches — the room-page shim and the
+				// home-page welcome card. A persisted dismissal hides each one
+				// before first paint (CSS html[data-roomcta="off"] /
+				// html[data-homecta="off"]) so neither flashes back after the
+				// anonymous viewer closes it.
 				try {
 					if (localStorage.getItem("roomCtaDismissed") === "1") {
 						d.dataset.roomcta = "off";
+					}
+					if (localStorage.getItem("homeCtaDismissed") === "1") {
+						d.dataset.homecta = "off";
 					}
 				} catch (e) {}
 			})();

@@ -489,6 +489,189 @@
 	}
 	html[data-roomcta="off"] .room-cta { display: none; }
 
+	/* ---- home-page community panels ----
+	   The account pitch (home.templ homeWelcome) and the people rosters
+	   (playersCard / leaderboardCard). The welcome card is the room shim's
+	   argument given room to breathe: same accent tint, but a real card with a
+	   benefit list rather than a one-line bar. Its dismissal is persisted under
+	   its own key, so closing it never touches the room shim. */
+	.home-cta {
+		position: relative;
+		border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+		background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+	}
+	.home-cta-x {
+		position: absolute;
+		top: 0.5rem;
+		right: 0.5rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		border-radius: var(--radius-sm);
+		color: var(--text-subtle);
+		transition: color 150ms var(--ease-snappy), background-color 150ms var(--ease-snappy);
+	}
+	.home-cta-x:hover {
+		color: var(--text);
+		background: color-mix(in srgb, var(--text) 8%, transparent);
+	}
+	.home-cta-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		margin-top: 0.75rem;
+		font-size: 0.82rem;
+		line-height: 1.35;
+		color: var(--text-muted);
+	}
+	.home-cta-list li {
+		display: flex;
+		align-items: start;
+		gap: 0.5rem;
+	}
+	/* the icons are optically centered on the first line of their row rather
+	   than the row box, which wraps to two lines on a narrow phone */
+	.home-cta-list svg {
+		flex: none;
+		margin-top: 0.15rem;
+		color: var(--accent);
+	}
+	.home-cta-list strong { color: var(--text); font-weight: 600; }
+	html[data-homecta="off"] .home-cta { display: none; }
+
+	/* Rosters come in two shapes, because the two are read differently.
+
+	   The online/newest lists are *sets* — order carries little meaning, and a
+	   full-width row per person would spend a whole line on a name eight
+	   characters long. They render as wrapping chips (.chip-list) that fill the
+	   width they are given and grow a line at a time.
+
+	   The leaderboard is a *ranking*: position is the content, so it stays
+	   full-width rows (.roster) read top to bottom.
+
+	   The section eyebrow and the footnote are shared by both. */
+	.roster-label {
+		margin-top: 0.85rem;
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--text-subtle);
+	}
+	.roster-note {
+		margin-top: 0.4rem;
+		font-size: 0.72rem;
+		color: var(--text-subtle);
+	}
+
+	.chip-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-top: 0.45rem;
+	}
+	.roster-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		max-width: 100%;
+		padding: 0.2rem 0.6rem;
+		border: 2px solid var(--border);
+		border-radius: 9999px;
+		background: var(--surface-2);
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--text);
+		text-decoration: none;
+		transition: border-color 150ms var(--ease-snappy), background-color 150ms var(--ease-snappy);
+	}
+	.roster-chip:hover {
+		border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+		background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+	}
+	/* a member seated at a board, tinted as well as tagged */
+	.roster-chip.is-playing {
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+	}
+	/* min-width:0 so a very long username ellipsizes inside the chip instead of
+	   stretching it past the card */
+	.roster-chip-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.roster-chip-tag {
+		flex: none;
+		font-size: 0.6rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--accent);
+	}
+	.roster-chip-when {
+		flex: none;
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		font-weight: 500;
+		color: var(--text-subtle);
+	}
+	/* presence marker on the online chips — the same green the seat-presence
+	   dots use, so "connected" reads identically across the site */
+	.roster-dot {
+		flex: none;
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 9999px;
+		background: var(--win);
+	}
+
+	/* Leaderboard rows: a leading rank, a name that truncates, and a
+	   right-aligned rating. Rows are links to the player page. */
+	.roster {
+		display: flex;
+		flex-direction: column;
+		margin-top: 0.35rem;
+	}
+	.roster-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.3rem 0.4rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.85rem;
+		color: var(--text);
+		text-decoration: none;
+		transition: background-color 150ms var(--ease-snappy);
+	}
+	.roster-row:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+	.roster-name {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		min-width: 0;
+		flex: 1 1 auto;
+		font-weight: 600;
+	}
+	.roster-rank {
+		flex: none;
+		width: 1.1rem;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--text-subtle);
+	}
+	.roster-rating {
+		flex: none;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--text-muted);
+	}
+
 	/* ---- clocks ---- */
 	.clock {
 		position: relative;

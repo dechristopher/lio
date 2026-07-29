@@ -14,7 +14,7 @@ import "github.com/dechristopher/lio/message"
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
-func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats) templ.Component {
+func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats, community message.Community) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -94,7 +94,11 @@ func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStat
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = HomeActivity(challenges, stats).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = homeWelcome().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = HomeActivity(challenges, stats, community).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -107,6 +111,10 @@ func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStat
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = octadAbout().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = leaderboardCard(community).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

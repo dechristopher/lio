@@ -482,27 +482,33 @@
 		});
 	}
 
-	// --- room anonymous "create account" shim ------------------------------
-	// The thin room-page banner (view/room.templ roomAnonCta). Create-account
-	// opens this modal straight to the register tab; × dismisses the shim and
-	// persists it so the head no-flash script keeps it hidden on future loads.
-	const ctaCreate = document.getElementById('roomCtaCreate');
-	if (ctaCreate) {
-		ctaCreate.addEventListener('click', () => {
+	// --- anonymous "create account" pitches ---------------------------------
+	// Two surfaces share one behaviour: the thin room-page banner
+	// (view/room.templ roomAnonCta) and the home-page welcome card
+	// (view/home.templ homeWelcome). Any [data-open-register] control opens this
+	// modal straight to the register tab; each pitch's × dismisses it and
+	// persists that under its own key, so the head no-flash script keeps it
+	// hidden on future loads without the two dismissals affecting each other.
+	document.querySelectorAll('[data-open-register]').forEach((btn) => {
+		btn.addEventListener('click', () => {
 			resetAuthModal();
 			activateTab('register');
 			modal.classList.add('open');
 			const first = forms.register && forms.register.querySelector('input');
 			if (first) { first.focus(); }
 		});
-	}
-	const ctaDismiss = document.getElementById('roomCtaDismiss');
-	if (ctaDismiss) {
-		ctaDismiss.addEventListener('click', () => {
-			try { localStorage.setItem('roomCtaDismissed', '1'); } catch (e) { /* private mode */ }
-			document.documentElement.dataset.roomcta = 'off';
+	});
+	[
+		['roomCtaDismiss', 'roomCtaDismissed', 'roomcta'],
+		['homeCtaDismiss', 'homeCtaDismissed', 'homecta'],
+	].forEach(([id, key, attr]) => {
+		const btn = document.getElementById(id);
+		if (!btn) { return; }
+		btn.addEventListener('click', () => {
+			try { localStorage.setItem(key, '1'); } catch (e) { /* private mode */ }
+			document.documentElement.dataset[attr] = 'off';
 		});
-	}
+	});
 
 	// ========================================================================
 	// Edit profile modal (logged in): the optional account email and the one

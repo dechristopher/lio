@@ -28,8 +28,11 @@ const (
 	// convergence tolerance for the volatility solver.
 	epsilon = 1e-6
 
-	// provisionalRD is the RD above which a rating is shown with a "?".
-	provisionalRD = 110.0
+	// ProvisionalRD is the RD above which a rating is shown with a "?". Exported
+	// because it is also the leaderboard's inclusion threshold: a rating too
+	// uncertain to print without a "?" is too uncertain to rank (see
+	// db/query/community.sql).
+	ProvisionalRD = 110.0
 )
 
 // Outcome scores from the subject player's perspective.
@@ -56,7 +59,7 @@ func New() Rating {
 // Provisional reports whether the rating is still uncertain (RD > 110) — shown
 // with a trailing "?".
 func (r Rating) Provisional() bool {
-	return r.RD > provisionalRD
+	return r.RD > ProvisionalRD
 }
 
 // Display renders the rating for the UI: the rounded rating, plus "?" while

@@ -199,7 +199,7 @@ func roomAnonCta() templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"roomCta\" class=\"room-cta\" role=\"region\" aria-label=\"Create a free account\"><span class=\"room-cta-text\"><strong>Playing anonymously.</strong> Sign up for a free username and rated games!</span> <button type=\"button\" id=\"roomCtaCreate\" class=\"room-cta-btn\">Create account</button> <button type=\"button\" id=\"roomCtaDismiss\" class=\"room-cta-x\" aria-label=\"Dismiss\" title=\"Dismiss\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"roomCta\" class=\"room-cta\" role=\"region\" aria-label=\"Create a free account\"><span class=\"room-cta-text\"><strong>Playing anonymously.</strong> Sign up for a free username and rated games!</span> <button type=\"button\" id=\"roomCtaCreate\" data-open-register class=\"room-cta-btn\">Create account</button> <button type=\"button\" id=\"roomCtaDismiss\" class=\"room-cta-x\" aria-label=\"Dismiss\" title=\"Dismiss\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

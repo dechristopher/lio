@@ -257,7 +257,7 @@ func profileGameView(g db.ProfileGame) view.ProfileGameView {
 	v := view.ProfileGameView{
 		RoomID: g.RoomID,
 		URL:    archiveURL(g),
-		When:   relativeDay(g.Start),
+		When:   view.RelativeDay(g.Start),
 		// the speed class, never the stored group: every game here is deploy
 		// (the default mode), so "deploy" labels nothing, while bullet/blitz/
 		// rapid is the distinction a player reads (variant.SpeedGroup)
@@ -372,7 +372,7 @@ func fillModBar(c fiber.Ctx, m *view.ProfileModel, rec db.UserRecord) {
 	if actions, err := db.ListModActionsForUser(rec.ID, modHistoryShown, 0); err == nil {
 		for _, a := range actions {
 			m.Mod.Actions = append(m.Mod.Actions, view.ModFeedEntry{
-				When:      relativeDay(a.CreatedAt),
+				When:      view.RelativeDay(a.CreatedAt),
 				WhenExact: a.CreatedAt.UTC().Format("2006-01-02 15:04:05 MST"),
 				Actor:     a.Actor,
 				Action:    a.Action,
@@ -413,32 +413,4 @@ func banUntilLabel(b db.BanState) string {
 		return "permanently"
 	}
 	return "until " + b.Until.Format("Jan 2, 2006")
-}
-
-// relativeDay renders a coarse "N days ago" for archived timestamps, falling
-// back to a date past a week. Day-grained on purpose: an exact time adds
-// nothing to a games list and publishes more than a public page should.
-func relativeDay(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	d := time.Since(t)
-	switch {
-	case d < time.Hour:
-		return "just now"
-	case d < 24*time.Hour:
-		h := int(d.Hours())
-		if h == 1 {
-			return "1 hour ago"
-		}
-		return strconv.Itoa(h) + " hours ago"
-	case d < 7*24*time.Hour:
-		days := int(d.Hours() / 24)
-		if days == 1 {
-			return "yesterday"
-		}
-		return strconv.Itoa(days) + " days ago"
-	default:
-		return t.Format("Jan 2, 2006")
-	}
 }

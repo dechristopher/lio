@@ -14,7 +14,7 @@ import (
 // here — it streams over the /socket/tv WebSocket (see tvWidget / lio-tv.js) and
 // must stay outside this htmx-swapped region so its boards are not destroyed
 // every 5s.
-templ HomeActivity(challenges []message.OpenChallenge, stats message.SiteStats) {
+templ HomeActivity(challenges []message.OpenChallenge, stats message.SiteStats, community message.Community) {
 	<section
 		id="home-activity"
 		hx-get="/home/activity"
@@ -25,6 +25,7 @@ templ HomeActivity(challenges []message.OpenChallenge, stats message.SiteStats) 
 	>
 		@siteStats(stats)
 		@openChallenges(challenges)
+		@playersCard(community)
 	</section>
 }
 
@@ -49,7 +50,7 @@ templ statTile(n int, label string) {
 templ openChallenges(challenges []message.OpenChallenge) {
 	<div class="card">
 		<div class="flex items-center justify-between">
-			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Open challenges</p>
+			<p class="font-display text-lg font-bold text-fg">Open challenges</p>
 			<button type="button" data-open-create-game data-prefill-public class="text-xs font-semibold text-accent hover:underline cursor-pointer">+ New</button>
 		</div>
 		if len(challenges) == 0 {
@@ -63,7 +64,7 @@ templ openChallenges(challenges []message.OpenChallenge) {
 								@colorDot(c.Color)
 								<span class="flex min-w-0 flex-col leading-tight">
 									<span class="flex items-center gap-1.5">
-										<span class="truncate text-sm font-semibold text-fg">{ c.Variant.Name }</span>
+										@challengerName(c)
 										if c.Rated {
 											// rated seeks are members-only; anons see the tag and log in to join
 											<span class="inline-flex flex-none items-center gap-0.5 rounded-full border border-accent/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent">
@@ -73,7 +74,10 @@ templ openChallenges(challenges []message.OpenChallenge) {
 										}
 									</span>
 									<span class="text-[11px] uppercase tracking-wide text-fg-subtle">
-										{ c.Variant.Group.String() }
+										// SpeedGroup, not Group: every seek is a deploy variant, so Group
+										// is the constant "deploy" and says nothing — the speed class is
+										// what a player reads a challenge by
+										{ c.Variant.Name } · { c.Variant.SpeedGroup().String() }
 										if c.RaceTo > 0 {
 											· race to { strconv.Itoa(c.RaceTo) }
 										}
@@ -91,6 +95,151 @@ templ openChallenges(challenges []message.OpenChallenge) {
 			</ul>
 		}
 	</div>
+}
+
+// challengerName is a seek's headline: who is waiting. A named account gets its
+// title badge, username and (for a rated seek) rating; an anonymous creator gets
+// a muted "Anonymous". Putting the person on the primary line and demoting the
+// time control to the sub-line is deliberate — a challenge is an invitation from
+// somebody, and the visible difference between a name and "Anonymous" is the
+// most honest argument the page makes for holding an account.
+templ challengerName(c message.OpenChallenge) {
+	if c.CreatorName != "" {
+		@playerTitle(c.CreatorTitle)
+		<span class="truncate text-sm font-semibold text-fg">{ c.CreatorName }</span>
+		if c.CreatorRating != "" {
+			<span class="rating-chip flex-none">{ c.CreatorRating }</span>
+		}
+	} else {
+		<span class="truncate text-sm font-semibold text-fg-muted">Anonymous</span>
+	}
+}
+
+// playersCard is the home page's people panel: who is here now, and who just
+// joined. It rides inside the htmx-polled #home-activity region, so the online
+// roster refreshes every 5s for free — which is also why it holds no
+// client-side state (a tab strip would be reset by every swap) and renders its
+// sections stacked instead.
+templ playersCard(c message.Community) {
+	if hasPlayers(c) {
+		<div class="card">
+			// no header link: there is no player directory to point at yet, and a
+			// heading link that goes somewhere unrelated is worse than none
+			<p class="font-display text-lg font-bold text-fg">Players</p>
+			if len(c.Online) > 0 {
+				<p class="roster-label">Online now</p>
+				<ul class="chip-list">
+					for _, m := range c.Online {
+						<li>
+							<a href={ templ.SafeURL(profileURL(m.Username)) } class={ "roster-chip", templ.KV("is-playing", m.Playing) }>
+								<span class="roster-dot" aria-hidden="true"></span>
+								@playerTitle(m.Title)
+								<span class="roster-chip-name">{ m.Username }</span>
+								// only the seated members carry the tag, so it reads as a
+								// distinction rather than noise repeated on every chip —
+								// and it is text, not just the accent tint, so the state
+								// does not depend on color alone
+								if m.Playing {
+									<span class="roster-chip-tag">playing</span>
+								}
+							</a>
+						</li>
+					}
+				</ul>
+			}
+			if note := anonNote(c, viewer(ctx).LoggedIn); note != "" {
+				<p class="roster-note">{ note }</p>
+			}
+			if len(c.Newest) > 0 {
+				<p class="roster-label">Newest members</p>
+				<ul class="chip-list">
+					for _, m := range c.Newest {
+						<li>
+							// the chip shows the join date in its token form ("2d"); the
+							// prose form rides in the tooltip, so nothing is lost to the
+							// abbreviation for anyone who hovers
+							<a href={ templ.SafeURL(profileURL(m.Username)) } class="roster-chip" title={ "joined " + RelativeDay(m.Joined) }>
+								@playerTitle(m.Title)
+								<span class="roster-chip-name">{ m.Username }</span>
+								<span class="roster-chip-when">{ shortAgo(m.Joined) }</span>
+							</a>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	}
+}
+
+// leaderboardCard is the rating board in the home page's right column. It shows
+// one row per account (their best established rating), and only ratings that
+// have stopped being provisional — a board topped by players who have never
+// finished a game would rank noise.
+//
+// It sits outside the polled activity region on purpose: a leaderboard does not
+// move on a 5-second timescale, and re-rendering it with the roster would buy
+// nothing.
+templ leaderboardCard(c message.Community) {
+	if len(c.Top) > 0 {
+		<div class="card">
+			<div class="flex items-center justify-between">
+				<h2 class="font-display text-lg font-bold text-fg">Top rated</h2>
+				<span class="text-[11px] uppercase tracking-wide text-fg-subtle">Any time control</span>
+			</div>
+			<ol class="roster mt-3">
+				for i, m := range c.Top {
+					<li>
+						<a href={ templ.SafeURL(profileURL(m.Username)) } class="roster-row">
+							<span class="roster-rank">{ strconv.Itoa(i + 1) }</span>
+							<span class="roster-name">
+								@playerTitle(m.Title)
+								<span class="truncate">{ m.Username }</span>
+							</span>
+							<span class="roster-rating">{ ratingLine(m) }</span>
+						</a>
+					</li>
+				}
+			</ol>
+		</div>
+	}
+}
+
+// homeWelcome is the anonymous visitor's account pitch: the home-page
+// counterpart to the room page's thin roomAnonCta shim, given room to make an
+// actual case (a rating, a profile, a name others can find and challenge).
+// Gated to logged-out viewers where accounts exist, so it never shows to a
+// member or in PG-less local dev.
+//
+// Dismissal persists exactly like the room shim's: the × writes localStorage
+// and the head no-flash script stamps html[data-homecta="off"] before first
+// paint, so a closed card never flashes back on the next load.
+templ homeWelcome() {
+	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
+		<div id="homeCta" class="card home-cta" role="region" aria-label="Create a free account">
+			<button type="button" id="homeCtaDismiss" class="home-cta-x" aria-label="Dismiss" title="Dismiss">
+				@iconClose()
+			</button>
+			<h2 class="font-display text-lg font-bold text-fg">Play as someone</h2>
+			<p class="prose mt-1 text-sm">
+				You can play right now without an account. Signing up gets you the rest of it.
+			</p>
+			<ul class="home-cta-list">
+				<li>
+					@iconTrophy("h-3.5 w-3.5")
+					<span><strong>A rating</strong> that moves with every rated game you play</span>
+				</li>
+				<li>
+					@iconChart("h-3.5 w-3.5")
+					<span><strong>A profile</strong> with your record, your openings and your history</span>
+				</li>
+				<li>
+					@iconUsers("h-3.5 w-3.5")
+					<span><strong>A name</strong> other players can see, find and challenge</span>
+				</li>
+			</ul>
+			<button type="button" id="homeCtaCreate" data-open-register class="btn btn-primary mt-3 w-full justify-center py-2">Create a free account</button>
+		</div>
+	}
 }
 
 // colorDot is the white/black/random piece-color indicator on a challenge and

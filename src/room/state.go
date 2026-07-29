@@ -16,6 +16,22 @@ const (
 	StateRoomOver          State = "room_over"
 )
 
+// Live reports whether the room is at a live board — the states a spectator
+// would find something happening in, and the ones the home page counts and
+// lists as live games. StateDeploy is included: the blind deploy is a phase of
+// the game with both players present and a clock on the arrangement, so a room
+// in it is every bit as live as one trading moves.
+//
+// It deliberately excludes StateWaitingForPlayers (a challenge nobody has taken
+// is a seek, listed separately) and StateGameOver (the position is frozen; a
+// rematch re-enters StateGameReady and is live again).
+//
+// This is not the guard for *accepting a move* — deploy has its own handler and
+// must reject ordinary moves, so that check names its states directly.
+func (s State) Live() bool {
+	return s == StateGameReady || s == StateDeploy || s == StateGameOngoing
+}
+
 var EventRoomInitialized = fsm.EventDesc{
 	Name: "room_init",
 	Src:  []string{string(StateInit)},

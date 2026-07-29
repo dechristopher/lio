@@ -60,7 +60,7 @@ func mustNotContain(t *testing.T, s, sub string) {
 func TestRenderIndex(t *testing.T) {
 	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneTwoRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
-	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), challenges, stats))
+	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), challenges, stats, message.Community{}))
 	mustContain(t, out, "<title>octad.gg • Free Online Octad</title>")
 	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
 	mustContain(t, out, `id="createGameButton"`) // modal opener
@@ -129,9 +129,134 @@ func TestRenderIndex(t *testing.T) {
 }
 
 func TestRenderHomeActivityEmpty(t *testing.T) {
-	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}))
+	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}, message.Community{}))
 	mustContain(t, out, `id="home-activity"`)
 	mustContain(t, out, "No open challenges right now")
+	// an empty community renders no panel at all rather than empty states
+	mustNotContain(t, out, "Online now")
+	mustNotContain(t, out, "Newest members")
+}
+
+// A seek leads with the person who created it: title badge, username and (for a
+// rated seek) their rating. The time control is demoted to the sub-line.
+func TestRenderOpenChallengeNamesCreator(t *testing.T) {
+	challenges := []message.OpenChallenge{{
+		RoomID:        "seek1",
+		Variant:       variant.OneTwoRapid,
+		Color:         "w",
+		Rated:         true,
+		CreatorName:   "nova",
+		CreatorTitle:  title.Title{Code: "GM", Name: "Grandmaster"},
+		CreatorRating: "1712",
+	}}
+	out := renderSmoke(t, HomeActivity(challenges, message.SiteStats{}, message.Community{}))
+	mustContain(t, out, ">nova<")
+	mustContain(t, out, `class="player-title"`)
+	mustContain(t, out, ">GM<")
+	mustContain(t, out, `>1712<`)
+	mustContain(t, out, "/seek1")
+	// the variant still shows, on the secondary line
+	mustContain(t, out, variant.OneTwoRapid.Name)
+}
+
+// An anonymous creator is named "Anonymous" rather than silently rendering a
+// nameless row — the contrast with a named seek is the point.
+func TestRenderOpenChallengeAnonymousCreator(t *testing.T) {
+	challenges := []message.OpenChallenge{{RoomID: "seek2", Variant: variant.OneTwoRapid, Color: "b"}}
+	out := renderSmoke(t, HomeActivity(challenges, message.SiteStats{}, message.Community{}))
+	mustContain(t, out, ">Anonymous<")
+	mustNotContain(t, out, `class="rating-chip`)
+}
+
+func TestRenderPlayersCard(t *testing.T) {
+	c := message.Community{
+		Online: []message.OnlineMember{
+			{Username: "zed", Playing: true},
+			{Username: "nova", Title: title.Title{Code: "WFM", Name: "Woman FIDE Master"}},
+		},
+		Anon:   2,
+		Newest: []message.NewMember{{Username: "pawnstar", Joined: time.Now().Add(-48 * time.Hour)}},
+	}
+	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}, c))
+
+	mustContain(t, out, "Online now")
+	mustContain(t, out, `href="/@/zed"`)  // chips link to the player page
+	mustContain(t, out, `href="/@/nova"`) // ...
+	mustContain(t, out, ">playing<")      // seated marker
+	mustContain(t, out, ">WFM<")          // title badge rides along
+	mustContain(t, out, "Newest members") // second section
+	mustContain(t, out, `href="/@/pawnstar"`)
+
+	// both rosters are wrapping chip lists, not full-width rows: a name eight
+	// characters long must not cost a whole line
+	if n := strings.Count(out, `class="chip-list"`); n != 2 {
+		t.Errorf("chip lists = %d, want 2 (online + newest)", n)
+	}
+	mustNotContain(t, out, `class="roster-row"`) // rows are the leaderboard's shape
+	// the seated chip is tinted as well as tagged, so the state is not carried
+	// by the tag alone
+	mustContain(t, out, "roster-chip is-playing")
+	// the join date is a chip-sized token, with the prose form in the tooltip
+	mustContain(t, out, ">2d<")
+	mustContain(t, out, `title="joined 2 days ago"`)
+
+	// the anonymous footnote counts them and, for a logged-out viewer, says so
+	mustContain(t, out, "2 anonymous visitors (including you)")
+}
+
+// The same roster seen by a member drops the "(including you)" aside — they are
+// not one of the anonymous visitors.
+func TestRenderPlayersCardAnonNoteForMember(t *testing.T) {
+	c := message.Community{Online: []message.OnlineMember{{Username: "nova"}}, Anon: 1}
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "nova"},
+		HomeActivity(nil, message.SiteStats{}, c))
+	mustContain(t, out, "1 anonymous visitor")
+	mustNotContain(t, out, "including you")
+}
+
+func TestRenderLeaderboard(t *testing.T) {
+	// categories are variant HTMLNames, resolved to a speed for display
+	c := message.Community{Top: []message.RatedMember{
+		{Username: "nova", Rating: 1712, Category: "half-one-blitz-deploy", Games: 40},
+		{Username: "zed", Rating: 1604, Category: "one-two-rapid-deploy", Games: 12},
+	}}
+	out := renderSmoke(t, Index(PageMeta("home"), nil, message.SiteStats{}, c))
+	mustContain(t, out, "Top rated")
+	mustContain(t, out, "1712 blitz")
+	mustContain(t, out, "1604 rapid")
+	mustContain(t, out, `href="/@/nova"`)
+	// nova ranks above zed
+	if strings.Index(out, "/@/nova") > strings.Index(out, "/@/zed") {
+		t.Error("leaderboard rows out of rating order")
+	}
+}
+
+// The leaderboard card is omitted entirely when nothing qualifies (a new site,
+// or PG-less local dev) rather than rendering an empty board.
+func TestRenderLeaderboardOmittedWhenEmpty(t *testing.T) {
+	out := renderSmoke(t, Index(PageMeta("home"), nil, message.SiteStats{}, message.Community{}))
+	mustNotContain(t, out, "Top rated")
+}
+
+// The home account pitch renders for an anonymous viewer where accounts exist,
+// and for nobody else.
+func TestRenderHomeWelcomeGating(t *testing.T) {
+	page := func(v Viewer) string {
+		return renderSmokeViewer(t, v, Index(PageMeta("home"), nil, message.SiteStats{}, message.Community{}))
+	}
+
+	anon := page(Viewer{AccountsEnabled: true})
+	mustContain(t, anon, `id="homeCta"`)
+	mustContain(t, anon, `id="homeCtaCreate"`)
+	mustContain(t, anon, "data-open-register") // opens the modal's register tab
+	mustContain(t, anon, `id="homeCtaDismiss"`)
+
+	member := page(Viewer{AccountsEnabled: true, LoggedIn: true, Username: "nova"})
+	mustNotContain(t, member, `id="homeCta"`)
+
+	// PG-less local dev: no accounts to create
+	noAccounts := page(Viewer{})
+	mustNotContain(t, noAccounts, `id="homeCta"`)
 }
 
 func TestRenderRoomGame(t *testing.T) {
@@ -1081,7 +1206,7 @@ func withSettings(t *testing.T, s settings.Snapshot, fn func()) {
 // still rendered — removing it would shift the modal and leave the Sign up tab
 // pointing at nothing.
 func TestRenderRegistrationClosed(t *testing.T) {
-	page := Index(PageMeta("home"), nil, message.SiteStats{})
+	page := Index(PageMeta("home"), nil, message.SiteStats{}, message.Community{})
 	viewer := Viewer{UID: "u", AccountsEnabled: true}
 
 	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: true}, func() {
@@ -1107,7 +1232,7 @@ func TestRenderRegistrationClosed(t *testing.T) {
 // the casual toggle stays free and the time controls stay selectable — the
 // server forces Rated off regardless of what the form submits.
 func TestRenderRatedPaused(t *testing.T) {
-	page := Index(PageMeta("home"), nil, message.SiteStats{})
+	page := Index(PageMeta("home"), nil, message.SiteStats{}, message.Community{})
 	viewer := Viewer{UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true}
 	// the casual checkbox, exactly as it renders when nothing has touched it
 	freeCasual := `<input type="checkbox" class="cg-toggle-box cg-casual-box" name="casual" value="true">`
@@ -1210,7 +1335,7 @@ func TestActiveNoticesOf(t *testing.T) {
 // TestRenderStaffLinks: the console shortcuts appear in the profile popover for
 // a moderator and nobody else.
 func TestRenderStaffLinks(t *testing.T) {
-	page := Index(PageMeta("home"), nil, message.SiteStats{})
+	page := Index(PageMeta("home"), nil, message.SiteStats{}, message.Community{})
 
 	plain := renderSmokeViewer(t, Viewer{
 		UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true,

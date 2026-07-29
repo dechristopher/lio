@@ -114,14 +114,14 @@ func head(meta Meta) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><script>\n\t\t\t// Resolve and apply the color theme, board theme, and piece set\n\t\t\t// before first paint to avoid a flash of the wrong appearance:\n\t\t\t// persisted choices win, else defaults (OS for light/dark; green +\n\t\t\t// alpha for board/pieces). All three live as data-* attributes on\n\t\t\t// <html> so board.css / piece.css (scoped [data-board]/[data-piece])\n\t\t\t// and the per-board --accent overrides (app.css) apply with no FOUC.\n\t\t\t// Exposes __toggleTheme/__setTheme/__useSystemTheme (color theme) and\n\t\t\t// __setBoard/__setPiece for the preferences popover.\n\t\t\t(function () {\n\t\t\t\tvar d = document.documentElement;\n\t\t\t\tfunction resolve() {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\t\t\tif (t === \"light\" || t === \"dark\") return t;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\td.dataset.theme = resolve();\n\t\t\t\twindow.__setTheme = function (t) {\n\t\t\t\t\td.dataset.theme = t;\n\t\t\t\t\ttry { localStorage.setItem(\"theme\", t); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__toggleTheme = function () {\n\t\t\t\t\twindow.__setTheme(d.dataset.theme === \"dark\" ? \"light\" : \"dark\");\n\t\t\t\t};\n\t\t\t\twindow.__useSystemTheme = function () {\n\t\t\t\t\ttry { localStorage.removeItem(\"theme\"); } catch (e) {}\n\t\t\t\t\td.dataset.theme = resolve();\n\t\t\t\t};\n\n\t\t\t\t// Board theme + piece set: a persisted choice, else the defaults.\n\t\t\t\tfunction stored(key, fallback) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar v = localStorage.getItem(key);\n\t\t\t\t\t\tif (v) return v;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn fallback;\n\t\t\t\t}\n\t\t\t\t// The orange board was replaced by pink; remap persisted choices.\n\t\t\t\tvar b = stored(\"board\", \"green\");\n\t\t\t\td.dataset.board = b === \"orange\" ? \"pink\" : b;\n\t\t\t\td.dataset.piece = stored(\"piece\", \"alpha\");\n\t\t\t\twindow.__setBoard = function (name) {\n\t\t\t\t\td.dataset.board = name;\n\t\t\t\t\ttry { localStorage.setItem(\"board\", name); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__setPiece = function (name) {\n\t\t\t\t\td.dataset.piece = name;\n\t\t\t\t\ttry { localStorage.setItem(\"piece\", name); } catch (e) {}\n\t\t\t\t};\n\n\t\t\t\t// Room \"create account\" shim: a persisted dismissal hides it\n\t\t\t\t// before first paint (CSS html[data-roomcta=\"off\"]) so it never\n\t\t\t\t// flashes back after the anonymous viewer closes it.\n\t\t\t\ttry {\n\t\t\t\t\tif (localStorage.getItem(\"roomCtaDismissed\") === \"1\") {\n\t\t\t\t\t\td.dataset.roomcta = \"off\";\n\t\t\t\t\t}\n\t\t\t\t} catch (e) {}\n\t\t\t})();\n\t\t</script><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><script>\n\t\t\t// Resolve and apply the color theme, board theme, and piece set\n\t\t\t// before first paint to avoid a flash of the wrong appearance:\n\t\t\t// persisted choices win, else defaults (OS for light/dark; green +\n\t\t\t// alpha for board/pieces). All three live as data-* attributes on\n\t\t\t// <html> so board.css / piece.css (scoped [data-board]/[data-piece])\n\t\t\t// and the per-board --accent overrides (app.css) apply with no FOUC.\n\t\t\t// Exposes __toggleTheme/__setTheme/__useSystemTheme (color theme) and\n\t\t\t// __setBoard/__setPiece for the preferences popover.\n\t\t\t(function () {\n\t\t\t\tvar d = document.documentElement;\n\t\t\t\tfunction resolve() {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\t\t\tif (t === \"light\" || t === \"dark\") return t;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\td.dataset.theme = resolve();\n\t\t\t\twindow.__setTheme = function (t) {\n\t\t\t\t\td.dataset.theme = t;\n\t\t\t\t\ttry { localStorage.setItem(\"theme\", t); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__toggleTheme = function () {\n\t\t\t\t\twindow.__setTheme(d.dataset.theme === \"dark\" ? \"light\" : \"dark\");\n\t\t\t\t};\n\t\t\t\twindow.__useSystemTheme = function () {\n\t\t\t\t\ttry { localStorage.removeItem(\"theme\"); } catch (e) {}\n\t\t\t\t\td.dataset.theme = resolve();\n\t\t\t\t};\n\n\t\t\t\t// Board theme + piece set: a persisted choice, else the defaults.\n\t\t\t\tfunction stored(key, fallback) {\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar v = localStorage.getItem(key);\n\t\t\t\t\t\tif (v) return v;\n\t\t\t\t\t} catch (e) {}\n\t\t\t\t\treturn fallback;\n\t\t\t\t}\n\t\t\t\t// The orange board was replaced by pink; remap persisted choices.\n\t\t\t\tvar b = stored(\"board\", \"green\");\n\t\t\t\td.dataset.board = b === \"orange\" ? \"pink\" : b;\n\t\t\t\td.dataset.piece = stored(\"piece\", \"alpha\");\n\t\t\t\twindow.__setBoard = function (name) {\n\t\t\t\t\td.dataset.board = name;\n\t\t\t\t\ttry { localStorage.setItem(\"board\", name); } catch (e) {}\n\t\t\t\t};\n\t\t\t\twindow.__setPiece = function (name) {\n\t\t\t\t\td.dataset.piece = name;\n\t\t\t\t\ttry { localStorage.setItem(\"piece\", name); } catch (e) {}\n\t\t\t\t};\n\n\t\t\t\t// The two \"create account\" pitches — the room-page shim and the\n\t\t\t\t// home-page welcome card. A persisted dismissal hides each one\n\t\t\t\t// before first paint (CSS html[data-roomcta=\"off\"] /\n\t\t\t\t// html[data-homecta=\"off\"]) so neither flashes back after the\n\t\t\t\t// anonymous viewer closes it.\n\t\t\t\ttry {\n\t\t\t\t\tif (localStorage.getItem(\"roomCtaDismissed\") === \"1\") {\n\t\t\t\t\t\td.dataset.roomcta = \"off\";\n\t\t\t\t\t}\n\t\t\t\t\tif (localStorage.getItem(\"homeCtaDismissed\") === \"1\") {\n\t\t\t\t\t\td.dataset.homecta = \"off\";\n\t\t\t\t\t}\n\t\t\t\t} catch (e) {}\n\t\t\t})();\n\t\t</script><title>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 93, Col: 21}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 98, Col: 21}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -134,7 +134,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(config.SiteName())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 98, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 103, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -147,7 +147,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(config.SiteName())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 99, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 104, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -160,7 +160,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(config.SiteName())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 103, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 108, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -173,7 +173,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 105, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 110, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -186,7 +186,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGTitle)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 106, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 111, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -199,7 +199,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 107, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 112, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
@@ -212,7 +212,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 108, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 113, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -225,7 +225,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGImage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 109, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 114, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -238,7 +238,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(meta.OGImage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 114, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 119, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -251,7 +251,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var16 templ.SafeURL
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(asset("app.css"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 125, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 130, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -264,7 +264,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("htmx.min.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 128, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 133, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -277,7 +277,7 @@ func head(meta Meta) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-auth.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 131, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 136, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -295,7 +295,7 @@ func head(meta Meta) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue("https://" + config.PlausibleDomain() + "/js/script.hash.outbound-links.pageview-props.tagged-events.js")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 140, Col: 150}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/layout.templ`, Line: 145, Col: 150}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
