@@ -62,156 +62,164 @@
     });
   })();
 
-  const section = document.getElementById("ratingHistory");
-  if (!section) return;
-
-  const panels = Array.from(section.querySelectorAll("[data-chart-panel]"));
-  if (!panels.length) return;
-
-  // Tabs live in two places — the dedicated row inside this card, and the
-  // rating tiles above it, which double as the selector so a player's
-  // categories and their charts are one list rather than two that can drift.
-  const tabs = Array.from(document.querySelectorAll("[data-chart-tab]"));
-
-  function activate(category) {
-    panels.forEach(function (p) {
-      p.classList.toggle("is-active", p.dataset.chartPanel === category);
-    });
-    tabs.forEach(function (t) {
-      const on = t.dataset.chartTab === category;
-      t.classList.toggle("is-active", on);
-      // role=tab carries aria-selected; the rating tiles are plain buttons and
-      // carry aria-pressed instead
-      if (t.getAttribute("role") === "tab") {
-        t.setAttribute("aria-selected", on ? "true" : "false");
-      } else {
-        t.setAttribute("aria-pressed", on ? "true" : "false");
-      }
-    });
-  }
-
-  tabs.forEach(function (t) {
-    t.addEventListener("click", function () {
-      activate(t.dataset.chartTab);
-    });
-  });
-
-  // sync the controls to whichever panel the server rendered active
-  const initial = panels.find(function (p) {
-    return p.classList.contains("is-active");
-  });
-  if (initial) activate(initial.dataset.chartPanel);
-
-  // --- hover readout ------------------------------------------------------
+  // --- rating history ------------------------------------------------------
   //
-  // The tooltip is a convenience, never the only way to read a value: the plot
-  // direct-labels its endpoint and peak, the axis carries the rest, and each
-  // panel ships a visually-hidden table of every point.
-  panels.forEach(function (panel) {
-    const plot = panel.querySelector("[data-chart-hover]");
-    if (!plot) return;
-    const svg = plot.querySelector("svg");
-    const tip = plot.querySelector(".chart-tip");
-    const cross = plot.querySelector(".chart-crosshair");
-    const focus = plot.querySelector(".chart-focus");
-    const data = readPoints(panel.dataset.chartPanel);
-    if (!svg || !tip || !cross || !focus || data.length < 2) return;
+  // Its own scope, like every other block here: an account with no rated games
+  // renders the section as a placeholder with no panels, and when these bailouts
+  // sat at the top level of the file they returned out of *everything* below —
+  // taking the activity heatmap and the form and length readouts with them.
+  (function () {
+    const section = document.getElementById("ratingHistory");
+    if (!section) return;
 
-    const box = svg.viewBox.baseVal;
+    const panels = Array.from(section.querySelectorAll("[data-chart-panel]"));
+    if (!panels.length) return;
 
-    function nearest(clientX) {
-      const rect = svg.getBoundingClientRect();
-      if (!rect.width) return null;
-      // client px -> SVG user units, the space the server emitted coordinates in
-      const ux = ((clientX - rect.left) / rect.width) * box.width + box.x;
-      let best = data[0];
-      let bestDist = Infinity;
-      for (const d of data) {
-        const dist = Math.abs(d.x - ux);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = d;
+    // Tabs live in two places — the dedicated row inside this card, and the
+    // rating tiles above it, which double as the selector so a player's
+    // categories and their charts are one list rather than two that can drift.
+    const tabs = Array.from(document.querySelectorAll("[data-chart-tab]"));
+
+    function activate(category) {
+      panels.forEach(function (p) {
+        p.classList.toggle("is-active", p.dataset.chartPanel === category);
+      });
+      tabs.forEach(function (t) {
+        const on = t.dataset.chartTab === category;
+        t.classList.toggle("is-active", on);
+        // role=tab carries aria-selected; the rating tiles are plain buttons and
+        // carry aria-pressed instead
+        if (t.getAttribute("role") === "tab") {
+          t.setAttribute("aria-selected", on ? "true" : "false");
+        } else {
+          t.setAttribute("aria-pressed", on ? "true" : "false");
         }
+      });
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () {
+        activate(t.dataset.chartTab);
+      });
+    });
+
+    // sync the controls to whichever panel the server rendered active
+    const initial = panels.find(function (p) {
+      return p.classList.contains("is-active");
+    });
+    if (initial) activate(initial.dataset.chartPanel);
+
+    // --- hover readout ------------------------------------------------------
+    //
+    // The tooltip is a convenience, never the only way to read a value: the plot
+    // direct-labels its endpoint and peak, the axis carries the rest, and each
+    // panel ships a visually-hidden table of every point.
+    panels.forEach(function (panel) {
+      const plot = panel.querySelector("[data-chart-hover]");
+      if (!plot) return;
+      const svg = plot.querySelector("svg");
+      const tip = plot.querySelector(".chart-tip");
+      const cross = plot.querySelector(".chart-crosshair");
+      const focus = plot.querySelector(".chart-focus");
+      const data = readPoints(panel.dataset.chartPanel);
+      if (!svg || !tip || !cross || !focus || data.length < 2) return;
+
+      const box = svg.viewBox.baseVal;
+
+      function nearest(clientX) {
+        const rect = svg.getBoundingClientRect();
+        if (!rect.width) return null;
+        // client px -> SVG user units, the space the server emitted coordinates in
+        const ux = ((clientX - rect.left) / rect.width) * box.width + box.x;
+        let best = data[0];
+        let bestDist = Infinity;
+        for (const d of data) {
+          const dist = Math.abs(d.x - ux);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = d;
+          }
+        }
+        return best;
       }
-      return best;
-    }
 
-    // A touch reading is *pinned*: it survives the pointerleave that fires the
-    // instant a tap ends, which is what made a tapped point flash and vanish.
-    // A mouse reading tracks the cursor and clears when it leaves, as before.
-    let pinned = false;
+      // A touch reading is *pinned*: it survives the pointerleave that fires the
+      // instant a tap ends, which is what made a tapped point flash and vanish.
+      // A mouse reading tracks the cursor and clears when it leaves, as before.
+      let pinned = false;
 
-    function show(ev) {
-      const d = nearest(ev.clientX);
-      if (!d) return;
-      const rect = svg.getBoundingClientRect();
-      const px = ((d.x - box.x) / box.width) * rect.width;
-      const py = ((d.y - box.y) / box.height) * rect.height;
+      function show(ev) {
+        const d = nearest(ev.clientX);
+        if (!d) return;
+        const rect = svg.getBoundingClientRect();
+        const px = ((d.x - box.x) / box.width) * rect.width;
+        const py = ((d.y - box.y) / box.height) * rect.height;
 
-      cross.setAttribute("x1", d.x);
-      cross.setAttribute("x2", d.x);
-      focus.setAttribute("cx", d.x);
-      focus.setAttribute("cy", d.y);
+        cross.setAttribute("x1", d.x);
+        cross.setAttribute("x2", d.x);
+        focus.setAttribute("cx", d.x);
+        focus.setAttribute("cy", d.y);
 
-      tip.innerHTML = "";
-      const rating = document.createElement("span");
-      rating.className = "chart-tip-rating";
-      rating.textContent = d.rating + (d.provisional ? "?" : "");
-      const when = document.createElement("span");
-      when.className = "chart-tip-when";
-      when.textContent = " " + d.when;
-      tip.appendChild(rating);
-      tip.appendChild(when);
+        tip.innerHTML = "";
+        const rating = document.createElement("span");
+        rating.className = "chart-tip-rating";
+        rating.textContent = d.rating + (d.provisional ? "?" : "");
+        const when = document.createElement("span");
+        when.className = "chart-tip-when";
+        when.textContent = " " + d.when;
+        tip.appendChild(rating);
+        tip.appendChild(when);
 
-      tip.style.left = px + "px";
-      tip.style.top = py + "px";
-      tip.hidden = false;
-      plot.classList.add("is-hovering");
-    }
+        tip.style.left = px + "px";
+        tip.style.top = py + "px";
+        tip.hidden = false;
+        plot.classList.add("is-hovering");
+      }
 
-    function hide() {
-      pinned = false;
-      tip.hidden = true;
-      plot.classList.remove("is-hovering");
-    }
+      function hide() {
+        pinned = false;
+        tip.hidden = true;
+        plot.classList.remove("is-hovering");
+      }
 
-    const isTouch = (ev) => ev.pointerType === "touch" || ev.pointerType === "pen";
+      const isTouch = (ev) => ev.pointerType === "touch" || ev.pointerType === "pen";
 
-    plot.addEventListener("pointerdown", function (ev) {
-      pinned = isTouch(ev);
-      show(ev);
+      plot.addEventListener("pointerdown", function (ev) {
+        pinned = isTouch(ev);
+        show(ev);
+      });
+      plot.addEventListener("pointermove", function (ev) {
+        // a touch drag scrubs along the curve; a mouse move just tracks
+        if (!isTouch(ev) || ev.buttons || pinned) show(ev);
+      });
+      plot.addEventListener("pointerleave", function () {
+        if (!pinned) hide();
+      });
+      plot.addEventListener("pointercancel", hide);
+
+      // iOS treats a long press on an element as a selection/callout gesture,
+      // which tore the readout away mid-read. The CSS kills the callout and the
+      // selection; this kills the menu for the mouse case too.
+      plot.addEventListener("contextmenu", function (ev) {
+        ev.preventDefault();
+      });
+
+      // A pinned reading is dismissed by tapping anywhere else — the same gesture
+      // that dismisses every other transient thing on the page. Capture phase so
+      // it still fires when the tap lands on some other interactive element.
+      document.addEventListener(
+        "pointerdown",
+        function (ev) {
+          if (pinned && !plot.contains(ev.target)) hide();
+        },
+        true,
+      );
+      // scrolling away from a pinned point should not leave it stranded on screen
+      window.addEventListener("scroll", function () {
+        if (pinned) hide();
+      }, { passive: true });
     });
-    plot.addEventListener("pointermove", function (ev) {
-      // a touch drag scrubs along the curve; a mouse move just tracks
-      if (!isTouch(ev) || ev.buttons || pinned) show(ev);
-    });
-    plot.addEventListener("pointerleave", function () {
-      if (!pinned) hide();
-    });
-    plot.addEventListener("pointercancel", hide);
-
-    // iOS treats a long press on an element as a selection/callout gesture,
-    // which tore the readout away mid-read. The CSS kills the callout and the
-    // selection; this kills the menu for the mouse case too.
-    plot.addEventListener("contextmenu", function (ev) {
-      ev.preventDefault();
-    });
-
-    // A pinned reading is dismissed by tapping anywhere else — the same gesture
-    // that dismisses every other transient thing on the page. Capture phase so
-    // it still fires when the tap lands on some other interactive element.
-    document.addEventListener(
-      "pointerdown",
-      function (ev) {
-        if (pinned && !plot.contains(ev.target)) hide();
-      },
-      true,
-    );
-    // scrolling away from a pinned point should not leave it stranded on screen
-    window.addEventListener("scroll", function () {
-      if (pinned) hide();
-    }, { passive: true });
-  });
+  })();
 
   // --- recent-form readout ------------------------------------------------
   //
@@ -370,10 +378,37 @@
     // it overflows and this box scrolls. Start it at the *recent* end — left as
     // it lands it opens on last summer, and someone checking "have I played
     // this week" would have to discover a horizontal scroll to find out.
+    //
+    // Past days are then a scroll back to the left, and once someone has made
+    // that scroll it is theirs to keep: `moved` stops the resize handler from
+    // yanking them back to today on a rotation or a URL-bar collapse.
+    //
+    // It is *recomputed* from the box on every scroll rather than flagged around
+    // our own writes, which makes it immune to the order these fire in during a
+    // resize: it only ever asks "is this box away from its recent edge right
+    // now". A wide enough card has no scroll range at all, and at max 0 there is
+    // nowhere to be but the edge — a rotation into landscape must not read as
+    // the reader scrolling away, or rotating back would strand them on last
+    // summer.
+    let moved = false;
     const toEnd = () => {
-      box.scrollLeft = box.scrollWidth - box.clientWidth;
+      if (moved) return;
+      const max = box.scrollWidth - box.clientWidth;
+      if (max > 0 && box.scrollLeft !== max) box.scrollLeft = max;
     };
+    box.addEventListener(
+      "scroll",
+      function () {
+        const max = box.scrollWidth - box.clientWidth;
+        moved = max > 0 && Math.abs(box.scrollLeft - max) > 1;
+      },
+      { passive: true },
+    );
     toEnd();
+    // a second pass after layout settles: on a cold load the year of cells can
+    // still be widening when the script runs, and a snap against a short
+    // scrollWidth lands somewhere short of today
+    requestAnimationFrame(toEnd);
     if (window.ResizeObserver) new ResizeObserver(toEnd).observe(box);
 
     // --- mode toggle: both ramps are already on every cell, so this only
