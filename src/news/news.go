@@ -17,6 +17,13 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Join up!",
+		Date:  "Jul 29, 2026",
+		Body: "The homepage now shows more accurate live games in all phases, new players " +
+			"that have joined the site, and a top-rated leaderboard. Following & challenging " +
+			"players is coming soon!",
+	},
+	{
 		Title: "Player Profiles & Stats",
 		Date:  "Jul 27, 2026",
 		Body: "We added player profiles and in-depth stats, so you can see how you're " +
