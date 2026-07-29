@@ -30,13 +30,13 @@ const (
 	// newestShown / topShown bound each panel. Both are display caps, not
 	// pagination: these are teasers that point at the player base, not a
 	// directory.
-	newestShown = 5
+	newestShown = 20
 	topShown    = 5
 	// leaderboardMinGames is the games floor for appearing on the leaderboard.
 	// The RD filter already excludes provisional ratings; this additionally
 	// keeps an account that got established off a very short run from topping
 	// the board on the strength of a hot streak.
-	leaderboardMinGames = 5
+	leaderboardMinGames = 10
 )
 
 // panelCache is one cached community panel. The zero value is an expired cache
