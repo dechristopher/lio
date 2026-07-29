@@ -1,9 +1,12 @@
 package room
 
 import (
+	"time"
+
 	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
@@ -28,6 +31,24 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		lastMove = moves[len(moves)-1].String()
 	}
 
+	// the room is mid blind-deploy exactly while the deadline is set: handleDeploy
+	// stamps it on entry and deployAndStart clears it at the reveal
+	deploying := !r.deployDeadline.IsZero()
+
+	// the two pre-game timers take the grid's dial in turn, so only one of them
+	// is ever live: the deploy phase's auto-fill deadline, then the post-reveal
+	// first-move grace the clock owns (State.PreStart)
+	var phaseLeft, phaseTotal int64
+	if deploying {
+		if d := time.Until(r.deployDeadline); d > 0 {
+			phaseLeft = clock.ToCTime(d).Centi()
+		}
+		phaseTotal = clock.ToCTime(deployTimeout).Centi()
+	} else {
+		phaseLeft = clockState.PreStart.Centi()
+		phaseTotal = r.game.Variant.Control.PreStart.Centi()
+	}
+
 	return tv.Event{
 		Kind:     kind,
 		RoomID:   r.ID,
@@ -49,9 +70,14 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		// untimed casual game: the grid shows static ∞ clocks
 		Casual: r.game.Variant.Casual,
 		Score:  r.players.ScoreMap(),
-		// the clock is paused until the first move starts it; until then the TV
-		// grid should show full, static clocks rather than ticking them down
-		Running: !clockState.IsPaused,
+		// only report the clock as running when a side is actually being charged.
+		// The clock is unpaused for the whole pre-start grace but drains nobody
+		// during it, so reporting it live is what used to make the grid tick
+		// White down and then snap back on the first move.
+		Running:    !clockState.IsPaused && !deploying && phaseLeft == 0,
+		Deploying:  deploying,
+		PhaseLeft:  phaseLeft,
+		PhaseTotal: phaseTotal,
 	}
 }
 
@@ -65,21 +91,26 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 // viewer to address: one card is broadcast to everyone, so an anonymous seat is
 // spelled out here rather than left for a client that could never resolve it.
 func (r *Instance) tvSeatLocked(color octad.Color) proto.TVSeat {
+	// committed its blind-deploy arrangement. r.deployed is nil outside the
+	// phase, so this reads false for every seat during normal play.
+	_, locked := r.deployed[color]
+
 	p := r.players[color]
 	if p == nil {
-		return proto.TVSeat{Name: "Anonymous"}
+		return proto.TVSeat{Name: "Anonymous", Locked: locked}
 	}
 	if p.IsBot {
 		persona := r.botPersona()
-		return proto.TVSeat{Name: persona.Name, Bot: true, Glyph: persona.Glyph}
+		return proto.TVSeat{Name: persona.Name, Bot: true, Glyph: persona.Glyph, Locked: locked}
 	}
 	if p.Username == "" {
-		return proto.TVSeat{Name: "Anonymous"}
+		return proto.TVSeat{Name: "Anonymous", Locked: locked}
 	}
 	return proto.TVSeat{
 		Name:      p.Username,
 		Title:     p.Title.Code,
 		TitleName: p.Title.Name,
+		Locked:    locked,
 	}
 }
 

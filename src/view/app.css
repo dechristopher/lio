@@ -2896,6 +2896,71 @@
 	.tv-board.gcon { --bs: 100%; width: 100%; }
 	.tv-card.over .tv-board { opacity: 0.6; }
 
+	/* blind deploy: the grid reuses the room's own home-rank covers
+	   (.deploy-questions / .dq-cell), so the two surfaces cannot drift on what a
+	   hidden rank looks like. Only the "?" needs rescaling — the room's
+	   viewport-relative size is meant for a full-page board. */
+	.tv-board .dq-cell { font-size: 0.9rem; }
+
+	/* Pre-game countdown dial, shared by the deploy auto-fill timer and the
+	   post-reveal first-move grace (only one is ever live). This is deliberately
+	   the room's own pre-start dial at a smaller scale — same translucent disc,
+	   same track-under-accent ring, same round stroke cap on the sweep, same
+	   display face for the number — so a game watched on the grid and the same
+	   game opened in its room show one motif rather than two. Only the disc
+	   diameter and type size change: at 26% of a 128px board the room's
+	   proportions leave no room for a legible number.
+	   lio-tv.js drives .tv-dial-progress's dashoffset on an animation frame. */
+	.tv-dial {
+		z-index: 20;
+		position: absolute;
+		inset: 0;
+		display: none;
+		align-items: center;
+		justify-content: center;
+		pointer-events: none;
+	}
+	.tv-dial.on { display: flex; }
+	.tv-dial-face {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 40%;
+		max-width: 3.4rem;
+		aspect-ratio: 1;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--surface-3) 85%, transparent);
+		box-shadow: var(--shadow-lg);
+	}
+	.tv-dial-ring {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		/* start the sweep at 12 o'clock */
+		transform: rotate(-90deg);
+	}
+	/* a touch heavier than the room's 3: the stroke scales with the viewBox, so
+	   at this diameter the room's weight comes out under 3px on screen */
+	.tv-dial-ring circle { fill: none; stroke-width: 3.5; }
+	.tv-dial-track { stroke: var(--border); }
+	.tv-dial-progress {
+		stroke: var(--accent);
+		stroke-linecap: round;
+		/* 2π·r (r=21 in the 48-unit viewBox); lio-tv.js drives dashoffset from 0
+		   (full ring) toward this value as the countdown drains */
+		stroke-dasharray: 131.95;
+	}
+	.tv-dial-num {
+		font-family: var(--font-display);
+		font-variant-numeric: tabular-nums;
+		font-weight: 800;
+		font-size: 0.85rem;
+		line-height: 1;
+		color: var(--text);
+	}
+
 	/* Each side gets a strip sandwiching the board: an identity row (persona
 	   glyph, title badge, name, time, score) over a full-width clock bar. The
 	   bar is stacked rather than inline so the name can have the row's slack —
@@ -2977,6 +3042,20 @@
 		text-align: right;
 	}
 	.tv-clock.low .tv-time { color: var(--loss); }
+	/* blind deploy: this seat's confirmation state, in the clock's slot (the
+	   clocks are static and identical then — whether each side has committed is
+	   the only thing moving). Same min-width as .tv-time so the score column
+	   doesn't jump when the phase ends. */
+	.tv-lock {
+		flex: none;
+		min-width: 1.5rem;
+		text-align: right;
+		font-size: 0.72rem;
+		line-height: 1;
+		font-weight: 700;
+		color: var(--text-subtle);
+	}
+	.tv-lock.locked { color: var(--accent); }
 	/* per-side score at the row end. Wide enough for a half point ("0.5") so a
 	   1-vs-½ match doesn't shunt the two strips' clocks to different offsets —
 	   the eye reads the top and bottom times as a column. */

@@ -11,6 +11,7 @@ type TVSeat struct {
 	TitleName string `json:"tn,omitempty"`  // that badge's tooltip ("Grandmaster")
 	Bot       bool   `json:"bot,omitempty"` // the engine holds this seat
 	Glyph     string `json:"g,omitempty"`   // bot seat's difficulty-persona piece glyph ("♛︎")
+	Locked    bool   `json:"lk,omitempty"`  // committed its arrangement (Deploying only)
 }
 
 // TVGame is the full display state of a single featured game in the home-page
@@ -34,8 +35,29 @@ type TVGame struct {
 	BlackSeat TVSeat       `json:"bs"`           // who is playing black
 	Casual    bool         `json:"ca,omitempty"` // untimed game: render clocks as a static ∞
 	Score     ScorePayload `json:"sc,omitempty"` // match score, keyed "w"/"b"
-	Running   bool         `json:"rn,omitempty"` // clock is live (a move has started it); false pre-first-move
 	Over      bool         `json:"x,omitempty"`  // final position (freeze/dim the board)
+
+	// Running reports that a side's clock is being charged *right now* — the one
+	// question the grid's local interpolator needs answered. It is false through
+	// every pre-game state (the blind deploy phase and the post-reveal first-move
+	// grace included), because in those the times are static on the server: a
+	// client that ticked them would run visibly ahead until the next real update
+	// snapped them back, which is exactly what the grid used to do during the
+	// pre-start countdown.
+	Running bool `json:"rn,omitempty"`
+
+	// Deploying marks the room as mid blind-deploy: the arrangements are secret,
+	// so the grid covers both home ranks and reads each seat's Locked flag
+	// instead of its clock.
+	Deploying bool `json:"dg,omitempty"`
+	// PhaseLeft / PhaseTotal drive the pre-game dial on the board: centi-seconds
+	// remaining and the full span it counts down from. One pair covers both
+	// pre-game timers in turn — the deploy phase's auto-fill deadline while
+	// Deploying, then the post-reveal grace before White's clock starts — since
+	// only one is ever live and the grid renders them identically. Both are zero
+	// once play is under way.
+	PhaseLeft  int64 `json:"pl,omitempty"`
+	PhaseTotal int64 `json:"pt,omitempty"`
 }
 
 // TVCrowd is a count-only delta: the spectator count of a featured room

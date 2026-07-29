@@ -34,6 +34,11 @@ func (r *Instance) handleDeploy() {
 	// announce the deploy phase to everyone; clients enter deploy mode
 	channel.Broadcast(r.deployMessage(int(deployTimeout/time.Second)), channel.SocketContext{Channel: r.ID, MT: 1})
 
+	// put the room on the home-page TV grid now rather than at the reveal: a
+	// deploying room is the most alive a room gets before its first move, and
+	// the grid renders it as a covered board with a countdown
+	tv.Publish(r.tvEvent(tv.Deploy))
+
 	deployTimer := time.NewTimer(deployTimeout)
 	defer deployTimer.Stop()
 
@@ -97,6 +102,9 @@ func (r *Instance) handleDeploy() {
 			util.DebugFlag("room", str.CRoom, "[%s] bot (%s) deployed %s", r.ID, bot.Color, d.order())
 		case <-announce.C:
 			channel.Broadcast(r.deployAnnounceMessage(), channel.SocketContext{Channel: r.ID, MT: 1})
+			// resync the grid's dial off the same tick, so a TV viewer who
+			// connected mid-phase converges within one interval
+			tv.Publish(r.tvEvent(tv.Deploy))
 		case <-deployTimer.C:
 			util.DebugFlag("room", str.CRoom, "[%s] deploy timer expired, auto-filling", r.ID)
 			r.deployAndStart(got, botColor)
@@ -203,6 +211,9 @@ func (r *Instance) recordAndLock(color octad.Color, d Deployment) {
 	r.stateMu.Unlock()
 
 	channel.Broadcast(r.lockMessage(color), channel.SocketContext{Channel: r.ID, MT: 1})
+	// the grid shows the same "locked in" state per seat, so it needs the delta
+	// immediately rather than on the next announce tick
+	tv.Publish(r.tvEvent(tv.Deploy))
 }
 
 // playerIDsLocked returns the current white/black player ids. The caller must

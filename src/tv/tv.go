@@ -44,6 +44,11 @@ type EventKind int
 const (
 	// Start: a game became live (first game of a room, or a rematch).
 	Start EventKind = iota
+	// Deploy: the room is in its blind deploy phase — the pre-game state where
+	// both sides secretly arrange their home rank. It is published on entering
+	// the phase, on every lock-in, and on the phase's own re-announce tick, so
+	// the grid can show the room filling up before a move is ever played.
+	Deploy
 	// Move: a featured/live game advanced by a move.
 	Move
 	// End: a game reached a terminal outcome (the position freezes).
@@ -82,10 +87,15 @@ type Event struct {
 	// instead of ticking down the (effectively infinite) real values.
 	Casual bool
 	Score  proto.ScorePayload
-	// Running reports whether the game clock is live. It is false before the
-	// first move (the clock is paused until White moves), so the client can hold
-	// the clocks static instead of ticking them down on an unstarted game.
+	// Running reports whether a side's clock is actually being charged, so the
+	// client can hold the times static rather than ticking them down through
+	// every state where the server is not draining anyone (see proto.TVGame).
 	Running bool
+	// Deploying / PhaseLeft / PhaseTotal describe the pre-game phase the room is
+	// in: the blind deploy, then the first-move grace. See proto.TVGame.
+	Deploying  bool
+	PhaseLeft  int64
+	PhaseTotal int64
 }
 
 // hubMsg multiplexes the two inbound request kinds onto the hub's single inbound
@@ -181,7 +191,11 @@ func (h *hub) handle(ev Event) []proto.TVPayload {
 		}
 		return nil
 
-	case Move, End:
+	// Deploy rides the Move path deliberately: its "claim a free slot if this
+	// room is new to me, otherwise patch the slot in place" behaviour is exactly
+	// what a deploy-phase update needs, and it means a room shows up on the grid
+	// the moment it starts deploying rather than only once it has a position.
+	case Move, End, Deploy:
 		g := tvGameFrom(ev, ev.Kind == End)
 		_, known := h.games[ev.RoomID]
 		h.games[ev.RoomID] = &g
@@ -270,24 +284,27 @@ func (h *hub) firstUnfeatured() string {
 // tvGameFrom projects a room Event onto the wire display struct.
 func tvGameFrom(ev Event, over bool) proto.TVGame {
 	return proto.TVGame{
-		RoomID:    ev.RoomID,
-		GameID:    ev.GameID,
-		Variant:   ev.Variant,
-		Deploy:    ev.Deploy,
-		Watchers:  ev.Watchers,
-		VsBot:     ev.VsBot,
-		Orient:    ev.Orient,
-		OFEN:      ev.OFEN,
-		LastMove:  ev.LastMove,
-		Control:   ev.Control,
-		White:     ev.White,
-		Black:     ev.Black,
-		WhiteSeat: ev.WhiteSeat,
-		BlackSeat: ev.BlackSeat,
-		Casual:    ev.Casual,
-		Score:     ev.Score,
-		Running:   ev.Running && !over,
-		Over:      over,
+		RoomID:     ev.RoomID,
+		GameID:     ev.GameID,
+		Variant:    ev.Variant,
+		Deploy:     ev.Deploy,
+		Watchers:   ev.Watchers,
+		VsBot:      ev.VsBot,
+		Orient:     ev.Orient,
+		OFEN:       ev.OFEN,
+		LastMove:   ev.LastMove,
+		Control:    ev.Control,
+		White:      ev.White,
+		Black:      ev.Black,
+		WhiteSeat:  ev.WhiteSeat,
+		BlackSeat:  ev.BlackSeat,
+		Casual:     ev.Casual,
+		Score:      ev.Score,
+		Running:    ev.Running && !over,
+		Over:       over,
+		Deploying:  ev.Deploying,
+		PhaseLeft:  ev.PhaseLeft,
+		PhaseTotal: ev.PhaseTotal,
 	}
 }
 

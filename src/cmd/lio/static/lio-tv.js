@@ -197,10 +197,13 @@
 		'<circle cx="12" cy="12" r="3"></circle></svg>';
 
 	// A side's strip is an identity row — [persona glyph][title badge][name]
-	// [time][score] — stacked over a full-width clock bar. The name takes the
-	// slack between the badges and the time and ellipsizes there, so a 20-char
-	// username never squeezes the clock. `below` puts the bar first so the two
-	// strips' bars both sit against the board (see .tv-clock.below in app.css).
+	// [time|lock][score] — stacked over a full-width clock bar. The name takes
+	// the slack between the badges and the time and ellipsizes there, so a
+	// 20-char username never squeezes the clock. `below` puts the bar first so
+	// the two strips' bars both sit against the board (see .tv-clock.below in
+	// app.css). During the blind deploy the clock slot is given over to the
+	// seat's lock state — the clocks are static and identical then, while
+	// whether each side has committed is the only thing actually happening.
 	const clockEl = (below) => {
 		const root = document.createElement('div');
 		root.className = below ? 'tv-clock below' : 'tv-clock';
@@ -219,6 +222,9 @@
 		const time = document.createElement('span');
 		time.className = 'tv-time';
 		time.textContent = '0:00';
+		// deploy-phase stand-in for the clock: this seat's confirmation state
+		const lock = document.createElement('span');
+		lock.className = 'tv-lock hidden';
 		const score = document.createElement('span');
 		score.className = 'tv-side-score';
 		score.textContent = '0';
@@ -226,6 +232,7 @@
 		seat.appendChild(title);
 		seat.appendChild(name);
 		seat.appendChild(time);
+		seat.appendChild(lock);
 		seat.appendChild(score);
 
 		const bar = document.createElement('div');
@@ -235,7 +242,55 @@
 
 		root.appendChild(seat);
 		root.appendChild(bar);
-		return {root, glyph, title, name, fill, time, score};
+		return {root, glyph, title, name, fill, time, lock, score};
+	};
+
+	// questionBand builds one home-rank cover for the blind deploy: the same
+	// four "?" cells (and the same .deploy-questions/.dq-cell classes) the room
+	// board uses, so the two surfaces can never drift apart on what a hidden
+	// rank looks like. The grid always covers *both* ranks — every TV viewer is
+	// a spectator, and a spectator is shown neither arrangement.
+	const questionBand = (bottom) => {
+		const band = document.createElement('div');
+		band.className = bottom ? 'deploy-questions deploy-questions-btm' : 'deploy-questions';
+		band.setAttribute('aria-hidden', 'true');
+		for (let i = 0; i < 4; i++) {
+			const cell = document.createElement('span');
+			cell.className = 'dq-cell';
+			cell.textContent = '?';
+			band.appendChild(cell);
+		}
+		return band;
+	};
+
+	// the countdown ring, structurally identical to the room's pre-start dial
+	// (see prestart-overlay in view/components.templ) so the two read as the same
+	// object: a track circle under an accent progress circle whose round stroke
+	// cap gives the sweep its rounded leading edge. Same 48-unit viewBox and
+	// r=21, so DIAL_CIRC below is the same number lio-game.js uses.
+	const DIAL_RING =
+		'<svg class="tv-dial-ring" viewBox="0 0 48 48" aria-hidden="true">' +
+		'<circle class="tv-dial-track" cx="24" cy="24" r="21"></circle>' +
+		'<circle class="tv-dial-progress" cx="24" cy="24" r="21"></circle></svg>';
+
+	// circumference of the ring (2π·21); must match the stroke-dasharray in
+	// app.css, exactly as lio-game.js's preStartRingCirc does for the room
+	const DIAL_CIRC = 131.95;
+
+	// dialEl builds the mid-board countdown shared by both pre-game timers (the
+	// deploy auto-fill, then the first-move grace).
+	const dialEl = () => {
+		const root = document.createElement('div');
+		root.className = 'tv-dial';
+		root.setAttribute('aria-hidden', 'true');
+		const face = document.createElement('div');
+		face.className = 'tv-dial-face';
+		face.innerHTML = DIAL_RING;
+		const num = document.createElement('div');
+		num.className = 'tv-dial-num';
+		face.appendChild(num);
+		root.appendChild(face);
+		return {root, progress: face.querySelector('.tv-dial-progress'), num};
 	};
 
 	// setSeat writes a side's identity from the wire seat (proto.TVSeat): the
@@ -243,7 +298,7 @@
 	// written as text, never markup — a username and a title code are account
 	// data. Both badges collapse when the seat carries neither, so an anonymous
 	// human's row is just the name.
-	const setSeat = (c, s) => {
+	const setSeat = (c, s, deploying) => {
 		s = s || {};
 		const label = s.n || 'Anonymous';
 		const glyph = s.bot ? (s.g || '') : '';
@@ -256,6 +311,12 @@
 		c.name.textContent = label;
 		// the name ellipsizes at these widths; hovering it spells it out
 		c.name.title = label;
+		// deploy phase: the clock slot carries the seat's confirmation instead
+		c.time.classList.toggle('hidden', !!deploying);
+		c.lock.classList.toggle('hidden', !deploying);
+		c.lock.textContent = s.lk ? '✓' : '⋯';
+		c.lock.classList.toggle('locked', !!s.lk);
+		c.lock.title = s.lk ? 'Deployment confirmed' : 'Still arranging pieces';
 	};
 
 	const createSlot = (g) => {
@@ -279,6 +340,14 @@
 		const ogWrap = document.createElement('div');
 		ogWrap.className = 'og-wrap';
 		gwrap.appendChild(ogWrap);
+		// pre-game overlays, layered over the board exactly as in the room: the
+		// two home-rank "?" covers for the blind deploy, then the countdown dial
+		const dqTop = questionBand(false);
+		const dqBtm = questionBand(true);
+		const dial = dialEl();
+		gwrap.appendChild(dqTop);
+		gwrap.appendChild(dqBtm);
+		gwrap.appendChild(dial.root);
 		board.appendChild(gwrap);
 
 		// player names, per-side score and clocks all live on the two seat strips,
@@ -315,13 +384,16 @@
 		});
 
 		return {
-			card, og, top, bottom, variantEl, watch, watchCount,
+			card, og, top, bottom, variantEl, watch, watchCount, dqTop, dqBtm, dial,
 			// whiteEl/blackEl: which fixed row currently holds each color; remapped
 			// by updateSlot as the anchored side flips between games
 			whiteEl: orient === 'w' ? bottom : top,
 			blackEl: orient === 'w' ? top : bottom,
 			control: g.tc, wt: g.w, bt: g.b, casual: !!g.ca, toMove: 'w', at: Date.now(),
 			over: false, running: false, orient: orient,
+			// pre-game phase: whether the arrangements are still hidden, and the
+			// local deadline (ms) + span the dial counts down over
+			deploying: false, phaseEnd: 0, phaseTotalMs: 0,
 			// gameId + last-seen scores drive the end-of-game score flash and its
 			// reset when a rematch backfills the same slot
 			gameId: g.i, sw: scoreOf(g, 'w'), sb: scoreOf(g, 'b')
@@ -352,9 +424,25 @@
 		slot.toMove = sideToMove(g.o);
 		slot.at = Date.now();
 		slot.over = !!g.x;
-		// the clock only ticks once the first move has started it; until then
-		// hold the clocks static at their full value
+		// the server reports a clock as running only while it is actually charging
+		// someone — never through the deploy phase or the first-move grace — so the
+		// interpolator below can key off this alone
 		slot.running = !!g.rn;
+
+		// pre-game phase. The dial's deadline is rebased locally off every update
+		// (the server sends what is left, not an absolute time), and the "?" covers
+		// go up for the whole blind deploy.
+		slot.deploying = !!g.dg;
+		const phaseLeftMs = (g.pl || 0) * 10;
+		slot.phaseEnd = phaseLeftMs > 0 ? slot.at + phaseLeftMs : 0;
+		slot.phaseTotalMs = (g.pt || g.pl || 0) * 10;
+		slot.dqTop.classList.toggle('deploy-show', slot.deploying);
+		slot.dqBtm.classList.toggle('deploy-show', slot.deploying);
+		// paint once now so the dial never shows a frame of the previous phase,
+		// then hand it to the animation loop
+		if (paintDial(slot, slot.at)) {
+			armDials();
+		}
 
 		slot.og.set({
 			ofen: boardOf(g.o),
@@ -368,13 +456,14 @@
 		// blind-deploy "Octad" mode now, so no mode suffix is shown.
 		const caption = g.vn || 'Octad';
 		slot.variantEl.textContent = caption;
-		slot.card.title = (g.vb ? 'vs Computer · ' : '') + caption;
+		slot.card.title = (slot.deploying ? 'Deploying · ' : '')
+			+ (g.vb ? 'vs Computer · ' : '') + caption;
 		setWatchers(slot, g.sp || 0);
 
 		// seat identities go to whichever strip currently holds that color; both
 		// are written every update so a flip never leaves a stale name behind
-		setSeat(slot.whiteEl, g.ws);
-		setSeat(slot.blackEl, g.bs);
+		setSeat(slot.whiteEl, g.ws, slot.deploying);
+		setSeat(slot.blackEl, g.bs, slot.deploying);
 
 		// per-side score, flashing the delta at game end: green +1 (a win), grey
 		// +½ (a draw). Score only changes at game end, so a positive delta is the
@@ -392,8 +481,13 @@
 
 		slot.card.classList.toggle('over', slot.over);
 
-		paintClock(slot.whiteEl, slot.control, slot.wt, !slot.over && slot.toMove === 'w', slot.casual);
-		paintClock(slot.blackEl, slot.control, slot.bt, !slot.over && slot.toMove === 'b', slot.casual);
+		// the accent "to move" bar means it is someone's turn. Nobody is on move
+		// during the blind deploy — both sides act at once — so both bars stay
+		// neutral there; the pre-start grace does have a side to move (they may
+		// move at any point under the countdown) and keeps its accent.
+		const onMove = !slot.over && !slot.deploying;
+		paintClock(slot.whiteEl, slot.control, slot.wt, onMove && slot.toMove === 'w', slot.casual);
+		paintClock(slot.blackEl, slot.control, slot.bt, onMove && slot.toMove === 'b', slot.casual);
 	};
 
 	// setWatchers writes the spectator count; the indicator only renders while
@@ -438,13 +532,69 @@
 		c.root.classList.toggle('low', centis < 1000); // < 10s
 	};
 
-	// one shared ticker decrements the active side on every board (one timer, not
-	// one per board); the next move delta resets `at` + clocks from the server
+	// paintDial ticks a slot's pre-game countdown — the whole-seconds number plus
+	// the ring sweep — and reports whether that countdown is still live.
+	//
+	// Lapsing matters differently per phase, and that difference is the whole
+	// point of tracking `deploying`:
+	//   - the first-move grace lapsing is the instant the server puts the side to
+	//     move on the clock, so hand off to the interpolator from the last known
+	//     values (the same handoff lio-game.js makes via armWhiteClockTicker) —
+	//     no message flows at that moment to arm it for us;
+	//   - the deploy timer lapsing only means the auto-fill is in flight, so hold
+	//     the covers and the static clocks until the reveal arrives.
+	const paintDial = (slot, now) => {
+		const remaining = slot.phaseEnd ? slot.phaseEnd - now : 0;
+		if (remaining > 0) {
+			slot.dial.root.classList.add('on');
+			slot.dial.num.textContent = Math.ceil(remaining / 1000);
+			const frac = slot.phaseTotalMs > 0 ? Math.min(remaining / slot.phaseTotalMs, 1) : 1;
+			// dashoffset runs 0 (full ring) → circumference (empty), as in the room
+			slot.dial.progress.style.strokeDashoffset = DIAL_CIRC * (1 - frac);
+			return true;
+		}
+		if (slot.phaseEnd) {
+			slot.phaseEnd = 0;
+			if (!slot.deploying && !slot.over && !slot.casual) {
+				slot.running = true;
+				slot.at = now;
+			}
+		}
+		slot.dial.root.classList.remove('on');
+		return false;
+	};
+
+	// The dials run on their own animation frame rather than the 250ms clock
+	// ticker below: at 4 updates a second the sweep visibly staircases, and this
+	// is the one element on the card whose whole job is to look like time
+	// passing. The loop is self-arming and stops itself the moment no board has a
+	// live countdown, so a grid of games under way costs nothing.
+	let dialRafId = null;
+	const dialFrame = () => {
+		const now = Date.now();
+		let live = false;
+		slots.forEach((slot) => {
+			if (paintDial(slot, now)) {
+				live = true;
+			}
+		});
+		dialRafId = live ? requestAnimationFrame(dialFrame) : null;
+	};
+	const armDials = () => {
+		if (dialRafId === null) {
+			dialRafId = requestAnimationFrame(dialFrame);
+		}
+	};
+
+	// one shared ticker decrements the active side's clock on every board (one
+	// timer, not one per board); the next move delta resets `at` + clocks from
+	// the server
 	setInterval(() => {
 		const now = Date.now();
 		slots.forEach((slot) => {
-			// don't tick a finished game, one whose clock hasn't started yet
-			// (pre-first-move), or an untimed casual game (its ∞ is static)
+			// don't tick a finished game, one whose clock the server isn't
+			// charging yet (deploy phase, pre-start grace, pre-first-move), or an
+			// untimed casual game (its ∞ is static)
 			if (slot.over || !slot.running || slot.casual) {
 				return;
 			}
