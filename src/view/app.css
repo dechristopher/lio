@@ -2862,20 +2862,25 @@
 		animation: tvLivePulse 1.6s var(--ease-snappy) infinite;
 	}
 
+	/* three-up grid: tv.Cap is 6, so three columns fill exactly two rows instead
+	   of the ragged 4+2 a four-up grid leaves. The wider card is also what makes
+	   room for the player names on each seat strip — at four-up the name would
+	   have ~5 characters left at the md breakpoint. Drops to two columns on
+	   narrow phones, where three would put the names back under that floor. */
 	.tv-grid {
 		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 0.4rem;
 	}
 	@media (max-width: 480px) {
-		.tv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		.tv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	}
 	.tv-card {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
 		padding: 0.3rem;
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--surface-2);
 		text-decoration: none;
@@ -2891,15 +2896,26 @@
 	.tv-board.gcon { --bs: 100%; width: 100%; }
 	.tv-card.over .tv-board { opacity: 0.6; }
 
-	/* thin clock bars sandwiching the board (top = black, bottom = white) */
+	/* Each side gets a strip sandwiching the board: an identity row (persona
+	   glyph, title badge, name, time, score) over a full-width clock bar. The
+	   bar is stacked rather than inline so the name can have the row's slack —
+	   and so both bars end up against the board, framing it. `.below` is the
+	   bottom strip: reversing the column puts its bar on top, against the
+	   board's lower edge. */
 	.tv-clock {
 		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+	.tv-clock.below { flex-direction: column-reverse; }
+	.tv-seat {
+		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.2rem;
+		min-width: 0;
 	}
 	.tv-bar {
 		position: relative;
-		flex: 1;
 		height: 2px;
 		border-radius: 999px;
 		background: var(--border);
@@ -2915,6 +2931,41 @@
 	}
 	.tv-clock.run > .tv-bar > i { background: var(--accent); }
 	.tv-clock.low > .tv-bar > i { background: var(--loss); }
+	/* the player's name takes whatever the fixed-width badges, clock and score
+	   leave, and ellipsizes there — usernames run to 20 characters, so at these
+	   card widths truncation is the normal case, not the edge one. lio-tv.js
+	   mirrors the full name into the element's title for the hover. */
+	.tv-name {
+		flex: 1;
+		min-width: 0;
+		font-size: 0.62rem;
+		font-weight: 600;
+		line-height: 1.1;
+		color: var(--text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	/* bot seat's difficulty-persona piece glyph, the same avatar (and optical
+	   nudge) the room clock uses — it replaces the generic cpu icon here, so the
+	   card shows *which* bot is playing rather than merely that one is */
+	.tv-glyph {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.8rem;
+		line-height: 1;
+		color: var(--accent);
+		transform: translateY(-0.14em);
+	}
+	/* the site-wide title badge, tightened for the strip: .player-title carries
+	   the look, this only trims the padding so a badge + name still fits */
+	.tv-title {
+		padding: 0.05em 0.25em;
+		border-radius: 3px;
+		font-size: 0.52rem;
+	}
 	.tv-time {
 		flex: none;
 		font-family: var(--font-mono);
@@ -2922,16 +2973,13 @@
 		font-size: 0.58rem;
 		font-weight: 600;
 		color: var(--text-muted);
-		min-width: 2rem;
+		min-width: 1.5rem;
 		text-align: right;
 	}
-	.tv-clock.low > .tv-time { color: var(--loss); }
-	/* cpu glyph leading a bot-played clock row; shown only when lio-tv.js sets
-	   .is-bot on that side's .tv-clock */
-	.tv-bot { display: none; flex: none; align-items: center; color: var(--text-subtle); }
-	.tv-bot > svg { width: 0.7rem; height: 0.7rem; }
-	.tv-clock.is-bot > .tv-bot { display: inline-flex; }
-	/* per-side score at the row end */
+	.tv-clock.low .tv-time { color: var(--loss); }
+	/* per-side score at the row end. Wide enough for a half point ("0.5") so a
+	   1-vs-½ match doesn't shunt the two strips' clocks to different offsets —
+	   the eye reads the top and bottom times as a column. */
 	.tv-side-score {
 		flex: none;
 		font-family: var(--font-mono);
@@ -2939,7 +2987,7 @@
 		font-size: 0.62rem;
 		font-weight: 700;
 		color: var(--text);
-		min-width: 0.9rem;
+		min-width: 1.2rem;
 		text-align: right;
 	}
 

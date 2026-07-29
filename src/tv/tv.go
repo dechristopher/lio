@@ -66,13 +66,18 @@ type Event struct {
 	Deploy   bool
 	Watchers int
 	VsBot    bool
-	BotColor string
 	Orient   string
 	OFEN     string
 	LastMove string
 	Control  int64
 	White    int64
 	Black    int64
+	// WhiteSeat / BlackSeat are the two seats' display identities (name, title
+	// badge, bot persona). They are resolved once by the room, where the seats
+	// live, rather than re-derived per viewer: the TV stream has no viewer to
+	// address, so every card shows the same names.
+	WhiteSeat proto.TVSeat
+	BlackSeat proto.TVSeat
 	// Casual marks an untimed game: the grid renders its clocks as a static ∞
 	// instead of ticking down the (effectively infinite) real values.
 	Casual bool
@@ -265,23 +270,24 @@ func (h *hub) firstUnfeatured() string {
 // tvGameFrom projects a room Event onto the wire display struct.
 func tvGameFrom(ev Event, over bool) proto.TVGame {
 	return proto.TVGame{
-		RoomID:   ev.RoomID,
-		GameID:   ev.GameID,
-		Variant:  ev.Variant,
-		Deploy:   ev.Deploy,
-		Watchers: ev.Watchers,
-		VsBot:    ev.VsBot,
-		BotColor: ev.BotColor,
-		Orient:   ev.Orient,
-		OFEN:     ev.OFEN,
-		LastMove: ev.LastMove,
-		Control:  ev.Control,
-		White:    ev.White,
-		Black:    ev.Black,
-		Casual:   ev.Casual,
-		Score:    ev.Score,
-		Running:  ev.Running && !over,
-		Over:     over,
+		RoomID:    ev.RoomID,
+		GameID:    ev.GameID,
+		Variant:   ev.Variant,
+		Deploy:    ev.Deploy,
+		Watchers:  ev.Watchers,
+		VsBot:     ev.VsBot,
+		Orient:    ev.Orient,
+		OFEN:      ev.OFEN,
+		LastMove:  ev.LastMove,
+		Control:   ev.Control,
+		White:     ev.White,
+		Black:     ev.Black,
+		WhiteSeat: ev.WhiteSeat,
+		BlackSeat: ev.BlackSeat,
+		Casual:    ev.Casual,
+		Score:     ev.Score,
+		Running:   ev.Running && !over,
+		Over:      over,
 	}
 }
 

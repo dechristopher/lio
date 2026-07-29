@@ -1,27 +1,41 @@
 package proto
 
+// TVSeat is one side's identity in a featured game, as the grid renders it:
+// who is sitting there, plus the badges that qualify the name. The TV stream is
+// viewer-less — every viewer gets the same card — so Name is always a name a
+// stranger can read ("Anonymous", a persona, or an account), never the room
+// view's viewer-relative "You".
+type TVSeat struct {
+	Name      string `json:"n,omitempty"`   // account username / bot persona name / "Anonymous"
+	Title     string `json:"t,omitempty"`   // account title badge code ("GM"); "" = untitled
+	TitleName string `json:"tn,omitempty"`  // that badge's tooltip ("Grandmaster")
+	Bot       bool   `json:"bot,omitempty"` // the engine holds this seat
+	Glyph     string `json:"g,omitempty"`   // bot seat's difficulty-persona piece glyph ("♛︎")
+}
+
 // TVGame is the full display state of a single featured game in the home-page
 // TV grid. It is sent both in the initial snapshot (one per featured game) and
 // as an add/move delta. Clocks are centi-seconds, matching ClockPayload, so the
 // client can drive the thin progress bars off Control as the denominator.
 type TVGame struct {
-	RoomID   string       `json:"r"`            // slot key + watch-link target
-	GameID   string       `json:"i"`            // changes on rematch → client resets that board
-	Variant  string       `json:"vn"`           // variant display name (the time control, e.g. "½ + 1")
-	Deploy   bool         `json:"dp,omitempty"` // blind-deploy game mode (false = classic)
-	Watchers int          `json:"sp,omitempty"` // connected spectators (seated players excluded)
-	VsBot    bool         `json:"vb,omitempty"` // human-vs-computer game
-	BotColor string       `json:"bc,omitempty"` // side the bot plays: "w"/"b" ("" = no bot)
-	Orient   string       `json:"or,omitempty"` // color anchored to the board's bottom: "w"/"b"
-	OFEN     string       `json:"o"`            // position + side to move
-	LastMove string       `json:"l,omitempty"`  // UOI, for last-move highlight
-	Control  int64        `json:"tc"`           // total time control centis (bar denominator)
-	White    int64        `json:"w"`            // white clock centis
-	Black    int64        `json:"b"`            // black clock centis
-	Casual   bool         `json:"ca,omitempty"` // untimed game: render clocks as a static ∞
-	Score    ScorePayload `json:"sc,omitempty"` // match score, keyed "w"/"b"
-	Running  bool         `json:"rn,omitempty"` // clock is live (a move has started it); false pre-first-move
-	Over     bool         `json:"x,omitempty"`  // final position (freeze/dim the board)
+	RoomID    string       `json:"r"`            // slot key + watch-link target
+	GameID    string       `json:"i"`            // changes on rematch → client resets that board
+	Variant   string       `json:"vn"`           // variant display name (the time control, e.g. "½ + 1")
+	Deploy    bool         `json:"dp,omitempty"` // blind-deploy game mode (false = classic)
+	Watchers  int          `json:"sp,omitempty"` // connected spectators (seated players excluded)
+	VsBot     bool         `json:"vb,omitempty"` // human-vs-computer game
+	Orient    string       `json:"or,omitempty"` // color anchored to the board's bottom: "w"/"b"
+	OFEN      string       `json:"o"`            // position + side to move
+	LastMove  string       `json:"l,omitempty"`  // UOI, for last-move highlight
+	Control   int64        `json:"tc"`           // total time control centis (bar denominator)
+	White     int64        `json:"w"`            // white clock centis
+	Black     int64        `json:"b"`            // black clock centis
+	WhiteSeat TVSeat       `json:"ws"`           // who is playing white
+	BlackSeat TVSeat       `json:"bs"`           // who is playing black
+	Casual    bool         `json:"ca,omitempty"` // untimed game: render clocks as a static ∞
+	Score     ScorePayload `json:"sc,omitempty"` // match score, keyed "w"/"b"
+	Running   bool         `json:"rn,omitempty"` // clock is live (a move has started it); false pre-first-move
+	Over      bool         `json:"x,omitempty"`  // final position (freeze/dim the board)
 }
 
 // TVCrowd is a count-only delta: the spectator count of a featured room

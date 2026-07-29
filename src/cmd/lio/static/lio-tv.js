@@ -18,6 +18,7 @@
 	// roomID -> slot { card, og, top, bottom, whiteEl, blackEl, variantEl,
 	//                  watch, watchCount, control, wt, bt, toMove, at, over,
 	//                  running, orient, gameId, sw, sb }
+	// (top/bottom are the two seat strips built by clockEl)
 	const slots = new Map();
 
 	// ---- connection: jittered backoff + stale-socket watchdog (cf. lio.js) ----
@@ -195,38 +196,66 @@
 		'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>' +
 		'<circle cx="12" cy="12" r="3"></circle></svg>';
 
-	// small cpu glyph (mirrors view.iconCpu) marking a bot-played side; shown only
-	// when the clock's .tv-clock root carries .is-bot
-	const CPU_ICON =
-		'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-		'<rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>' +
-		'<rect x="9" y="9" width="6" height="6"></rect>' +
-		'<path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"></path></svg>';
-
-	// a clock row is [bot icon][time bar][time][side score]; the score sits at the
-	// row end so it reads as a per-side number, and the bot icon leads the row
-	const clockEl = () => {
+	// A side's strip is an identity row — [persona glyph][title badge][name]
+	// [time][score] — stacked over a full-width clock bar. The name takes the
+	// slack between the badges and the time and ellipsizes there, so a 20-char
+	// username never squeezes the clock. `below` puts the bar first so the two
+	// strips' bars both sit against the board (see .tv-clock.below in app.css).
+	const clockEl = (below) => {
 		const root = document.createElement('div');
-		root.className = 'tv-clock';
-		const bot = document.createElement('span');
-		bot.className = 'tv-bot';
-		bot.title = 'Computer player';
-		bot.innerHTML = CPU_ICON;
-		const bar = document.createElement('div');
-		bar.className = 'tv-bar';
-		const fill = document.createElement('i');
-		bar.appendChild(fill);
+		root.className = below ? 'tv-clock below' : 'tv-clock';
+
+		const seat = document.createElement('div');
+		seat.className = 'tv-seat';
+		// a bot seat leads with its difficulty persona's piece glyph, the same
+		// avatar the room clock shows; hidden entirely for a human seat
+		const glyph = document.createElement('span');
+		glyph.className = 'tv-glyph hidden';
+		// the site-wide accent title badge; .tv-title only tightens it for the strip
+		const title = document.createElement('span');
+		title.className = 'player-title tv-title hidden';
+		const name = document.createElement('span');
+		name.className = 'tv-name';
 		const time = document.createElement('span');
 		time.className = 'tv-time';
 		time.textContent = '0:00';
 		const score = document.createElement('span');
 		score.className = 'tv-side-score';
 		score.textContent = '0';
-		root.appendChild(bot);
+		seat.appendChild(glyph);
+		seat.appendChild(title);
+		seat.appendChild(name);
+		seat.appendChild(time);
+		seat.appendChild(score);
+
+		const bar = document.createElement('div');
+		bar.className = 'tv-bar';
+		const fill = document.createElement('i');
+		bar.appendChild(fill);
+
+		root.appendChild(seat);
 		root.appendChild(bar);
-		root.appendChild(time);
-		root.appendChild(score);
-		return {root, bot, fill, time, score};
+		return {root, glyph, title, name, fill, time, score};
+	};
+
+	// setSeat writes a side's identity from the wire seat (proto.TVSeat): the
+	// name, the account's title badge, and a bot's persona glyph. Everything is
+	// written as text, never markup — a username and a title code are account
+	// data. Both badges collapse when the seat carries neither, so an anonymous
+	// human's row is just the name.
+	const setSeat = (c, s) => {
+		s = s || {};
+		const label = s.n || 'Anonymous';
+		const glyph = s.bot ? (s.g || '') : '';
+		c.glyph.textContent = glyph;
+		c.glyph.classList.toggle('hidden', !glyph);
+		c.glyph.title = 'Computer player' + (s.n ? ' (' + s.n + ')' : '');
+		c.title.textContent = s.t || '';
+		c.title.title = s.tn || s.t || '';
+		c.title.classList.toggle('hidden', !s.t);
+		c.name.textContent = label;
+		// the name ellipsizes at these widths; hovering it spells it out
+		c.name.title = label;
 	};
 
 	const createSlot = (g) => {
@@ -235,11 +264,11 @@
 		card.href = '/' + g.r;
 		card.dataset.room = g.r;
 
-		// the two clock rows are fixed in place (top above the board, bottom below);
-		// updateSlot maps each color to a row from g.or so the anchored player keeps
-		// the bottom row while the board flips between games
-		const top = clockEl();
-		const bottom = clockEl();
+		// the two seat strips are fixed in place (top above the board, bottom
+		// below); updateSlot maps each color to a strip from g.or so the anchored
+		// player keeps the bottom seat while the board flips between games
+		const top = clockEl(false);
+		const bottom = clockEl(true);
 
 		const board = document.createElement('div');
 		board.className = 'tv-board gcon';
@@ -252,8 +281,9 @@
 		gwrap.appendChild(ogWrap);
 		board.appendChild(gwrap);
 
-		// per-side score lives on each clock row, so the caption is the variant
-		// (time control + game mode) plus the spectator count at the row's end
+		// player names, per-side score and clocks all live on the two seat strips,
+		// so the caption is just the variant (time control + game mode) plus the
+		// spectator count at the row's end
 		const info = document.createElement('div');
 		info.className = 'tv-info';
 		const variantEl = document.createElement('span');
@@ -341,18 +371,22 @@
 		slot.card.title = (g.vb ? 'vs Computer · ' : '') + caption;
 		setWatchers(slot, g.sp || 0);
 
-		// mark the bot's side by color → whichever row currently holds it; both
-		// rows are set every update so a flip never leaves a stale icon
-		slot.whiteEl.root.classList.toggle('is-bot', g.bc === 'w');
-		slot.blackEl.root.classList.toggle('is-bot', g.bc === 'b');
+		// seat identities go to whichever strip currently holds that color; both
+		// are written every update so a flip never leaves a stale name behind
+		setSeat(slot.whiteEl, g.ws);
+		setSeat(slot.blackEl, g.bs);
 
 		// per-side score, flashing the delta at game end: green +1 (a win), grey
 		// +½ (a draw). Score only changes at game end, so a positive delta is the
-		// natural trigger.
+		// natural trigger. A match nobody has scored in yet shows no score at all
+		// — a pair of zeroes says nothing, and the room it buys goes to the names,
+		// which at the md breakpoint have barely 30px to work with. Both sides are
+		// toggled together so the two strips' clocks stay in one column.
 		const sw = scoreOf(g, 'w');
 		const sb = scoreOf(g, 'b');
-		applyScore(slot.whiteEl, sw, sw - slot.sw);
-		applyScore(slot.blackEl, sb, sb - slot.sb);
+		const scored = sw > 0 || sb > 0;
+		applyScore(slot.whiteEl, sw, sw - slot.sw, scored);
+		applyScore(slot.blackEl, sb, sb - slot.sb, scored);
 		slot.sw = sw;
 		slot.sb = sb;
 
@@ -370,9 +404,11 @@
 	};
 
 	// applyScore writes a side's score and, on an increase, pulses it (green for a
-	// win's +1, grey for a draw's +½)
-	const applyScore = (c, value, delta) => {
+	// win's +1, grey for a draw's +½). `shown` gates the whole chip on the match
+	// having a score at all.
+	const applyScore = (c, value, delta, shown) => {
 		c.score.textContent = value;
+		c.score.classList.toggle('hidden', !shown);
 		if (delta > 0) {
 			flashScore(c, delta);
 		}
