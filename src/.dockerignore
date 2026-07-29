@@ -4,5 +4,8 @@ cmd/lio/static/app.css
 cmd/lio/static/octadground.js
 cmd/lio/static/octadground.base.css
 
+# Built binaries from local testing
+src/cmd/lio/lio
+
 # Local cruft
 **/.DS_Store
