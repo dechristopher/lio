@@ -35,6 +35,7 @@ type TVGame struct {
 	BlackSeat TVSeat       `json:"bs"`           // who is playing black
 	Casual    bool         `json:"ca,omitempty"` // untimed game: render clocks as a static ∞
 	Score     ScorePayload `json:"sc,omitempty"` // match score, keyed "w"/"b"
+	RaceTo    int          `json:"rt,omitempty"` // race-to match target; 0 = single game
 	Over      bool         `json:"x,omitempty"`  // final position (freeze/dim the board)
 
 	// Winner / Reason describe how the game on the board finished: "w"/"b"/"d"

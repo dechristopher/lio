@@ -16,8 +16,8 @@
 	}
 
 	// roomID -> slot { card, og, top, bottom, whiteEl, blackEl, variantEl,
-	//                  watch, watchCount, control, wt, bt, toMove, at, over,
-	//                  running, orient, gameId, ended, resultTimer }
+	//                  raceEl, watch, watchCount, control, wt, bt, toMove, at,
+	//                  over, running, orient, gameId, ended, resultTimer }
 	// (top/bottom are the two seat strips built by clockEl)
 	const slots = new Map();
 
@@ -451,6 +451,11 @@
 		const variantEl = document.createElement('span');
 		variantEl.className = 'tv-variant';
 		info.appendChild(variantEl);
+		// match length, right of the time control: it qualifies the two score
+		// chips, which otherwise read as a one-off game's result
+		const raceEl = document.createElement('span');
+		raceEl.className = 'tv-race hidden';
+		info.appendChild(raceEl);
 		const watch = document.createElement('span');
 		watch.className = 'tv-watch hidden';
 		watch.title = 'Spectators watching';
@@ -477,7 +482,7 @@
 		});
 
 		return {
-			card, og, top, bottom, variantEl, watch, watchCount, dqTop, dqBtm, dial, result,
+			card, og, top, bottom, variantEl, raceEl, watch, watchCount, dqTop, dqBtm, dial, result,
 			// whiteEl/blackEl: which fixed row currently holds each color; remapped
 			// by updateSlot as the anchored side flips between games
 			whiteEl: orient === 'w' ? bottom : top,
@@ -551,11 +556,17 @@
 		// blind-deploy "Octad" mode now, so no mode suffix is shown.
 		const caption = g.vn || 'Octad';
 		slot.variantEl.textContent = caption;
+		// match length, beside the time control. Written in sentence case like
+		// every other "Race to N" on the site; the caption row uppercases it.
+		const race = (g.rt || 0) > 0 ? 'Race to ' + g.rt : '';
+		slot.raceEl.textContent = race;
+		slot.raceEl.classList.toggle('hidden', race === '');
 		// the overlay is aria-hidden decoration on a link, so a finished game
 		// says what it says in the card's own tooltip as well
 		slot.card.title = (slot.deploying ? 'Deploying · ' : '')
 			+ (slot.over && g.wr ? resultSummary(g) + ' · ' : '')
-			+ (g.vb ? 'vs Computer · ' : '') + caption;
+			+ (g.vb ? 'vs Computer · ' : '') + caption
+			+ (race ? ' · ' + race : '');
 		setWatchers(slot, g.sp || 0);
 
 		// seat identities go to whichever strip currently holds that color; both

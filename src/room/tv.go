@@ -82,6 +82,8 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		// untimed casual game: the grid shows static ∞ clocks
 		Casual: r.game.Variant.Casual,
 		Score:  r.players.ScoreMap(),
+		// race-to match target, so the grid can caption the card as a match
+		RaceTo: r.params.RaceTo,
 		// only report the clock as running when a side is actually being charged.
 		// The clock is unpaused for the whole pre-start grace but drains nobody
 		// during it, so reporting it live is what used to make the grid tick

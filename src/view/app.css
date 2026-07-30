@@ -3468,6 +3468,23 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	/* match length, right of the time control. Never squeezed out (the variant
+	   ellipsizes first) because it is what makes the score chips readable as a
+	   match score; lio-tv.js toggles .hidden for a single-game room. */
+	.tv-race {
+		flex: none;
+		font-size: 0.58rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		white-space: nowrap;
+	}
+	.tv-race::before {
+		content: "·";
+		margin-right: 0.25rem;
+		color: var(--text-subtle);
+	}
 	/* spectator count at the caption row's end; lio-tv.js toggles .hidden so it
 	   only renders while someone is actually watching */
 	.tv-watch {

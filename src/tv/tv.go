@@ -87,6 +87,10 @@ type Event struct {
 	// instead of ticking down the (effectively infinite) real values.
 	Casual bool
 	Score  proto.ScorePayload
+	// RaceTo is the room's match target in points (0 for a single game). The
+	// grid captions a match with it so a viewer reads the score chips as a
+	// running match score rather than a one-off game result.
+	RaceTo int
 	// Winner / Reason describe a finished game's outcome ("w"/"b"/"d" plus the
 	// method code). The room fills them on End only; every other kind leaves
 	// them empty. See proto.TVGame.
@@ -305,6 +309,7 @@ func tvGameFrom(ev Event, over bool) proto.TVGame {
 		BlackSeat:  ev.BlackSeat,
 		Casual:     ev.Casual,
 		Score:      ev.Score,
+		RaceTo:     ev.RaceTo,
 		Winner:     ev.Winner,
 		Reason:     ev.Reason,
 		Running:    ev.Running && !over,
