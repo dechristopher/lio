@@ -46,9 +46,11 @@ type OpenChallenge struct {
 type SiteStats struct {
 	LiveGames      int
 	OpenChallenges int
-	// Playing is the site-wide "online now" count: distinct humans connected to
-	// any room (seated players and spectators) unioned with recent home-page
-	// viewers, deduped by user id so nobody is counted twice.
+	// Playing is the site-wide "online now" count: distinct humans holding a
+	// live socket anywhere on the site — at a board, watching one, waiting in a
+	// challenge, or reading any other page — deduped so one person with several
+	// tabs or devices counts once. Resolved by the presence package; zero as
+	// HomeListing returns it.
 	Playing int
 	// TotalGames is the running count of finished games recorded to the archive
 	// database (0 when Postgres is unconfigured).

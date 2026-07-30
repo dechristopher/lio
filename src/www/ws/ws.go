@@ -16,6 +16,7 @@ import (
 	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
@@ -86,23 +87,34 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	// exactly this reason; these captures bypassed it.
 	uid := strings.Clone(user.GetID(ctx))
 
-	// The signed-in account behind this socket, or 0 for an anonymous session.
-	// Resolved once here, like uid, and carried on the Socket so anything
-	// addressed to a *person* rather than to a session can find this connection
-	// (channel.SendToAccount — see arch/NOTIFICATIONS.md). One account signed in
-	// on two devices holds two uids, so uid alone cannot answer that.
+	// The signed-in account behind this socket, zero-valued for an anonymous
+	// session. Resolved once here, like uid, and carried on the Socket for two
+	// readers: anything addressed to a *person* rather than to a session finds
+	// this connection by its id (channel.SendToAccount — see
+	// arch/NOTIFICATIONS.md), and the site-wide online roster names it from the
+	// same record (channel.Connected — see the presence package). One account
+	// signed in on two devices holds two uids, so uid alone answers neither.
 	//
-	// Only the int64 is taken. No clone is needed for a value type, and nothing
-	// else from the Account — all of it backed by strings this socket outlives —
-	// is captured.
+	// The name is cloned for the same buffer-reuse reason as uid below: it comes
+	// off the request's session and this socket outlives the request. The id and
+	// the title are value types with no shared backing, except title's own
+	// strings — cloned with it.
+	//
 	// acctStaff additionally records whether that account may moderate, which
 	// adds the site-wide unread feedback count to the same notification badge.
-	// Resolved here for the same reason as acctID: the role is on the session
-	// this upgrade authenticated, and the socket outlives the request.
-	var acctID int64
+	// Resolved here for the same reason: the role is on the session this upgrade
+	// authenticated, and the socket outlives the request.
+	var acctInfo channel.Account
 	var acctStaff bool
 	if acct := user.GetAccount(ctx); acct != nil {
-		acctID = acct.ID
+		acctInfo = channel.Account{
+			ID:   acct.ID,
+			Name: strings.Clone(acct.Username),
+			Title: title.Title{
+				Code: strings.Clone(acct.Title.Code),
+				Name: strings.Clone(acct.Title.Name),
+			},
+		}
 		acctStaff = acct.Role.CanModerate()
 	}
 
@@ -202,7 +214,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// independently, and a stale connection's teardown can never evict a
 		// newer live socket for the same uid.
 		connID := config.GenerateCode(16)
-		socket := channel.NewSocket(c, uid, connID, c.Params("type"), acctID)
+		socket := channel.NewSocket(c, uid, connID, c.Params("type"), acctInfo)
 
 		// track this socket in the corresponding SockMap
 		channel.Map.GetSockMap(thisChannel).Track(socket)

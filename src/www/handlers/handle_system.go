@@ -209,14 +209,13 @@ func ModerationHandler(c fiber.Ctx) error {
 
 // liveOps assembles the operational picture from what the site already tracks
 // for the home page. No new instrumentation: HomeListing walks the room map
-// under each room's own lock, and presence unions its in-room set with recent
-// home-page viewers.
+// under each room's own lock, and presence walks the socket directory.
 func liveOps() view.LiveOps {
-	live, challenges, stats, present := room.HomeListing()
+	live, challenges, stats, seated := room.HomeListing()
 	ops := view.LiveOps{
 		// the console wants the headcount only; no roster is rendered here, so
 		// it asks for no named members
-		Online:         presence.Online(present, 0).Total,
+		Online:         presence.Online(seated, 0).Total,
 		LiveGames:      stats.LiveGames,
 		OpenChallenges: stats.OpenChallenges,
 	}

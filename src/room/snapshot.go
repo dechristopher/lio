@@ -3,7 +3,6 @@ package room
 import (
 	"github.com/dechristopher/octad/v2"
 
-	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/variant"
@@ -11,17 +10,25 @@ import (
 
 // HomeListing walks the active-room registry and returns the data behind the
 // home-page activity feed: in-progress games, joinable open challenges, the
-// derived site stats, and present — the distinct users currently connected to
-// any room (seated players and spectators alike), mapped to their account
-// identity where they hold one. The caller unions present with the home-page
-// viewers to produce the site-wide "online now" count and its named roster (see
-// stats.Playing, which is seeded here with the in-room tally only).
+// derived site stats, and seated — every human holding a seat in any room,
+// mapped to their account identity and the Playing / Busy flags that seat
+// implies.
+//
+// seated is deliberately *not* a presence set. It says who occupies a seat, not
+// who is connected; presence is the socket directory's answer, and the caller
+// intersects the two (see presence.Online). Splitting it that way is what lets
+// a person on their own waiting page be counted — they hold a wait-channel
+// socket, not a room one — while a seated player whose connection has dropped
+// is not.
+//
+// stats.Playing is left at zero here for the same reason: the online headcount
+// is presence's to compute, and a floor set from the room registry would be a
+// second answer that can disagree with it.
 //
 // It is safe to call from HTTP handler goroutines — every room's mutable state
-// is read under its own stateMu via snapshot, and the channel layer locks
-// independently when its connected sockets are read.
-func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge, stats message.SiteStats, present map[string]message.OnlineMember) {
-	present = make(map[string]message.OnlineMember)
+// is read under its own stateMu via snapshot.
+func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge, stats message.SiteStats, seated map[string]message.OnlineMember) {
+	seated = make(map[string]message.OnlineMember)
 
 	rooms.Range(func(_, value interface{}) bool {
 		s := value.(*Instance).snapshot()
@@ -54,32 +61,16 @@ func HomeListing() (live []message.LiveGame, challenges []message.OpenChallenge,
 			}
 		}
 
-		// Tally every distinct human connected to this room toward the online
-		// count: both seated players and spectators hold a socket on the room
-		// channel, and bots hold none, so the SockMap contains only humans. Peek
-		// never creates a SockMap, so walking idle rooms here spawns nothing.
-		if sm := channel.Map.Peek(s.id); sm != nil {
-			for _, sock := range sm.Sockets() {
-				present[sock.UID] = message.OnlineMember{}
-			}
-		}
-
-		// Overlay account identities onto the connected set. Names come from the
-		// seats (the room knows who is sitting there), but presence stays
-		// socket-derived: a seated player who has dropped their connection is
-		// counted by neither, so nobody is listed as online on the strength of a
-		// seat they are no longer holding open.
+		// Collect this room's seats. Bots hold no uid and are never included, so
+		// what accumulates here is every human committed to a board or to a
+		// challenge of their own.
 		for uid, m := range s.seated {
-			if _, connected := present[uid]; connected {
-				present[uid] = m
-			}
+			seated[uid] = m
 		}
 		return true
 	})
 
-	// in-room floor; the handler bumps this to the union with home-page viewers
-	stats.Playing = len(present)
-	return live, challenges, stats, present
+	return live, challenges, stats, seated
 }
 
 // roomSnapshot is an immutable read of a room's display-relevant state,

@@ -51,10 +51,49 @@ func BroadcastEx(d []byte, meta SocketContext) {
 	}
 }
 
+// Connected returns one entry per distinct session uid holding a live socket
+// anywhere on the site, mapped to the account that session authenticated as
+// (the zero Account for an anonymous visitor).
+//
+// This is the site-wide presence primitive (package presence). Every page holds
+// exactly one socket — the room it is playing in, the wait channel of a
+// challenge it created, the home page's TV stream, or the notification channel
+// on every other page — so the directory *is* the list of people who are here,
+// and no page has to report its presence over HTTP.
+//
+// Several tabs of one session collapse to one entry: it is one person, and
+// every tab carries the same identity. A named record wins over a zero one for
+// the same uid, because a session that signs in keeps its uid and its older
+// sockets still carry the account it had at upgrade time.
+//
+// Like the sends below, this ranges over a per-channel snapshot, so it neither
+// holds a SockMap's lock across the walk nor races connections starting and
+// stopping.
+func Connected() map[string]Account {
+	out := make(map[string]Account)
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.Sockets() {
+			if s.UID == "" {
+				continue
+			}
+			if prev, seen := out[s.UID]; seen && prev.ID != 0 {
+				continue
+			}
+			out[s.UID] = s.Acct
+		}
+		return true
+	})
+	return out
+}
+
 // SendToAccount queues a message for every connection one signed-in account
 // holds, on every channel. It is the delivery primitive for notifications
 // (arch/NOTIFICATIONS.md): the sender knows an account, not a session and not a
-// channel, so this walks the directory and matches on Socket.AcctID.
+// channel, so this walks the directory and matches on Socket.Acct.ID.
 //
 // A person reads the site on several devices and in several tabs. Each of those
 // is a separate uid and a separate socket, and each carries its own badge, so
@@ -79,7 +118,7 @@ func SendToAccount(acctID int64, d []byte) int {
 			return true
 		}
 		for _, s := range sm.Sockets() {
-			if s.AcctID == acctID {
+			if s.Acct.ID == acctID {
 				s.Enqueue(d)
 				sent++
 			}
@@ -122,7 +161,7 @@ func SendToAccounts(ids []int64, d []byte) int {
 			return true
 		}
 		for _, s := range sm.Sockets() {
-			if _, hit := want[s.AcctID]; hit {
+			if _, hit := want[s.Acct.ID]; hit {
 				s.Enqueue(d)
 				sent++
 			}

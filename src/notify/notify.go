@@ -56,10 +56,10 @@ func IsNotify(id string) bool {
 // A count of zero is still sent. Zero is the answer that clears a badge the
 // page rendered before the reader emptied the panel somewhere else.
 func Connect(s *channel.Socket, staff bool) {
-	if s == nil || s.AcctID == 0 {
+	if s == nil || s.Acct.ID == 0 {
 		return
 	}
-	s.Enqueue(proto.NotifyCountMessage(db.UnreadNotifications(s.AcctID), staffCount(staff)))
+	s.Enqueue(proto.NotifyCountMessage(db.UnreadNotifications(s.Acct.ID), staffCount(staff)))
 }
 
 // staffCount is the unread feedback a moderator sees in the same badge, and 0

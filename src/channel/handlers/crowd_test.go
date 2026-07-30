@@ -33,7 +33,7 @@ func TestCrowdPayload(t *testing.T) {
 			sm := channel.NewSockMap("crowd-test")
 			defer sm.Cleanup()
 			for i, uid := range tc.uids {
-				sm.Track(channel.NewSocket(nil, uid, string(rune('a'+i)), "", 0))
+				sm.Track(channel.NewSocket(nil, uid, string(rune('a'+i)), "", channel.Account{}))
 			}
 
 			got := crowdPayload(sm, seats)
@@ -52,8 +52,8 @@ func TestCrowdPayloadBotSeat(t *testing.T) {
 	defer sm.Cleanup()
 	seats := func() (string, string) { return "human", "bot-uid" }
 
-	sm.Track(channel.NewSocket(nil, "human", "c1", "", 0))
-	sm.Track(channel.NewSocket(nil, "spec", "c1", "", 0))
+	sm.Track(channel.NewSocket(nil, "human", "c1", "", channel.Account{}))
+	sm.Track(channel.NewSocket(nil, "spec", "c1", "", channel.Account{}))
 
 	got := crowdPayload(sm, seats)
 	if !got.White || got.Black || got.Spec != 1 {

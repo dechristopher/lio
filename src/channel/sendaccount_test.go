@@ -31,12 +31,12 @@ func TestSendToAccountReachesEveryConnection(t *testing.T) {
 	idle := Map.GetSockMap("send-acct-idle")
 
 	// same account, two devices: different uids, different channels
-	laptop := NewSocket(nil, "uid-laptop", "c1", "", acct)
-	phone := NewSocket(nil, "uid-phone", "c1", "", acct)
+	laptop := NewSocket(nil, "uid-laptop", "c1", "", Account{ID: acct})
+	phone := NewSocket(nil, "uid-phone", "c1", "", Account{ID: acct})
 	// a different account, on the same channel as one of them
-	other := NewSocket(nil, "uid-other", "c1", "", 99)
+	other := NewSocket(nil, "uid-other", "c1", "", Account{ID: 99})
 	// an anonymous session: no account, so nothing is addressable to it
-	anon := NewSocket(nil, "uid-anon", "c1", "", 0)
+	anon := NewSocket(nil, "uid-anon", "c1", "", Account{})
 
 	room.Track(laptop)
 	room.Track(other)
@@ -73,10 +73,10 @@ func TestSendToAccountReachesEveryConnection(t *testing.T) {
 func TestSendToAccountsReachesTheGroup(t *testing.T) {
 	sm := Map.GetSockMap("send-accts")
 
-	modA := NewSocket(nil, "uid-mod-a", "c1", "", 7)
-	modB := NewSocket(nil, "uid-mod-b", "c1", "", 8)
-	player := NewSocket(nil, "uid-player", "c1", "", 9)
-	anon := NewSocket(nil, "uid-anon-3", "c1", "", 0)
+	modA := NewSocket(nil, "uid-mod-a", "c1", "", Account{ID: 7})
+	modB := NewSocket(nil, "uid-mod-b", "c1", "", Account{ID: 8})
+	player := NewSocket(nil, "uid-player", "c1", "", Account{ID: 9})
+	anon := NewSocket(nil, "uid-anon-3", "c1", "", Account{})
 
 	for _, s := range []*Socket{modA, modB, player, anon} {
 		sm.Track(s)
@@ -108,7 +108,7 @@ func TestSendToAccountsReachesTheGroup(t *testing.T) {
 // one person's notification to every anonymous visitor on the site.
 func TestSendToAccountAnonymousIsNoop(t *testing.T) {
 	sm := Map.GetSockMap("send-acct-anon")
-	anon := NewSocket(nil, "uid-anon-2", "c1", "", 0)
+	anon := NewSocket(nil, "uid-anon-2", "c1", "", Account{})
 	sm.Track(anon)
 	t.Cleanup(func() { sm.UnTrack("uid-anon-2", "c1") })
 

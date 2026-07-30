@@ -333,8 +333,8 @@ func TestRehydratedRoomResumesOnReconnect(t *testing.T) {
 
 	// both players reconnect
 	sm := channel.Map.GetSockMap(r2.ID)
-	sm.Track(channel.NewSocket(nil, "wp", "c1", "", 0))
-	sm.Track(channel.NewSocket(nil, "bp", "c1", "", 0))
+	sm.Track(channel.NewSocket(nil, "wp", "c1", "", channel.Account{}))
+	sm.Track(channel.NewSocket(nil, "bp", "c1", "", channel.Account{}))
 	t.Cleanup(func() {
 		sm.UnTrack("wp", "c1")
 		sm.UnTrack("bp", "c1")

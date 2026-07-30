@@ -253,8 +253,8 @@ func TestMatchInterludeAdvances(t *testing.T) {
 
 	sm := channel.Map.GetSockMap(r.ID)
 	defer sm.Cleanup()
-	sm.Track(channel.NewSocket(nil, "wp", "c1", "", 0))
-	sm.Track(channel.NewSocket(nil, "bp", "c1", "", 0))
+	sm.Track(channel.NewSocket(nil, "wp", "c1", "", channel.Account{}))
+	sm.Track(channel.NewSocket(nil, "bp", "c1", "", channel.Account{}))
 
 	driveToGameOver(t, r)
 	applyResults(r, "w") // 1-0: match undecided
@@ -353,8 +353,8 @@ func TestNewMatchAgreementResetsScores(t *testing.T) {
 
 	sm := channel.Map.GetSockMap(r.ID)
 	defer sm.Cleanup()
-	sm.Track(channel.NewSocket(nil, "wp", "c1", "", 0))
-	sm.Track(channel.NewSocket(nil, "bp", "c1", "", 0))
+	sm.Track(channel.NewSocket(nil, "wp", "c1", "", channel.Account{}))
+	sm.Track(channel.NewSocket(nil, "bp", "c1", "", channel.Account{}))
 
 	driveToGameOver(t, r)
 	applyResults(r, "w") // 1-0 in a race to 1: match decided

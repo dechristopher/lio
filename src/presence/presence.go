@@ -1,58 +1,40 @@
-// Package presence tracks site-wide "who's online right now" for visitors that
-// hold no room connection. Browsers sitting on the home page open only the
-// live-games TV stream (/socket/tv) — a read-only global channel that presence
-// intentionally ignores (it is not a room and is not walked by HomeListing) —
-// and otherwise poll /home/activity over HTTP every few seconds, so their
-// presence is inferred from a recent request timestamp per user id.
+// Package presence answers "who is on the site right now" from the open
+// WebSocket connections, which is the one place that knows.
 //
-// In-room presence (seated players and spectators) is already authoritative via
-// the channel SockMaps, so this package only fills the home-page gap. Online
-// unions the two sources by user id, so a single human is never double-counted
-// whether they are polling the home page, sitting in a room, or both.
+// Every page holds exactly one socket, so the channel directory is the roster:
 //
-// Each entry carries the viewer's account identity when they have one, so the
-// same walk that produces the headcount also produces the named roster the home
-// page shows. Anonymous viewers are counted but never named.
+//	Room, in play         /socket/<room id>
+//	Room, create and wait /socket/wait/<room id>
+//	Home                  /socket/tv
+//	All other pages       /socket/me
+//
+// One walk of that directory is therefore both the headcount and the named
+// list — each socket carries the account it authenticated as
+// (channel.Connected), so nothing here needs a query to name a member.
+//
+// This replaced an inference from HTTP request timestamps: the home page polled
+// /home/activity every 5 seconds, and a viewer counted as present for 12
+// seconds after their last poll. That reading was narrow and late. It could
+// only ever see the home page, so a signed-in reader anywhere else on the site
+// was invisible; it kept a departed viewer for up to a TTL after their tab
+// closed; and it made presence a property of a poll interval rather than of a
+// connection. The socket layer already holds the fact
+// (arch/NOTIFICATIONS.md — "Presence from the notification channel").
+//
+// Seats are the one thing sockets cannot answer, so the caller supplies them:
+// whether a connected person is at a board, or waiting in a challenge of their
+// own, is room state. Presence intersects the two, so a seated player who has
+// dropped their connection is not listed on the strength of a seat they are no
+// longer holding open.
 package presence
 
 import (
 	"sort"
 	"strings"
-	"sync"
-	"time"
 
+	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/message"
 )
-
-// ttl is how long after a user's last home-page request we still consider them
-// present. It must comfortably exceed the home page's poll interval (5s) so a
-// single dropped poll never blinks an otherwise-active viewer offline.
-const ttl = 12 * time.Second
-
-// poller is one home-page viewer: when they were last seen, plus their account
-// identity when they hold one (zero-valued Member for an anonymous visitor).
-type poller struct {
-	seen   time.Time
-	member message.OnlineMember
-}
-
-var (
-	mu      sync.Mutex
-	pollers = make(map[string]poller)
-)
-
-// Touch records that the given user id was just seen on the home page, along
-// with their account identity (the zero OnlineMember for an anonymous visitor).
-// Empty ids (a request before the user context cookie is established) are
-// ignored.
-func Touch(uid string, member message.OnlineMember) {
-	if uid == "" {
-		return
-	}
-	mu.Lock()
-	pollers[uid] = poller{seen: time.Now(), member: member}
-	mu.Unlock()
-}
 
 // Snapshot is the site-wide online picture, produced by a single walk so its
 // parts can never disagree: Total is the headcount behind the "Online" stat
@@ -66,38 +48,32 @@ type Snapshot struct {
 	Anon    int
 }
 
-// Online returns the site-wide presence picture: the supplied set of in-room
-// users (uid → their identity, zero-valued when anonymous) unioned with every
-// home-page poller seen within the ttl window. limit caps the named roster; a
-// limit of zero or less asks for the counts only, for callers (the /system
-// console) that render a headcount and no names.
-// Stale pollers are pruned as they are scanned, so reads double as the map's
-// garbage collector and the home page (polled continuously by every active
-// viewer) keeps it bounded without a separate sweeper.
+// Online returns the site-wide presence picture: every session holding a live
+// socket anywhere on the site, named from the account that socket
+// authenticated as.
+//
+// seated maps each seated human's uid to their room identity — the same name,
+// plus the Playing and Busy flags a socket cannot know (see room.HomeListing).
+// It is an overlay, not a source: a uid that holds no socket is not online,
+// whatever seat it still occupies.
+//
+// limit caps the named roster; a limit of zero or less asks for the counts
+// only, for callers (the /system console) that render a headcount and no names.
 //
 // Presence counts *people*, not sessions. Anonymous visitors are only
 // identifiable by uid, so each anonymous session is one person; but an account
 // signed in on a laptop and a phone holds two uids and is still one player, so
 // accounts fold together by username. Without that fold the same member would
 // appear twice in the roster and twice in the headcount.
-//
-// A member seated in a room outranks the same member's home-page entry: the
-// in-room record carries Playing, which is the more interesting of the two
-// states and the one a roster should show.
-func Online(inRoom map[string]message.OnlineMember, limit int) Snapshot {
-	now := time.Now()
-
-	mu.Lock()
-	defer mu.Unlock()
-
+func Online(seated map[string]message.OnlineMember, limit int) Snapshot {
 	// named accumulates one entry per distinct account (keyed by lowercased
 	// username, which is the identity the unique index enforces); anon counts
 	// the account-less sessions alongside it
-	named := make(map[string]message.OnlineMember, len(inRoom))
+	named := make(map[string]message.OnlineMember)
 	anon := 0
 
-	// add folds one presence record in, upgrading an account already present to
-	// Playing if any of its sessions is seated
+	// add folds one presence record in, upgrading an account already present if
+	// another of its sessions is in a busier state
 	add := func(m message.OnlineMember) {
 		if m.Username == "" {
 			anon++
@@ -120,21 +96,15 @@ func Online(inRoom map[string]message.OnlineMember, limit int) Snapshot {
 		}
 	}
 
-	for _, m := range inRoom {
-		add(m)
-	}
-
-	for uid, p := range pollers {
-		if now.Sub(p.seen) > ttl {
-			delete(pollers, uid)
+	for uid, acct := range channel.Connected() {
+		// A seated session takes its record from the room, which carries the
+		// flags. Everyone else — spectators, browsers, the creator of a room they
+		// have wandered away from — is named from their socket.
+		if m, isSeated := seated[uid]; isSeated {
+			add(m)
 			continue
 		}
-		if _, alsoInRoom := inRoom[uid]; alsoInRoom {
-			// same session, already counted from the room — and the room's copy
-			// is the one carrying Playing
-			continue
-		}
-		add(p.member)
+		add(message.OnlineMember{Username: acct.Name, Title: acct.Title})
 	}
 
 	snap := Snapshot{Total: len(named) + anon, Anon: anon}

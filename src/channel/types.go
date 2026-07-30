@@ -5,9 +5,33 @@ import (
 	"time"
 
 	"github.com/gofiber/contrib/v3/websocket"
+
+	"github.com/dechristopher/lio/title"
 )
 
 type Handler = func(m []byte, meta SocketContext) []byte
+
+// Account is the signed-in identity a socket authenticated as, or the zero
+// value for an anonymous session. It is resolved once, at upgrade time, and
+// carried for the connection's whole life.
+//
+// ID addresses a *person* rather than a session. The socket maps key by uid,
+// which is a session identity: one account signed in on a laptop and a phone
+// holds two uids, so anything addressed to a person — a notification
+// (arch/NOTIFICATIONS.md) — must match on this field instead.
+//
+// Name and Title are the display identity, carried for a related reason: the
+// site-wide "who is online" roster is derived from the open sockets (package
+// presence), so the walk that finds a connection must be able to name it
+// without a query for each row.
+//
+// Storing both on the socket keeps one source of truth. A separate index from
+// account to socket would be a second copy that can disagree with this map.
+type Account struct {
+	ID    int64
+	Name  string
+	Title title.Title
+}
 
 // SockMap tracks every Socket connected to a given channel, keyed by uid and
 // then by per-connection id. Storing a set of sockets per uid (rather than a
@@ -290,16 +314,10 @@ type Socket struct {
 	ID         string // per-connection id, unique within a uid
 	UID        string
 	Type       string
-	// AcctID is the signed-in account this socket authenticated as, or 0 for an
-	// anonymous session. It is resolved once, at upgrade time, like UID.
-	//
-	// The socket maps key by uid, which is a *session* identity: one account
-	// signed in on a laptop and a phone holds two uids. Anything addressed to a
-	// person rather than to a session — a notification (arch/NOTIFICATIONS.md) —
-	// must therefore match on this field instead. Storing it on the socket keeps
-	// one source of truth; a separate index from account to socket would be a
-	// second copy that can disagree with this map.
-	AcctID int64
+	// Acct is the signed-in account this socket authenticated as, zero-valued
+	// for an anonymous session. It is resolved once, at upgrade time, like UID.
+	// See Account for why the identity lives here rather than in an index.
+	Acct Account
 
 	send   chan []byte
 	closed chan struct{}
@@ -307,14 +325,14 @@ type Socket struct {
 }
 
 // NewSocket builds a tracked connection wrapper with its own send buffer.
-// acctID is 0 for an anonymous session.
-func NewSocket(conn *websocket.Conn, uid, connID, typ string, acctID int64) *Socket {
+// acct is the zero Account for an anonymous session.
+func NewSocket(conn *websocket.Conn, uid, connID, typ string, acct Account) *Socket {
 	return &Socket{
 		Connection: conn,
 		ID:         connID,
 		UID:        uid,
 		Type:       typ,
-		AcctID:     acctID,
+		Acct:       acct,
 		send:       make(chan []byte, SendBuffer),
 		closed:     make(chan struct{}),
 	}
