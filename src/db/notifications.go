@@ -190,6 +190,27 @@ func MarkNotificationRead(id, userID int64) (ok bool, err error) {
 	return true, nil
 }
 
+// MarkChallengeReadForRoom retires the challenge notifications one account
+// holds for one room, and returns how many rows it changed. link is the value
+// the challenge was written with, not a room id — the caller owns that format
+// and must build it the same way on both sides.
+//
+// This is what finishes an accepted invitation. Accepting has no endpoint of
+// its own (the panel's Accept is the room link, and the ordinary join follows),
+// so the join path calls this. Zero rows is the normal answer for an ordinary
+// open room nobody was challenged into.
+func MarkChallengeReadForRoom(userID int64, link string) (int64, error) {
+	if Pool == nil {
+		return 0, nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	return gen.New(Pool).MarkChallengeNotificationsRead(ctx, gen.MarkChallengeNotificationsReadParams{
+		UserID: userID,
+		Link:   link,
+	})
+}
+
 // MarkAllNotificationsRead clears one account's backlog and returns how many
 // rows it changed.
 func MarkAllNotificationsRead(userID int64) (int64, error) {

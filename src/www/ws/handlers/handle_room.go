@@ -38,6 +38,10 @@ func HandleRoom(m []byte, meta channel.SocketContext) []byte {
 			thisRoom.RequestDraw(meta)
 			return nil
 		}
+		if fastjson.GetBool(m, "d", "ng") {
+			thisRoom.RequestNextGame(meta)
+			return nil
+		}
 	}
 
 	var msg proto.RoomMessage

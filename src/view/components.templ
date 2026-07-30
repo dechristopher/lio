@@ -904,6 +904,16 @@ templ board(payload message.RoomTemplatePayload) {
 					<div class="result-card">
 						<div id="result-headline" class="result-headline"></div>
 						<div id="result-reason" class="result-reason"></div>
+						<!-- race-to match context, filled and revealed by lio-game.js
+						     only for a match room: the points target, plus a
+						     match-point note when the next game can decide it. It
+						     leads the score below it — the number means little until
+						     you know what it is racing to — and is separated from it
+						     by the rule beneath. Classic rooms never show it. -->
+						<div id="result-match" class="result-match hidden">
+							<div id="result-match-target" class="result-match-target"></div>
+							<div id="result-match-note" class="result-match-note hidden"></div>
+						</div>
 						<div id="result-score" class="result-score"></div>
 						<!-- per-player rating change (rated games only): filled by
 						     lio-game.js from the rating-update frame, empty (and
@@ -911,8 +921,27 @@ templ board(payload message.RoomTemplatePayload) {
 						<div id="result-ratings" class="result-ratings"></div>
 						<div id="result-note" class="result-note hidden"></div>
 						<div class="result-actions">
+							<!-- mid-match only: skip the rest of the interlude. Both
+							     seats must ask; one seat asking just shows the other
+							     a check while the pause runs out normally. Shown in
+							     place of Rematch, which has no meaning mid-match. -->
+							<button id="result-next" type="button" class="result-btn result-next hidden" title={ controlTitle(payload, "Start the next game now") } disabled?={ payload.IsSpectator }>Next game</button>
 							<button id="result-rematch" type="button" class="result-btn result-rematch" title={ controlTitle(payload, "Play again") } data-rematch-url={ botRematchURL(payload) } disabled?={ payload.IsSpectator }>Rematch</button>
 							<button id="result-home" type="button" class="result-btn result-home">Home</button>
+						</div>
+						<!-- who has asked for the next game: this seat's check lands
+						     on click, the opponent's when their request arrives. Sits
+						     under the actions because it reports on the button above
+						     it — both checks mean the next game starts now. -->
+						<div id="result-ready" class="result-ready hidden">
+							<span id="ready-you" class="ready-chip">
+								<span class="ready-mark" aria-hidden="true">✓</span>
+								<span class="ready-label">You</span>
+							</span>
+							<span id="ready-opp" class="ready-chip">
+								<span class="ready-mark" aria-hidden="true">✓</span>
+								<span class="ready-label">Opponent</span>
+							</span>
 						</div>
 						<button id="result-analyze" type="button" class="result-analyze">Analyze board</button>
 						<!-- Reporting the opponent, offered only where it can mean

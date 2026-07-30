@@ -322,20 +322,32 @@
 		}
 	}
 
-	/* ---- single-column (mobile) rail dissolution + analysis mode ----
+	/* ---- single-column (mobile) rail dissolution + review layout ----
 	   On mobile the rail wrapper dissolves (display: contents) so the moves
 	   panel and the game controls place themselves as their own grid rows:
 	   during play the controls land in the "ctrl" row directly beneath the
 	   match timeline (resign/draw within thumb reach of the board instead of
 	   buried under the moves panel), with the moves panel below.
-	   .analyzing is toggled on .game-grid by lio-game.js (setControlsMode) the
-	   moment the game is over, and cleared when a new game starts. On mobile the
-	   live-play stack buries the move list and review nav below the fold (two
-	   tall clocks + a ~96vw board + the timeline all come first), so a reviewing
-	   player scrolls for every interaction. The .analyzing rules compact the
-	   clocks to a single line, float the review nav to the top of the moves
-	   panel (right under the board), and reorder the stack to moves → timeline
-	   → controls. Desktop is untouched: the rail already shows everything. */
+
+	   Two separate state classes, both on .game-grid (lio-game.js):
+
+	   .analyzing marks "the game is over" and only reveals over-game
+	   affordances in place (the copy-PGN button); it never moves anything.
+
+	   .reviewing is the compact review arrangement, and is entered only when the
+	   player actually starts reviewing — dismissing the result card, or stepping
+	   the board back (enterReviewLayout). It compacts the clocks to one line,
+	   floats the review nav to the top of the moves panel, and reorders the
+	   stack to moves → timeline → controls, because the live-play stack buries
+	   the move list and review nav below the fold (two tall clocks + a ~96vw
+	   board + the timeline all come first) and a reviewing player would scroll
+	   for every interaction.
+
+	   Keeping them apart matters most between games of a race-to match: the
+	   result card covers the board for the whole interlude, so reordering the
+	   stack underneath it only makes the timeline — which just gained the game
+	   that ended — vanish beneath the move list and reappear a few seconds
+	   later. Desktop is untouched: the rail already shows everything. */
 	@media (max-width: 899px) {
 		/* the .game-grid prefix outweighs the later base .rail-stack (flex) and
 		   .controls (margin-top: auto) declarations */
@@ -343,7 +355,7 @@
 		.game-grid .rail-stack { display: contents; }
 		.game-grid .moves-panel { grid-area: rail; }
 		.game-grid .controls { grid-area: ctrl; margin-top: 0; }
-		.game-grid.analyzing {
+		.game-grid.reviewing {
 			grid-template-areas:
 				"opp"
 				"board"
@@ -355,19 +367,19 @@
 				"foot";
 		}
 		/* thin one-line clock: identity row left, time right */
-		.analyzing .clock-body {
+		.reviewing .clock-body {
 			flex-direction: row;
 			align-items: center;
 			justify-content: space-between;
 			gap: 0.5rem;
 			padding: 0.3rem 0.6rem;
 		}
-		.analyzing .clockTime { flex: none; font-size: 1.15rem; }
+		.reviewing .clockTime { flex: none; font-size: 1.15rem; }
 		/* review nav between the panel title and the move list, minimizing thumb
 		   travel from the board (orders: title -2, nav -1, list 0) */
-		.analyzing .rail-title { order: -2; }
-		.analyzing .move-nav { order: -1; margin-top: 0.4rem; }
-		.analyzing .move-list { margin-top: 0.4rem; }
+		.reviewing .rail-title { order: -2; }
+		.reviewing .move-nav { order: -1; margin-top: 0.4rem; }
+		.reviewing .move-list { margin-top: 0.4rem; }
 	}
 
 	/* board: a square sized off --bs, capped to the column / viewport. The
@@ -1667,6 +1679,62 @@
 		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
 	}
+	/* ---- race-to match context, above the score ----
+	   The target and an optional match-point note lead the score: "2 – 1" says
+	   little until you know it is a race to 3, and the note is what the player
+	   most needs off this card. The rule beneath sets the pair off from the
+	   score. lio-game.js reveals the block (and each part) per result. */
+	.result-match {
+		margin-top: 0.55rem;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px solid var(--border);
+	}
+	.result-match-target {
+		font-size: 0.82rem;
+		font-weight: 800;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+	.result-match-note { margin-top: 0.2rem; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+	.result-match-note.win { color: var(--win); }
+	.result-match-note.loss { color: var(--loss); }
+	/* the two ready chips; each lights up when that seat asks for the next game */
+	.result-ready { display: flex; gap: 0.4rem; justify-content: center; margin-top: 0.5rem; }
+	.ready-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.28rem;
+		padding: 0.2rem 0.5rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+		color: var(--text-subtle);
+		transition: color 160ms var(--ease-snappy), border-color 160ms var(--ease-snappy), background-color 160ms var(--ease-snappy);
+	}
+	.ready-chip .ready-mark {
+		font-weight: 800;
+		opacity: 0.22;
+		transition: opacity 160ms var(--ease-snappy);
+	}
+	.ready-chip.is-ready {
+		color: var(--text);
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 14%, transparent);
+	}
+	.ready-chip.is-ready .ready-mark {
+		opacity: 1;
+		color: var(--accent);
+		animation: readyCheck 240ms var(--ease-snappy);
+	}
+	/* Mid-match this is the only action on the card — Home is hidden so a race
+	   is never abandoned by a stray tap — so it takes the whole row. Filling the
+	   row also fixes the box across the "Next game" -> "Ready" label swap. */
+	.result-next { flex: 1; background: var(--accent); color: var(--accent-contrast); }
+	.result-next:not(:disabled):hover { background: var(--accent-hover); }
+
 	/* per-player rating change under the score (rated games only): a row per
 	   player — name · new rating · signed delta (green gain / red loss). Filled
 	   by lio-game.js; :empty collapses it for casual games. */
@@ -1729,6 +1797,19 @@
 	.result-overlay.result-closing .result-card {
 		animation: resultPopOut 160ms var(--ease-snappy) forwards;
 	}
+	/* both players asked for the next game: fade the card away over the beat the
+	   server holds before it starts, so the board is uncovered as the next game
+	   arrives instead of the card being cut away on one frame. Slower than the
+	   dismiss above because it is a handoff, not a dismissal. lio-game.js
+	   removes the class in hideResult (the next game landed) or on its own
+	   safety timeout (it never did). */
+	.result-overlay.result-starting {
+		animation: resultFadeOut 320ms var(--ease-snappy) forwards;
+	}
+	.result-overlay.result-starting .result-card {
+		animation: resultPopOut 320ms var(--ease-snappy) forwards;
+	}
+	.result-overlay.result-starting .result-card { pointer-events: none; }
 	.result-overlay.result-dismissed {
 		background-color: transparent;
 		-webkit-backdrop-filter: none;
@@ -5826,6 +5907,8 @@
    .result-dismissed once these land (see resultCloseMs) */
 @keyframes resultFadeOut { to { opacity: 0; } }
 @keyframes resultPopOut { to { opacity: 0; transform: translate(var(--result-dx, 0px), var(--result-dy, 0px)) scale(0.94); } }
+/* a seat's "ready for the next game" check landing */
+@keyframes readyCheck { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
 @keyframes clockLowPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes connPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes scoreFlashWin {

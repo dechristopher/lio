@@ -4,8 +4,9 @@ package proto
 // Wraps it in a Message struct
 func (g *GameOverPayload) Marshal() []byte {
 	message := Message{
-		Tag:  string(GameOverTag),
-		Data: g,
+		Tag:          string(GameOverTag),
+		Data:         g,
+		ProtoVersion: GameOverPayloadVersion,
 	}
 
 	return message.Please()

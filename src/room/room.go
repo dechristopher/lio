@@ -121,6 +121,13 @@ type Instance struct {
 	players player.Players
 	rematch player.Agreement
 
+	// nextGame records which seats asked to skip the rest of an undecided
+	// race-to match's interlude (handleMatchInterlude). Both seats ready starts
+	// the next game early; one seat ready simply waits the interlude out. It is
+	// the interlude's analogue of rematch, reset with the game in
+	// resetForNextGameLocked, and guarded by stateMu like every other seat state.
+	nextGame player.Agreement
+
 	// busySeats is the set of account ids this room currently contributes to the
 	// package-wide busy index (busy.go), so the room can reconcile exactly what
 	// it added and never remove somebody else's seat. Guarded by stateMu, like
@@ -404,6 +411,7 @@ func Create(params Params) (*Instance, error) {
 
 		players:   params.Players,
 		rematch:   player.Agreement{},
+		nextGame:  player.Agreement{},
 		draw:      player.Agreement{},
 		drawOffer: octad.NoColor,
 
@@ -1189,6 +1197,52 @@ func (r *Instance) RequestRematch(meta channel.SocketContext) {
 	select {
 	case r.controlChannel <- message.RoomControl{
 		Type: message.Rematch,
+		Ctx:  meta,
+	}:
+	default:
+		// control buffer full or handler not reading; drop the request
+	}
+}
+
+// RequestNextGame enqueues a "skip the interlude" request on behalf of the
+// requesting player. It is the interlude's analogue of RequestRematch: called
+// from the WS read loop, so it validates the caller and never blocks, dropping
+// the request if the control buffer is full (the client's resync poll resends
+// it from the recorded per-seat state). handleMatchInterlude applies it and
+// advances early once both seats are ready.
+//
+// The accept window mirrors RequestRematch's: keyed off the decided game
+// outcome as well as StateGameOver, so a click landing in the sliver between
+// the game-over broadcast (which is what shows the button) and the FSM
+// transition is buffered rather than dropped. It is further narrowed to an
+// undecided race-to match — the only situation with an interlude to skip — so a
+// stray request can never sit in the buffer of a classic room's rematch window.
+func (r *Instance) RequestNextGame(meta channel.SocketContext) {
+	if Draining() {
+		return
+	}
+
+	if r.State() != StateGameOver && r.GameState() == octad.NoOutcome {
+		return
+	}
+
+	// only an undecided match has an interlude; anything else negotiates a
+	// rematch instead (or holds no window at all)
+	if decided, _ := r.MatchDecided(); r.params.RaceTo <= 0 || decided {
+		return
+	}
+
+	// only seated players may ask for the next game
+	r.stateMu.Lock()
+	_, color := r.players.Lookup(meta.UID)
+	r.stateMu.Unlock()
+	if color == octad.NoColor {
+		return
+	}
+
+	select {
+	case r.controlChannel <- message.RoomControl{
+		Type: message.NextGame,
 		Ctx:  meta,
 	}:
 	default:
@@ -2349,6 +2403,10 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int, ne
 	matchOver, _ := r.matchDecidedLocked()
 
 	gameOver := proto.GameOverPayload{
+		// the game this result describes, so a payload built just before a
+		// game boundary but delivered after it is dropped by the client
+		// instead of re-raising a stale card over the new game
+		GameID:        r.game.ID,
 		Winner:        getWinnerString(id),
 		StatusID:      id,
 		Status:        status,
@@ -2369,6 +2427,11 @@ func (r *Instance) buildGameOverMessageLocked(abandoned bool, rematchWin int, ne
 		RaceTo:     r.params.RaceTo,
 		MatchOver:  matchOver,
 		NextGameIn: nextGameIn,
+		// live per-seat interlude readiness, the mid-match analogue of the
+		// rematch agreement above: a polling/reconnecting client reconciles a
+		// lost or reloaded-away "next game" click from these
+		NextWhite: r.nextGame.AgreedBy(octad.White),
+		NextBlack: r.nextGame.AgreedBy(octad.Black),
 		// the finished game's canonical PGN (live finish only), so the copy
 		// button copies exactly what was archived
 		PGN: pgn,

@@ -146,4 +146,8 @@ const (
 	Cancel
 	Resign
 	Draw
+	// NextGame asks to skip the rest of an undecided race-to match's interlude
+	// and start the next game now. Both seats must ask before the room advances
+	// early; the interlude's timer still starts it if only one does.
+	NextGame
 )

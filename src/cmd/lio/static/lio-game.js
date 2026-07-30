@@ -53,6 +53,7 @@ const moveTag = "m";
 const gameOverTag = "g";
 const ratingUpdateTag = "rc";
 const rematchUpdateTag = "ru";
+const nextGameTag = "ng";
 const drawOfferTag = "do";
 const deployTag = "d";
 
@@ -613,6 +614,15 @@ const resultRatingsEl = document.getElementById('result-ratings');
 const resultCountdownEl = document.getElementById('result-countdown');
 const rematchBtn = document.getElementById('result-rematch');
 const homeBtn = document.getElementById('result-home');
+// race-to match context block + interlude ready row (absent on archive pages,
+// which render the slim board without the result overlay)
+const resultMatchEl = document.getElementById('result-match');
+const resultMatchTargetEl = document.getElementById('result-match-target');
+const resultMatchNoteEl = document.getElementById('result-match-note');
+const resultReadyEl = document.getElementById('result-ready');
+const readyYouEl = document.getElementById('ready-you');
+const readyOppEl = document.getElementById('ready-opp');
+const nextGameBtn = document.getElementById('result-next');
 // beat between the final position rendering and the result card fading in, so
 // the deciding move registers on the board before the card covers it
 const resultShowDelayMs = 1000;
@@ -658,9 +668,29 @@ let countdownInterval = null;
 // relabel/retime the running countdown without losing the remaining seconds
 let countdownRemaining = 0;
 let countdownRender = null;
+let countdownDone = null;
 // human rematch-window state, reset on each new game over (see showResult)
 let rematchRequested = false; // this client has clicked Rematch
 let opponentLeft = false;     // the opponent disconnected during the window
+
+// ---- race-to match interlude ("next game") state ----
+// Between games of an undecided match the room pauses briefly and then starts
+// the next game on its own. Either player may skip the rest of that pause; the
+// next game starts early only once both have. All three flags are reset on each
+// new game over (showResult) and torn down with the overlay (hideResult).
+let nextGamePending = false;   // an undecided match's interlude is showing
+let nextGameReady = false;     // we asked to start the next game now
+let nextGameOppReady = false;  // the opponent asked
+// beat between both sides being ready and the card starting to fade, so the
+// second check is seen before the board is handed over; the fade itself must
+// finish inside the server's own pre-start beat (nextGameReadyBeat)
+const nextGameFadeDelayMs = 220;
+// if the next game somehow never arrives, restore the faded card rather than
+// leave the player looking at a bare board with no controls. The interlude's
+// resync poll is still running, so a recovered state re-renders over this.
+const nextGameFadeSafetyMs = 4000;
+let nextGameFadeTimer = null;   // pending fade-start / safety-restore timeout
+let nextGameFading = false;     // the handoff fade is armed or running
 
 // ---- in-game rail controls (resign / draw, swapped for rematch once over) ----
 // The rail's control set (view/room.templ #game-controls) shows Resign/Draw
@@ -691,30 +721,45 @@ let drawOfferedByOpp = false;  // the opponent has offered us a draw to accept
 let opponentRematchNotified = false;
 
 // the rematch buttons (overlay + rail) driven together as a set; capture each
-// one's idle label once so pending/disabled states can restore it. A spectator's
-// buttons render permanently disabled and are left out of the set entirely, so
-// none of the shared state helpers (default/pending/wants) can re-enable them.
+// one's idle label and title once so later states can restore them. A
+// spectator's buttons render permanently disabled and are left out of the set
+// entirely, so none of the shared state helpers (default/pending/wants) can
+// re-enable them.
 const rematchButtons = isSpec ? [] : [rematchBtn, railRematchBtn].filter(Boolean);
-rematchButtons.forEach((b) => { b.dataset.defaultLabel = b.innerHTML; });
+rematchButtons.forEach((b) => {
+	b.dataset.defaultLabel = b.innerHTML;
+	// the idle "Rematch" wording, kept apart from defaultLabel (which the
+	// new-match relabeling below rewrites) so relabeling always starts clean
+	b.dataset.rematchLabel = b.innerHTML;
+	b.dataset.rematchTitle = b.title;
+});
 
-const setRematchButtonsDefault = () => rematchButtons.forEach((b) => {
+// Buttons currently acting as the rematch control. Between games of an
+// undecided match the rail button is repurposed as the interlude's "next game"
+// control (setRailNextGameMode), where a rematch has no meaning; while it is,
+// it must be left out of every helper that writes live state, or showResult's
+// setRematchButtonsDefault would relabel it straight back to "Rematch".
+// renderNextGameReady owns its label and disabled state instead.
+const rematchControls = () => rematchButtons.filter((b) => b.dataset.mode !== 'next');
+
+const setRematchButtonsDefault = () => rematchControls().forEach((b) => {
 	b.disabled = false;
 	b.innerHTML = b.dataset.defaultLabel;
 	b.classList.remove('wants-rematch');
 });
-const setRematchButtonsPending = () => rematchButtons.forEach((b) => {
+const setRematchButtonsPending = () => rematchControls().forEach((b) => {
 	b.disabled = true;
 	b.innerHTML = 'Waiting&hellip;';
 });
 // opponent left (human games): a rematch needs both players, so grey it out
-const setRematchButtonsDisabled = () => rematchButtons.forEach((b) => {
+const setRematchButtonsDisabled = () => rematchControls().forEach((b) => {
 	b.disabled = true;
 	b.innerHTML = b.dataset.defaultLabel;
 });
-const setRematchButtonsWants = () => rematchButtons.forEach((b) => {
+const setRematchButtonsWants = () => rematchControls().forEach((b) => {
 	if (!rematchRequested) { b.classList.add('wants-rematch'); }
 });
-const clearRematchButtonsWants = () => rematchButtons.forEach((b) => {
+const clearRematchButtonsWants = () => rematchControls().forEach((b) => {
 	b.classList.remove('wants-rematch');
 });
 // Once a race-to match is decided the same agreement flow starts a fresh match,
@@ -722,19 +767,56 @@ const clearRematchButtonsWants = () => rematchButtons.forEach((b) => {
 // captured default label (rather than the live innerHTML) keeps every later
 // state restore (default / disabled) consistent; showResult sets the mode for
 // each result, so a following classic game-over reads "Rematch" again.
+// Deliberately spans every button, including one still in next-game mode: it
+// only prepares the label that leaving that mode will restore.
 const setRematchButtonsNewMatch = (newMatch) => rematchButtons.forEach((b) => {
-	if (!b.dataset.rematchLabel) { b.dataset.rematchLabel = b.dataset.defaultLabel; }
 	b.dataset.defaultLabel = newMatch
 		? b.dataset.rematchLabel.replace('Rematch', 'New match')
 		: b.dataset.rematchLabel;
 });
 
 /**
+ * setRailNextGameMode repurposes the rail's Rematch button as the interlude's
+ * "next game" control, and hands it back afterwards. Between games of an
+ * undecided match a rematch means nothing — the button would sit there greyed
+ * out — while "start the next game now" is exactly the action on offer, and the
+ * rail is the only place to take it once the result card has been dismissed for
+ * board review.
+ *
+ * Turning the mode on only marks the button (renderNextGameReady paints it);
+ * turning it off restores the idle rematch state itself rather than deferring
+ * to setRematchButtonsDefault, because the caller has usually already run that
+ * pass while this button was still being skipped.
+ * @param on - true while an undecided match's interlude is showing
+ */
+const setRailNextGameMode = (on) => {
+	if (!railRematchBtn || isSpec) {
+		return;
+	}
+	if (on) {
+		railRematchBtn.dataset.mode = 'next';
+		railRematchBtn.title = 'Start the next game now';
+		return;
+	}
+	if (railRematchBtn.dataset.mode !== 'next') {
+		return;
+	}
+	delete railRematchBtn.dataset.mode;
+	railRematchBtn.disabled = false;
+	railRematchBtn.innerHTML = railRematchBtn.dataset.defaultLabel;
+	railRematchBtn.classList.remove('wants-rematch');
+	railRematchBtn.title = railRematchBtn.dataset.rematchTitle;
+};
+
+/**
  * setControlsMode swaps the rail control set between live play (Resign / Draw)
  * and game-over (Rematch). Toggling .controls-over does the visual swap; the
  * play-control state is reset either way so a stale confirm/offer never lingers.
- * The same over/live signal drives .analyzing on the game grid, which switches
- * the single-column (mobile) layout into its compact analysis arrangement.
+ * The same over/live signal drives .analyzing on the game grid, which reveals
+ * the over-game affordances (the copy-PGN button) in place. It deliberately
+ * does NOT reorder the single-column stack — that is .reviewing, entered only
+ * once the player actually starts reviewing (see enterReviewLayout) — so a
+ * result that is only a pause between games of a match leaves the layout alone.
  * @param over - true once the game is over (show Rematch), false during play
  */
 const setControlsMode = (over) => {
@@ -743,9 +825,33 @@ const setControlsMode = (over) => {
 	}
 	if (gameGridEl) {
 		gameGridEl.classList.toggle('analyzing', over);
+		// a live game is never reviewed; the next game always starts fresh
+		if (!over) {
+			gameGridEl.classList.remove('reviewing');
+		}
 	}
 	resetResignButton();
 	clearDrawOfferUI();
+};
+
+/**
+ * enterReviewLayout switches the single-column (mobile) stack into its compact
+ * review arrangement: one-line clocks, the review nav at the top of the moves
+ * panel, and the stack reordered to moves -> timeline -> controls so stepping
+ * through the finished game needs no scrolling.
+ *
+ * Entered only when the player actually starts reviewing — every path runs
+ * through dismissResultForAnalysis — never on the game merely ending. Between
+ * games of a match the result card covers the board for the whole interlude, so
+ * reordering underneath it would just make the timeline (which has only now
+ * gained the game that ended) drop below the move list and come back a few
+ * seconds later. Left set until the next game clears it (setControlsMode), so
+ * bringing the result card back does not shuffle the stack a second time.
+ */
+const enterReviewLayout = () => {
+	if (gameGridEl && gameOver) {
+		gameGridEl.classList.add('reviewing');
+	}
 };
 
 /**
@@ -864,6 +970,7 @@ const stopCountdown = () => {
 	}
 	countdownRemaining = 0;
 	countdownRender = null;
+	countdownDone = null;
 	if (resultCountdownEl) {
 		resultCountdownEl.innerHTML = '';
 		resultCountdownEl.classList.remove('opponent-left');
@@ -877,8 +984,9 @@ const stopCountdown = () => {
  * new-game / room-over broadcast clears it via hideResult / stopCountdown.
  * @param seconds - whole seconds to count down from
  * @param renderFn - (remaining) => html string
+ * @param doneFn - optional callback fired once the countdown reaches zero
  */
-const startCountdown = (seconds, renderFn) => {
+const startCountdown = (seconds, renderFn, doneFn) => {
 	stopCountdown();
 	if (!resultCountdownEl || !seconds || seconds <= 0) {
 		return;
@@ -886,6 +994,7 @@ const startCountdown = (seconds, renderFn) => {
 
 	countdownRemaining = seconds;
 	countdownRender = renderFn;
+	countdownDone = doneFn || null;
 	const tick = () => {
 		resultCountdownEl.innerHTML = countdownRender(countdownRemaining);
 	};
@@ -897,6 +1006,9 @@ const startCountdown = (seconds, renderFn) => {
 		if (countdownRemaining <= 0) {
 			clearInterval(countdownInterval);
 			countdownInterval = null;
+			if (countdownDone) {
+				countdownDone();
+			}
 		}
 	}, 1000);
 };
@@ -930,13 +1042,258 @@ const rematchWindowLabel = (remaining) => {
 
 /**
  * Countdown label for an undecided race-to match's interlude: the next game
- * starts automatically when it lapses, no action needed from either player.
+ * starts automatically when it lapses, so no action is needed from either
+ * player — but either may skip the rest of the pause, which the label follows.
  */
 const nextGameLabel = (remaining) => {
+	if (nextGameReady && nextGameOppReady) {
+		return 'Starting&hellip;';
+	}
 	if (remaining <= 0) {
 		return 'Starting&hellip;';
 	}
+	if (nextGameReady) {
+		return `Waiting for opponent &middot; ${remaining}s`;
+	}
 	return `Next game in ${remaining}s`;
+};
+
+/**
+ * isMidMatch reports whether a game-over payload describes a game between
+ * others: a race-to room (rt) whose race is still undecided (no mo) and whose
+ * room is not closing (no o). Those results hold an interlude — a short pause
+ * and then the next game — instead of a rematch negotiation, so they take the
+ * "next game" affordance and reconcile readiness rather than agreement. Derived
+ * per payload rather than from local state so a reconnect reads the same.
+ * @param d - game over payload data
+ */
+const isMidMatch = (d) => !!d.rt && !d.mo && d.o !== true;
+
+/**
+ * winDecides / drawDecides report whether the next game's result would end the
+ * match for a seat, under the server's win-by-lead rule (reach the target AND
+ * strictly lead). A win adds a point to that seat alone; a draw adds a half to
+ * both, so it can only decide for a seat that already leads.
+ * @param mine - this seat's match points
+ * @param theirs - the other seat's match points
+ * @param target - the race-to points target
+ */
+const winDecides = (mine, theirs, target) => (mine + 1) >= target && (mine + 1) > theirs;
+const drawDecides = (mine, theirs, target) => (mine + 0.5) >= target && mine > theirs;
+
+/**
+ * matchPointNote describes what the next game can settle: whether this seat is
+ * one result away from the match, and whether a draw is already enough.
+ * @param mine - this player's match points
+ * @param theirs - the opponent's match points
+ * @param target - the race-to points target
+ * @returns {{text: string, cls: string}} note text and its tint class
+ */
+const matchPointNote = (mine, theirs, target) => {
+	const minePoint = winDecides(mine, theirs, target);
+	const theirsPoint = winDecides(theirs, mine, target);
+	if (minePoint && theirsPoint) {
+		return { text: 'Match point for both players', cls: '' };
+	}
+	if (minePoint) {
+		return drawDecides(mine, theirs, target)
+			? { text: 'Match point &mdash; a draw takes the match', cls: 'win' }
+			: { text: 'Match point &mdash; win the next game to take the match', cls: 'win' };
+	}
+	if (theirsPoint) {
+		return drawDecides(theirs, mine, target)
+			? { text: 'Opponent on match point &mdash; a draw takes it for them', cls: 'loss' }
+			: { text: 'Opponent on match point', cls: 'loss' };
+	}
+	return { text: '', cls: '' };
+};
+
+/**
+ * renderMatchContext fills the result card's race-to block from a game-over
+ * payload: the points target the score above is racing to, and a match-point
+ * note when the next game can decide it. Hidden entirely for a classic
+ * single-game room (no rt). The interlude ready row is rendered separately by
+ * renderNextGameReady, which owns its own visibility.
+ * @param d - game over payload data
+ * @param midMatch - the match is undecided, so an interlude follows
+ */
+const renderMatchContext = (d, midMatch) => {
+	if (!resultMatchEl) {
+		return;
+	}
+	if (!d.rt) {
+		resultMatchEl.classList.add('hidden');
+		return;
+	}
+	resultMatchEl.classList.remove('hidden');
+	if (resultMatchTargetEl) {
+		resultMatchTargetEl.innerHTML = `Race to ${d.rt}`;
+	}
+	if (resultMatchNoteEl) {
+		// a decided match has nothing left to play for; only an undecided one
+		// can sit on match point
+		const sc = d.sc || {};
+		const mine = (playerWhite ? sc.w : sc.b) || 0;
+		const theirs = (playerWhite ? sc.b : sc.w) || 0;
+		// a spectator holds no side, so "match point" for them reads as noise
+		const note = (midMatch && !isSpec)
+			? matchPointNote(mine, theirs, d.rt) : { text: '', cls: '' };
+		resultMatchNoteEl.className = `result-match-note ${note.cls}`;
+		resultMatchNoteEl.innerHTML = note.text;
+		resultMatchNoteEl.classList.toggle('hidden', !note.text);
+	}
+};
+
+/**
+ * renderNextGameReady paints the interlude's two ready chips and the state of
+ * the "Next game" button from the current flags, and hands off to the start
+ * transition once both seats are ready. Safe to call repeatedly (every resync
+ * poll tick reconciles through here).
+ */
+const renderNextGameReady = () => {
+	if (readyYouEl) {
+		readyYouEl.classList.toggle('is-ready', nextGameReady);
+	}
+	if (readyOppEl) {
+		readyOppEl.classList.toggle('is-ready', nextGameOppReady);
+	}
+	if (nextGameBtn) {
+		nextGameBtn.disabled = nextGameReady;
+		nextGameBtn.innerHTML = nextGameReady ? 'Ready' : 'Next game';
+	}
+	// the rail button while it stands in as the interlude control; its wording
+	// is derived from the captured idle label so it keeps the rail's ↻ glyph
+	if (railRematchBtn && railRematchBtn.dataset.mode === 'next') {
+		railRematchBtn.disabled = nextGameReady;
+		railRematchBtn.innerHTML = railRematchBtn.dataset.rematchLabel
+			.replace('Rematch', nextGameReady ? 'Ready' : 'Next game');
+	}
+	refreshCountdownLabel();
+
+	if (nextGameReady && nextGameOppReady) {
+		startNextGameTransition();
+	}
+};
+
+/**
+ * startNextGameTransition fades the result card away for the handoff into the
+ * next game. Both players are ready (or the interlude lapsed), so the server is
+ * about to start the game; fading over that beat uncovers the board smoothly
+ * instead of the card being cut away on the frame the next game's first message
+ * lands. Idempotent — the countdown reaching zero and the second ready flag can
+ * both reach here.
+ *
+ * The fade is deliberately reversible: if no next game arrives (a player
+ * dropped and the server is holding its forfeit grace, or a message was lost)
+ * the card is restored after a safety timeout rather than leaving the player
+ * with an uncovered board and no controls. The interlude's resync poll keeps
+ * running underneath either way.
+ */
+const startNextGameTransition = () => {
+	if (!resultOverlayEl || nextGameFading || !resultShowingOrPending()) {
+		return;
+	}
+	// nothing to fade if the card is already out of the way for board review
+	if (resultOverlayEl.classList.contains('result-dismissed')) {
+		return;
+	}
+	nextGameFading = true;
+	clearTimeout(nextGameFadeTimer);
+	nextGameFadeTimer = setTimeout(() => {
+		resultOverlayEl.classList.add('result-starting');
+		nextGameFadeTimer = setTimeout(() => {
+			// the next game never came: put the card back. nextGameFading stays
+			// set so the resync poll's next reconcile — which sees both seats
+			// still ready — cannot re-arm the fade and start a fade/restore
+			// flicker loop. Only a new result (or the overlay coming down)
+			// clears it.
+			nextGameFadeTimer = null;
+			resultOverlayEl.classList.remove('result-starting');
+		}, nextGameFadeSafetyMs);
+	}, nextGameFadeDelayMs);
+};
+
+/**
+ * clearNextGameTransition cancels a pending/running handoff fade and drops its
+ * class, so the next result card is never rendered mid-fade.
+ */
+const clearNextGameTransition = () => {
+	clearTimeout(nextGameFadeTimer);
+	nextGameFadeTimer = null;
+	nextGameFading = false;
+	if (resultOverlayEl) {
+		resultOverlayEl.classList.remove('result-starting');
+	}
+};
+
+/**
+ * requestNextGame asks the server to skip the rest of an undecided match's
+ * interlude. Both seats must ask before the next game starts early; asking
+ * alone just shows the opponent a check while the pause runs out normally. The
+ * click is reconciled like every other critical action — the interlude's resync
+ * poll compares the server's recorded per-seat state (ngw/ngb) against ours and
+ * resends a click that never landed (see reconcileNextGameReady).
+ */
+const requestNextGame = () => {
+	if (isSpec || !nextGamePending || nextGameReady) {
+		return;
+	}
+	send(buildCommand("r", {ng: true}));
+	nextGameReady = true;
+	renderNextGameReady();
+};
+
+/**
+ * reconcileNextGameReady syncs this client's interlude state with the server's
+ * recorded per-seat readiness (ngw/ngb on every mid-match game-over payload,
+ * including the repeats the resync poll receives and the reconnect state). The
+ * next-game analogue of reconcileRematchAgreement: a click lost on a half-open
+ * socket is resent, readiness the server holds but this client forgot (a
+ * reload) is restored, and the opponent's check is recovered even if the live
+ * 'ng' broadcast announcing it was missed.
+ * @param d - game-over payload data
+ */
+const reconcileNextGameReady = (d) => {
+	if (isSpec) {
+		return;
+	}
+	const mine = playerWhite ? !!d.ngw : !!d.ngb;
+	const theirs = playerWhite ? !!d.ngb : !!d.ngw;
+	if (nextGameReady && !mine) {
+		// our click never reached the server: resend it. The poll repeats this
+		// every tick until the recorded state confirms it landed.
+		send(buildCommand("r", {ng: true}));
+	} else if (!nextGameReady && mine) {
+		nextGameReady = true;
+	}
+	nextGameOppReady = theirs;
+	renderNextGameReady();
+};
+
+/**
+ * Handle a next-game readiness broadcast: one seat asked to skip the rest of
+ * the interlude. The flags are keyed by the finished game's colors, so this is
+ * mapped with the same cached color the score chips use — and dropped outright
+ * once the next game has started, where that color no longer describes the
+ * seats (the id it names is the finished game, not the live one).
+ * @param message - next game message
+ */
+const handleNextGame = (message) => {
+	const d = message.d || {};
+	// a spectator holds no seat to ready up, and the chips are labeled by seat
+	// ("You" / "Opponent"), so the row is not rendered for them at all
+	if (isSpec || !nextGamePending || !resultShowingOrPending()) {
+		return;
+	}
+	if (d.gi && currentGameID && d.gi !== currentGameID) {
+		return;
+	}
+	// our own flag latches: a broadcast carrying only the opponent's click can
+	// overtake our own click still in flight, and un-checking ourselves there
+	// would flicker the chip and re-arm a button we already committed
+	nextGameReady = nextGameReady || (playerWhite ? !!d.w : !!d.b);
+	nextGameOppReady = playerWhite ? !!d.b : !!d.w;
+	renderNextGameReady();
 };
 
 // Post-rematch resync safety net. The start of the next game is announced by a
@@ -1020,10 +1377,23 @@ const hideResult = () => {
 	if (restoreBtn) {
 		restoreBtn.classList.add('hidden');
 	}
+	// hand the rail button back before the default pass, which skips it while
+	// it is still standing in as the interlude control
+	setRailNextGameMode(false);
 	setRematchButtonsDefault();
 	rematchRequested = false;
 	opponentLeft = false;
 	hideOpponentRematchRequest();
+	// the interlude ended with the game-over it belonged to: drop its readiness
+	// state and any handoff fade still armed
+	nextGamePending = false;
+	nextGameReady = false;
+	nextGameOppReady = false;
+	clearNextGameTransition();
+	renderNextGameReady();
+	if (resultMatchEl) { resultMatchEl.classList.add('hidden'); }
+	if (resultReadyEl) { resultReadyEl.classList.add('hidden'); }
+	if (nextGameBtn) { nextGameBtn.classList.add('hidden'); }
 	// the overlay is gone: a new/live game is in play, so return the rail controls
 	// to Resign / Draw (and reset any lingering confirm/offer state)
 	setControlsMode(false);
@@ -1084,6 +1454,11 @@ const showResult = (message) => {
 	hideOpponentRematchRequest();
 	setRematchButtonsNewMatch(!!message.d.mo);
 	setRematchButtonsDefault();
+	// a fresh result means a fresh interlude: nobody is ready for the next game
+	// yet, and any handoff fade belonged to the game before this one
+	nextGameReady = false;
+	nextGameOppReady = false;
+	clearNextGameTransition();
 
 	// clear any rating deltas from a previous game; the rated-game rating-update
 	// broadcast (handleRatingUpdate) fills them in a beat later, before the card
@@ -1132,13 +1507,39 @@ const showResult = (message) => {
 	// and there is nothing to click between games of an undecided race-to match
 	// (they auto-advance): hide the overlay's button and disable the rail's
 	const roomOver = !!message.d.o;
-	const midMatch = !!message.d.rt && !message.d.mo && !roomOver;
+	const midMatch = isMidMatch(message.d);
 	if (rematchBtn) {
 		rematchBtn.style.display = (roomOver || midMatch) ? 'none' : '';
 	}
-	if (railRematchBtn && (roomOver || midMatch)) {
+	// a closed room can't be rematched from; mid-match the rail button is not
+	// disabled but repurposed as the interlude control just below
+	if (railRematchBtn && roomOver) {
 		railRematchBtn.disabled = true;
 	}
+	setRailNextGameMode(midMatch);
+
+	// mid-match the Rematch button is replaced by "Next game", which skips the
+	// rest of the interlude once both seats ask for it. A spectator has no seat
+	// to ready up, so they see the match context without the row or the button.
+	nextGamePending = midMatch;
+	renderMatchContext(message.d, midMatch);
+	if (nextGameBtn) {
+		nextGameBtn.classList.toggle('hidden', !midMatch || isSpec);
+	}
+	// Mid-match the card is a few-second pause, not a destination: Home would
+	// forfeit a race the player is still in, and board review is about to be
+	// taken away by the next game. Both come back the moment the match is
+	// decided (the "New match" card) or the room is closing.
+	if (homeBtn) {
+		homeBtn.style.display = midMatch ? 'none' : '';
+	}
+	if (analyzeBtn) {
+		analyzeBtn.style.display = midMatch ? 'none' : '';
+	}
+	if (resultReadyEl) {
+		resultReadyEl.classList.toggle('hidden', !midMatch || isSpec);
+	}
+	renderNextGameReady();
 
 	resultHeadlineEl.className = `result-headline ${outcome}`;
 	resultHeadlineEl.innerHTML = headline;
@@ -1165,7 +1566,9 @@ const showResult = (message) => {
 	// finished room stays open for review + manual rematch), so a missing
 	// ng/rw just clears the countdown.
 	if (message.d.ng) {
-		startCountdown(message.d.ng, nextGameLabel);
+		// the interlude lapsing is itself a handoff: fade the card out as the
+		// server starts the next game, exactly as a both-ready skip does
+		startCountdown(message.d.ng, nextGameLabel, startNextGameTransition);
 		startRematchResync();
 	} else if (message.d.rw) {
 		startCountdown(message.d.rw, rematchWindowLabel);
@@ -1393,8 +1796,21 @@ const reconcileRematchAgreement = (d) => {
 	}
 };
 
-// wire both rematch buttons once; the new-game broadcast clears the overlay
-rematchButtons.forEach((b) => b.addEventListener('click', () => requestRematch(b)));
+// wire both rematch buttons once; the new-game broadcast clears the overlay.
+// The rail button doubles as the interlude's "next game" control, so the
+// handler routes on the mode it is currently in rather than a second listener.
+rematchButtons.forEach((b) => b.addEventListener('click', () => {
+	if (b.dataset.mode === 'next') {
+		requestNextGame();
+		return;
+	}
+	requestRematch(b);
+}));
+// the mid-match "Next game" button, shown in place of Rematch during an
+// undecided match's interlude (spectators' copy stays disabled and unwired)
+if (nextGameBtn && !isSpec) {
+	nextGameBtn.addEventListener('click', () => requestNextGame());
+}
 if (homeBtn) {
 	homeBtn.addEventListener('click', () => {
 		window.location.href = "/";
@@ -1521,6 +1937,9 @@ const dismissResultForAnalysis = () => {
 	// the board itself for free exploration.
 	requestLiveEvals();
 	armExplore();
+	// the player is reviewing now, so the mobile stack takes its compact review
+	// arrangement (no-op while the game is live, e.g. exploration on an archive)
+	enterReviewLayout();
 	if (!resultOverlayEl
 		|| resultOverlayEl.classList.contains('result-dismissed')
 		|| resultOverlayEl.classList.contains('result-closing')) {
@@ -1844,6 +2263,35 @@ const isAnalyzing = () => {
  * @param message - game over message
  */
 const handleGameOver = (message) => {
+	// Staleness guard: the payload names the game it describes (d.gi). Without
+	// it a game-over could only be keyed by the cache — and one built just
+	// before a rematch / next-game reset but written after the new game's
+	// broadcast would apply the finished game's score under the newly swapped
+	// seat colors and re-raise a stale result card over a live board. It is a
+	// narrow window (a resync poll tick has to land inside it) but a real one,
+	// and it is the same hazard MovePayload and DeployPayload already guard
+	// with a game id — see arch/DEPLOY_REMATCH_RACES.md.
+	//
+	// A payload with no id describes no game (the bare room-closing notices)
+	// and is always honored. An unset tracker means we have no game to compare
+	// against yet, so the payload is adopted rather than dropped.
+	if (message.d.gi) {
+		if (currentGameID && message.d.gi !== currentGameID) {
+			return;
+		}
+		currentGameID = message.d.gi;
+	}
+
+	// A blind deploy phase means the next game is already being arranged, so any
+	// result for the game before it is stale by construction — and it cannot be
+	// caught by the id test above, because the tracked id only advances at the
+	// reveal. Showing the card here would cover the arrange board with the
+	// previous game's result. Room-closing notices still pass: a player can
+	// leave during a deploy phase.
+	if ((deployMode || deploySpectating) && message.d.o !== true) {
+		return;
+	}
+
 	// A repeat of the game-over we're already showing: while a player waits out
 	// the rematch window, the resync poll's a:0 queries are answered with the
 	// game-over payload again (handle_move.go's StateGameOver branch). A repeat
@@ -1861,13 +2309,15 @@ const handleGameOver = (message) => {
 			startCountdown(message.d.rw, rematchWindowLabel);
 		} else if (message.d.ng) {
 			// a mid-match repeat (reconnect / poll): retime the auto-advance
-			startCountdown(message.d.ng, nextGameLabel);
+			startCountdown(message.d.ng, nextGameLabel, startNextGameTransition);
 		}
 		updateScore(message);
-		// every repeat carries the server's recorded per-seat agreement; use it
-		// to resend a lost click or surface a missed opponent request. Between
-		// games of an undecided match there is no agreement to reconcile.
-		if (!message.d.ng) {
+		// every repeat carries the server's recorded per-seat state; use it to
+		// resend a lost click or surface a missed opponent signal. Mid-match
+		// that state is interlude readiness, not a rematch agreement.
+		if (isMidMatch(message.d)) {
+			reconcileNextGameReady(message.d);
+		} else {
 			reconcileRematchAgreement(message.d);
 		}
 		return;
@@ -1968,8 +2418,11 @@ const handleGameOver = (message) => {
 	// sync rematch state with the server's recorded agreements — a reconnect's
 	// game-over state restores a pending request this client no longer
 	// remembers (page reload) and a standing opponent request whose one-shot
-	// 'ru' announcement was missed. Mid-match (ng) there is no agreement flow.
-	if (message.d.o !== true && !message.d.ng) {
+	// 'ru' announcement was missed. Mid-match there is no agreement flow; the
+	// equivalent recorded state is the interlude's per-seat readiness.
+	if (isMidMatch(message.d)) {
+		reconcileNextGameReady(message.d);
+	} else if (message.d.o !== true) {
 		reconcileRematchAgreement(message.d);
 	}
 
@@ -1979,6 +2432,21 @@ const handleGameOver = (message) => {
 		// neither can outlive the room
 		stopRematchResync();
 		stopDeployResync();
+
+		// The room is closing, so the interlude it may have been holding is void:
+		// drop its readiness state and give back the actions a mid-match card
+		// hides. A bare closing notice (a forfeited match) re-renders no card, so
+		// without this the player would be left on the interlude card with
+		// neither a way home nor the board — the two things now worth offering.
+		nextGamePending = false;
+		nextGameReady = false;
+		nextGameOppReady = false;
+		clearNextGameTransition();
+		setRailNextGameMode(false);
+		if (resultReadyEl) { resultReadyEl.classList.add('hidden'); }
+		if (nextGameBtn) { nextGameBtn.classList.add('hidden'); }
+		if (homeBtn) { homeBtn.style.display = ''; }
+		if (analyzeBtn) { analyzeBtn.style.display = ''; }
 
 		// A spectator always stays on the final position: the full move history
 		// is client-held, so review keeps working after the room is gone. Stop
@@ -4850,6 +5318,7 @@ window.handlers.set(moveTag, handleMove);
 window.handlers.set(gameOverTag, handleGameOver);
 window.handlers.set(ratingUpdateTag, handleRatingUpdate);
 window.handlers.set(rematchUpdateTag, handleRematchUpdate);
+window.handlers.set(nextGameTag, handleNextGame);
 window.handlers.set(drawOfferTag, handleDrawOffer);
 window.handlers.set(deployTag, handleDeploy);
 window.handlers.set("id", handleIdentity);

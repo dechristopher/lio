@@ -47,6 +47,14 @@ var rematchDisconnectGrace = 8 * time.Second
 // so tests can shorten it (like deployTimeout).
 var matchInterludeWindow = 5 * time.Second
 
+// nextGameReadyBeat is the pause between both players asking to skip the
+// interlude and the next game actually starting. It exists so the second
+// player's check lands visibly on both screens before the result card gives way
+// to the board — without it the card would vanish on the same frame as the
+// click, reading as a mis-click rather than a handshake. A var only so tests can
+// shorten it.
+var nextGameReadyBeat = 600 * time.Millisecond
+
 // handleGameOver handles game finalization and rematch prompts.
 //
 // An undecided race-to match holds no rematch negotiation at all: the next game
@@ -276,6 +284,9 @@ func (r *Instance) resetForNextGameLocked(resetScore bool) error {
 	r.game = newGame
 	// reset rematch flags for the next game over
 	r.rematch = player.NewAgreement()
+	// and the interlude's "ready for the next game" flags, which belong to the
+	// pause that just ended
+	r.nextGame = player.NewAgreement()
 	// clear any draw-offer state so it can't carry into the next game
 	r.draw = player.NewAgreement()
 	r.drawOffer = octad.NoColor
@@ -294,12 +305,18 @@ func (r *Instance) resetForNextGameLocked(resetScore bool) error {
 }
 
 // handleMatchInterlude waits out the short pause between games of an undecided
-// race-to match, then auto-advances to the next game — no rematch agreement is
-// involved and no control traffic is honored (stray clicks accepted by
-// RequestRematch's decided-outcome window are drained at the boundary). The
+// race-to match, then advances to the next game — no rematch agreement is
+// involved, and stray rematch clicks (accepted by RequestRematch's
+// decided-outcome window) are swallowed here and drained at the boundary. The
 // interlude deadline was published (nextGameDeadline) by tryGameOver, so the
 // game-over broadcast and any reconnect state carry the same countdown this
 // handler waits on.
+//
+// Either player may skip the rest of the pause (message.NextGame): the seat is
+// marked ready, both clients are told, and once both seats are ready the next
+// game starts after a short beat instead of at the deadline. One seat asking
+// changes nothing but the other player's view of it — the interlude timer
+// still decides.
 //
 // Presence: the interlude does not chase every connection flap — the deadline
 // simply checks that both players are present when it lapses. A missing player
@@ -389,9 +406,56 @@ func (r *Instance) handleMatchInterlude() {
 				advance()
 				return
 			}
-		case <-r.controlChannel:
-			// no rematch negotiation happens mid-match; swallow stray controls
-			// so the buffer can't fill with clicks meant for a decided game
+		case control := <-r.controlChannel:
+			// a rematch click has no meaning mid-match; swallow it so the buffer
+			// can't fill with clicks meant for a decided game
+			if control.Type != message.NextGame {
+				continue
+			}
+
+			// record this seat's readiness (and a bot's, which is always ready —
+			// matches are human-only today, but a stray control must still
+			// behave), then tell both clients so each sees the other's check
+			r.stateMu.Lock()
+			util.DoBothColors(func(c octad.Color) {
+				if r.players[c] != nil && r.players[c].ID == control.Ctx.UID {
+					r.nextGame.Agree(c)
+				}
+				if r.players[c] != nil && r.players[c].IsBot {
+					r.nextGame.Agree(c)
+				}
+			})
+			ready := r.nextGame.Agreed()
+			readyMsg := proto.NextGamePayload{
+				GameID: r.game.ID,
+				White:  r.nextGame.AgreedBy(octad.White),
+				Black:  r.nextGame.AgreedBy(octad.Black),
+			}
+			r.stateMu.Unlock()
+
+			readyMsg.Broadcast(channel.SocketContext{Channel: r.ID, MT: 1})
+
+			if !ready {
+				// a one-sided readiness is part of the snapshot, so a restart
+				// inside the interlude does not silently drop the click
+				markDirty(r)
+				continue
+			}
+
+			// both players want on with it: hold one beat so the second check
+			// registers on both screens, then start the next game early. Bail
+			// if the room is being torn down under us.
+			util.DebugFlag("room", str.CRoom, "[%s] both players ready, starting next game early", r.ID)
+			t := time.NewTimer(nextGameReadyBeat)
+			select {
+			case <-t.C:
+			case <-r.done:
+				t.Stop()
+				return
+			}
+
+			advance()
+			return
 		}
 	}
 }

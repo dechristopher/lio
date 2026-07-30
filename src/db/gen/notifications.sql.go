@@ -151,6 +151,38 @@ func (q *Queries) MarkAllNotificationsRead(ctx context.Context, userID int64) (i
 	return result.RowsAffected(), nil
 }
 
+const markChallengeNotificationsRead = `-- name: MarkChallengeNotificationsRead :execrows
+UPDATE notifications
+SET read_at = now()
+WHERE user_id = $1
+  AND kind = 'challenge'
+  AND link = $2
+  AND read_at IS NULL
+`
+
+type MarkChallengeNotificationsReadParams struct {
+	UserID int64
+	Link   string
+}
+
+// Retire the challenge notifications one account holds for one room, matched on
+// the link the challenge was written with. This is what finishes an accepted
+// invitation: accepting has no endpoint of its own — it is the ordinary join —
+// so the join path calls this instead, and the row stops sitting unread in the
+// panel offering an Accept for a game the person is already playing.
+//
+// Scoped to this account's own rows and to the challenge kind, so a link that
+// happens to match some other kind of message is untouched. Plural because a
+// challenger may re-challenge the same person into a new room, and only the
+// rows pointing at the room actually joined are finished.
+func (q *Queries) MarkChallengeNotificationsRead(ctx context.Context, arg MarkChallengeNotificationsReadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markChallengeNotificationsRead, arg.UserID, arg.Link)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const markNotificationRead = `-- name: MarkNotificationRead :one
 UPDATE notifications
 SET read_at = now()

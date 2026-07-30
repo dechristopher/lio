@@ -24,6 +24,9 @@ const (
 	GameOverTag PayloadTag = "g"
 	// RematchUpdateTag is the message type tag for the RematchUpdatePayload
 	RematchUpdateTag PayloadTag = "ru"
+	// NextGameTag is the message type tag for the NextGamePayload: per-seat
+	// "ready for the next game" state during an undecided match's interlude
+	NextGameTag PayloadTag = "ng"
 	// RatingUpdateTag is the message type tag for the RatingUpdatePayload, sent
 	// after a rated game archives to surface each seat's rating change.
 	RatingUpdateTag PayloadTag = "rc"
@@ -287,8 +290,22 @@ type RatingUpdatePayload struct {
 	Black RatingChange `json:"b"`
 }
 
+// GameOverPayloadVersion represents the current proto version of the
+// GameOverPayload. Version 2 added game identity (GameID) plus the per-seat
+// next-game readiness fields; version 1 is the original unversioned payload.
+const GameOverPayloadVersion = 2
+
 // GameOverPayload contains data regarding the outcome of the game
 type GameOverPayload struct {
+	// GameID identifies the finished game this result describes. Without it a
+	// game-over can only be keyed by the cache: a payload built just before a
+	// rematch/next-game reset but written after the new game's broadcast would
+	// apply the old game's score under the new seat colors and re-raise a stale
+	// result card. The client drops any payload whose id is not the game it is
+	// tracking — the same staleness guard MovePayload and DeployPayload already
+	// carry (see arch/DEPLOY_REMATCH_RACES.md). Empty on the bare room-closing
+	// notices, which describe no game and are always accepted.
+	GameID   string              `json:"gi,omitempty"`
 	Winner   string              `json:"w,omitempty"`
 	StatusID int                 `json:"i,omitempty"`
 	Status   string              `json:"s"`
@@ -325,6 +342,14 @@ type GameOverPayload struct {
 	// undecided match auto-starts (the mid-match interlude). Mutually exclusive
 	// with RematchWindow: mid-match game-overs carry no rematch affordance.
 	NextGameIn int `json:"ng,omitempty"`
+	// NextWhite / NextBlack report which seats have asked to skip the rest of
+	// the interlude and start the next game now. Both ready starts it early.
+	// This is the interlude's analogue of RematchWhite/RematchBlack: it rides
+	// every mid-match game-over payload — including the repeats the resync poll
+	// receives and the reconnect state — so a click lost on a half-open socket
+	// is detected and resent, and a reload restores the ready state.
+	NextWhite bool `json:"ngw,omitempty"`
+	NextBlack bool `json:"ngb,omitempty"`
 	// PGN is the finished game's canonical archival PGN, present only on the
 	// live game-over broadcast (not on resync/reconnect payloads). It lets an
 	// analyzing client's copy button copy exactly what was archived — built by
@@ -346,6 +371,21 @@ type RematchUpdatePayload struct {
 	// wants a rematch" indicator. When set, this message is purely that signal and
 	// does not retime the countdown (Seconds is omitted).
 	Requested string `json:"rq,omitempty"`
+}
+
+// NextGamePayload broadcasts per-seat "ready for the next game" state during an
+// undecided race-to match's interlude. Each seat may skip the rest of the pause;
+// both ready starts the next game immediately. The flags are keyed by the
+// *finished* game's colors (the seats flip only when the next game is built), so
+// a client maps them with the same cached color its score chips use.
+//
+// GameID names the finished game the interlude follows, so a frame delivered
+// after the next game started — where the client's colors have already
+// flipped — is dropped instead of ticking the wrong seat's check.
+type NextGamePayload struct {
+	GameID string `json:"gi,omitempty"`
+	White  bool   `json:"w,omitempty"`
+	Black  bool   `json:"b,omitempty"`
 }
 
 // DrawOfferPayload signals draw-offer state to clients during a live game. A

@@ -45,6 +45,24 @@ WHERE id = $1
   AND read_at IS NULL
 RETURNING id;
 
+-- name: MarkChallengeNotificationsRead :execrows
+-- Retire the challenge notifications one account holds for one room, matched on
+-- the link the challenge was written with. This is what finishes an accepted
+-- invitation: accepting has no endpoint of its own — it is the ordinary join —
+-- so the join path calls this instead, and the row stops sitting unread in the
+-- panel offering an Accept for a game the person is already playing.
+--
+-- Scoped to this account's own rows and to the challenge kind, so a link that
+-- happens to match some other kind of message is untouched. Plural because a
+-- challenger may re-challenge the same person into a new room, and only the
+-- rows pointing at the room actually joined are finished.
+UPDATE notifications
+SET read_at = now()
+WHERE user_id = $1
+  AND kind = 'challenge'
+  AND link = $2
+  AND read_at IS NULL;
+
 -- name: MarkAllNotificationsRead :execrows
 -- Clear one account's backlog. Returns the number of rows changed, so the
 -- caller reports what happened instead of claiming success over a no-op.

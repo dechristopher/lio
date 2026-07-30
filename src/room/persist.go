@@ -84,6 +84,9 @@ type PersistedRoom struct {
 	DrawBlack    bool        `json:"drawB,omitempty"`
 	RematchWhite bool        `json:"rematchW,omitempty"`
 	RematchBlack bool        `json:"rematchB,omitempty"`
+	// per-seat "skip the interlude" readiness of an undecided match's pause
+	NextGameWhite bool `json:"nextGameW,omitempty"`
+	NextGameBlack bool `json:"nextGameB,omitempty"`
 
 	// absolute deadlines; consumed relative on restore (a lapsed window is
 	// floored/refreshed rather than instantly expiring the room)
@@ -151,6 +154,9 @@ func (r *Instance) Persist() ([]byte, bool) {
 		DrawBlack:    r.draw.AgreedBy(octad.Black),
 		RematchWhite: r.rematch.AgreedBy(octad.White),
 		RematchBlack: r.rematch.AgreedBy(octad.Black),
+
+		NextGameWhite: r.nextGame.AgreedBy(octad.White),
+		NextGameBlack: r.nextGame.AgreedBy(octad.Black),
 
 		RematchDeadline:  r.rematchDeadline,
 		NextGameDeadline: r.nextGameDeadline,
@@ -269,6 +275,7 @@ func Rehydrate(data []byte) (*Instance, error) {
 
 		players:   players,
 		rematch:   player.NewAgreement(),
+		nextGame:  player.NewAgreement(),
 		draw:      player.NewAgreement(),
 		drawOffer: p.DrawOffer,
 
@@ -293,6 +300,12 @@ func Rehydrate(data []byte) (*Instance, error) {
 	}
 	if p.RematchBlack {
 		r.rematch.Agree(octad.Black)
+	}
+	if p.NextGameWhite {
+		r.nextGame.Agree(octad.White)
+	}
+	if p.NextGameBlack {
+		r.nextGame.Agree(octad.Black)
 	}
 
 	switch p.State {

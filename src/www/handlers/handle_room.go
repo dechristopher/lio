@@ -226,6 +226,11 @@ func RoomJoinHandler(c fiber.Ctx) error {
 
 	// attempt to join room, stamping the joiner's account identity onto the seat
 	if roomInstance.Join(joiner, joinPayload.Token) {
+		// taking the seat is what accepting a direct challenge *is*, so the
+		// invitation is finished here — the panel must stop offering an Accept
+		// for a game this person is already in, and the bell must stop counting
+		// it. Accepting has no endpoint of its own to do this in.
+		retireChallengeNotification(c, roomInstance, joiner)
 		// broadcast message to waiting player(s)
 		go roomInstance.NotifyWaiting()
 		// redirect player to game room
@@ -578,6 +583,60 @@ func resolveInvite(payload newRoomPayload) (*db.UserRecord, bool) {
 //
 // A failure here is logged, not surfaced: the room exists and the challenger is
 // already waiting in it. The link still works if they send it by hand.
+// challengeToRetire decides whether an accepted join finishes a challenge
+// notification, and returns the link to match that notification on.
+//
+// Only a room that names an account can have produced one, and only an account
+// can hold one, so an ordinary open room skips the write entirely rather than
+// spending a query per join to learn it changed nothing. The two ids must also
+// agree: the caller already refuses a join by anyone else, and repeating the
+// test here means this never depends on that ordering.
+func challengeToRetire(invited, joiner *int64, roomID string) (link string, ok bool) {
+	if invited == nil || joiner == nil || *invited != *joiner {
+		return "", false
+	}
+	return challengeLink(roomID), true
+}
+
+// retireChallengeNotification marks the accepted invitation read once the
+// invited account has taken the seat.
+//
+// A failure is logged, not surfaced: the join already succeeded and the game is
+// starting. The worst outcome is a stale row in the panel, which the recipient
+// can clear themselves — refusing the join over it would be far worse.
+//
+// The other tabs and devices this person has open each hold their own badge and
+// would otherwise keep counting the accepted challenge until their next socket
+// connect, so the new count is pushed to all of them (the tab that joined
+// re-renders the bell from the redirect it follows).
+func retireChallengeNotification(c fiber.Ctx, r *room.Instance, joiner player.Identity) {
+	link, ok := challengeToRetire(r.InvitedUserID(), joiner.UserID, r.ID)
+	if !ok {
+		return
+	}
+	n, err := db.MarkChallengeReadForRoom(*joiner.UserID, link)
+	if err != nil {
+		util.Error(str.CNotif, "challenge accept read failed room=%s error=%s",
+			r.ID, err.Error())
+		return
+	}
+	if n == 0 {
+		return
+	}
+	staff := false
+	if acct := user.GetAccount(c); acct != nil {
+		staff = acct.Role.CanModerate()
+	}
+	notify.SendCount(*joiner.UserID, staff)
+}
+
+// challengeLink is the notification link a direct challenge is written with.
+// The accept path retires that same row by matching on this value, so both
+// sides must build it in exactly one place — here.
+func challengeLink(roomID string) string {
+	return "/" + roomID
+}
+
 func notifyChallenge(creator player.Identity, invitedID int64, roomID string, v variant.Variant) {
 	body := creator.Username + " challenges you to " + v.Name + " octad."
 	if err := notify.Push(db.NewNotification{
@@ -585,7 +644,7 @@ func notifyChallenge(creator player.Identity, invitedID int64, roomID string, v 
 		Kind:    db.KindChallenge,
 		ActorID: creator.UserID,
 		Body:    body,
-		Link:    "/" + roomID,
+		Link:    challengeLink(roomID),
 		Expires: time.Now().Add(room.ChallengeExpiry),
 	}, creator.Username); err != nil {
 		util.Error(str.CRoom, "challenge notify failed target=%d room=%s error=%s",
