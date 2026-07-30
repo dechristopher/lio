@@ -17,7 +17,7 @@
 
 	// roomID -> slot { card, og, top, bottom, whiteEl, blackEl, variantEl,
 	//                  watch, watchCount, control, wt, bt, toMove, at, over,
-	//                  running, orient, gameId, sw, sb }
+	//                  running, orient, gameId, ended, resultTimer }
 	// (top/bottom are the two seat strips built by clockEl)
 	const slots = new Map();
 
@@ -170,7 +170,7 @@
 	};
 
 	const rebuild = (list) => {
-		slots.forEach((slot) => destroyBoard(slot));
+		slots.forEach((slot) => destroySlot(slot));
 		slots.clear();
 		grid.innerHTML = '';
 		(list || []).forEach(upsert);
@@ -190,12 +190,15 @@
 		if (!slot) {
 			return;
 		}
-		destroyBoard(slot);
+		destroySlot(slot);
 		slot.card.remove();
 		slots.delete(room);
 	};
 
-	const destroyBoard = (slot) => {
+	// tear a slot's live resources down: the board, and the result overlay's fade
+	// timer, which would otherwise outlive the card it was going to fade
+	const destroySlot = (slot) => {
+		clearTimeout(slot.resultTimer);
 		try {
 			slot.og.destroy();
 		} catch (e) { /* ignore */ }
@@ -276,6 +279,46 @@
 		return band;
 	};
 
+	// ---- finished-game vocabulary ----
+	// Backend method codes -> the glyph and the words for a finished game. This
+	// is the room's match-timeline vocabulary (tlGlyphs / resultReasons in
+	// lio-game.js — keep the three in step); the home page loads none of that
+	// file, so the grid carries its own copy. All text codepoints except time,
+	// an inline SVG clock (U+231B renders as an emoji): its stroke is
+	// currentColor, so it takes the result color like every other glyph.
+	const CLOCK_ICON =
+		'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">' +
+		'<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+	const RESULT_GLYPHS = {
+		checkmate: '#',
+		time: CLOCK_ICON,
+		resignation: '⚑',
+		stalemate: '=',
+		insufficient: '=',
+		agreement: '=',
+		repetition: '=',
+		moverule: '=',
+		abandoned: '×',
+	};
+	const RESULT_METHODS = {
+		checkmate: 'by checkmate',
+		time: 'on time',
+		resignation: 'by resignation',
+		stalemate: 'by stalemate',
+		insufficient: 'by insufficient material',
+		agreement: 'by agreement',
+		repetition: 'by repetition',
+		moverule: 'by the 25-move rule',
+		abandoned: 'by abandonment',
+	};
+
+	// how long the result overlay holds before it fades. Sized to sit inside the
+	// server's between-games interlude (matchInterludeWindow, 5s — see
+	// room/handle_04_game_over.go), so it has cleared before the next game's
+	// covers and countdown come up. A room that is not advancing (a rematch
+	// window, a bot game's analysis grace) simply keeps its frozen board after.
+	const resultHoldMs = 3500;
+
 	// the countdown ring, structurally identical to the room's pre-start dial
 	// (see prestart-overlay in view/components.templ) so the two read as the same
 	// object: a track circle under an accent progress circle whose round stroke
@@ -304,6 +347,40 @@
 		face.appendChild(num);
 		root.appendChild(face);
 		return {root, progress: face.querySelector('.tv-dial-progress'), num};
+	};
+
+	// resultEl builds the between-games result overlay: the finished game's
+	// win-method glyph on the pre-game dial's own disc, over a pill holding the
+	// resulting match score. The disc is literally .tv-dial-face — the countdown
+	// and the result take the board's center in turn, and reusing the face keeps
+	// them the same object rather than two lookalikes that can drift.
+	const resultEl = () => {
+		const root = document.createElement('div');
+		root.className = 'tv-result';
+		root.setAttribute('aria-hidden', 'true');
+		const face = document.createElement('div');
+		face.className = 'tv-dial-face';
+		const glyph = document.createElement('div');
+		glyph.className = 'tv-result-glyph';
+		face.appendChild(glyph);
+		// white's points, an en dash, black's — each number underlined in the
+		// piece color of the side it belongs to (see .tv-rs::after), which is
+		// what lets the pair go unlabelled at this size
+		const score = document.createElement('div');
+		score.className = 'tv-result-score';
+		const white = document.createElement('span');
+		white.className = 'tv-rs tv-rs-w';
+		const dash = document.createElement('span');
+		dash.className = 'tv-rs-dash';
+		dash.textContent = '–';
+		const black = document.createElement('span');
+		black.className = 'tv-rs tv-rs-b';
+		score.appendChild(white);
+		score.appendChild(dash);
+		score.appendChild(black);
+		root.appendChild(face);
+		root.appendChild(score);
+		return {root, glyph, white, black};
 	};
 
 	// setSeat writes a side's identity from the wire seat (proto.TVSeat): the
@@ -358,9 +435,12 @@
 		const dqTop = questionBand(false);
 		const dqBtm = questionBand(true);
 		const dial = dialEl();
+		// and the post-game result, which takes the dial's place once a game ends
+		const result = resultEl();
 		gwrap.appendChild(dqTop);
 		gwrap.appendChild(dqBtm);
 		gwrap.appendChild(dial.root);
+		gwrap.appendChild(result.root);
 		board.appendChild(gwrap);
 
 		// player names, per-side score and clocks all live on the two seat strips,
@@ -397,7 +477,7 @@
 		});
 
 		return {
-			card, og, top, bottom, variantEl, watch, watchCount, dqTop, dqBtm, dial,
+			card, og, top, bottom, variantEl, watch, watchCount, dqTop, dqBtm, dial, result,
 			// whiteEl/blackEl: which fixed row currently holds each color; remapped
 			// by updateSlot as the anchored side flips between games
 			whiteEl: orient === 'w' ? bottom : top,
@@ -407,9 +487,10 @@
 			// pre-game phase: whether the arrangements are still hidden, and the
 			// local deadline (ms) + span the dial counts down over
 			deploying: false, phaseEnd: 0, phaseTotalMs: 0,
-			// gameId + last-seen scores drive the end-of-game score flash and its
-			// reset when a rematch backfills the same slot
-			gameId: g.i, sw: scoreOf(g, 'w'), sb: scoreOf(g, 'b')
+			// gameId, plus the id of the game whose result has already been
+			// posted: together they fire the end-of-game flash and overlay
+			// exactly once per game, and reset when the next game takes the slot
+			gameId: g.i, ended: '', resultTimer: null
 		};
 	};
 
@@ -420,14 +501,15 @@
 		slot.whiteEl = slot.orient === 'w' ? slot.bottom : slot.top;
 		slot.blackEl = slot.orient === 'w' ? slot.top : slot.bottom;
 
-		// a new game id in this slot (rematch/backfill) → clear any stale flash and
-		// re-baseline the scores so only the next end-of-game delta animates
+		// a new game id in this slot (rematch/backfill/next game of a match) →
+		// drop the finished game's overlay and flash, whether or not they have
+		// run their course; they belong to a game that is no longer on the board
 		if (g.i && g.i !== slot.gameId) {
 			slot.gameId = g.i;
+			slot.ended = '';
+			hideResult(slot);
 			clearScoreFlash(slot.top);
 			clearScoreFlash(slot.bottom);
-			slot.sw = scoreOf(g, 'w');
-			slot.sb = scoreOf(g, 'b');
 		}
 
 		slot.control = g.tc;
@@ -469,7 +551,10 @@
 		// blind-deploy "Octad" mode now, so no mode suffix is shown.
 		const caption = g.vn || 'Octad';
 		slot.variantEl.textContent = caption;
+		// the overlay is aria-hidden decoration on a link, so a finished game
+		// says what it says in the card's own tooltip as well
 		slot.card.title = (slot.deploying ? 'Deploying · ' : '')
+			+ (slot.over && g.wr ? resultSummary(g) + ' · ' : '')
 			+ (g.vb ? 'vs Computer · ' : '') + caption;
 		setWatchers(slot, g.sp || 0);
 
@@ -478,21 +563,28 @@
 		setSeat(slot.whiteEl, g.ws, slot.deploying);
 		setSeat(slot.blackEl, g.bs, slot.deploying);
 
-		// per-side score, flashing the delta at game end: green +1 (a win), grey
-		// +½ (a draw). Score only changes at game end, so a positive delta is the
-		// natural trigger. A match nobody has scored in yet shows no score at all
-		// — a pair of zeroes says nothing, and the room it buys goes to the names,
+		// per-side score. A match nobody has scored in yet shows no score at all —
+		// a pair of zeroes says nothing, and the room it buys goes to the names,
 		// which at the md breakpoint have barely 30px to work with. Both sides are
 		// toggled together so the two strips' clocks stay in one column.
 		const sw = scoreOf(g, 'w');
 		const sb = scoreOf(g, 'b');
 		const scored = sw > 0 || sb > 0;
-		applyScore(slot.whiteEl, sw, sw - slot.sw, scored);
-		applyScore(slot.blackEl, sb, sb - slot.sb, scored);
-		slot.sw = sw;
-		slot.sb = sb;
+		applyScore(slot.whiteEl, sw, scored);
+		applyScore(slot.blackEl, sb, scored);
 
 		slot.card.classList.toggle('over', slot.over);
+
+		// a game just finished on this board: pulse both score chips with the
+		// outcome and post the result overlay, once. Keyed off the game id rather
+		// than a score delta so that a viewer who arrives during the interlude —
+		// with no delta to observe — is told what happened too, instead of being
+		// left with an unexplained frozen board.
+		if (slot.over && g.i && g.i !== slot.ended && g.wr) {
+			slot.ended = g.i;
+			flashResult(slot, g.wr);
+			showResult(slot, g);
+		}
 
 		// the accent "to move" bar means it is someone's turn. Nobody is on move
 		// during the blind deploy — both sides act at once — so both bars stay
@@ -510,24 +602,72 @@
 		slot.watch.classList.toggle('hidden', n <= 0);
 	};
 
-	// applyScore writes a side's score and, on an increase, pulses it (green for a
-	// win's +1, grey for a draw's +½). `shown` gates the whole chip on the match
+	// applyScore writes a side's score. `shown` gates the whole chip on the match
 	// having a score at all.
-	const applyScore = (c, value, delta, shown) => {
+	const applyScore = (c, value, shown) => {
 		c.score.textContent = value;
 		c.score.classList.toggle('hidden', !shown);
-		if (delta > 0) {
-			flashScore(c, delta);
-		}
 	};
 
-	const flashScore = (c, delta) => {
-		c.score.classList.remove('score-win', 'score-draw');
+	// flashResult pulses both score chips with the finished game's outcome: green
+	// on the winner, red on the loser, grey on both for a draw. The loser's chip
+	// is the point of the pair — it is the only place the card can say who lost,
+	// and a match score reads as a result only when both halves of it do.
+	const flashResult = (slot, winner) => {
+		const draw = winner === 'd';
+		flashScore(slot.whiteEl, draw ? 'draw' : (winner === 'w' ? 'win' : 'loss'));
+		flashScore(slot.blackEl, draw ? 'draw' : (winner === 'b' ? 'win' : 'loss'));
+	};
+
+	const flashScore = (c, kind) => {
+		clearScoreFlash(c);
 		void c.score.offsetWidth; // reflow so re-adding the class restarts the animation
-		c.score.classList.add(delta >= 0.75 ? 'score-win' : 'score-draw');
+		c.score.classList.add('score-' + kind);
 	};
 
-	const clearScoreFlash = (c) => c.score.classList.remove('score-win', 'score-draw');
+	const clearScoreFlash = (c) => c.score.classList.remove('score-win', 'score-draw', 'score-loss');
+
+	// showResult posts the finished game's result over the board for
+	// resultHoldMs, then fades it. Called once per game (updateSlot gates on the
+	// game id), and cut short by hideResult if the next game arrives first.
+	const showResult = (slot, g) => {
+		const draw = g.wr === 'd';
+		slot.result.glyph.innerHTML = RESULT_GLYPHS[g.rs] || '';
+		slot.result.glyph.classList.toggle('draw', draw);
+		setResultScore(slot.result.white, scoreOf(g, 'w'), draw, g.wr === 'w');
+		setResultScore(slot.result.black, scoreOf(g, 'b'), draw, g.wr === 'b');
+		slot.result.root.classList.add('on');
+		clearTimeout(slot.resultTimer);
+		slot.resultTimer = setTimeout(() => {
+			slot.result.root.classList.remove('on');
+			slot.resultTimer = null;
+		}, resultHoldMs);
+	};
+
+	const hideResult = (slot) => {
+		clearTimeout(slot.resultTimer);
+		slot.resultTimer = null;
+		slot.result.root.classList.remove('on');
+	};
+
+	// setResultScore writes one side's points in the overlay, tinted by how that
+	// side finished. The piece-color underbar is static (a class on the element),
+	// so only the tint changes per game.
+	const setResultScore = (el, value, draw, won) => {
+		el.textContent = value;
+		el.classList.toggle('draw', draw);
+		el.classList.toggle('win', !draw && won);
+		el.classList.toggle('loss', !draw && !won);
+	};
+
+	// resultSummary spells the outcome out for the card's tooltip, by color
+	// rather than by seat — the grid is broadcast to every viewer alike, so
+	// there is no "you" to write for (cf. resultSummary in lio-game.js).
+	const resultSummary = (g) => {
+		const who = g.wr === 'd' ? 'Draw' : (g.wr === 'w' ? 'White wins' : 'Black wins');
+		const method = RESULT_METHODS[g.rs] || '';
+		return method ? who + ' ' + method : who;
+	};
 
 	const paintClock = (c, control, centis, running, casual) => {
 		if (casual) {

@@ -1783,6 +1783,12 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// slot until it actually closes (it may rematch), so this just freezes the
 	// shown board on the final position
 	tvEnd := r.tvEventLocked(tv.End)
+	// tvEventLocked reads the method off the board, which for an abandoned game
+	// is the resignation/draw the abandon path applied. Say what actually
+	// happened instead, exactly as the game-over broadcast does.
+	if abandoned {
+		tvEnd.Reason = "abandoned"
+	}
 
 	// shallow value-copy of the game taken under the lock: a consistent terminal
 	// snapshot for both the synchronous PGN build below and the async DB archival

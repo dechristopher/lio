@@ -87,6 +87,11 @@ type Event struct {
 	// instead of ticking down the (effectively infinite) real values.
 	Casual bool
 	Score  proto.ScorePayload
+	// Winner / Reason describe a finished game's outcome ("w"/"b"/"d" plus the
+	// method code). The room fills them on End only; every other kind leaves
+	// them empty. See proto.TVGame.
+	Winner string
+	Reason string
 	// Running reports whether a side's clock is actually being charged, so the
 	// client can hold the times static rather than ticking them down through
 	// every state where the server is not draining anyone (see proto.TVGame).
@@ -300,6 +305,8 @@ func tvGameFrom(ev Event, over bool) proto.TVGame {
 		BlackSeat:  ev.BlackSeat,
 		Casual:     ev.Casual,
 		Score:      ev.Score,
+		Winner:     ev.Winner,
+		Reason:     ev.Reason,
 		Running:    ev.Running && !over,
 		Over:       over,
 		Deploying:  ev.Deploying,

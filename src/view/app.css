@@ -3189,7 +3189,10 @@
 	}
 	/* the octadground square: small --bs, otherwise identical to the room board */
 	.tv-board.gcon { --bs: 100%; width: 100%; }
-	.tv-card.over .tv-board { opacity: 0.6; }
+	/* a finished game's board dims. The dim lands on the board layer alone, not
+	   on .tv-board — the pre-game covers and the result overlay are siblings
+	   inside it, and an opacity there would drag them down with it. */
+	.tv-card.over .og-wrap { opacity: 0.6; }
 
 	/* blind deploy: the grid reuses the room's own home-rank covers
 	   (.deploy-questions / .dq-cell), so the two surfaces cannot drift on what a
@@ -3365,6 +3368,90 @@
 		text-align: right;
 	}
 
+	/* ---- between-games result overlay ----
+	   Posted for resultHoldMs when a game on the grid finishes, then faded. It
+	   is deliberately the pre-game dial's own disc, in the dial's own place: one
+	   object holds the board's center before a game and after it, so a card
+	   mid-match reads as a single motif rather than two unrelated overlays. The
+	   disc carries the win-method glyph in the match timeline's vocabulary (see
+	   tlGlyphs in lio-game.js), the pill beneath it the resulting match score.
+	   Above the dial's z-index only for safety — lio-tv.js drops the overlay the
+	   moment the next game arrives, so the two are never up together. */
+	.tv-result {
+		z-index: 25;
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		opacity: 0;
+		visibility: hidden;
+		pointer-events: none;
+		/* the delayed visibility keeps the fade-out visible, then takes the
+		   overlay out of the picture entirely until the next result */
+		transition: opacity 260ms var(--ease-snappy), visibility 0s 260ms;
+	}
+	.tv-result.on {
+		opacity: 1;
+		visibility: visible;
+		transition: opacity 160ms var(--ease-snappy);
+	}
+	/* the disc itself is .tv-dial-face, shared with the countdown; only what
+	   sits inside it differs */
+	.tv-result-glyph {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-sans);
+		font-size: 1.15rem;
+		font-weight: 700;
+		line-height: 1;
+		color: var(--win);
+	}
+	.tv-result-glyph.draw { color: var(--draw); }
+	/* the time glyph is an inline SVG clock (stroke currentColor, so it takes
+	   the result color like every other glyph) */
+	.tv-result-glyph svg { width: 1rem; height: 1rem; display: block; }
+	.tv-result-score {
+		display: flex;
+		align-items: baseline;
+		gap: 0.3rem;
+		padding: 0.15rem 0.35rem;
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--surface-3) 85%, transparent);
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 0.68rem;
+		font-weight: 700;
+		line-height: 1;
+	}
+	/* each side's points, tinted by the result, over a hairline underbar in the
+	   piece color that side held — the timeline's own way of saying which color
+	   a number belongs to (.tl-h::after), so the pair needs no labels */
+	.tv-rs {
+		position: relative;
+		padding-bottom: 4px;
+		color: var(--text-muted);
+	}
+	.tv-rs::after {
+		content: "";
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+		bottom: 0;
+		width: 0.6rem;
+		height: 2px;
+		border-radius: 2px;
+	}
+	.tv-rs-w::after { background: #ffffff; box-shadow: 0 0 0 1px var(--border-strong); }
+	.tv-rs-b::after { background: #1c1917; box-shadow: 0 0 0 1px var(--border-strong); }
+	.tv-rs.win { color: var(--win); }
+	.tv-rs.loss { color: var(--loss); }
+	.tv-rs.draw { color: var(--draw); }
+	.tv-rs-dash { color: var(--text-subtle); }
+
 	.tv-info {
 		display: flex;
 		align-items: center;
@@ -3401,6 +3488,10 @@
 	   win (+1), grey for a draw (+½). Applied by lio-game.js / lio-tv.js. */
 	.clockScore.score-win, .tv-side-score.score-win { animation: scoreFlashWin 1.1s var(--ease-snappy); }
 	.clockScore.score-draw, .tv-side-score.score-draw { animation: scoreFlashDraw 1.1s var(--ease-snappy); }
+	/* the loser's chip pulses red. TV cards only: on the grid the pair of score
+	   chips is the whole story of the result, while in the room the result card
+	   already names the loser — a red pulse there would only pile on. */
+	.tv-side-score.score-loss { animation: scoreFlashLoss 1.1s var(--ease-snappy); }
 
 	/* omnibus connection indicator, fed by window.lioConn. Lives in the header
 	   sub-row beside the ALPHA tag, so it's bubble-less and inherits that row's
@@ -5918,6 +6009,13 @@
 }
 @keyframes scoreFlashDraw {
 	0% { color: var(--text-muted); transform: scale(1.18); }
+	100% { color: inherit; transform: scale(1); }
+}
+/* the win pulse's curve in the loss color, a shade smaller: the two fire side
+   by side on one card, and an equal pop on both reads as two winners */
+@keyframes scoreFlashLoss {
+	0% { color: var(--loss); transform: scale(1.15); }
+	45% { color: var(--loss); }
 	100% { color: inherit; transform: scale(1); }
 }
 @keyframes tlLivePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }

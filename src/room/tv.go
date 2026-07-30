@@ -49,6 +49,18 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		phaseTotal = r.game.Variant.Control.PreStart.Centi()
 	}
 
+	// a finished game hands the grid its outcome — who won and by what method —
+	// for the brief between-games result overlay. Only the terminal snapshot
+	// carries them: every other kind describes a game still being played, and
+	// the hub keeps this event as the room's state for the whole interlude, so
+	// a viewer arriving mid-interlude still receives the result.
+	var winner, reason string
+	if kind == tv.End {
+		id, _ := r.gameOverStateLocked()
+		winner = getWinnerString(id)
+		reason = r.gameOverReasonLocked(false)
+	}
+
 	return tv.Event{
 		Kind:     kind,
 		RoomID:   r.ID,
@@ -78,6 +90,8 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 		Deploying:  deploying,
 		PhaseLeft:  phaseLeft,
 		PhaseTotal: phaseTotal,
+		Winner:     winner,
+		Reason:     reason,
 	}
 }
 

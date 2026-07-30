@@ -37,6 +37,17 @@ type TVGame struct {
 	Score     ScorePayload `json:"sc,omitempty"` // match score, keyed "w"/"b"
 	Over      bool         `json:"x,omitempty"`  // final position (freeze/dim the board)
 
+	// Winner / Reason describe how the game on the board finished: "w"/"b"/"d"
+	// and the same short method code the room's game-over payload carries
+	// (checkmate, time, resignation, …). They are set only on the terminal
+	// state and ride the hub's stored game through the whole between-games
+	// interlude, so a viewer who arrives after the finish still gets the
+	// result overlay rather than an unexplained frozen board. The score alone
+	// cannot stand in for them: it says who gained a point, not who lost, and
+	// carries no delta at all for a viewer who did not watch the game end.
+	Winner string `json:"wr,omitempty"`
+	Reason string `json:"rs,omitempty"`
+
 	// Running reports that a side's clock is being charged *right now* — the one
 	// question the grid's local interpolator needs answered. It is false through
 	// every pre-game state (the blind deploy phase and the post-reveal first-move
