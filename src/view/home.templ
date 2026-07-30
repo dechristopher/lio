@@ -130,19 +130,38 @@ templ playersCard(c message.Community) {
 				<p class="roster-label">Online now</p>
 				<ul class="chip-list">
 					for _, m := range c.Online {
-						<li>
-							<a href={ templ.SafeURL(profileURL(m.Username)) } class={ "roster-chip", templ.KV("is-playing", m.Playing) }>
+						// One split pill per player: the name links to their profile,
+						// the sword opens a challenge. Two targets that read as a single
+						// object, which is what they are — a person and what you can do
+						// with them.
+						<li class="roster-item">
+							<a href={ templ.SafeURL(profileURL(m.Username)) } class={ "roster-chip", templ.KV("is-playing", m.Playing), templ.KV("is-busy", m.Busy) }>
 								<span class="roster-dot" aria-hidden="true"></span>
 								@playerTitle(m.Title)
 								<span class="roster-chip-name">{ m.Username }</span>
-								// only the seated members carry the tag, so it reads as a
-								// distinction rather than noise repeated on every chip —
-								// and it is text, not just the accent tint, so the state
-								// does not depend on color alone
+								// Only the unavailable members carry a tag, so it reads as
+								// a distinction rather than noise repeated on every chip.
+								// It is text, not just the amber dot, so the state never
+								// depends on color alone — and it says why the sword is
+								// missing rather than leaving that to be inferred.
 								if m.Playing {
 									<span class="roster-chip-tag">playing</span>
+								} else if m.Busy {
+									<span class="roster-chip-tag">waiting</span>
 								}
 							</a>
+							// The sword is a sibling of the chip, not a child: the chip is
+							// a link to their profile, and a button inside an anchor is
+							// neither valid nor clickable in the way either one wants. The
+							// two are joined into one pill by the CSS.
+							//
+							// It appears only for somebody who could actually accept right
+							// now — see canChallenge — so it is absent for every member
+							// the dot has turned amber. A control that is present but
+							// fails is worse than one that is absent.
+							if canChallenge(viewer(ctx), m.Username, m.Busy) {
+								@challengeButton(m.Username, "roster-challenge")
+							}
 						</li>
 					}
 				</ul>
@@ -151,7 +170,7 @@ templ playersCard(c message.Community) {
 				<p class="roster-note">{ note }</p>
 			}
 			if len(c.Newest) > 0 {
-				<p class="roster-label">Newest members</p>
+				<p class="roster-label">Arrivals</p>
 				<ul class="chip-list">
 					for _, m := range c.Newest {
 						<li>

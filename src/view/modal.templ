@@ -13,8 +13,14 @@ import (
 // "deploy" under the hood — so there is no mode toggle: each time-control card
 // carries its variant HTMLName and a small script writes the chosen one into the
 // hidden time-control field the form submits. Choosing the computer as opponent
-// fades + disables (never removes — settings changes must not shift the layout)
-// the open-challenge toggle and the race-to picker; bot games are never public.
+// fades + disables (never removes — a choice made *inside* the open dialog must
+// not shift the layout under the person making it) the open-challenge toggle and
+// the race-to picker; bot games are never public.
+//
+// Opening it as a direct challenge is the one exception: the opponent, the
+// open-challenge toggle and the allow-anonymous toggle are hidden outright,
+// because a challenge answers all three before the dialog opens and nothing
+// inside it can change that (arch/NOTIFICATIONS.md Phase 2).
 // The Casual (untimed) toggle applies to any opponent; turning it on fades the
 // then-moot time-control cards. The rated status (see cg-rated) is passive: it
 // lights when the current settings would produce a rated game (logged in, human
@@ -27,14 +33,22 @@ templ createGameModal() {
 	<div id="modalCreateGame" class="modal-shade">
 		<div class="modal cg-modal card">
 			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
+			// The head doubles as the challenge header: opening the modal from a
+			// player's sword swaps this copy to name them, so the dialog says who
+			// the game is for rather than leaving that to a field nobody reads.
 			<div class="cg-head">
-				<span class="cg-kicker">New game</span>
-				<h2 class="cg-title">Create a game</h2>
+				<span class="cg-kicker" data-cg-kicker>New game</span>
+				<h2 class="cg-title" data-cg-title>Create a game</h2>
 			</div>
 			<form class="cg" action="/new/game" method="POST" hx-post="/new/game" data-bot-difficulty="custom">
 				<div class="cg-body">
 					<div class="cg-panel">
-						<div class="cg-field">
+						// Hidden when the dialog is opened as a challenge: the opponent
+						// is the player being challenged, so there is nothing to
+						// choose. See app.css for why this one hides while the rest of
+						// the dialog fades. Computer is disabled outright as well —
+						// the server refuses an invitation on a bot game.
+						<div class="cg-field cg-opponent">
 							<span class="cg-label">Opponent</span>
 							<div class="seg" role="radiogroup" aria-label="Opponent">
 								<input id="opp-human" class="seg-input" type="radio" name="opponent" value="human" checked/>
@@ -173,6 +187,11 @@ templ createGameModal() {
 					</div>
 				</div>
 				<input type="hidden" name="time-control" id="cg-variant" value=""/>
+				<!-- the direct-challenge target (arch/NOTIFICATIONS.md Phase 2).
+				     Empty for an ordinary creation; set when the modal is opened
+				     from a player's sword. The server re-validates the name — this
+				     field is as forgeable as any other. -->
+				<input type="hidden" name="invite" id="cg-invite" value=""/>
 			</form>
 		</div>
 	</div>
@@ -182,6 +201,36 @@ templ createGameModal() {
 			const closeBtn = modal.querySelector(".modal-close");
 			const publicBox = modal.querySelector(".cg-public-box");
 			const humanOpp = modal.querySelector("#opp-human");
+			const inviteField = modal.querySelector("#cg-invite");
+			const kicker = modal.querySelector("[data-cg-kicker]");
+			const titleEl = modal.querySelector("[data-cg-title]");
+			// Challenge mode is a property of one opening, not of the page: the
+			// modal is a single element reused by every trigger, so it is reset
+			// on the way in rather than on the way out. Resetting on close would
+			// leave a stale target on any path that dismisses it some other way
+			// (Escape, the scrim, a bfcache restore).
+			const form = modal.querySelector("form.cg");
+			const botOpp = modal.querySelector("#opp-computer");
+			const anonBox = modal.querySelector(".cg-allow-anon-box");
+			const setChallenge = (name) => {
+				if (inviteField) inviteField.value = name || "";
+				if (kicker) kicker.textContent = name ? "Challenge" : "New game";
+				if (titleEl) titleEl.textContent = name ? "Challenging " + name : "Create a game";
+				// is-challenge hides the three settings a challenge already answers
+				// (opponent, open challenge, allow anonymous — see app.css).
+				if (form) form.classList.toggle("is-challenge", !!name);
+				// Hidden is not the same as harmless: these controls still submit
+				// whatever they were left holding by an earlier opening of this same
+				// dialog. Put them into the state a challenge means, every time.
+				// Disabling the Computer radio guards the one that would otherwise
+				// be reachable by keyboard if the styles ever failed to load.
+				if (botOpp) botOpp.disabled = !!name;
+				if (name) {
+					if (humanOpp) humanOpp.checked = true;
+					if (publicBox) publicBox.checked = false;
+					if (anonBox) anonBox.checked = false;
+				}
+			};
 			const open = () => modal.classList.add("open");
 			const close = () => modal.classList.remove("open");
 			// Delegated open: any [data-open-create-game] element opens the modal,
@@ -193,7 +242,12 @@ templ createGameModal() {
 			document.addEventListener("click", (e) => {
 				const trigger = e.target.closest("[data-open-create-game]");
 				if (!trigger) return;
-				if (trigger.hasAttribute("data-prefill-public") && publicBox) {
+				// A challenge is addressed to one person, so it is human-only, never
+				// a public seek, and never open to anonymous joiners. setChallenge
+				// puts all three into that state; the server forces them too.
+				const target = trigger.getAttribute("data-challenge");
+				setChallenge(target);
+				if (!target && trigger.hasAttribute("data-prefill-public") && publicBox) {
 					if (humanOpp) humanOpp.checked = true;
 					publicBox.checked = true;
 				}

@@ -359,3 +359,154 @@
     if (document.visibilityState !== "visible") ev.preventDefault();
   });
 })();
+
+// The operator message composer on /system (arch/NOTIFICATIONS.md Phase 3):
+// find one player, write to them, send.
+//
+// Its own IIFE because it shares nothing with the confirmation flow above —
+// which returns early on any page without the confirm modal, and would take
+// this with it. Nothing here is a security control: both endpoints re-check the
+// caller's role.
+//
+// No confirmation dialog, unlike the moderation actions. Those change what an
+// account may do and are hard to undo; this sends a message, and asking someone
+// to confirm every message would train them to click through the dialog that
+// guards the bans.
+(function () {
+  "use strict";
+
+  const search = document.getElementById("msgSearch");
+  const results = document.getElementById("msgResults");
+  const picked = document.getElementById("msgPicked");
+  const bodyEl = document.getElementById("msgBody");
+  const sendBtn = document.getElementById("msgSend");
+  const errorEl = document.getElementById("msgError");
+  const okEl = document.getElementById("msgOk");
+  if (!search || !results || !sendBtn) return;
+
+  // The shortest term the server answers, mirrored here so a single keystroke
+  // costs no request at all.
+  const minTerm = 2;
+  // Long enough that a typed word settles before it is looked up, short enough
+  // that the list still feels like it is following along.
+  const debounceMs = 200;
+
+  let target = null; // {id, username}, or null while nobody is chosen
+  let timer = null;
+  let seq = 0; // guards against an older search landing after a newer one
+
+  function setStatus(el, text) {
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("hidden", !text);
+  }
+
+  function clearStatus() {
+    setStatus(errorEl, "");
+    setStatus(okEl, "");
+  }
+
+  function syncSend() {
+    const body = bodyEl ? bodyEl.value.trim() : "";
+    sendBtn.disabled = !target || body.length < 8;
+  }
+
+  function choose(player) {
+    target = player;
+    results.replaceChildren();
+    search.value = "";
+    if (picked) {
+      picked.textContent = "Writing to " + player.username;
+      picked.classList.remove("hidden");
+    }
+    clearStatus();
+    syncSend();
+    if (bodyEl) bodyEl.focus();
+  }
+
+  function renderResults(players) {
+    results.replaceChildren();
+    if (!players.length) return;
+    players.forEach(function (p) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "msg-result";
+      btn.setAttribute("role", "option");
+      btn.textContent = p.username;
+      btn.addEventListener("click", function () { choose(p); });
+      results.appendChild(btn);
+    });
+  }
+
+  async function runSearch(term) {
+    const mine = ++seq;
+    try {
+      const res = await fetch("/api/mod/users/search?q=" + encodeURIComponent(term), {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok || mine !== seq) return;
+      const data = await res.json();
+      // a late answer to a term the operator has already typed past would
+      // replace the list under them
+      if (mine === seq) renderResults((data && data.players) || []);
+    } catch (e) {
+      // a failed lookup leaves the last list alone; typing again retries
+    }
+  }
+
+  search.addEventListener("input", function () {
+    // Typing again means the previously chosen player is no longer the subject.
+    // Leaving them selected would let somebody search for a second name, not
+    // click it, and send to the first.
+    target = null;
+    if (picked) picked.classList.add("hidden");
+    syncSend();
+    clearStatus();
+
+    const term = search.value.trim();
+    clearTimeout(timer);
+    if (term.length < minTerm) {
+      results.replaceChildren();
+      return;
+    }
+    timer = setTimeout(function () { runSearch(term); }, debounceMs);
+  });
+
+  if (bodyEl) bodyEl.addEventListener("input", function () { clearStatus(); syncSend(); });
+
+  sendBtn.addEventListener("click", async function () {
+    if (!target) return;
+    const body = bodyEl ? bodyEl.value.trim() : "";
+    clearStatus();
+    // Held down for the whole request: this writes an audit entry and a
+    // notification, and a double press would send the message twice.
+    sendBtn.disabled = true;
+    try {
+      const res = await fetch("/api/mod/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ userId: target.id, body: body }),
+      });
+      const data = await res.json().catch(function () { return null; });
+      if (!res.ok) {
+        setStatus(errorEl, (data && data.error) || "could not send that message");
+        syncSend();
+        return;
+      }
+      setStatus(okEl, "Sent to " + ((data && data.sent) || target.username) + ".");
+      // Reset to an empty composer: the next message is to somebody else more
+      // often than it is a second message to the same person.
+      target = null;
+      if (picked) picked.classList.add("hidden");
+      if (bodyEl) bodyEl.value = "";
+      search.value = "";
+      results.replaceChildren();
+    } catch (e) {
+      setStatus(errorEl, "could not send that message");
+    } finally {
+      syncSend();
+    }
+  });
+
+  syncSend();
+})();

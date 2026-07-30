@@ -290,6 +290,16 @@ type Socket struct {
 	ID         string // per-connection id, unique within a uid
 	UID        string
 	Type       string
+	// AcctID is the signed-in account this socket authenticated as, or 0 for an
+	// anonymous session. It is resolved once, at upgrade time, like UID.
+	//
+	// The socket maps key by uid, which is a *session* identity: one account
+	// signed in on a laptop and a phone holds two uids. Anything addressed to a
+	// person rather than to a session — a notification (arch/NOTIFICATIONS.md) —
+	// must therefore match on this field instead. Storing it on the socket keeps
+	// one source of truth; a separate index from account to socket would be a
+	// second copy that can disagree with this map.
+	AcctID int64
 
 	send   chan []byte
 	closed chan struct{}
@@ -297,12 +307,14 @@ type Socket struct {
 }
 
 // NewSocket builds a tracked connection wrapper with its own send buffer.
-func NewSocket(conn *websocket.Conn, uid, connID, typ string) *Socket {
+// acctID is 0 for an anonymous session.
+func NewSocket(conn *websocket.Conn, uid, connID, typ string, acctID int64) *Socket {
 	return &Socket{
 		Connection: conn,
 		ID:         connID,
 		UID:        uid,
 		Type:       typ,
+		AcctID:     acctID,
 		send:       make(chan []byte, SendBuffer),
 		closed:     make(chan struct{}),
 	}

@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -318,6 +319,65 @@ func ListTitles() ([]TitleOption, error) {
 		out = append(out, TitleOption{ID: r.ID, Code: r.Code, Name: r.Name})
 	}
 	return out, nil
+}
+
+// UserMatch is one hit from the player picker: enough to show a name and to
+// address a message to it, and nothing else.
+type UserMatch struct {
+	ID       int64
+	Username string
+}
+
+// SearchUsers finds accounts whose username contains term, closest first
+// (arch/NOTIFICATIONS.md Phase 3). limit bounds the answer — the picker shows a
+// short list, never a directory.
+//
+// The term is matched as a substring, so the caller passes a bare word and this
+// builds the pattern. It also escapes the LIKE wildcards: a term containing %
+// would otherwise match every account, and _ would match any character, which
+// is a surprising result rather than a dangerous one but is still not what
+// anybody typing a name meant.
+func SearchUsers(term string, limit int32) ([]UserMatch, error) {
+	if Pool == nil {
+		return nil, nil
+	}
+	term = strings.TrimSpace(term)
+	if term == "" {
+		return nil, nil
+	}
+	escaped := strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(term)
+
+	ctx, cancel := Ctx()
+	defer cancel()
+	rows, err := gen.New(Pool).SearchUsers(ctx, gen.SearchUsersParams{
+		Username: "%" + escaped + "%",
+		Lower:    term,
+		Limit:    limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]UserMatch, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, UserMatch{ID: r.ID, Username: r.Username})
+	}
+	return out, nil
+}
+
+// ModeratorIDs lists every account that may moderate, so the unread-feedback
+// count can be pushed to their open sockets (arch/NOTIFICATIONS.md).
+//
+// Feedback read state is site-wide, so that badge belongs to the whole staff at
+// once and there is no per-account row to address instead. The result is the
+// site's moderators, which is a handful of rows, and it is read only when
+// feedback is submitted or read — never on a render path.
+func ModeratorIDs() ([]int64, error) {
+	if Pool == nil {
+		return nil, nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	return gen.New(Pool).ListModeratorIDs(ctx)
 }
 
 // errUniqueViolation is Postgres' unique_violation SQLSTATE.

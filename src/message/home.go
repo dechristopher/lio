@@ -65,6 +65,13 @@ type OnlineMember struct {
 	// Playing marks a member seated in a live game rather than browsing, so the
 	// roster can say who is actually at a board right now.
 	Playing bool
+	// Busy marks a member seated in any room — a live game, or a challenge of
+	// their own that is still waiting for an opponent. It is what decides
+	// whether they can be sent a direct challenge (arch/NOTIFICATIONS.md
+	// Phase 2), and it is deliberately wider than Playing: somebody sitting on
+	// their own waiting page is not playing, but they are already committed to
+	// the next game they start.
+	Busy bool
 }
 
 // NewMember is a recently registered account, shown so a visitor can see the

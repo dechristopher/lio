@@ -43,6 +43,11 @@
 	};
 
 	const connect = () => {
+		// Claim the page's one socket, so lio-notify.js does not open a second
+		// one on the home page. The TV stream is a broadcast channel, but the
+		// server addresses a notification to a single connection on it, so a
+		// viewer only ever receives their own (arch/NOTIFICATIONS.md).
+		window.lioSocketOwner = 'tv';
 		ws = new WebSocket(location.origin.replace(/^http/, 'ws') + '/socket/tv');
 		ws.onopen = () => {
 			attempts = 0;
@@ -125,6 +130,14 @@
 		// server version hello: the home page loads no lio.js socket, so this
 		// TV stream is where a deploy's new version first shows up — hand it
 		// to the shared refresh prompt (updateNoticeScript in the header)
+		// notification frame: this socket carries the viewer's own badge and
+		// messages as well as the grid (arch/NOTIFICATIONS.md)
+		if (msg.t === 'nt') {
+			if (msg.d && window.lioNotify) {
+				window.lioNotify.apply(msg.d);
+			}
+			return;
+		}
 		if (msg.t === 'si') {
 			if (msg.d && msg.d.v && window.lioUpdateNotice) {
 				window.lioUpdateNotice(msg.d.v);

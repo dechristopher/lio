@@ -5,6 +5,7 @@ import (
 
 	"github.com/dechristopher/lio/www/handlers/api/account"
 	"github.com/dechristopher/lio/www/handlers/api/feedback"
+	"github.com/dechristopher/lio/www/handlers/api/me"
 	"github.com/dechristopher/lio/www/handlers/api/mod"
 	"github.com/dechristopher/lio/www/handlers/api/pools"
 	"github.com/dechristopher/lio/www/handlers/api/report"
@@ -36,6 +37,12 @@ func Wire(a fiber.Router) {
 	// (nobody sends feedback twice a second), and the per-account rolling cap
 	// inside the handler is what actually bounds one person's volume.
 	feedback.Wire(a.Group("/feedback", middleware.FeedbackLimiter()))
+
+	// the signed-in account's own state: the notification panel behind the bell
+	// (arch/NOTIFICATIONS.md). Rate-limited like the other account-reachable
+	// groups. Every handler inside is scoped to the session's own rows, so the
+	// group needs no role check.
+	me.Wire(a.Group("/me", middleware.AuthAPILimiter()))
 
 	// statistics API group
 	stat := a.Group("/stat")

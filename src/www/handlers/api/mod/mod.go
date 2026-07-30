@@ -52,6 +52,11 @@ func Wire(g fiber.Router) {
 	g.Post("/feedback/read", ReadFeedbackHandler)
 	g.Post("/feedback/read-all", ReadAllFeedbackHandler)
 
+	// the operator message composer on /system (see notify.go): find a player,
+	// write to them
+	g.Get("/users/search", SearchUsersHandler)
+	g.Post("/notify", NotifyUserHandler)
+
 	// live ops: force-close a room (admin-only; see rooms.go)
 	g.Post("/room/close", CloseRoomHandler)
 

@@ -121,6 +121,12 @@ type Instance struct {
 	players player.Players
 	rematch player.Agreement
 
+	// busySeats is the set of account ids this room currently contributes to the
+	// package-wide busy index (busy.go), so the room can reconcile exactly what
+	// it added and never remove somebody else's seat. Guarded by stateMu, like
+	// the players map it is derived from.
+	busySeats []int64
+
 	// draw records in-game draw-offer agreement between the two seats: a side is
 	// marked when it offers (or accepts) a draw, and the game is drawn by
 	// agreement once both sides are marked. drawOffer names the color with a
@@ -230,6 +236,21 @@ type Params struct {
 	// Public lists an open human challenge in the home-page Open Challenges
 	// feed. Defaults to false (private, link-only); the creator opts in.
 	Public bool
+	// InvitedUserID targets the room at one account: a direct challenge
+	// (arch/NOTIFICATIONS.md Phase 2). Only that account may take the open seat,
+	// and Join enforces it — this is the authoritative gate, not the absence of
+	// a button. Nil (the default) leaves the seat open to anyone with the link.
+	//
+	// A targeted room is always Public=false. It is somebody's invitation, not a
+	// seek, and listing it would let a stranger try a seat they cannot have.
+	//
+	// This is deliberately absent from PersistedRoom. A room is only persisted
+	// once both seats are committed (see Persist), by which point the invitation
+	// is spent and the seat it guarded is filled.
+	InvitedUserID *int64
+	// InvitedName is that account's display name, for the creator's waiting
+	// page ("waiting for bob"). Display only; InvitedUserID is what Join tests.
+	InvitedName string
 	// BlindColor marks a room whose creator chose a random color: the concrete
 	// seat colors (still resolved at creation) are hidden from the pre-game
 	// views and the open-challenge listing until the game begins. Defaults to
@@ -433,6 +454,12 @@ func Create(params Params) (*Instance, error) {
 	// store room in rooms map
 	rooms.Store(r.ID, r)
 
+	// register the creator's seat in the busy index, so they stop being offered
+	// as a challenge target the moment they are waiting in a room of their own
+	r.stateMu.Lock()
+	r.setBusySeats()
+	r.stateMu.Unlock()
+
 	// log room creation
 	util.Info(str.CRoom, "[%s] room created by uid %s", r.ID, params.Creator)
 
@@ -513,6 +540,9 @@ func (r *Instance) cleanup() {
 	}
 	// delete room instance from rooms map
 	rooms.Delete(r.ID)
+	// release both seats from the busy index: these players are free to be
+	// challenged again the moment their room is gone
+	r.clearBusySeats()
 	// drop the room's persisted snapshot; routed through the persister loop so
 	// it serializes after any in-flight snapshot write of this room
 	forgetSnapshot(r.ID)
@@ -707,6 +737,15 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 
 	// if second player joining
 	if !hasPlayers && missing != octad.NoColor {
+		// A direct challenge is addressed to one account (arch/NOTIFICATIONS.md).
+		// This is the authoritative gate: the link is shareable, the notification
+		// is not a secret, and nothing else stops a stranger who has the room id
+		// from taking a seat meant for somebody else.
+		if r.params.InvitedUserID != nil {
+			if seat.UserID == nil || *seat.UserID != *r.params.InvitedUserID {
+				return false
+			}
+		}
 		// rated games (arch/ACCOUNTS_AUTH_RATINGS.md Phase 5) require a logged-in
 		// opponent who is a different account than the creator — a rating between
 		// an anonymous seat or one account playing itself is meaningless. This is
@@ -749,6 +788,10 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 		// captured at Create)
 		captureSeatRating(r.players[missing], r.params.Rated, r.params.ratingCategory())
 
+		// the seat set just changed: the joiner is now busy too. stateMu is held
+		// for the whole of this method, which is what setBusySeats requires.
+		r.setBusySeats()
+
 		// joined properly
 		return true
 	}
@@ -760,6 +803,32 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 // NotifyWaiting notifies the waiting player(s) that games have begun
 // by sending redirect messages to the room
 func (r *Instance) NotifyWaiting() {
+	r.redirectWaiting(fmt.Sprintf("/%s", r.ID))
+}
+
+// RedirectWaiting sends everyone on the room's waiting channel — in practice
+// the creator sitting on their own challenge page — somewhere else.
+//
+// The destination is the caller's, not this package's: a room knows which
+// sockets are waiting on it, and the web layer knows where a person should go
+// and what to tell them when they get there. It is used to say a direct
+// challenge was declined (arch/NOTIFICATIONS.md Phase 2).
+//
+// Call it *before* Cancel. Cancelling tears the room's channels down, and a
+// redirect enqueued after that has nothing left to write to.
+//
+// Best effort by nature: the creator may already have closed the page, and the
+// socket teardown can race the write. The fallback is the one every dead room
+// already has — the client reconnects, finds no room, and is sent home with the
+// generic room-gone notice. This only makes the common case say what actually
+// happened.
+func (r *Instance) RedirectWaiting(location string) {
+	r.redirectWaiting(location)
+}
+
+// redirectWaiting broadcasts a redirect to everyone on the room's waiting
+// channel — in practice the creator sitting on the challenge page.
+func (r *Instance) redirectWaiting(location string) {
 	waitingChannelName := fmt.Sprintf("%s%s", waiting, r.ID)
 	// ensure channel exists before notifying players
 	if waitingChannel := channel.Map.GetSockMap(waitingChannelName); waitingChannel != nil {
@@ -769,7 +838,7 @@ func (r *Instance) NotifyWaiting() {
 		}
 		// create redirect message
 		redir := proto.RedirectMessage{
-			Location: fmt.Sprintf("/%s", r.ID),
+			Location: location,
 		}
 		// broadcast redirect message
 		channel.Broadcast(redir.Marshal(), meta)
@@ -798,6 +867,29 @@ func (r *Instance) State() State {
 // IsCreator returns true if the given player by ID is the creator of the room
 func (r *Instance) IsCreator(id string) bool {
 	return r.creator == id
+}
+
+// InvitedUserID returns the account a direct challenge is addressed to, or nil
+// for a room anyone may join (arch/NOTIFICATIONS.md Phase 2). Set once at
+// creation; safe to read without the lock.
+func (r *Instance) InvitedUserID() *int64 {
+	return r.params.InvitedUserID
+}
+
+// InvitedName is the display name behind InvitedUserID, for the creator's
+// waiting page. Empty for a room that is not a direct challenge.
+func (r *Instance) InvitedName() string {
+	return r.params.InvitedName
+}
+
+// IsInvited reports whether the given account holds the invitation to this
+// room. A room with no invitation admits everybody, which is what makes this
+// safe to ask on every join path rather than only on challenge rooms.
+func (r *Instance) IsInvited(userID *int64) bool {
+	if r.params.InvitedUserID == nil {
+		return true
+	}
+	return userID != nil && *userID == *r.params.InvitedUserID
 }
 
 // IsRated reports whether the room's games affect Glicko-2 ratings

@@ -350,6 +350,12 @@ func (r *Instance) StartRehydrated() error {
 
 	rooms.Store(r.ID, r)
 
+	// a restored room's seats are still held: re-register them in the busy index,
+	// which does not survive the restart the snapshot does
+	r.stateMu.Lock()
+	r.setBusySeats()
+	r.stateMu.Unlock()
+
 	// re-announce a live game to the home-page TV grid: the tv.Start publish in
 	// handleGameReady already ran in the previous process, and a restored
 	// ongoing room re-enters the FSM past it

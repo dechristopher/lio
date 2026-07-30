@@ -42,6 +42,10 @@ const (
 	// ServerInfoTag is the message type tag for the ServerInfoPayload (build
 	// version hello — drives the client's "site updated, refresh" prompt)
 	ServerInfoTag PayloadTag = "si"
+	// NotifyTag is the message type tag for the NotifyPayload: the unread
+	// notification count on connect, and each new message as it arrives
+	// (arch/NOTIFICATIONS.md). Addressed to one account, not to a channel.
+	NotifyTag PayloadTag = "nt"
 )
 
 // Message represents our websocket protocol messages container

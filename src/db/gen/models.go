@@ -74,6 +74,18 @@ type Move struct {
 	MoveMs     *int32
 }
 
+type Notification struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	UserID    int64
+	Kind      string
+	ActorID   *int64
+	Body      string
+	Link      string
+	ReadAt    pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
 type Position struct {
 	ID          int32
 	Hash        []byte

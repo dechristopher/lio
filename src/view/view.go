@@ -123,10 +123,18 @@ type Viewer struct {
 	// privileged route re-checks server-side.
 	Role role.Role
 	// UnreadFeedback is how much player feedback nobody has read yet, driving
-	// the red dot on the header username and the popover's System link. Only
-	// ever populated for a viewer who can moderate — an ordinary account has
-	// nowhere to act on it, so it is not worth the count.
+	// the red dot on the popover's System link and counted into the bell's
+	// badge. Only ever populated for a viewer who can moderate — an ordinary
+	// account has nowhere to act on it, so it is not worth the count.
 	UnreadFeedback int64
+	// UnreadNotifications is how many of this account's own notifications it has
+	// not read (arch/NOTIFICATIONS.md), which is the rest of the bell's badge.
+	//
+	// Rendered as well as pushed on the socket. The socket is what keeps the
+	// badge true on a page nobody reloads, but it opens a moment after the
+	// paint, and a badge that appeared late would read as a message that had
+	// just arrived.
+	UnreadNotifications int64
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -147,6 +155,10 @@ func viewerFrom(c fiber.Ctx) Viewer {
 				// map lookup on the render path rather than a query per page
 				v.UnreadFeedback = db.UnreadFeedback()
 			}
+			// One partial-index count for each render of a signed-in page. It
+			// belongs to one account, so the process-wide cache the feedback
+			// count uses cannot serve it.
+			v.UnreadNotifications = db.UnreadNotifications(uc.Account.ID)
 		}
 	}
 	return v

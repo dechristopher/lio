@@ -1,0 +1,111 @@
+package view
+
+// The notification bell in the header and the panel behind it
+// (arch/NOTIFICATIONS.md).
+//
+// Only the badge is rendered here. The rows are not: the panel fetches its list
+// on the first open, and lio-notify.js renders a row from that list and from a
+// message that arrives on the socket with one function. Two renderers, one in
+// Go and one in JavaScript, would drift apart the first time a kind was added.
+
+// bellButton is the header control. It carries the badge, because the panel
+// behind it is the only place a notification can be seen and a badge inside a
+// closed menu tells nobody anything.
+//
+// The count is the account's unread notifications plus, for a moderator, the
+// unread feedback the panel shows as a derived item. Both are already resolved
+// for the render, so the first paint carries the true number and the socket
+// never has to correct a badge that started wrong.
+templ bellButton() {
+	<button
+		type="button"
+		id="notifyButton"
+		class="hdr-icon-btn notify-bell shrink-0"
+		aria-label="Notifications"
+		title="Notifications"
+		aria-haspopup="true"
+		aria-expanded="false"
+	>
+		@iconBell()
+		@notifyDot(viewer(ctx).UnreadNotifications + viewer(ctx).UnreadFeedback)
+	</button>
+}
+
+// notifyDot is the badge on the bell. Like the feedback dot it renders nothing
+// at zero: a mark that is always there, and sometimes means something, is a mark
+// nobody reads.
+//
+// lio-notify.js creates and removes this same element as the count changes, so
+// a page that has been open for an hour and a page loaded a second ago describe
+// "nothing new" the same way — by having no dot at all.
+templ notifyDot(n int64) {
+	if n > 0 {
+		<span class="notify-dot" role="status" aria-label={ NotifyBadgeLabel(n) }></span>
+	}
+}
+
+// notifyPanel is the dropdown. It follows the other two header popovers exactly
+// (prefsPopover, profilePopover): hidden by default, opened by navScript, dimmed
+// behind the shared scrim, and closed on a restore from the back/forward cache.
+//
+// The list starts empty and says so. data-loaded is the same handshake the
+// ratings summary in the profile popover uses: the client fetches on the first
+// open and marks the container loaded, so reopening the panel costs nothing.
+templ notifyPanel() {
+	<div id="notifyPanel" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+		<div class="flex items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Notifications</p>
+			// hidden until the client knows there is something to clear, so the
+			// control never invites a click that would do nothing
+			<button type="button" id="notifyReadAll" class="hidden text-xs text-fg-subtle hover:text-fg">Mark all read</button>
+		</div>
+		<div id="notifyList" class="notify-list mt-2" data-loaded="false">
+			<p class="notify-empty">Loading…</p>
+		</div>
+	</div>
+}
+
+// challengeButton opens the create-game modal addressed at one player
+// (arch/NOTIFICATIONS.md Phase 2). class lets the two callers size it for their
+// own surface — a small sword beside a roster chip, a full button on a player
+// page — while the behaviour and the accessible name stay in one place.
+//
+// It carries no href. A challenge is a creation, and the terms are chosen in
+// the modal the click opens; the form it submits is the ordinary one.
+templ challengeButton(username, class string) {
+	<button
+		type="button"
+		class={ class }
+		data-open-create-game
+		data-challenge={ username }
+		aria-label={ "Challenge " + username }
+		title={ "Challenge " + username }
+	>
+		@iconSwords()
+		if class == "btn btn-ghost challenge-btn" {
+			<span>Challenge</span>
+		}
+	</button>
+}
+
+// iconSwords is the crossed-swords glyph marking a challenge, on the button
+// that sends one and on the row that receives it.
+templ iconSwords() {
+	<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M14.5 17.5 3 6V3h3l11.5 11.5"></path>
+		<path d="M13 19l6-6"></path>
+		<path d="M16 16l4 4"></path>
+		<path d="M19 21l2-2"></path>
+		<path d="M9.5 17.5 21 6V3h-3L6.5 14.5"></path>
+		<path d="M5 19l-2-2"></path>
+		<path d="M8 16l-4 4"></path>
+	</svg>
+}
+
+// iconBell is the lucide "bell" glyph backing the header control.
+templ iconBell() {
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+		<path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+	</svg>
+}

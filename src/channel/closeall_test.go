@@ -10,8 +10,8 @@ import (
 // mid-teardown) — it skips the close frame but still shuts the writer down.
 func TestCloseAllNilConnSafe(t *testing.T) {
 	sm := Map.GetSockMap("closeall-test")
-	s1 := NewSocket(nil, "u1", "c1", "")
-	s2 := NewSocket(nil, "u2", "c2", "")
+	s1 := NewSocket(nil, "u1", "c1", "", 0)
+	s2 := NewSocket(nil, "u2", "c2", "", 0)
 	sm.Track(s1)
 	sm.Track(s2)
 	t.Cleanup(func() {

@@ -3,6 +3,15 @@ package room
 import "time"
 
 const roomExpiryTime = time.Minute * 5
+
+// ChallengeExpiry is how long a direct challenge is advertised as worth acting
+// on (arch/NOTIFICATIONS.md Phase 2). It is defined as the room's own initial
+// grace so the two can never drift: the notification must not still offer an
+// Accept after the room behind it has certainly gone.
+//
+// The room usually dies sooner — reconnectGrace, once its creator leaves the
+// page — so this is an upper bound on a challenge's life, not a promise of one.
+const ChallengeExpiry = roomExpiryTime
 const abandonTimeout = time.Second * 20
 
 // casualAbandonTimeout replaces abandonTimeout for untimed casual games

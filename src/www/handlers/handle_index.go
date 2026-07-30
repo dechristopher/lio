@@ -30,6 +30,18 @@ func IndexHandler(c fiber.Ctx) error {
 		// specific action that just didn't happen.
 		meta.Notice = "New games are paused for maintenance right now. " +
 			"Games already in progress are unaffected — please try again shortly."
+	case "challenge-declined":
+		// the invited player turned it down, and the room closed under the
+		// challenger (arch/NOTIFICATIONS.md Phase 2). Said plainly: this is an
+		// answer, not a fault, and the generic room-gone copy would read as one.
+		meta.Notice = "Your challenge was declined. Create another game below, " +
+			"or challenge somebody else from the players list."
+	case "challenge-failed":
+		// the invite could not be resolved — an unknown or banned account, or a
+		// tampered form. Deliberately vague about which: a message that
+		// distinguishes them would report whether an account exists.
+		meta.Notice = "That challenge could not be sent. The player may no longer " +
+			"be available — try again from their profile or the players list."
 	}
 
 	return view.Render(c, 200, view.Index(meta, challenges, stats, community))

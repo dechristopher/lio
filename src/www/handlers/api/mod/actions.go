@@ -8,6 +8,7 @@ import (
 
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
@@ -68,6 +69,33 @@ func logAction(sess *auth.Session, targetID int64, action string,
 	if err := db.LogModAction(*sess.UserID, &targetID, action, detail, reason); err != nil {
 		util.Error(str.CDB, "mod action log failed action=%s target=%d error=%s",
 			action, targetID, err.Error())
+	}
+}
+
+// notifyTarget tells the account what was done to it (arch/NOTIFICATIONS.md).
+// It runs after the audit entry, and only for the actions a player has to know
+// about: a changed username, a granted or removed title, a lifted ban. A ban
+// itself is not among them, because the ban screen at the next login says more
+// than a bell can.
+//
+// The acting moderator is deliberately not recorded as the actor. The audit feed
+// names them for other staff, which is where that belongs; naming them to the
+// person they sanctioned invites retaliation and tells the player nothing they
+// can act on. The row therefore carries no actor and renders with no link to
+// one.
+//
+// A failure here is logged and swallowed, exactly like a failed audit write: the
+// action already happened, and refusing to report success would invite the
+// moderator to repeat it.
+func notifyTarget(targetID int64, body, link string) {
+	if err := notify.Push(db.NewNotification{
+		UserID: targetID,
+		Kind:   db.KindModAction,
+		Body:   body,
+		Link:   link,
+	}, ""); err != nil {
+		util.Error(str.CNotif, "mod notification failed target=%d error=%s",
+			targetID, err.Error())
 	}
 }
 
@@ -148,6 +176,7 @@ func UnbanHandler(c fiber.Ctx) error {
 		"lifted":    lifted,
 		"banReason": rec.Ban.Reason,
 	}, req.Reason)
+	notifyTarget(rec.ID, "Your account has been restored. You can play again.", "")
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -190,6 +219,12 @@ func TitleHandler(c fiber.Ctx) error {
 		"from": orNone(rec.Title.Code),
 		"to":   orNone(assigned),
 	}, req.Reason)
+	if assigned != "" {
+		notifyTarget(rec.ID, "You have been given the title "+assigned+".",
+			"/@/"+rec.Username)
+	} else if rec.Title.Code != "" {
+		notifyTarget(rec.ID, "Your title has been removed.", "/@/"+rec.Username)
+	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -269,6 +304,10 @@ func RenameHandler(c fiber.Ctx) error {
 		"from": rec.Username,
 		"to":   req.Username,
 	}, req.Reason)
+	// The one action here the player cannot discover any other way: their name
+	// simply changes under them, and every link to their old one stops working.
+	notifyTarget(rec.ID, "Your username has been changed to "+req.Username+".",
+		"/@/"+req.Username)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"username": req.Username})
 }
 

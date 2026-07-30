@@ -51,6 +51,87 @@ func BroadcastEx(d []byte, meta SocketContext) {
 	}
 }
 
+// SendToAccount queues a message for every connection one signed-in account
+// holds, on every channel. It is the delivery primitive for notifications
+// (arch/NOTIFICATIONS.md): the sender knows an account, not a session and not a
+// channel, so this walks the directory and matches on Socket.AcctID.
+//
+// A person reads the site on several devices and in several tabs. Each of those
+// is a separate uid and a separate socket, and each carries its own badge, so
+// every one of them gets the frame.
+//
+// The walk costs one snapshot for each active channel. Notifications are rare —
+// a moderation decision, a rating record — so this is cheaper than an index
+// from account to socket that Track and UnTrack must maintain correctly. Add
+// that index only if this walk ever becomes hot.
+//
+// Returns the number of connections the message was queued for. A return of 0
+// means the account is offline, which is not an error: the row is in the
+// database, and the next socket connect reads the count.
+func SendToAccount(acctID int64, d []byte) int {
+	if acctID == 0 {
+		return 0
+	}
+	sent := 0
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.Sockets() {
+			if s.AcctID == acctID {
+				s.Enqueue(d)
+				sent++
+			}
+		}
+		return true
+	})
+	return sent
+}
+
+// SendToAccounts queues a message for every connection held by any of the given
+// accounts, in a single walk of the directory. It is the fan-out behind a state
+// that belongs to a *group* rather than to one person — the site-wide unread
+// feedback count, which every moderator shares (arch/NOTIFICATIONS.md).
+//
+// One walk rather than a SendToAccount for each id: the set is small, the walk
+// is the expensive half, and repeating it per moderator would multiply the cost
+// by the size of the staff for no gain.
+//
+// Returns the number of connections the message was queued for.
+func SendToAccounts(ids []int64, d []byte) int {
+	if len(ids) == 0 {
+		return 0
+	}
+	want := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		// 0 is the anonymous marker, and every anonymous socket carries it. It
+		// must never be a match, or a group message would go to every signed-out
+		// visitor on the site.
+		if id != 0 {
+			want[id] = struct{}{}
+		}
+	}
+	if len(want) == 0 {
+		return 0
+	}
+	sent := 0
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.Sockets() {
+			if _, hit := want[s.AcctID]; hit {
+				s.Enqueue(d)
+				sent++
+			}
+		}
+		return true
+	})
+	return sent
+}
+
 // CloseForUID sends a close frame with the given code to every tracked
 // connection belonging to one session uid, across every channel, then shuts
 // those connections down. It is moderation's socket-level reach

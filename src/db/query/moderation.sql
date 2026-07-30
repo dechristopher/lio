@@ -111,3 +111,28 @@ SELECT count(*) FROM users WHERE role = 'admin';
 -- name: ListTitles :many
 -- The title picker on the player page's mod bar.
 SELECT id, code, name FROM titles ORDER BY code;
+
+-- name: ListModeratorIDs :many
+-- Every account that may moderate, for pushing the unread-feedback count to
+-- their open sockets (arch/NOTIFICATIONS.md). Feedback read state is site-wide,
+-- so the badge belongs to all of them at once and there is no per-account row
+-- to address instead. Tiny by nature: this is the site's staff, not its users.
+SELECT id FROM users WHERE role IN ('mod', 'admin');
+
+-- name: SearchUsers :many
+-- The player picker behind the operator message composer on /system
+-- (arch/NOTIFICATIONS.md Phase 3). A substring match rather than a prefix one,
+-- so a moderator who remembers the middle of a name still finds it.
+--
+-- Ordered by how close the match is, not alphabetically: an exact name first,
+-- then the shortest names — a four-character query matching a four-character
+-- account is a better answer than the same query inside a twenty-character one.
+-- Banned accounts are not filtered out: this is a staff tool, and hiding an
+-- account a moderator is looking for is worse than showing one they cannot
+-- usefully message.
+SELECT id, username FROM users
+WHERE username ILIKE $1
+ORDER BY (lower(username) = lower($2)) DESC,
+         length(username),
+         lower(username)
+LIMIT $3;

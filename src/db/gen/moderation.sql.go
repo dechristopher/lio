@@ -276,6 +276,34 @@ func (q *Queries) ListModActionsForUser(ctx context.Context, arg ListModActionsF
 	return items, nil
 }
 
+const listModeratorIDs = `-- name: ListModeratorIDs :many
+SELECT id FROM users WHERE role IN ('mod', 'admin')
+`
+
+// Every account that may moderate, for pushing the unread-feedback count to
+// their open sockets (arch/NOTIFICATIONS.md). Feedback read state is site-wide,
+// so the badge belongs to all of them at once and there is no per-account row
+// to address instead. Tiny by nature: this is the site's staff, not its users.
+func (q *Queries) ListModeratorIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listModeratorIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTitles = `-- name: ListTitles :many
 SELECT id, code, name FROM titles ORDER BY code
 `
@@ -297,6 +325,56 @@ func (q *Queries) ListTitles(ctx context.Context) ([]ListTitlesRow, error) {
 	for rows.Next() {
 		var i ListTitlesRow
 		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsers = `-- name: SearchUsers :many
+SELECT id, username FROM users
+WHERE username ILIKE $1
+ORDER BY (lower(username) = lower($2)) DESC,
+         length(username),
+         lower(username)
+LIMIT $3
+`
+
+type SearchUsersParams struct {
+	Username string
+	Lower    string
+	Limit    int32
+}
+
+type SearchUsersRow struct {
+	ID       int64
+	Username string
+}
+
+// The player picker behind the operator message composer on /system
+// (arch/NOTIFICATIONS.md Phase 3). A substring match rather than a prefix one,
+// so a moderator who remembers the middle of a name still finds it.
+//
+// Ordered by how close the match is, not alphabetically: an exact name first,
+// then the shortest names — a four-character query matching a four-character
+// account is a better answer than the same query inside a twenty-character one.
+// Banned accounts are not filtered out: this is a staff tool, and hiding an
+// account a moderator is looking for is worse than showing one they cannot
+// usefully message.
+func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
+	rows, err := q.db.Query(ctx, searchUsers, arg.Username, arg.Lower, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchUsersRow
+	for rows.Next() {
+		var i SearchUsersRow
+		if err := rows.Scan(&i.ID, &i.Username); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

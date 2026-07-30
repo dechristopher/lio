@@ -94,6 +94,14 @@ window.addEventListener('load', () => {
  * Connect to the backend and handle events
  */
 const connect = (prefix) => {
+	// Claim the page's one socket. Notifications ride whatever socket a page
+	// already holds (arch/NOTIFICATIONS.md), so lio-notify.js opens its own only
+	// when nothing else has. The claim is made here, at the moment a socket is
+	// actually opened, rather than when this file loads: several pages load
+	// lio.js for its helpers and never connect at all, and on those the
+	// notification client must be the one to open a socket.
+	window.lioSocketOwner = prefix === "wait" ? "wait" : "room";
+
 	window.ws = new WebSocket(`${location.origin.replace(
 		/^http/, 'ws')}/socket${prefix ? `/${prefix}` : ''}${location.pathname}`);
 
@@ -197,6 +205,15 @@ window.lioStopReconnect = () => {
 	}
 	if (window.lioConn) {
 		window.lioConn.set("offline");
+	}
+	// This page is giving up its socket for good, and the reader stays here to
+	// review the game. Hand the notification client the connection so they are
+	// still reachable (arch/NOTIFICATIONS.md) — without this, finishing a game
+	// and staying on the page would quietly go offline for notifications until
+	// the next navigation.
+	window.lioSocketOwner = null;
+	if (window.lioNotify) {
+		window.lioNotify.takeover();
 	}
 };
 
@@ -395,5 +412,15 @@ window.handlers.set("e", (message) => {
 window.handlers.set("si", (message) => {
 	if (message.d && message.d.v && window.lioUpdateNotice) {
 		window.lioUpdateNotice(message.d.v);
+	}
+});
+
+// Notification frame: the unread count on every connect, and each new message
+// as it arrives (arch/NOTIFICATIONS.md). Every socket carries these, so a player
+// sitting in a game is reached on the game's own socket. The badge and the panel
+// belong to lio-notify.js, which loads from the header on every page.
+window.handlers.set("nt", (message) => {
+	if (message.d && window.lioNotify) {
+		window.lioNotify.apply(message.d);
 	}
 });

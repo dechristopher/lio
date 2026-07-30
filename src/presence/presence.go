@@ -109,8 +109,13 @@ func Online(inRoom map[string]message.OnlineMember, limit int) Snapshot {
 			named[key] = m
 			return
 		}
-		if m.Playing && !prev.Playing {
-			prev.Playing = true
+		// One account can hold several sessions — a laptop at a board and a phone
+		// on the home page. The busier record wins for both flags: somebody
+		// playing on one device is playing, and somebody seated anywhere cannot
+		// take a challenge on another device either.
+		if (m.Playing && !prev.Playing) || (m.Busy && !prev.Busy) {
+			prev.Playing = prev.Playing || m.Playing
+			prev.Busy = prev.Busy || m.Busy
 			named[key] = prev
 		}
 	}

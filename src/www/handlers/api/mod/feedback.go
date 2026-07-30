@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/view"
 )
@@ -71,6 +72,9 @@ func ReadFeedbackHandler(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "could not mark that read"})
 	}
+	// The backlog is shared, so every moderator's badge just changed — including
+	// this one's other tabs.
+	notify.SendStaffCount()
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -84,5 +88,6 @@ func ReadAllFeedbackHandler(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "could not clear the inbox"})
 	}
+	notify.SendStaffCount()
 	return c.SendStatus(fiber.StatusNoContent)
 }

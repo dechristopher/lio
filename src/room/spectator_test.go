@@ -81,8 +81,8 @@ func TestSpectatorPresenceExcluded(t *testing.T) {
 	defer sm.Cleanup()
 
 	// one seated player + one spectator: not both connected, one seat occupied
-	sm.Track(channel.NewSocket(nil, "wp", "c1", ""))
-	sm.Track(channel.NewSocket(nil, "spectator", "c1", ""))
+	sm.Track(channel.NewSocket(nil, "wp", "c1", "", 0))
+	sm.Track(channel.NewSocket(nil, "spectator", "c1", "", 0))
 	if r.bothPlayersConnected() {
 		t.Fatal("a spectator must not satisfy the second seat's presence")
 	}
@@ -91,7 +91,7 @@ func TestSpectatorPresenceExcluded(t *testing.T) {
 	}
 
 	// second seat connects: now both are present regardless of the spectator
-	sm.Track(channel.NewSocket(nil, "bp", "c1", ""))
+	sm.Track(channel.NewSocket(nil, "bp", "c1", "", 0))
 	if !r.bothPlayersConnected() {
 		t.Fatal("both seated players connected must read as both present")
 	}

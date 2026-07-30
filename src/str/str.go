@@ -37,6 +37,7 @@ const (
 	CAuth  = "Auth"
 	CCache = "Cach"
 	CDB    = "DB"
+	CNotif = "Notf"
 )
 
 // (E) Error messages

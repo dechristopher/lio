@@ -98,7 +98,7 @@ func TestHumanIdleEligibleRunningClock(t *testing.T) {
 
 	// running clock AND connected: the flag governs — never idle-abandon
 	sm := channel.Map.GetSockMap(r.ID)
-	sm.Track(channel.NewSocket(nil, "human", "c1", ""))
+	sm.Track(channel.NewSocket(nil, "human", "c1", "", 0))
 	t.Cleanup(func() { sm.UnTrack("human", "c1") })
 	if r.humanIdleEligible() {
 		t.Fatal("connected human on a running clock must flag, not idle-abandon")

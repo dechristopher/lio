@@ -81,16 +81,17 @@ templ header(width string) {
 				// it shrink to an ellipsis under space pressure on narrow phones
 				// instead of pushing the icon controls off-screen. Keeps the name in
 				// --text and the accent-tinted title badge, matching the rest of the app.
-				<button type="button" id="profileButton" data-unread-anchor class="flex min-w-0 mr-1 ml-8 items-center gap-1.5 whitespace-nowrap text-sm hover:text-accent-hover font-semibold text-fg cursor-pointer">
+				<button type="button" id="profileButton" class="flex min-w-0 mr-1 ml-8 items-center gap-1.5 whitespace-nowrap text-sm hover:text-accent-hover font-semibold text-fg cursor-pointer">
 					@playerTitle(viewer(ctx).Title)
 					<span class="min-w-0 truncate">{ viewer(ctx).Username }</span>
-					// unread feedback marker, moderators only: the menu behind this
-					// button is the only way into /system, so the dot has to live
-					// on the button itself to be seen without opening it.
-					// data-unread-anchor marks where lio-notify.js keeps it current
-					// on a page that is never reloaded.
-					@unreadDot(viewer(ctx).UnreadFeedback)
 				</button>
+				// The bell sits left of the icon controls and right of the
+				// username, so the element that truncates under space pressure on
+				// a narrow phone stays next to the icons rather than between them.
+				// Unread feedback used to be marked on the username itself; it is
+				// counted into this badge now, and the dot on the popover's System
+				// link still points a moderator at the inbox.
+				@bellButton()
 			} else if viewer(ctx).AccountsEnabled {
 				// Logged-out control: bare accent-colored text (no button chrome),
 				// shown at every width — this is where the header collapses to on
@@ -112,6 +113,7 @@ templ header(width string) {
 			</button>
 			@prefsPopover()
 			if viewer(ctx).LoggedIn {
+				@notifyPanel()
 				@profilePopover(viewer(ctx).Username, viewer(ctx).Title)
 			}
 		</div>
@@ -131,15 +133,16 @@ templ header(width string) {
 		// controller loads with the header rather than per-page. Deferred and
 		// only for a logged-in viewer, who is the only one the prompt renders for.
 		<script defer src={ asset("lio-feedback.js") }></script>
-		// The unread-feedback badge rides in this header on every page, so its
-		// poller loads here for the same reason — the per-page script bundles
-		// (scriptsBase/scriptsTV/scriptsAbout) each cover only a family of
-		// pages, and a badge that stopped updating on the home page would be
-		// worse than one that never moved. Moderators only: nobody else can
-		// see the dot or read the endpoint.
-		if viewer(ctx).Role.CanModerate() {
-			<script defer src={ asset("lio-notify.js") }></script>
-		}
+		// The notification client. It loads with the header, on every page, for
+		// the same reason the feedback dialog does: the bell is in this header
+		// everywhere, and the per-page script bundles (scriptsBase / scriptsTV /
+		// scriptsAbout) each cover only a family of pages.
+		//
+		// It also owns the socket on any page that has no other one, so this is
+		// what makes a signed-in visitor reachable while they read the about
+		// page or their own profile. Deferred, so the page-level socket clients
+		// (lio.js, lio-tv.js) have already claimed ownership by the time it runs.
+		<script defer src={ asset("lio-notify.js") }></script>
 	}
 	@navScript()
 	@connScript()
@@ -404,10 +407,17 @@ templ navScript() {
 			const profilePop = document.getElementById("profilePopover");
 			const prefsBtn = document.getElementById("prefsButton");
 			const popover = document.getElementById("prefsPopover"); // preferences
+			const notifyBtn = document.getElementById("notifyButton");
+			const notifyPop = document.getElementById("notifyPanel"); // notifications
 			const scrim = document.getElementById("menuScrim");
 
 			const isOpen = (el) => el && !el.classList.contains("hidden");
 			const closePrefs = () => { if (popover) popover.classList.add("hidden"); };
+			const closeNotify = () => {
+				if (!notifyPop) return;
+				notifyPop.classList.add("hidden");
+				if (notifyBtn) notifyBtn.setAttribute("aria-expanded", "false");
+			};
 			// Restore the account popover to its pristine state whenever it is
 			// dismissed: clear every form field, collapse the expandable sections,
 			// and hide transient error/success lines. Dispatching an input event
@@ -433,9 +443,10 @@ templ navScript() {
 			// the backdrop follows the menus: shown (dim + blur) whenever either
 			// header popover is open, hidden once both are closed
 			const syncScrim = () => {
-				if (scrim) scrim.classList.toggle("is-open", isOpen(popover) || isOpen(profilePop));
+				if (scrim) scrim.classList.toggle("is-open",
+					isOpen(popover) || isOpen(profilePop) || isOpen(notifyPop));
 			};
-			const closeMenus = () => { closePrefs(); closeProfile(); syncScrim(); };
+			const closeMenus = () => { closePrefs(); closeProfile(); closeNotify(); syncScrim(); };
 
 			const closeModal = () => { if (modal) modal.classList.remove("open"); };
 			if (modal) {
@@ -486,13 +497,32 @@ templ navScript() {
 			if (prefsBtn) prefsBtn.addEventListener("click", (e) => {
 				e.stopPropagation();
 				closeProfile();
+				closeNotify();
 				popover.classList.toggle("hidden");
 				if (isOpen(popover)) syncPrefs();
+				syncScrim();
+			});
+			// The bell. Opening it tells the notification client, which fetches
+			// the list on the first open and clears the badge — the dot means
+			// "something is new", and it has now been seen. The rows keep their
+			// own unread mark until they are read, a different question.
+			if (notifyPop && notifyBtn) notifyBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				closePrefs();
+				closeProfile();
+				if (isOpen(notifyPop)) {
+					closeNotify();
+				} else {
+					notifyPop.classList.remove("hidden");
+					notifyBtn.setAttribute("aria-expanded", "true");
+					if (window.__notifyPanelOpened) window.__notifyPanelOpened();
+				}
 				syncScrim();
 			});
 			if (profilePop) profileBtns.forEach((btn) => btn.addEventListener("click", (e) => {
 				e.stopPropagation();
 				closePrefs();
+				closeNotify();
 				// close (with reset) when open, otherwise reveal — a plain class
 				// toggle would bypass closeProfile's reset on the closing click
 				if (isOpen(profilePop)) closeProfile();
@@ -507,7 +537,9 @@ templ navScript() {
 				const within =
 					(popover && popover.contains(e.target)) ||
 					(profilePop && profilePop.contains(e.target)) ||
+					(notifyPop && notifyPop.contains(e.target)) ||
 					(prefsBtn && prefsBtn.contains(e.target)) ||
+					(notifyBtn && notifyBtn.contains(e.target)) ||
 					profileBtns.some((btn) => btn.contains(e.target));
 				if (!within) closeMenus();
 			});

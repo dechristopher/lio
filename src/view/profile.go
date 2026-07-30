@@ -41,6 +41,11 @@ type ProfileModel struct {
 	// at the login refusal instead).
 	Closed bool
 
+	// Busy marks an account already seated in a room — playing, or waiting in a
+	// challenge of its own. It suppresses the Challenge button, which is the
+	// same rule the home roster's sword follows (arch/NOTIFICATIONS.md Phase 2).
+	Busy bool
+
 	// Ratings, records and games are omitted entirely for a closed account.
 	Ratings  []RatingView
 	Total    RecordView

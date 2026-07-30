@@ -13,6 +13,7 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/tv"
@@ -85,6 +86,26 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	// exactly this reason; these captures bypassed it.
 	uid := strings.Clone(user.GetID(ctx))
 
+	// The signed-in account behind this socket, or 0 for an anonymous session.
+	// Resolved once here, like uid, and carried on the Socket so anything
+	// addressed to a *person* rather than to a session can find this connection
+	// (channel.SendToAccount — see arch/NOTIFICATIONS.md). One account signed in
+	// on two devices holds two uids, so uid alone cannot answer that.
+	//
+	// Only the int64 is taken. No clone is needed for a value type, and nothing
+	// else from the Account — all of it backed by strings this socket outlives —
+	// is captured.
+	// acctStaff additionally records whether that account may moderate, which
+	// adds the site-wide unread feedback count to the same notification badge.
+	// Resolved here for the same reason as acctID: the role is on the session
+	// this upgrade authenticated, and the socket outlives the request.
+	var acctID int64
+	var acctStaff bool
+	if acct := user.GetAccount(ctx); acct != nil {
+		acctID = acct.ID
+		acctStaff = acct.Role.CanModerate()
+	}
+
 	// Resolve the real client IP for this socket's log lines. Like the HTTP
 	// access log, the socket sits behind the Cloudflare tunnel / reverse proxy,
 	// so fiber's ctx.IP() only ever sees the loopback / compose-network peer —
@@ -119,8 +140,10 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		thisChannel = fmt.Sprintf("%s/%s", channelType, thisChannel)
 	}
 
-	// ensure room exists for connection. The global TV channel (/socket/tv) is
-	// not a room — it is a site-wide read-only stream — so it bypasses this check.
+	// ensure room exists for connection. Two channels are not rooms and bypass
+	// this check: the global TV channel (/socket/tv), a site-wide read-only
+	// stream, and the notification channel (/socket/me), which a page opens when
+	// it holds no other socket (arch/NOTIFICATIONS.md).
 	//
 	// isSpectator is decided once, at connect time: a uid with no seat in the
 	// room (or any TV viewer) is a spectator, and every message it sends is
@@ -129,7 +152,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	// over HTTP before opening the game socket, and rematches flip colors, not
 	// uids — so this never goes stale.
 	isSpectator := true
-	if !tv.IsTV(roomId) {
+	if !tv.IsTV(roomId) && !notify.IsNotify(roomId) {
 		thisRoom, err := room.Get(roomId)
 		if thisRoom == nil {
 			util.Error(str.CWS, str.EWSConn, err.Error())
@@ -179,7 +202,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// independently, and a stale connection's teardown can never evict a
 		// newer live socket for the same uid.
 		connID := config.GenerateCode(16)
-		socket := channel.NewSocket(c, uid, connID, c.Params("type"))
+		socket := channel.NewSocket(c, uid, connID, c.Params("type"), acctID)
 
 		// track this socket in the corresponding SockMap
 		channel.Map.GetSockMap(thisChannel).Track(socket)
@@ -198,6 +221,13 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// this against the version it was rendered by and surfaces a passive
 		// "updated — refresh" prompt on mismatch (lio.js)
 		socket.Enqueue(proto.ServerInfoMessage(config.VersionString()))
+
+		// one-shot notification badge: every socket carries notifications, on
+		// every channel, so this runs here rather than per page. It is what makes
+		// the badge correct again after a deploy, after a restore from the
+		// back/forward cache, and after any frame that never arrived — and it is
+		// why nothing polls for notifications. A no-op for an anonymous socket.
+		notify.Connect(socket, acctStaff)
 
 		// the global TV channel pushes a one-shot grid snapshot on connect so a
 		// new viewer immediately sees the current featured games, then receives

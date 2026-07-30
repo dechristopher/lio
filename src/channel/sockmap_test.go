@@ -12,7 +12,7 @@ import (
 // drop-path and WritePump do, neither of which these tests drive), so a nil
 // connection is fine here.
 func newTestSocket(uid, connID string) *Socket {
-	return NewSocket(nil, uid, connID, "")
+	return NewSocket(nil, uid, connID, "", 0)
 }
 
 // TestSockMapMultiSocketPerUID is the deterministic guard for the connID-keyed

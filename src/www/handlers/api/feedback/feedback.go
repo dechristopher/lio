@@ -24,6 +24,7 @@ import (
 
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
@@ -130,6 +131,11 @@ func Handler(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "could not send that feedback"})
 	}
+	// Light every moderator's badge now (arch/NOTIFICATIONS.md). Their pages are
+	// open and are not going to be reloaded, and the count on a socket is only
+	// read at connect — so without this push, feedback would sit unseen until
+	// somebody happened to navigate.
+	notify.SendStaffCount()
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

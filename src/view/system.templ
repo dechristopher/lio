@@ -18,6 +18,7 @@ templ System(meta Meta, m SystemModel) {
 						@instancePanel(m.Stats)
 					}
 					@FeedbackInboxSection(m.Feedback)
+					@messagePlayer()
 					if m.IsAdmin {
 						@activeNotices(m)
 						@siteControls(m)
@@ -33,6 +34,50 @@ templ System(meta Meta, m SystemModel) {
 		@scriptsBase(meta)
 		<script src={ asset("lio-mod.js") }></script>
 	}
+}
+
+// messagePlayer is the operator message composer (arch/NOTIFICATIONS.md
+// Phase 3): find one player, write to them, send. The message arrives in their
+// bell as a system notification.
+//
+// It sits under the feedback inbox on purpose. Feedback has no reply thread —
+// the dialog says so — and this is the nearest thing to an answer: a moderator
+// reading a report of a broken clock can tell that player it is fixed.
+//
+// A search box rather than a list of accounts. The site has more players than
+// any select could hold, and an operator writing to somebody already knows who;
+// typing two characters of a name is faster than finding it in a directory.
+templ messagePlayer() {
+	<div class="card mt-3">
+		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Message a player</p>
+		<p class="mt-2 text-sm text-fg-subtle">
+			Goes straight to their notifications. It comes from the site, not from you by name.
+		</p>
+		<div class="msg-compose mt-3">
+			<label class="auth-label">
+				Player
+				<input
+					id="msgSearch"
+					class="auth-input"
+					type="text"
+					autocomplete="off"
+					placeholder="Start typing a username"
+					aria-describedby="msgPicked"
+				/>
+			</label>
+			// The picker's results and the chosen player share one slot, so the
+			// card does not change height as somebody types and selects.
+			<div id="msgResults" class="msg-results" role="listbox" aria-label="Matching players"></div>
+			<p id="msgPicked" class="msg-picked hidden"></p>
+			<label class="auth-label">
+				Message
+				<textarea id="msgBody" class="auth-input" rows="3" maxlength="500" placeholder="What do you want them to know?"></textarea>
+			</label>
+			<p id="msgError" class="auth-error hidden" role="alert"></p>
+			<p id="msgOk" class="auth-ok hidden" role="status"></p>
+			<button type="button" id="msgSend" class="btn btn-primary justify-center py-1.5" disabled>Send</button>
+		</div>
+	</div>
 }
 
 // liveOps is the operational picture: who is here, what is running, and a way

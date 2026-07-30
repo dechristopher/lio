@@ -2,12 +2,16 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/dechristopher/octad/v2"
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/engine"
+	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
@@ -56,6 +60,11 @@ type newRoomPayload struct {
 	// normalized through engine.PersonaByKey (empty/tampered values resolve to
 	// the full-strength Queen) and ignored for human games.
 	botPersona string
+	// invite is the username a direct challenge is addressed to
+	// (arch/NOTIFICATIONS.md Phase 2). Empty for an ordinary creation. It is
+	// resolved and validated in newRoom, which forces such a room private and
+	// human — an invitation is not a seek, and it is not addressed to a bot.
+	invite string
 }
 
 // casualVariant resolves the untimed casual variant for the given create-game
@@ -122,6 +131,17 @@ func RoomHandler(c fiber.Ctx) error {
 
 	// figure out how user is allowed to join this room
 	asPlayer, asSpectator := roomInstance.CanJoin(uid)
+
+	// A direct challenge is addressed to one account (arch/NOTIFICATIONS.md
+	// Phase 2). Anyone else who opens the link watches instead of being offered
+	// a seat they cannot take — room.Join would refuse it, and showing the join
+	// control first would only produce a confusing failure. Someone already
+	// seated here (the creator, above all) keeps their seat: the invitation
+	// guards the *open* seat, not the room.
+	if asPlayer && !roomInstance.IsPlayer(uid) &&
+		!roomInstance.IsInvited(identityOf(c).UserID) {
+		asPlayer, asSpectator = false, true
+	}
 
 	// get template payload for user
 	payload := roomInstance.GenTemplatePayload(uid)
@@ -195,6 +215,13 @@ func RoomJoinHandler(c fiber.Ctx) error {
 	joiner := identityOf(c)
 	if roomInstance.IsRated() && joiner.UserID == nil {
 		return redirect(c, "/"+roomInstance.ID+"#loginToPlay")
+	}
+
+	// a direct challenge belongs to the account it names; room.Join enforces
+	// this too, but sending the wrong person to the generic join-failed path
+	// would leave them guessing why
+	if !roomInstance.IsInvited(joiner.UserID) {
+		return redirect(c, "/"+roomInstance.ID+"#notInvited")
 	}
 
 	// attempt to join room, stamping the joiner's account identity onto the seat
@@ -290,6 +317,9 @@ func NewCustomRoom(c fiber.Ctx) error {
 		// engine.Personas key) when the opponent is the computer; ignored for
 		// human games. Empty/tampered values resolve to the full-strength Queen.
 		Bot string `form:"bot"`
+		// Invite is the username this game is a direct challenge to
+		// (arch/NOTIFICATIONS.md Phase 2). Empty for an ordinary creation.
+		Invite string `form:"invite"`
 	}{}
 
 	if err := c.Bind().Body(&payload); err != nil {
@@ -358,6 +388,7 @@ func NewCustomRoom(c fiber.Ctx) error {
 		allowAnonymous: payload.AllowAnon,
 		raceTo:         raceTo,
 		botPersona:     payload.Bot,
+		invite:         payload.Invite,
 	})
 }
 
@@ -418,9 +449,25 @@ func newRoom(payload newRoomPayload) error {
 		return redirect(payload.c, "/?notice=maintenance")
 	}
 
+	// A direct challenge is addressed to one account. Resolve it before anything
+	// is created, so a bad target refuses instead of leaving an orphan room
+	// waiting for somebody who was never told about it.
+	invited, ok := resolveInvite(payload)
+	if !ok {
+		return redirect(payload.c, "/?notice=challenge-failed")
+	}
+
 	// establish room parameters
 	params := room.NewParams(creator, payload.variant)
 	params.Public = payload.public
+	if invited != nil {
+		params.InvitedUserID = &invited.ID
+		params.InvitedName = invited.Username
+		// An invitation is not a seek. Listing it would advertise a seat only
+		// one account can take, and every other visitor would bounce off the
+		// join gate.
+		params.Public = false
+	}
 	params.BlindColor = payload.blindColor
 	params.RaceTo = payload.raceTo
 	// A competitive (non-casual) human game created by a logged-in player is
@@ -468,6 +515,80 @@ func newRoom(payload newRoomPayload) error {
 
 	util.Info(str.CRoom, "user %s created room %s, vsBot=%v", creator.UID, instance.ID, payload.vsBot)
 
+	// Tell the invited player. This happens after the room exists, so the
+	// notification can never point at a room that was never created.
+	if invited != nil {
+		notifyChallenge(creator, invited.ID, instance.ID, payload.variant)
+	}
+
 	// redirect to waiting room vs human, or game vs computer
 	return redirect(payload.c, "/"+instance.ID)
+}
+
+// resolveInvite validates the direct-challenge target on a creation payload and
+// returns the account it names. It returns ok=false for a request that must be
+// refused; a payload with no invite is the common case and returns (nil, true).
+//
+// Everything it rejects is something a tampered form could ask for, so none of
+// these checks may be left to the UI:
+//
+//   - Accounts must exist at all. In PG-less local dev there is nobody to
+//     challenge and nowhere to store the notification.
+//   - The challenger must be logged in. A challenge from an anonymous session
+//     is unanswerable — the notification would name nobody, and the recipient
+//     has no way to judge whether to accept.
+//   - The target must exist, and must not be the challenger. Challenging
+//     yourself would create a room whose only eligible joiner already holds the
+//     other seat.
+//   - A banned account cannot be challenged. It cannot log in to answer, and a
+//     challenge is not a channel for reaching somebody who has been removed.
+//   - A bot game cannot carry an invitation. The seat is already taken.
+func resolveInvite(payload newRoomPayload) (*db.UserRecord, bool) {
+	name := strings.TrimSpace(payload.invite)
+	if name == "" {
+		return nil, true
+	}
+	if !auth.Enabled() {
+		return nil, false
+	}
+	if payload.vsBot {
+		return nil, false
+	}
+	creator := identityOf(payload.c)
+	if creator.UserID == nil {
+		return nil, false
+	}
+
+	rec, found, err := db.GetUserByUsername(name)
+	if err != nil {
+		util.Error(str.CRoom, "challenge target lookup failed name=%s error=%s", name, err.Error())
+		return nil, false
+	}
+	if !found || rec.ID == *creator.UserID || rec.Ban.Banned {
+		return nil, false
+	}
+	return &rec, true
+}
+
+// notifyChallenge tells the invited account that somebody is waiting for them.
+//
+// The body names the challenger and the terms, because the recipient decides
+// from the notification itself — the panel is where they accept or decline, and
+// opening the room to find out what they were being asked would defeat that.
+//
+// A failure here is logged, not surfaced: the room exists and the challenger is
+// already waiting in it. The link still works if they send it by hand.
+func notifyChallenge(creator player.Identity, invitedID int64, roomID string, v variant.Variant) {
+	body := creator.Username + " challenges you to " + v.Name + " octad."
+	if err := notify.Push(db.NewNotification{
+		UserID:  invitedID,
+		Kind:    db.KindChallenge,
+		ActorID: creator.UserID,
+		Body:    body,
+		Link:    "/" + roomID,
+		Expires: time.Now().Add(room.ChallengeExpiry),
+	}, creator.Username); err != nil {
+		util.Error(str.CRoom, "challenge notify failed target=%d room=%s error=%s",
+			invitedID, roomID, err.Error())
+	}
 }

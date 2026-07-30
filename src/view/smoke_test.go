@@ -184,7 +184,7 @@ func TestRenderPlayersCard(t *testing.T) {
 	mustContain(t, out, `href="/@/nova"`) // ...
 	mustContain(t, out, ">playing<")      // seated marker
 	mustContain(t, out, ">WFM<")          // title badge rides along
-	mustContain(t, out, "Newest members") // second section
+	mustContain(t, out, "Arrivals")       // second section
 	mustContain(t, out, `href="/@/pawnstar"`)
 
 	// both rosters are wrapping chip lists, not full-width rows: a name eight
@@ -206,6 +206,67 @@ func TestRenderPlayersCard(t *testing.T) {
 
 // The same roster seen by a member drops the "(including you)" aside — they are
 // not one of the anonymous visitors.
+// TestRosterChallengeGating: the sword is offered only to players who could
+// actually accept one right now (arch/NOTIFICATIONS.md Phase 2). A control that
+// is present but certain to fail is worse than one that is absent.
+func TestRosterChallengeGating(t *testing.T) {
+	c := message.Community{
+		Online: []message.OnlineMember{
+			{Username: "free"}, // browsing: challengeable
+			{Username: "gamer", Playing: true, Busy: true}, // at a board
+			{Username: "seeker", Busy: true},               // waiting in a room of their own
+			{Username: "drewtest"},                         // the viewer themselves
+		},
+	}
+
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest", AccountsEnabled: true},
+		HomeActivity(nil, message.SiteStats{}, c))
+	mustContain(t, out, `data-challenge="free"`)
+	// busy in either sense is unavailable — a player waiting in their own
+	// challenge is not playing, but they are already committed to a game
+	mustNotContain(t, out, `data-challenge="gamer"`)
+	mustNotContain(t, out, `data-challenge="seeker"`)
+	// nobody is offered the chance to challenge themselves; the comparison is
+	// case-insensitive because a username's display case is not its identity
+	mustNotContain(t, out, `data-challenge="drewtest"`)
+
+	// an anonymous visitor cannot challenge anyone: there is nobody to address
+	// the invitation from
+	anon := renderSmokeViewer(t, Viewer{AccountsEnabled: true},
+		HomeActivity(nil, message.SiteStats{}, c))
+	mustNotContain(t, anon, "data-challenge")
+}
+
+// TestRosterBusyState: an unavailable player reads as unavailable three ways at
+// once — the sword is gone, the presence dot turns amber, and a tag says which
+// kind of busy they are. The tag matters because the state must not rest on the
+// dot's color alone, and because it answers the question the missing sword
+// raises.
+func TestRosterBusyState(t *testing.T) {
+	c := message.Community{
+		Online: []message.OnlineMember{
+			{Username: "free"},
+			{Username: "gamer", Playing: true, Busy: true},
+			{Username: "seeker", Busy: true},
+		},
+	}
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest", AccountsEnabled: true},
+		HomeActivity(nil, message.SiteStats{}, c))
+
+	// two of the three are busy, and only those two carry the amber dot
+	if n := strings.Count(out, "is-busy"); n != 2 {
+		t.Errorf("is-busy chips = %d, want 2", n)
+	}
+	// a player at a board and one waiting in their own room are both busy, but
+	// they are not the same thing and the roster says which
+	mustContain(t, out, ">playing<")
+	mustContain(t, out, ">waiting<")
+	// the available player is the only one offered a sword
+	if n := strings.Count(out, "data-challenge="); n != 1 {
+		t.Errorf("challenge buttons = %d, want 1", n)
+	}
+}
+
 func TestRenderPlayersCardAnonNoteForMember(t *testing.T) {
 	c := message.Community{Online: []message.OnlineMember{{Username: "nova"}}, Anon: 1}
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "nova"},
@@ -811,10 +872,16 @@ func TestRenderProfile(t *testing.T) {
 	mustContain(t, out, "Member since")
 	mustContain(t, out, "March 2026")
 	mustContain(t, out, "1653") // rating tile
-	// the tile shows the resolved time control, never the raw HTMLName key
+	// the tile shows the resolved time control, never the raw HTMLName key.
+	//
+	// Asserted against rendered *text* rather than the whole document: the page
+	// now carries the create-game dialog too (the Challenge button opens it —
+	// arch/NOTIFICATIONS.md Phase 2), and its time-control cards legitimately
+	// carry HTMLNames in data-variant, which is how the form submits a choice.
+	// The guarantee that matters is that the key is never shown to anybody.
 	mustContain(t, out, "½ + 1")
 	mustContain(t, out, "blitz")
-	mustNotContain(t, out, "half-one-blitz")
+	mustNotContain(t, out, ">half-one-blitz<")
 	// the hero's two figures, as tiles rather than prose
 	mustContain(t, out, `class="hero-figure-value"`)
 	mustContain(t, out, ">3<")  // games
@@ -1069,6 +1136,21 @@ func TestRenderSystemConsole(t *testing.T) {
 	mod := renderSmoke(t, System(SystemMeta(), m))
 	mustNotContain(t, mod, `id="settingsForm"`)
 	mustContain(t, mod, "Audit log")
+
+	// The operator message composer is a moderator tool, not an admin one: it
+	// writes to one account, like every other action a moderator takes, rather
+	// than changing something every visitor sees (arch/NOTIFICATIONS.md
+	// Phase 3). It ships to both, and it is a search box rather than a list of
+	// accounts — the site has more players than any picker could hold.
+	for name, out := range map[string]string{"admin": admin, "moderator": mod} {
+		if !strings.Contains(out, `id="msgSearch"`) {
+			t.Errorf("%s is missing the message composer", name)
+		}
+		if !strings.Contains(out, `id="msgBody"`) {
+			t.Errorf("%s is missing the message body field", name)
+		}
+	}
+	mustContain(t, mod, "Message a player")
 
 	// empty log distinguishes "nothing yet" from "nothing matches"
 	mustContain(t, renderSmoke(t, System(SystemMeta(), SystemModel{})),
@@ -1921,30 +2003,67 @@ func TestFeedbackPromptShownToEveryAccount(t *testing.T) {
 	mustContain(t, mod, "4 unread feedback messages")
 }
 
-// TestUnreadPollerGating: the badge poller ships only to a moderator — the one
-// viewer the dot can appear for — and the anchors it updates are present
-// whether or not a dot is currently rendered, since the poller's whole job is
-// to add one that was not there at render time.
+// TestNotifyClientGating: the notification client ships to every signed-in
+// account, not just to a moderator (arch/NOTIFICATIONS.md). It owns the bell for
+// everyone, and on a page with no other socket it is what keeps the reader
+// reachable at all — so gating it on a role would leave ordinary accounts unable
+// to receive anything.
 //
-// It is asserted against the *header*, not a page-script bundle: the badge is
-// in the header on every page, while scriptsBase covers only some of them.
-func TestUnreadPollerGating(t *testing.T) {
+// It is asserted against the *header*, not a page-script bundle: the bell is in
+// the header on every page, while scriptsBase covers only some of them.
+func TestNotifyClientGating(t *testing.T) {
 	anon := renderSmokeViewer(t, Viewer{}, header(""))
 	mustNotContain(t, anon, "lio-notify")
 
 	player := renderSmokeViewer(t,
 		Viewer{LoggedIn: true, Username: "drewtest"}, header(""))
-	mustNotContain(t, player, "lio-notify")
+	mustContain(t, player, "lio-notify")
 
 	mod := renderSmokeViewer(t,
 		Viewer{LoggedIn: true, Username: "drewtest", Role: role.Mod}, header(""))
 	mustContain(t, mod, "lio-notify")
 
-	// a moderator with nothing unread still gets the anchors: the poller needs
+	// a moderator with nothing unread still gets the anchor: the client needs
 	// somewhere to put the dot when the count goes above zero
 	quiet := renderSmokeViewer(t,
 		Viewer{LoggedIn: true, Username: "drewtest", Role: role.Mod},
 		profilePopover("drewtest", title.Title{}))
 	mustContain(t, quiet, "data-unread-anchor")
 	mustNotContain(t, quiet, "unread-dot")
+}
+
+// TestNotifyBell: the bell renders for a signed-in account and carries the
+// badge only when something is unread. A dot that is always there, and only
+// sometimes means something, is a dot nobody reads.
+func TestNotifyBell(t *testing.T) {
+	quiet := renderSmokeViewer(t,
+		Viewer{LoggedIn: true, Username: "drewtest"}, header(""))
+	mustContain(t, quiet, `id="notifyButton"`)
+	mustContain(t, quiet, `id="notifyPanel"`)
+	mustNotContain(t, quiet, "notify-dot")
+
+	loud := renderSmokeViewer(t,
+		Viewer{LoggedIn: true, Username: "drewtest", UnreadNotifications: 3}, header(""))
+	mustContain(t, loud, "notify-dot")
+	mustContain(t, loud, "3 unread notifications")
+
+	// an anonymous visitor has no name, so nothing can be addressed to them and
+	// the header shows no bell at all
+	anon := renderSmokeViewer(t, Viewer{}, header(""))
+	mustNotContain(t, anon, `id="notifyButton"`)
+}
+
+// TestNotifyBadgeCountsFeedback: a moderator has one bell, and unread feedback
+// counts into it alongside their own notifications. Feedback is not stored as a
+// notification — its read state is site-wide on purpose — so the badge is the
+// one place the two are added together.
+func TestNotifyBadgeCountsFeedback(t *testing.T) {
+	out := renderSmokeViewer(t, Viewer{
+		LoggedIn:            true,
+		Username:            "drewtest",
+		Role:                role.Mod,
+		UnreadFeedback:      4,
+		UnreadNotifications: 2,
+	}, header(""))
+	mustContain(t, out, "6 unread notifications")
 }

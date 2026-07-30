@@ -152,10 +152,16 @@ func (r *Instance) snapshot() roomSnapshot {
 		if s.seated == nil {
 			s.seated = make(map[string]message.OnlineMember, 2)
 		}
+		// Busy is unconditional here: every seat in the registry belongs to a
+		// room, live or still waiting for an opponent, and either way that
+		// person is not available to be challenged. Playing stays narrower — it
+		// says they are at a board right now, which is what the roster label
+		// claims.
 		s.seated[p.ID] = message.OnlineMember{
 			Username: p.Username,
 			Title:    p.Title,
 			Playing:  playing,
+			Busy:     true,
 		}
 	}
 
