@@ -2495,6 +2495,29 @@ const updateScore = (message) => {
 }
 
 /**
+ * renderSeatColorStripes paints each clock card's left-edge color stripe from
+ * the cached bottom-seat color (see playerWhite / isPlayerWhite). The seats are
+ * labeled by identity (You/Opponent), so the stripe is the only thing that says
+ * who holds which color — it must be re-rendered at every point the seat colors
+ * can change, which is every game boundary of a match, not just on a board
+ * state (a blind-deploy interlude sits between the flip and the first board
+ * state of the new game).
+ */
+const renderSeatColorStripes = () => {
+	const plyClock = document.getElementById("clockPlayer");
+	const oppClock = document.getElementById("clockOpponent");
+	if (!plyClock || !oppClock) {
+		return;
+	}
+	const whiteClock = playerWhite ? plyClock : oppClock;
+	const blackClock = playerWhite ? oppClock : plyClock;
+	whiteClock.classList.add('playerWhite');
+	whiteClock.classList.remove('playerBlack');
+	blackClock.classList.add('playerBlack');
+	blackClock.classList.remove('playerWhite');
+};
+
+/**
  * updateUI updates UI state, styles and clock tickers
  * @param message - move message
  * @param ofenParts - OFEN parts array
@@ -2559,18 +2582,9 @@ const updateUI = (message, ofenParts) => {
 		oppClock.classList.add('active');
 	}
 
-	// set player name colors
-	if (isPlayerWhite(message)) {
-		oppClock.classList.add('playerBlack');
-		oppClock.classList.remove('playerWhite');
-		plyClock.classList.add('playerWhite');
-		plyClock.classList.remove('playerBlack');
-	} else {
-		oppClock.classList.add('playerWhite');
-		oppClock.classList.remove('playerBlack');
-		plyClock.classList.add('playerBlack');
-		plyClock.classList.remove('playerWhite');
-	}
+	// set player name colors (playerWhite was re-cached from this same message
+	// by handleMove before it called us, so this matches isPlayerWhite(message))
+	renderSeatColorStripes();
 
 	// only run this when move is provided, otherwise we flip
 	// the clock on regular game updates, which is not intended. Never once the
@@ -3110,12 +3124,17 @@ const handleDeploy = (message) => {
 		return;
 	}
 
-	// hydrate the match score chips and timeline from the phase snapshot (the
-	// deploy payload now carries sc/h), so a spectator joining — or a player
-	// reconnecting — mid-deploy sees the standing match state immediately rather
-	// than an empty timeline until the reveal. No-ops on the lock-only delta
-	// handled above (it carries no sc), and on game 1 (no history yet).
-	updateScore(message);
+	// Re-cache the bottom seat's color from this phase snapshot's seat ids BEFORE
+	// anything below renders off it. A deploy phase for game 2+ of a match runs
+	// entirely after the server flipped the seats (resetForNextGameLocked), so
+	// this message's sc/h — keyed to the players' *current* seats, like every
+	// score payload — describe the new colors while playerWhite still holds the
+	// finished game's. Without this the score chips, the timeline rows and the
+	// clock color stripes all read swapped for the whole arrange phase, righting
+	// themselves only at the reveal (the first board state, where handleMove
+	// re-caches it). The deploy payload carries w/b for exactly this reason.
+	playerWhite = isPlayerWhite(message);
+	renderSeatColorStripes();
 
 	const uid = myUid();
 	const seconds = d.s ? d.s : 30;
@@ -3125,10 +3144,22 @@ const handleDeploy = (message) => {
 	// explicit isSpec check is belt-and-braces for the same viewer.
 	if (isSpec || (uid !== d.w && uid !== d.b)) {
 		enterDeploySpectatorMode(d);
-		return;
+	} else {
+		deployIsWhite = (uid === d.w);
+		enterDeployMode(seconds, d);
 	}
-	deployIsWhite = (uid === d.w);
-	enterDeployMode(seconds, d);
+
+	// hydrate the match score chips and timeline from the phase snapshot (the
+	// deploy payload now carries sc/h), so a spectator joining — or a player
+	// reconnecting — mid-deploy sees the standing match state immediately rather
+	// than an empty timeline until the reveal. No-ops on the lock-only delta
+	// handled above (it carries no sc), and on game 1 (no history yet). Runs
+	// *after* the mode entry above so renderTimeline's deployMode/deploySpectating
+	// test sees the truth: entering the phase from a finished game leaves gameOver
+	// set, which without the flags reads as the post-game lull and would render
+	// the finished cells as browsable (under the arrange overlay) with no pulsing
+	// live column — the very inconsistency that test exists to prevent.
+	updateScore(message);
 };
 
 const enterDeployMode = (seconds, payload) => {
