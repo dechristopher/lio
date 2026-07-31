@@ -241,6 +241,37 @@ func FollowedAmong(followerID int64, ids []int64) (map[int64]struct{}, error) {
 	return out, nil
 }
 
+// FollowingIDs returns the whole set of account ids userID follows.
+//
+// It is the connect-time half of the home page's Following section
+// (arch/HOME_ACTIVITY_STREAMING.md). The htmx poll it replaced ran
+// FollowedAmong once per viewer per five seconds; this runs once per socket, and
+// the hub then answers the same question with map lookups against the set it
+// returns.
+//
+// Reading the whole list is the right shape *here* and the wrong shape in the
+// poll it replaced. FollowedAmong is bounded by how many people are online,
+// which is what you want when the question is asked constantly. This is asked
+// once per connection, and what it needs is the durable half of the
+// intersection — the half that does not change while the socket is open.
+//
+// MaxFollowing bounds the result, so an account cannot make its own connect
+// expensive. A zero user (an anonymous session) reads nothing.
+func FollowingIDs(userID int64) (map[int64]struct{}, error) {
+	out := make(map[int64]struct{})
+	if Pool == nil || userID == 0 {
+		return out, nil
+	}
+	rows, err := ListFollowing(userID, MaxFollowing, 0)
+	if err != nil {
+		return out, err
+	}
+	for _, r := range rows {
+		out[r.ID] = struct{}{}
+	}
+	return out, nil
+}
+
 // FollowCountsForUser returns the two numbers on a player page. Banned accounts
 // are excluded from both, by the same rule that excludes them from the
 // home-page panels — and from both together, so the count a profile prints

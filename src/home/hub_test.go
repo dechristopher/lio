@@ -1,4 +1,4 @@
-package tv
+package home
 
 import (
 	"fmt"

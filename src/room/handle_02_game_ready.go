@@ -6,9 +6,9 @@ import (
 	"github.com/dechristopher/octad/v2"
 
 	"github.com/dechristopher/lio/channel"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/str"
-	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 )
 
@@ -91,7 +91,7 @@ func (r *Instance) handleGameReady() {
 	// announce the (re)started game to the home-page TV stream. This fires for
 	// the first game and again for each rematch (the routine re-enters this
 	// state), so a rematch streams its new game into the same TV slot.
-	tv.Publish(r.tvEvent(tv.Start))
+	home.Publish(r.homeEvent(home.Start))
 
 	util.DebugFlag("room", str.CRoom, "[%s] waiting for white to move", r.ID)
 

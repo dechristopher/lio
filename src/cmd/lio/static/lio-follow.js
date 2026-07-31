@@ -424,8 +424,19 @@
     }
 
     // The badge the header painted at render time, corrected by what the fetch
-    // actually found. It is not pushed — see followingButton in follow.templ —
-    // so opening the panel is the moment it can be made true again.
+    // actually found and, from then on, by the socket
+    // (arch/HOME_ACTIVITY_STREAMING.md). Opening the panel is no longer the only
+    // moment it can be made true.
+    //
+    // Exposed so the page's socket owner — whichever of lio.js / lio-tv.js /
+    // lio-notify.js holds the connection — can push a new count in without
+    // knowing anything about how the badge is drawn. A count that arrived
+    // before this file parsed is picked up from the stash below.
+    window.lioFollowBadge = { apply: paintBadge };
+    if (typeof window.__lioFollowOnline === "number") {
+      paintBadge(window.__lioFollowOnline);
+    }
+
     function paintBadge(n) {
       const btn = document.getElementById("followingButton");
       if (!btn) return;

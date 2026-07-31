@@ -121,7 +121,13 @@ func (s *SockMap) UnTrack(uid, connID string) {
 // notify posts a non-blocking, coalescing "count changed" signal to the
 // broadcaster. It never blocks the caller (Track/UnTrack run on connection
 // goroutines) and never panics: updateChannel is buffered and never closed.
+//
+// It also bumps the site-wide connection generation, which is how a reader that
+// is not subscribed to this channel — the home digest, which reflects every
+// channel at once — notices that presence moved (see Generation).
 func (s *SockMap) notify() {
+	connGen.Add(1)
+
 	select {
 	case s.updateChannel <- struct{}{}:
 	default:
@@ -319,6 +325,22 @@ type Socket struct {
 	// See Account for why the identity lives here rather than in an index.
 	Acct Account
 
+	// Follows is the set of account ids this session follows, resolved once
+	// when the connection was established and never refreshed for its lifetime.
+	// Nil for an anonymous socket, and for every channel except the home page's
+	// (nobody else asks the question).
+	//
+	// It is here so the home hub can answer "which of the people online does
+	// this viewer follow" with map lookups instead of a query
+	// (arch/HOME_ACTIVITY_STREAMING.md). The htmx poll it replaced asked
+	// Postgres that once per viewer per five seconds.
+	//
+	// Read-only after NewSocket returns. A follow made during the connection's
+	// life is not reflected until the page is reloaded, which is acceptable:
+	// following somebody is a deliberate act on another page, and arriving back
+	// at the home page is what the reader does next.
+	Follows map[int64]struct{}
+
 	send   chan []byte
 	closed chan struct{}
 	once   sync.Once
@@ -338,6 +360,20 @@ func NewSocket(conn *websocket.Conn, uid, connID, typ string, acct Account) *Soc
 	}
 }
 
+// SetFollows attaches the follow set described on the Follows field. It must be
+// called before the socket is tracked — after that the field is read by the
+// home hub's goroutine and must not be written.
+//
+// It is a setter rather than a NewSocket parameter because exactly one channel
+// populates it, and threading a nil through every other call site (including
+// every test that builds a socket) would suggest the field mattered there.
+func (s *Socket) SetFollows(follows map[int64]struct{}) {
+	if s == nil {
+		return
+	}
+	s.Follows = follows
+}
+
 // Enqueue queues a message for the connection's writer goroutine. It never
 // blocks: if the send buffer is full the consumer is too slow or wedged, so the
 // connection is dropped (its read loop then unwinds and untracks it).
@@ -350,6 +386,20 @@ func (s *Socket) Enqueue(d []byte) {
 		// buffer full: slow/stuck client — drop the connection
 		s.Close()
 	}
+}
+
+// Queued reports how many frames are waiting for this connection's writer
+// goroutine. Zero means everything enqueued so far has been handed to the
+// socket, not that nothing was ever sent.
+//
+// It exists so a pusher's behaviour can be asserted without a real websocket:
+// "this socket was sent something, that one was not" is the contract of every
+// per-connection push, and it is otherwise invisible from outside the package.
+func (s *Socket) Queued() int {
+	if s == nil {
+		return 0
+	}
+	return len(s.send)
 }
 
 // Close signals the writer goroutine to shut the connection down. Idempotent

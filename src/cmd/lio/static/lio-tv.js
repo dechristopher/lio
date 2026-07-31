@@ -1,6 +1,6 @@
 // lio-tv.js — home-page "live games" TV widget.
 //
-// A self-contained, read-only WebSocket client for the global /socket/tv
+// A self-contained, read-only WebSocket client for the global /socket/home
 // channel. It receives a one-shot snapshot of the featured games on connect,
 // then a stream of add / move / remove deltas, and renders each game as a small
 // octadground board (viewOnly) with thin clock progress bars and the match
@@ -48,7 +48,7 @@
 		// server addresses a notification to a single connection on it, so a
 		// viewer only ever receives their own (arch/NOTIFICATIONS.md).
 		window.lioSocketOwner = 'tv';
-		ws = new WebSocket(location.origin.replace(/^http/, 'ws') + '/socket/tv');
+		ws = new WebSocket(location.origin.replace(/^http/, 'ws') + '/socket/home');
 		ws.onopen = () => {
 			attempts = 0;
 			pingsSincePong = 0;
@@ -141,6 +141,28 @@
 		if (msg.t === 'si') {
 			if (msg.d && msg.d.v && window.lioUpdateNotice) {
 				window.lioUpdateNotice(msg.d.v);
+			}
+			return;
+		}
+		// activity digest: the stat tiles, open challenges and players panel
+		// below the grid. They share this socket rather than opening a second
+		// one — the page holds exactly one connection, which is what the
+		// site-wide presence walk counts (arch/HOME_ACTIVITY_STREAMING.md).
+		if (msg.t === 'hm') {
+			if (msg.d && window.lioHomeActivity) {
+				window.lioHomeActivity.apply(msg.d);
+			}
+			return;
+		}
+		// the header following badge's count. Separate from the digest's own
+		// Following section: that one draws the players card on this page, this
+		// one drives a control that is on every page.
+		if (msg.t === 'fo') {
+			if (msg.d) {
+				window.__lioFollowOnline = msg.d.o;
+				if (window.lioFollowBadge) {
+					window.lioFollowBadge.apply(msg.d.o);
+				}
 			}
 			return;
 		}
@@ -812,19 +834,8 @@
 	connect();
 })();
 
-// Pause the home-activity poll while the tab is backgrounded. htmx keeps its
-// `every 5s` timer running in hidden tabs (browsers only throttle it), so a
-// backgrounded home tab would keep hitting /home/activity indefinitely. htmx's
-// own trigger filter (`every 5s [expr]`) can't be used: compiling it needs eval,
-// which the site CSP forbids — so gate it here at request time instead. Only
-// unattended polling fires while hidden (a user can't click a hidden tab), so
-// cancelling any htmx request from #home-activity on document.hidden is safe;
-// htmx reschedules the next tick, so polling resumes when the tab is visible.
-(function () {
-	document.addEventListener('htmx:beforeRequest', function (evt) {
-		var elt = evt.detail && evt.detail.elt;
-		if (document.hidden && elt && elt.id === 'home-activity') {
-			evt.preventDefault();
-		}
-	});
-})();
+// The hidden-tab poll gate that used to live here is gone with the poll it
+// gated. #home-activity no longer issues htmx requests at all: it is streamed
+// over this socket (arch/HOME_ACTIVITY_STREAMING.md), and a backgrounded tab
+// costs the server nothing because the digest is derived once for the whole
+// site rather than once per viewer.

@@ -80,7 +80,7 @@ type TVCrowd struct {
 	Watchers int    `json:"n"`
 }
 
-// TVPayload is the union message streamed over the /socket/tv channel. Exactly
+// TVPayload is the union message streamed over the /socket/home channel. Exactly
 // one of Snapshot / Add / Move / Crowd / Remove is populated per message; the
 // client dispatches on whichever field is present:
 //   - Snapshot: the full featured set, sent once when a viewer connects.

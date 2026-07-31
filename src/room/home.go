@@ -7,23 +7,23 @@ import (
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/clock"
-	"github.com/dechristopher/lio/tv"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
-// tvEvent builds a tv.Event of the given kind, locking stateMu itself. Used at
+// homeEvent builds a home.Event of the given kind, locking stateMu itself. Used at
 // call sites that do not already hold the lock (e.g. the game-start broadcast).
-func (r *Instance) tvEvent(kind tv.EventKind) tv.Event {
+func (r *Instance) homeEvent(kind home.EventKind) home.Event {
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
-	return r.tvEventLocked(kind)
+	return r.homeEventLocked(kind)
 }
 
-// tvEventLocked builds the home-page TV stream event describing the current
+// homeEventLocked builds the home-page TV stream event describing the current
 // game. The caller must hold stateMu (it reads the game, clock, and players).
 // Clocks are reported in centi-seconds, matching proto.ClockPayload, and reflect
 // the post-flip state after a move so the grid's clock bars track the live game.
-func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
+func (r *Instance) homeEventLocked(kind home.EventKind) home.Event {
 	clockState := r.game.Clock.State(true)
 
 	lastMove := ""
@@ -55,13 +55,13 @@ func (r *Instance) tvEventLocked(kind tv.EventKind) tv.Event {
 	// the hub keeps this event as the room's state for the whole interlude, so
 	// a viewer arriving mid-interlude still receives the result.
 	var winner, reason string
-	if kind == tv.End {
+	if kind == home.End {
 		id, _ := r.gameOverStateLocked()
 		winner = getWinnerString(id)
 		reason = r.gameOverReasonLocked(false)
 	}
 
-	return tv.Event{
+	return home.Event{
 		Kind:     kind,
 		RoomID:   r.ID,
 		GameID:   r.game.ID,

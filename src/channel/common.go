@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/contrib/v3/websocket"
@@ -21,6 +22,30 @@ const (
 	// backs up past this is dropped rather than allowed to stall a broadcast.
 	SendBuffer = 64
 )
+
+// connGen counts every change to the site-wide set of connections: one
+// increment per Track and per UnTrack, on every channel.
+//
+// It is a cheap "has presence changed at all" probe for a reader that would
+// otherwise have to walk the whole directory to find out. Connected() is that
+// walk, and it costs a snapshot of every SockMap; the home digest wakes on a
+// timer and must not pay for the walk when nothing has connected or
+// disconnected since it last looked (arch/HOME_ACTIVITY_STREAMING.md).
+//
+// The value is meaningless in itself — only "same as last time I looked" is.
+// It wraps at 2^64 changes, which is not a real number of connections.
+var connGen atomic.Uint64
+
+// Generation returns the current connection-change counter. A caller compares
+// it against the value it last saw: unchanged means no socket anywhere on the
+// site was tracked or untracked in between, so any view derived purely from the
+// socket directory is still current.
+//
+// It says nothing about *room* state, which changes without any connection
+// changing. A reader that reflects both must watch both.
+func Generation() uint64 {
+	return connGen.Load()
+}
 
 // Unicast queues a message for every connection the target uid holds on the
 // channel (e.g. all of that user's open tabs). The actual write happens on each
@@ -107,6 +132,38 @@ func Connected() map[string]Account {
 // Returns the number of connections the message was queued for. A return of 0
 // means the account is offline, which is not an error: the row is in the
 // database, and the next socket connect reads the count.
+// EachSocket calls fn once for every live connection on every channel, with the
+// channel name each one is on.
+//
+// It is the site-wide walk behind anything that has to reach each *connection*
+// with a different message — the home hub's follow pushes, which answer a
+// per-viewer question and so cannot use the broadcast shape below
+// (arch/HOME_ACTIVITY_STREAMING.md).
+//
+// The channel name comes from the directory key rather than from the Socket,
+// which does not carry it. A caller that treats one channel differently from
+// the rest (the home page's Following section, which nowhere else renders)
+// needs it, and the alternative — a second walk, or a field on every Socket —
+// costs more than passing the key already in hand.
+//
+// Like the sends below it ranges over per-channel snapshots, so it holds no
+// SockMap lock across fn and never races connections starting and stopping. fn
+// must not block: it runs on the caller's goroutine, part-way through a walk of
+// the whole directory.
+func EachSocket(fn func(channelName string, s *Socket)) {
+	Map.Range(func(k, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		name, _ := k.(string)
+		for _, s := range sm.Sockets() {
+			fn(name, s)
+		}
+		return true
+	})
+}
+
 func SendToAccount(acctID int64, d []byte) int {
 	if acctID == 0 {
 		return 0

@@ -1,32 +1,48 @@
-// Package tv powers the home-page "live games" widget: a single global,
-// read-only WebSocket channel (/socket/tv) that streams a capped grid of
-// in-progress games to every viewer on the home page.
+// Package home powers the home page's two live surfaces over one global,
+// read-only WebSocket channel (/socket/home): the "live games" grid, and the
+// site activity digest (arch/HOME_ACTIVITY_STREAMING.md).
 //
-// A single hub goroutine owns all state and is event-sourced from the rooms:
-// rooms call Publish on game start, every move, game over, and room close, and
-// the hub maintains the set of live games plus an ordered, fixed-size set of
-// "featured" slots shown in the grid. The slot key is the room id (not the game
-// id), so a rematch keeps its slot and just streams a new game into it, while a
-// finished game that does not rematch ends with the room's cleanup → RoomClosed
-// → its slot is freed and backfilled from another live game. That is exactly the
-// "swap out ended matches that don't agree to rematch" behaviour, for free.
+// The channel is named for the page rather than for either surface, because it
+// carries both. The grid was here first, under the name "tv", and its wire
+// types (proto.TVGame and friends) keep that name — they describe the featured-
+// game grid specifically, which is still exactly what they are.
 //
-// The hub never imports room (room imports tv); it learns everything it needs
-// from the event stream. Fan-out reuses the hardened channel layer: a viewer
-// gets a one-shot snapshot of the current grid on connect, then a stream of
-// add/move/remove deltas for featured rooms only.
-package tv
+// A single hub goroutine owns all state.
+//
+// The **grid** is event-sourced from the rooms: rooms call Publish on game
+// start, every move, game over, and room close, and the hub maintains the set
+// of live games plus an ordered, fixed-size set of "featured" slots shown in the
+// grid. The slot key is the room id (not the game id), so a rematch keeps its
+// slot and just streams a new game into it, while a finished game that does not
+// rematch ends with the room's cleanup → RoomClosed → its slot is freed and
+// backfilled from another live game. That is exactly the "swap out ended matches
+// that don't agree to rematch" behaviour, for free.
+//
+// The **digest** (stat tiles, open challenges, the players roster) is not event
+// sourced. It is re-derived in full on a coalesced tick and broadcast only when
+// it changes — see digest.go for why the weaker pattern is the right one here.
+//
+// The hub never imports room (room imports this package); it learns the grid
+// from the event stream, and the digest from a source closure injected at wiring
+// time. Fan-out reuses the hardened channel layer: a viewer gets a one-shot
+// snapshot of the current grid and digest on connect, then a stream of deltas.
+package home
 
 import (
+	"time"
+
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
 
 const (
 	// Channel is the global channel key (and /socket/<chan> path segment) the
-	// TV stream is broadcast on. It is not a room, so the WS handler special-
-	// cases it (see www/ws/ws.go and IsTV).
-	Channel = "tv"
+	// home page's stream is broadcast on. It is not a room, so the WS handler
+	// special-cases it (see www/ws/ws.go and IsHome).
+	//
+	// The name must never collide with a generated room id, which is the same
+	// constraint the notification channel has.
+	Channel = "home"
 	// Cap is the maximum number of games shown in the grid at once. Additional
 	// live games wait in the pool and are promoted as featured slots free up.
 	Cap = 6
@@ -38,7 +54,7 @@ const (
 	inBuffer = 256
 )
 
-// EventKind enumerates the room lifecycle transitions the TV hub cares about.
+// EventKind enumerates the room lifecycle transitions the grid cares about.
 type EventKind int
 
 const (
@@ -59,6 +75,12 @@ const (
 	// RoomClosed: the room was torn down (no rematch / abandon / cancel); its
 	// slot is freed and backfilled.
 	RoomClosed
+
+	// dirtyOnly carries no grid state at all: it only tells the hub that the
+	// digest may have changed (see MarkDirty). It is unexported because it is
+	// not a room lifecycle transition — callers reach it through MarkDirty,
+	// which says what it is for.
+	dirtyOnly
 )
 
 // Event is the room → hub message. All fields except Kind/RoomID are ignored for
@@ -107,19 +129,23 @@ type Event struct {
 	PhaseTotal int64
 }
 
-// hubMsg multiplexes the two inbound request kinds onto the hub's single inbound
-// channel: a room lifecycle event, or a new viewer asking for a snapshot.
+// hubMsg multiplexes the inbound request kinds onto the hub's single inbound
+// channel: a room lifecycle event, a new viewer asking for a snapshot, or the
+// one-shot injection of the digest source.
 type hubMsg struct {
-	ev   *Event
-	sock *channel.Socket
+	ev      *Event
+	sock    *channel.Socket
+	sources *sources
 }
 
-// hub owns the live-game registry and featured slots. All fields are touched
-// only by run (a single goroutine), so they need no synchronization.
+// hub owns the live-game registry, the featured slots, and the activity digest.
+// All fields are touched only by run (a single goroutine), so they need no
+// synchronization.
 type hub struct {
 	in       chan hubMsg
 	games    map[string]*proto.TVGame // every live room, keyed by room id
 	featured []string                 // ordered featured room ids, len <= Cap
+	digest   digestState              // the activity region; see digest.go
 }
 
 var theHub = &hub{
@@ -128,8 +154,13 @@ var theHub = &hub{
 	featured: make([]string, 0, Cap),
 }
 
-// Up starts the hub goroutine and pre-creates the TV channel's SockMap so it is
-// ready to broadcast before the first viewer connects. Wired into systems.Run.
+// Up starts the hub goroutine and pre-creates the home channel's SockMap so it
+// is ready to broadcast before the first viewer connects. Wired into
+// systems.Run.
+//
+// The digest half of the hub stays dormant until SetSource is called: the
+// source needs room and presence, which this package must not import, so it is
+// injected from www once those are wired (see digest.go).
 func Up() {
 	channel.Map.GetSockMap(Channel)
 	go theHub.run()
@@ -145,30 +176,53 @@ func Publish(e Event) {
 	}
 }
 
-// Connect asks the hub to send the current grid snapshot to a freshly connected
-// viewer's socket. It is called from the WS connection goroutine after the
-// socket is tracked, and routes through the hub so the snapshot is built from
-// the authoritative single-owner state.
+// Connect asks the hub to send the current grid snapshot and activity digest to
+// a freshly connected viewer's socket. It is called from the WS connection
+// goroutine after the socket is tracked, and routes through the hub so both
+// snapshots are built from the authoritative single-owner state.
 func Connect(s *channel.Socket) {
 	theHub.in <- hubMsg{sock: s}
 }
 
-// IsTV reports whether the given channel id is the global TV channel (as opposed
-// to a room id). Used by the WS handler to skip the room-existence check.
-func IsTV(id string) bool {
+// IsHome reports whether the given channel id is the global home channel (as
+// opposed to a room id). Used by the WS handler to skip the room-existence
+// check.
+func IsHome(id string) bool {
 	return id == Channel
 }
 
-// run is the hub's single owning goroutine.
+// run is the hub's single owning goroutine. It owns both surfaces: the grid,
+// which is event-sourced and answers each event immediately, and the digest,
+// which is re-derived on the ticker below (see digest.go).
+//
+// One goroutine for both is deliberate. They share the connect path — a viewer
+// gets one snapshot covering both — and keeping them in the same owner means
+// neither needs a lock to read what the other holds.
 func (h *hub) run() {
-	for m := range h.in {
-		if m.sock != nil {
-			snap := h.snapshot()
-			m.sock.Enqueue(snap.Marshal())
-			continue
-		}
-		for _, p := range h.handle(*m.ev) {
-			h.broadcast(p)
+	tick := time.NewTicker(digestFloor)
+	defer tick.Stop()
+
+	for {
+		select {
+		case m := <-h.in:
+			switch {
+			case m.sources != nil:
+				h.digest.src = m.sources.digest
+			case m.sock != nil:
+				snap := h.snapshot()
+				m.sock.Enqueue(snap.Marshal())
+				h.connectDigest(m.sock)
+			case m.ev != nil:
+				// every room event moves the digest as well as the grid: a game
+				// starting changes the live count, a room closing may free an
+				// open challenge, and either can change who reads as seated
+				h.digest.dirty = true
+				for _, p := range h.handle(*m.ev) {
+					h.broadcast(p)
+				}
+			}
+		case <-tick.C:
+			h.tick()
 		}
 	}
 }

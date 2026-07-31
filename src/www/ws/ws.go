@@ -13,11 +13,11 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/title"
-	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/www/ws/proto"
@@ -153,7 +153,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	}
 
 	// ensure room exists for connection. Two channels are not rooms and bypass
-	// this check: the global TV channel (/socket/tv), a site-wide read-only
+	// this check: the global TV channel (/socket/home), a site-wide read-only
 	// stream, and the notification channel (/socket/me), which a page opens when
 	// it holds no other socket (arch/NOTIFICATIONS.md).
 	//
@@ -164,7 +164,7 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 	// over HTTP before opening the game socket, and rematches flip colors, not
 	// uids — so this never goes stale.
 	isSpectator := true
-	if !tv.IsTV(roomId) && !notify.IsNotify(roomId) {
+	if !home.IsHome(roomId) && !notify.IsNotify(roomId) {
 		thisRoom, err := room.Get(roomId)
 		if thisRoom == nil {
 			util.Error(str.CWS, str.EWSConn, err.Error())
@@ -216,6 +216,29 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		connID := config.GenerateCode(16)
 		socket := channel.NewSocket(c, uid, connID, c.Params("type"), acctInfo)
 
+		// Every socket carries its viewer's follow set, resolved once here
+		// (arch/HOME_ACTIVITY_STREAMING.md). The home hub then answers "which of
+		// the people online do you follow" with map lookups on every digest tick
+		// instead of the per-viewer Postgres query the htmx poll ran every five
+		// seconds.
+		//
+		// On *every* channel, not just the home page's, because the header's
+		// following badge is on every page: a reader sitting in a game must
+		// still learn that somebody they follow has just signed on. That costs
+		// one indexed read per connection, paid once for a socket that then
+		// lives as long as the page does.
+		//
+		// A failure is not fatal to the connection: everything else the socket
+		// carries is still worth having, and the badge falls back to the number
+		// the page was painted with.
+		if acctInfo.ID != 0 {
+			follows, err := db.FollowingIDs(acctInfo.ID)
+			if err != nil {
+				util.Error(str.CDB, "follow set load failed uid=%s error=%s", uid, err.Error())
+			}
+			socket.SetFollows(follows)
+		}
+
 		// track this socket in the corresponding SockMap
 		channel.Map.GetSockMap(thisChannel).Track(socket)
 
@@ -241,11 +264,12 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// why nothing polls for notifications. A no-op for an anonymous socket.
 		notify.Connect(socket, acctStaff)
 
-		// the global TV channel pushes a one-shot grid snapshot on connect so a
-		// new viewer immediately sees the current featured games, then receives
-		// add/move/remove deltas via the normal broadcast path
-		if tv.IsTV(roomId) {
-			tv.Connect(socket)
+		// the global home channel pushes a one-shot snapshot on connect — the
+		// current featured games and the whole activity digest — so a new viewer
+		// immediately sees both, then receives deltas via the normal broadcast
+		// path
+		if home.IsHome(roomId) {
+			home.Connect(socket)
 		}
 
 		// UnTrack this socket and stop its writer when the read loop exits

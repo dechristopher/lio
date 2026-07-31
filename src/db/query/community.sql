@@ -10,7 +10,12 @@
 -- name: ListNewestUsers :many
 -- The most recently registered accounts, newest first. The title join matches
 -- the rest of the user reads: NULL for the vast majority, who hold no title.
-SELECT u.username, u.created_at, t.code AS title_code, t.name AS title_name
+--
+-- The id comes back so the caller can intersect these rows with the presence
+-- snapshot and mark the arrivals who are online right now
+-- (arch/HOME_ACTIVITY_STREAMING.md). It is folded on server-side and never
+-- reaches a client, exactly like message.OnlineMember.ID.
+SELECT u.id, u.username, u.created_at, t.code AS title_code, t.name AS title_name
 FROM users u
          LEFT JOIN titles t ON t.id = u.title_id
 WHERE u.banned_until IS NULL

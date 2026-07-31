@@ -68,11 +68,14 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "getElementById(\"modalCreateGame\")") // inline modal script
 
 	// new home sections
-	mustContain(t, out, `id="home-activity"`)      // polled activity region
-	mustContain(t, out, `hx-get="/home/activity"`) // self-poll
-	mustContain(t, out, "Open challenges")         // challenges section
-	mustContain(t, out, "/seek456")                // joinable challenge link
-	mustContain(t, out, "What is Octad?")          // explainer
+	mustContain(t, out, `id="home-activity"`) // streamed activity region
+	// the region is server-rendered once and streamed over /socket/home from
+	// then on — it must carry no htmx polling of any kind
+	// (arch/HOME_ACTIVITY_STREAMING.md)
+	mustNotContain(t, out, "/home/activity")
+	mustContain(t, out, "Open challenges") // challenges section
+	mustContain(t, out, "/seek456")        // joinable challenge link
+	mustContain(t, out, "What is Octad?")  // explainer
 	// zero Viewer (no session, accounts disabled): the login button renders
 	// disabled and the auth modal is omitted entirely
 	mustContain(t, out, ">Log in<")
@@ -128,13 +131,31 @@ func TestRenderIndex(t *testing.T) {
 	mustNotContain(t, out, `class="cg-rated`)
 }
 
+// An empty region still renders every section's shell, because the stream needs
+// somewhere to put the first arrival (arch/HOME_ACTIVITY_STREAMING.md). What an
+// empty site must not do is *show* those shells: the card and each section carry
+// `hidden`, so a quiet site still looks quiet rather than like a stack of empty
+// states.
 func TestRenderHomeActivityEmpty(t *testing.T) {
 	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}, message.Community{}))
 	mustContain(t, out, `id="home-activity"`)
 	mustContain(t, out, "No open challenges right now")
-	// an empty community renders no panel at all rather than empty states
-	mustNotContain(t, out, "Online now")
-	mustNotContain(t, out, "Newest members")
+	// the challenge list exists but is hidden; the empty note is the visible one
+	mustContain(t, out, `id="home-challenges-list" class="mt-3 flex flex-col gap-2" hidden`)
+	mustNotContain(t, out, `id="home-challenges-empty" class="mt-3 text-sm text-fg-subtle" hidden`)
+	// the players card and all three of its sections render hidden
+	mustContain(t, out, `id="home-players" class="card" hidden`)
+	mustContain(t, out, `id="home-following" hidden`)
+	mustContain(t, out, `id="home-online" hidden`)
+	mustContain(t, out, `id="home-arrivals" hidden`)
+	// the client needs the lists themselves to patch into
+	mustContain(t, out, `id="home-online-list"`)
+	mustContain(t, out, `id="home-arrivals-list"`)
+	mustContain(t, out, `id="home-following-list"`)
+	// the stat tiles are patched by id, not rebuilt
+	mustContain(t, out, `id="home-stat-playing"`)
+	mustContain(t, out, `id="home-stat-live"`)
+	mustContain(t, out, `id="home-stat-total"`)
 }
 
 // A seek leads with the person who created it: title badge, username and (for a
@@ -188,10 +209,13 @@ func TestRenderPlayersCard(t *testing.T) {
 	mustContain(t, out, `href="/@/pawnstar"`)
 
 	// both rosters are wrapping chip lists, not full-width rows: a name eight
-	// characters long must not cost a whole line
-	if n := strings.Count(out, `class="chip-list"`); n != 2 {
-		t.Errorf("chip lists = %d, want 2 (online + newest)", n)
+	// characters long must not cost a whole line. Three lists render, not two —
+	// the Following shell is always present (and here hidden), because the
+	// stream patches into it (arch/HOME_ACTIVITY_STREAMING.md).
+	if n := strings.Count(out, `class="chip-list"`); n != 3 {
+		t.Errorf("chip lists = %d, want 3 (following + online + newest)", n)
 	}
+	mustContain(t, out, `id="home-following" hidden`)
 	mustNotContain(t, out, `class="roster-row"`) // rows are the leaderboard's shape
 	// the seated chip is tinted as well as tagged, so the state is not carried
 	// by the tag alone
@@ -202,6 +226,58 @@ func TestRenderPlayersCard(t *testing.T) {
 
 	// the anonymous footnote counts them and, for a logged-out viewer, says so
 	mustContain(t, out, "2 anonymous visitors (including you)")
+}
+
+// An arrival who is not on the site carries no presence dot. Most arrivals are
+// people who registered and left, so a dot on every chip would be a marker that
+// usually says nothing — it is a distinction, exactly as the state tag is.
+func TestRenderArrivalOfflineHasNoDot(t *testing.T) {
+	c := message.Community{
+		Newest: []message.NewMember{{Username: "pawnstar", Joined: time.Now().Add(-48 * time.Hour)}},
+	}
+	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}, c))
+	mustContain(t, out, `href="/@/pawnstar"`)
+	mustContain(t, out, ">2d<")
+	// no roster is rendered here, so the only chip on the page is the arrival —
+	// and it must carry no dot
+	mustNotContain(t, out, `class="roster-dot"`)
+	mustNotContain(t, out, "roster-chip-tag")
+}
+
+// An arrival who is online gets the full roster treatment: the presence dot, the
+// state tag when they cannot play, and the sword when they can. A new player who
+// is here and free is the best challenge target the page has.
+func TestRenderArrivalOnlineGetsRosterTreatment(t *testing.T) {
+	joined := time.Now().Add(-48 * time.Hour)
+	c := message.Community{
+		Newest: []message.NewMember{
+			{Username: "freebie", Joined: joined, Online: true},
+			{Username: "atboard", Joined: joined, Online: true, Playing: true, Busy: true},
+			{Username: "gone", Joined: joined},
+		},
+	}
+	out := renderSmokeViewer(t, Viewer{
+		LoggedIn: true, AccountsEnabled: true, Username: "watcher",
+	}, HomeActivity(nil, message.SiteStats{}, c))
+
+	// the two who are here carry dots; the tag marks the one who cannot play
+	if n := strings.Count(out, `class="roster-dot"`); n != 2 {
+		t.Errorf("presence dots = %d, want 2 (only the online arrivals)", n)
+	}
+	mustContain(t, out, ">playing<")
+	mustContain(t, out, "roster-chip is-playing is-busy")
+	// the sword is offered for the free arrival only — never for the one at a
+	// board, and never for somebody who is not here at all
+	if n := strings.Count(out, `class="roster-challenge"`); n != 1 {
+		t.Errorf("swords = %d, want 1 (the online, free arrival)", n)
+	}
+	mustContain(t, out, `data-challenge="freebie"`)
+	mustNotContain(t, out, `data-challenge="atboard"`)
+	mustNotContain(t, out, `data-challenge="gone"`)
+	// the join token still rides along on every arrival, online or not
+	if n := strings.Count(out, ">2d<"); n != 3 {
+		t.Errorf("join tokens = %d, want 3 (one per arrival)", n)
+	}
 }
 
 // The same roster seen by a member drops the "(including you)" aside — they are

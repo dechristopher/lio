@@ -11,11 +11,11 @@ import (
 	"github.com/dechristopher/lio/channel/handlers"
 	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/title"
-	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
 )
@@ -358,7 +358,7 @@ func (r *Instance) StartRehydrated() error {
 
 	// crowd presence handling, as Create does
 	go handlers.HandleCrowd(r.ID, r.PlayerIDs, func(spec int) {
-		tv.Publish(tv.Event{Kind: tv.Crowd, RoomID: r.ID, Watchers: spec})
+		home.Publish(home.Event{Kind: home.Crowd, RoomID: r.ID, Watchers: spec})
 	})
 
 	rooms.Store(r.ID, r)
@@ -369,11 +369,11 @@ func (r *Instance) StartRehydrated() error {
 	r.setBusySeats()
 	r.stateMu.Unlock()
 
-	// re-announce a live game to the home-page TV grid: the tv.Start publish in
+	// re-announce a live game to the home-page TV grid: the home.Start publish in
 	// handleGameReady already ran in the previous process, and a restored
 	// ongoing room re-enters the FSM past it
 	if r.State() == StateGameOngoing {
-		tv.Publish(r.tvEvent(tv.Start))
+		home.Publish(r.homeEvent(home.Start))
 	}
 
 	go r.routine()

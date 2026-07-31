@@ -85,10 +85,16 @@ templ followModal(owner, viewer string) {
 // telephone"): a new account never grows one, following somebody is what
 // creates it, and its appearing is therefore self-explanatory.
 //
-// The badge is a render-time number, not a pushed one. Keeping it live would
-// need presence to emit connect/disconnect events — machinery that was
-// deliberately not built — so it is true when the page is painted and refreshed
-// when the panel opens. Every navigation repaints the header.
+// The badge is painted here and **kept live by the socket**. It used to be a
+// render-time number only, because keeping it live needed presence to emit
+// connect/disconnect events and that machinery did not exist; the home digest's
+// coalesced tick is that machinery, so the hub now pushes this count to every
+// socket on the site whenever the viewer's own answer changes
+// (arch/HOME_ACTIVITY_STREAMING.md, and lioFollowBadge in lio-follow.js).
+//
+// Rendering it here as well is still right: the socket opens a moment after the
+// paint, and a badge that appeared late would read as somebody who had just
+// signed on.
 templ followingButton() {
 	<button
 		type="button"

@@ -8,9 +8,9 @@ import (
 
 	"github.com/dechristopher/lio/clock"
 	"github.com/dechristopher/lio/engine"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/title"
-	"github.com/dechristopher/lio/tv"
 )
 
 // TestTVSeat locks the identity the home-page TV grid shows for each kind of
@@ -107,7 +107,7 @@ func TestTVEventCarriesBothSeats(t *testing.T) {
 	r.players[octad.Black] = &player.Player{IsBot: true}
 	r.params.BotPersona = "knight"
 
-	ev := r.tvEvent(tv.Start)
+	ev := r.homeEvent(home.Start)
 	if ev.WhiteSeat.Name != "drewtest" {
 		t.Errorf("white seat = %q, want drewtest", ev.WhiteSeat.Name)
 	}
@@ -142,7 +142,7 @@ func TestTVEventDeployPhase(t *testing.T) {
 	submitDeploy(r, "white", "knpp")
 	waitForLock(t, r, octad.White)
 
-	ev := r.tvEvent(tv.Deploy)
+	ev := r.homeEvent(home.Deploy)
 	if !ev.Deploying {
 		t.Error("Deploying = false during the deploy phase")
 	}
@@ -178,7 +178,7 @@ func TestTVEventPreStartHoldsClocks(t *testing.T) {
 	runDeployToCompletion(t, r)
 	defer r.game.Clock.Stop(false, true)
 
-	ev := r.tvEvent(tv.Start)
+	ev := r.homeEvent(home.Start)
 	if ev.Deploying {
 		t.Error("Deploying = true after the reveal")
 	}
@@ -194,7 +194,7 @@ func TestTVEventPreStartHoldsClocks(t *testing.T) {
 
 	// the grace lapses and the side to move goes on the clock for real
 	time.Sleep(400 * time.Millisecond)
-	if after := r.tvEvent(tv.Move); !after.Running || after.PhaseLeft != 0 {
+	if after := r.homeEvent(home.Move); !after.Running || after.PhaseLeft != 0 {
 		t.Errorf("after the grace: Running = %t, PhaseLeft = %d; want true, 0",
 			after.Running, after.PhaseLeft)
 	}

@@ -376,10 +376,16 @@ func scriptsAbout(meta Meta) templ.Component {
 }
 
 // scriptsTV loads the board renderer + themes and the self-contained clients for
-// the home page: the live-games TV widget (lio-tv.js) and the "What is Octad?"
-// self-playing demo board (lio-home-demo.js). Both own their own data (a
-// read-only WebSocket / a fetch of /home/demo) and self-guard on their mount, so
-// neither lio.js nor howler is needed here.
+// the home page: the live-games TV widget (lio-tv.js), the activity region
+// (lio-home.js) and the "What is Octad?" self-playing demo board
+// (lio-home-demo.js). Each owns its own data (a read-only WebSocket / a fetch of
+// /home/demo) and self-guards on its mount, so neither lio.js nor howler is
+// needed here.
+//
+// lio-home.js opens no socket of its own: lio-tv.js holds the page's single
+// /socket/home connection and hands it the activity frames
+// (arch/HOME_ACTIVITY_STREAMING.md). Load order does not matter — the first
+// frame cannot arrive before the socket opens, by which point both have parsed.
 func scriptsTV(meta Meta) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -408,7 +414,7 @@ func scriptsTV(meta Meta) templ.Component {
 		var templ_7745c5c3_Var19 templ.SafeURL
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(asset("octadground.base.css"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 81, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 87, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -429,7 +435,7 @@ func scriptsTV(meta Meta) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("octadground.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 83, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 89, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -442,7 +448,7 @@ func scriptsTV(meta Meta) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-tv.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 84, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 90, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -453,15 +459,28 @@ func scriptsTV(meta Meta) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var22 string
-		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-home-demo.js"))
+		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-home.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 85, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 91, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\"></script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\"></script><script src=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var23 string
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-home-demo.js"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 92, Col: 40}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\"></script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

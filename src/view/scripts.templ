@@ -73,14 +73,21 @@ templ scriptsAbout(meta Meta) {
 }
 
 // scriptsTV loads the board renderer + themes and the self-contained clients for
-// the home page: the live-games TV widget (lio-tv.js) and the "What is Octad?"
-// self-playing demo board (lio-home-demo.js). Both own their own data (a
-// read-only WebSocket / a fetch of /home/demo) and self-guard on their mount, so
-// neither lio.js nor howler is needed here.
+// the home page: the live-games TV widget (lio-tv.js), the activity region
+// (lio-home.js) and the "What is Octad?" self-playing demo board
+// (lio-home-demo.js). Each owns its own data (a read-only WebSocket / a fetch of
+// /home/demo) and self-guards on its mount, so neither lio.js nor howler is
+// needed here.
+//
+// lio-home.js opens no socket of its own: lio-tv.js holds the page's single
+// /socket/home connection and hands it the activity frames
+// (arch/HOME_ACTIVITY_STREAMING.md). Load order does not matter — the first
+// frame cannot arrive before the socket opens, by which point both have parsed.
 templ scriptsTV(meta Meta) {
 	<link rel="stylesheet" href={ asset("octadground.base.css") }/>
 	@themeStyles()
 	<script src={ asset("octadground.js") }></script>
 	<script src={ asset("lio-tv.js") }></script>
+	<script src={ asset("lio-home.js") }></script>
 	<script src={ asset("lio-home-demo.js") }></script>
 }

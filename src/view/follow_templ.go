@@ -211,10 +211,16 @@ func followModal(owner, viewer string) templ.Component {
 // telephone"): a new account never grows one, following somebody is what
 // creates it, and its appearing is therefore self-explanatory.
 //
-// The badge is a render-time number, not a pushed one. Keeping it live would
-// need presence to emit connect/disconnect events — machinery that was
-// deliberately not built — so it is true when the page is painted and refreshed
-// when the panel opens. Every navigation repaints the header.
+// The badge is painted here and **kept live by the socket**. It used to be a
+// render-time number only, because keeping it live needed presence to emit
+// connect/disconnect events and that machinery did not exist; the home digest's
+// coalesced tick is that machinery, so the hub now pushes this count to every
+// socket on the site whenever the viewer's own answer changes
+// (arch/HOME_ACTIVITY_STREAMING.md, and lioFollowBadge in lio-follow.js).
+//
+// Rendering it here as well is still right: the socket opens a moment after the
+// paint, and a badge that appeared late would read as somebody who had just
+// signed on.
 func followingButton() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -252,7 +258,7 @@ func followingButton() templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(followingOnlineLabel(viewer(ctx).FollowingOnline))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/follow.templ`, Line: 104, Col: 114}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/follow.templ`, Line: 110, Col: 114}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 			if templ_7745c5c3_Err != nil {
@@ -308,7 +314,7 @@ func followingPanel() templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(!viewer(ctx).Seated))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/follow.templ`, Line: 125, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/follow.templ`, Line: 131, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -321,7 +327,7 @@ func followingPanel() templ.Component {
 		var templ_7745c5c3_Var14 templ.SafeURL
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(profileURL(viewer(ctx).Username) + "#following"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/follow.templ`, Line: 133, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/follow.templ`, Line: 139, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {

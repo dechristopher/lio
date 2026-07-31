@@ -89,9 +89,28 @@ type OnlineMember struct {
 // player base growing and so new arrivals are discoverable on day one rather
 // than only once they have a rating.
 type NewMember struct {
+	// ID is the account's row id, carried for one purpose: intersecting these
+	// rows with the presence snapshot so an arrival who is here right now reads
+	// as available (arch/HOME_ACTIVITY_STREAMING.md).
+	//
+	// Server-side only, on the same terms as OnlineMember.ID above — the wire
+	// projection drops it and must keep dropping it.
+	ID       int64
 	Username string
 	Title    title.Title
 	Joined   time.Time
+	// Online marks an arrival holding a live socket right now; Playing and Busy
+	// qualify that exactly as they do on OnlineMember. All three are false for
+	// the majority of arrivals, who registered and left.
+	//
+	// They are NOT part of what db.NewestMembers caches. That cache holds the
+	// registration facts, which change on the order of hours; presence changes
+	// every second, so it is stamped onto a copy per read (see
+	// arrivalsWithPresence). Caching it would pin a green dot to somebody who
+	// went offline minutes ago.
+	Online  bool
+	Playing bool
+	Busy    bool
 }
 
 // RatedMember is one row of the home-page leaderboard: a player's single best

@@ -9,9 +9,9 @@ import (
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
-	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 )
 
@@ -39,7 +39,7 @@ var Initializers = []func(){
 	engine.MonitorSub,
 	clock.MonitorSub,
 	game.MonitorSub,
-	tv.Up,
+	home.Up,
 	Up,
 }
 

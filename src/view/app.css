@@ -5482,9 +5482,10 @@
 		max-width: 100%;
 	}
 	/* The left half gives up its right edge to the seam — only when there is a
-	   right half. A member who cannot be challenged keeps the plain full pill,
-	   and the Arrivals chips (which are not inside .roster-item) are untouched
-	   by all of this. */
+	   right half. A member who cannot be challenged keeps the plain full pill.
+	   Every chip in the players card is a .roster-item now, Arrivals included
+	   (they render through the shared playerChip), so an arrival who is online
+	   and free gets the split pill and every other chip is untouched. */
 	.roster-item:has(.roster-challenge) .roster-chip {
 		border-top-right-radius: 0;
 		border-bottom-right-radius: 0;

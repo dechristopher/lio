@@ -7,9 +7,9 @@ import (
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/str"
-	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
@@ -37,7 +37,7 @@ func (r *Instance) handleDeploy() {
 	// put the room on the home-page TV grid now rather than at the reveal: a
 	// deploying room is the most alive a room gets before its first move, and
 	// the grid renders it as a covered board with a countdown
-	tv.Publish(r.tvEvent(tv.Deploy))
+	home.Publish(r.homeEvent(home.Deploy))
 
 	deployTimer := time.NewTimer(deployTimeout)
 	defer deployTimer.Stop()
@@ -104,7 +104,7 @@ func (r *Instance) handleDeploy() {
 			channel.Broadcast(r.deployAnnounceMessage(), channel.SocketContext{Channel: r.ID, MT: 1})
 			// resync the grid's dial off the same tick, so a TV viewer who
 			// connected mid-phase converges within one interval
-			tv.Publish(r.tvEvent(tv.Deploy))
+			home.Publish(r.homeEvent(home.Deploy))
 		case <-deployTimer.C:
 			util.DebugFlag("room", str.CRoom, "[%s] deploy timer expired, auto-filling", r.ID)
 			r.deployAndStart(got, botColor)
@@ -172,7 +172,7 @@ func (r *Instance) deployAndStart(got map[octad.Color]Deployment, botColor octad
 
 	// reveal the assembled position to everyone and announce the game on TV
 	channel.Broadcast(r.CurrentGameStateMessage(false, true), channel.SocketContext{Channel: r.ID, MT: 1})
-	tv.Publish(r.tvEvent(tv.Start))
+	home.Publish(r.homeEvent(home.Start))
 
 	// transition to the live game before kicking the bot's opening move so the
 	// game-ongoing handler is the one listening on moveChannel
@@ -213,7 +213,7 @@ func (r *Instance) recordAndLock(color octad.Color, d Deployment) {
 	channel.Broadcast(r.lockMessage(color), channel.SocketContext{Channel: r.ID, MT: 1})
 	// the grid shows the same "locked in" state per seat, so it needs the delta
 	// immediately rather than on the next announce tick
-	tv.Publish(r.tvEvent(tv.Deploy))
+	home.Publish(r.homeEvent(home.Deploy))
 }
 
 // playerIDsLocked returns the current white/black player ids. The caller must

@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // tvWidget is the home-page "live games" TV: a grid of mini boards streamed
-// live over the /socket/tv WebSocket and managed entirely by lio-tv.js. The
+// live over the /socket/home WebSocket and managed entirely by lio-tv.js. The
 // markup here is just the static shell — the heading, a connection/status line,
 // an empty state, and the grid mount (#tv-grid) the client populates. It lives
 // OUTSIDE the htmx-polled #home-activity region so the 5s outerHTML swap never

@@ -13,7 +13,7 @@ import (
 
 const listNewestUsers = `-- name: ListNewestUsers :many
 
-SELECT u.username, u.created_at, t.code AS title_code, t.name AS title_name
+SELECT u.id, u.username, u.created_at, t.code AS title_code, t.name AS title_name
 FROM users u
          LEFT JOIN titles t ON t.id = u.title_id
 WHERE u.banned_until IS NULL
@@ -23,6 +23,7 @@ LIMIT $1
 `
 
 type ListNewestUsersRow struct {
+	ID        int64
 	Username  string
 	CreatedAt pgtype.Timestamptz
 	TitleCode *string
@@ -39,6 +40,11 @@ type ListNewestUsersRow struct {
 // an *expired* ban is not a ban and its holder is listed again.
 // The most recently registered accounts, newest first. The title join matches
 // the rest of the user reads: NULL for the vast majority, who hold no title.
+//
+// The id comes back so the caller can intersect these rows with the presence
+// snapshot and mark the arrivals who are online right now
+// (arch/HOME_ACTIVITY_STREAMING.md). It is folded on server-side and never
+// reaches a client, exactly like message.OnlineMember.ID.
 func (q *Queries) ListNewestUsers(ctx context.Context, limit int32) ([]ListNewestUsersRow, error) {
 	rows, err := q.db.Query(ctx, listNewestUsers, limit)
 	if err != nil {
@@ -49,6 +55,7 @@ func (q *Queries) ListNewestUsers(ctx context.Context, limit int32) ([]ListNewes
 	for rows.Next() {
 		var i ListNewestUsersRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.Username,
 			&i.CreatedAt,
 			&i.TitleCode,

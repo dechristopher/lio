@@ -589,6 +589,13 @@
       let msg;
       try { msg = JSON.parse(evt.data); } catch (e) { return; }
       if (msg.t === "nt" && msg.d) apply(msg.d);
+      // the following badge's count. This socket is the only one on a page
+      // that is neither a room nor the home page, so for a reader on their
+      // profile or the about page it is the only way the badge ever moves.
+      if (msg.t === "fo" && msg.d) {
+        window.__lioFollowOnline = msg.d.o;
+        if (window.lioFollowBadge) window.lioFollowBadge.apply(msg.d.o);
+      }
       // The version hello rides every socket. On a page whose only socket is
       // this one, it is the only thing that would ever notice a deploy.
       if (msg.t === "si" && msg.d && msg.d.v && window.lioUpdateNotice) {

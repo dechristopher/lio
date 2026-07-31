@@ -87,6 +87,7 @@ func NewestMembers() []message.NewMember {
 		out := make([]message.NewMember, 0, len(rows))
 		for _, r := range rows {
 			out = append(out, message.NewMember{
+				ID:       r.ID,
 				Username: r.Username,
 				Title:    title.New(r.TitleCode, r.TitleName),
 				Joined:   r.CreatedAt.Time,

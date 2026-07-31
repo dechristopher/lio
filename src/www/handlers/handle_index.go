@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"sort"
-	"strings"
-
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/db"
@@ -51,36 +48,30 @@ func IndexHandler(c fiber.Ctx) error {
 	return view.Render(c, 200, view.Index(meta, challenges, stats, community))
 }
 
-// HomeActivityHandler renders the live home-activity fragment (site stats, open
-// challenges) polled by htmx from the home page. The live-games grid is no
-// longer part of this fragment — it streams over /socket/tv (see tvWidget).
-//
-// This poll no longer reports the viewer's presence. It used to be how the site
-// knew anyone was here at all, which made presence a home-page-only guess with
-// a TTL; it is now read from the open sockets (see the presence package), and
-// this fragment only renders what that walk produced.
-func HomeActivityHandler(c fiber.Ctx) error {
-	// live fragment: must never be served from the browser cache, or htmx's
-	// self-poll swaps in a stale (pre-rebuild) copy of the stats/challenges
-	c.Set("Cache-Control", "no-store")
-	challenges, stats, community := homeActivity(c)
-	return view.Render(c, 200, view.HomeActivity(challenges, stats, community))
-}
+// There is no HomeActivityHandler any more. The activity region used to poll
+// this package every five seconds per viewer; it is now server-rendered once by
+// IndexHandler above and streamed over /socket/home from then on
+// (arch/HOME_ACTIVITY_STREAMING.md — HomeDigest in home_digest.go is the hub's
+// source).
 
 // onlineShown bounds the named roster on the home page's players panel. The
 // remainder is not hidden — everyone online is still in the headcount, and the
 // panel says how many more there are.
 const onlineShown = 8
 
-// homeActivity gathers the shared home-page activity data and resolves the
-// site-wide presence picture from the open sockets, with the room registry's
-// seats overlaid so a connected player reads as playing or waiting. The
-// live-games slice from HomeListing is unused here now (the TV widget streams
-// that), but stats.LiveGames still reflects the live count.
+// homeActivity gathers the home page's first paint and resolves the site-wide
+// presence picture from the open sockets, with the room registry's seats
+// overlaid so a connected player reads as playing or waiting. The live-games
+// slice from HomeListing is unused here (the TV widget streams that), but
+// stats.LiveGames still reflects the live count.
 //
-// The newest/top panels come from TTL-cached database reads, so serving them on
-// this path — which every viewer re-runs every 5 seconds — costs a mutex rather
-// than a query.
+// This runs once per page load now, not once per viewer per five seconds. It
+// still resolves the viewer's Following section over HTTP, because the first
+// paint has no socket yet — the socket takes over the moment it opens (see
+// HomeDigest).
+//
+// The newest/top panels come from TTL-cached database reads, so they cost a
+// mutex rather than a query.
 func homeActivity(c fiber.Ctx) ([]message.OpenChallenge, message.SiteStats, message.Community) {
 	_, challenges, stats, seated := room.HomeListing()
 
@@ -97,7 +88,7 @@ func homeActivity(c fiber.Ctx) ([]message.OpenChallenge, message.SiteStats, mess
 		Online:    rosterFor(online.Members, followed, viewerID),
 		Anon:      online.Anon,
 		Following: followed,
-		Newest:    db.NewestMembers(),
+		Newest:    arrivalsWithPresence(db.NewestMembers(), online),
 		Top:       db.TopRated(),
 	}
 }
@@ -139,16 +130,7 @@ func followedOnline(viewerID int64, online presence.Snapshot) []message.OnlineMe
 			out = append(out, m)
 		}
 	}
-	// Available first — this section answers "who can I play right now", so the
-	// answer leads. Ties break alphabetically, so the 5s-polled region does not
-	// reshuffle itself between refreshes.
-	sort.Slice(out, func(i, j int) bool {
-		a, b := out[i], out[j]
-		if a.Busy != b.Busy {
-			return !a.Busy
-		}
-		return strings.ToLower(a.Username) < strings.ToLower(b.Username)
-	})
+	sortAvailableFirst(out)
 	return out
 }
 

@@ -38,6 +38,16 @@ const (
 	RedirectTag PayloadTag = "e"
 	// TVTag is the message type tag for the TVPayload (home-page live games)
 	TVTag PayloadTag = "tv"
+	// HomeTag is the message type tag for the HomePayload: the home page's
+	// activity digest — stat tiles, open challenges, players roster — streamed
+	// on the same channel as the live-games grid
+	// (arch/HOME_ACTIVITY_STREAMING.md).
+	HomeTag PayloadTag = "hm"
+	// FollowOnlineTag is the message type tag for the FollowOnlinePayload: how
+	// many followed players are online, driving the header's following badge.
+	// Addressed to one connection, and carried on every channel — the header is
+	// on every page.
+	FollowOnlineTag PayloadTag = "fo"
 	// DeployTag is the message type tag for the DeployPayload (blind deploy phase)
 	DeployTag PayloadTag = "d"
 	// IdentityTag is the message type tag for the IdentityPayload (socket hello)

@@ -424,3 +424,18 @@ window.handlers.set("nt", (message) => {
 		window.lioNotify.apply(message.d);
 	}
 });
+
+// How many followed players are online, for the header's following badge. Rides
+// every socket for the same reason notifications do: the header is on every
+// page, so a player sitting at a board must still learn that somebody they
+// follow has just signed on (arch/HOME_ACTIVITY_STREAMING.md). The stash covers
+// a frame that beat lio-follow.js to the page.
+window.handlers.set("fo", (message) => {
+	if (!message.d) {
+		return;
+	}
+	window.__lioFollowOnline = message.d.o;
+	if (window.lioFollowBadge) {
+		window.lioFollowBadge.apply(message.d.o);
+	}
+});

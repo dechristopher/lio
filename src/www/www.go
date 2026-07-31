@@ -19,6 +19,7 @@ import (
 	"github.com/dechristopher/lio/config"
 	"github.com/dechristopher/lio/demo"
 	"github.com/dechristopher/lio/env"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/og"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
@@ -74,6 +75,12 @@ func Serve(static embed.FS) {
 
 	// wire up all route handlers
 	wireHandlers(r, staticFs)
+
+	// Hand the home hub its digest source (arch/HOME_ACTIVITY_STREAMING.md).
+	// The hub must not import room — room imports the hub — so the supplier is
+	// injected here, where room and presence are already in scope, and before
+	// the listener below accepts the first connection.
+	home.SetSource(handlers.HomeDigest)
 
 	// Graceful shutdown with SIGINT
 	// SIGTERM and others will hard kill
@@ -161,8 +168,12 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// TODO not needed once we default SPAHandler
 	r.Get("/", handlers.IndexHandler)
 
-	// live home-activity fragment polled by htmx (stats / challenges / live games)
-	r.Get("/home/activity", handlers.HomeActivityHandler)
+	// No /home/activity route. The home page's activity region is server-
+	// rendered once and streamed over /socket/home from then on
+	// (arch/HOME_ACTIVITY_STREAMING.md). There is deliberately no polling
+	// fallback: the socket layer reconnects and re-snapshots on its own, so a
+	// second live path would be a second thing to keep correct against a failure
+	// mode the socket already handles.
 
 	// random demo games for the home-page "What is Octad?" self-playing board.
 	// Warm the game pool off the request path so the first visitor doesn't pay

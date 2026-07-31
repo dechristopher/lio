@@ -143,10 +143,17 @@ type Viewer struct {
 	// account never grows a fourth header icon, and following somebody is what
 	// creates it — and the second is its badge.
 	//
-	// Unlike the bell's badge these are not pushed. Keeping the number live
-	// would need presence to emit connect/disconnect events, which it does not
-	// and which was deliberately not built; the number is true when the page is
-	// painted, and the popover refreshes it when it opens.
+	// FollowingOnline **is** pushed now, like the bell's badge
+	// (arch/HOME_ACTIVITY_STREAMING.md). It used not to be: keeping it live
+	// needed presence to emit connect/disconnect events, which it did not. The
+	// home digest's coalesced tick supplies exactly that, so the home hub sends
+	// the count to every socket on the site whenever a viewer's own answer
+	// changes, and the header badge follows people signing on and off without a
+	// reload or a popover open.
+	//
+	// It is still rendered here as well, for the same reason the bell's count
+	// is: the socket opens a moment after the paint, and a badge that appeared
+	// late would read as somebody who had just arrived.
 	Following       int64
 	FollowingOnline int64
 	// Seated marks a viewer who already holds a seat in a room — playing, or

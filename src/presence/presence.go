@@ -5,7 +5,7 @@
 //
 //	Room, in play         /socket/<room id>
 //	Room, create and wait /socket/wait/<room id>
-//	Home                  /socket/tv
+//	Home                  /socket/home
 //	All other pages       /socket/me
 //
 // One walk of that directory is therefore both the headcount and the named

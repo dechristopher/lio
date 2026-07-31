@@ -18,6 +18,7 @@ import (
 	"github.com/dechristopher/lio/dispatch"
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
+	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/lag"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/opening"
@@ -25,7 +26,6 @@ import (
 	"github.com/dechristopher/lio/store"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/title"
-	"github.com/dechristopher/lio/tv"
 	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/variant"
 	"github.com/dechristopher/lio/www/ws/proto"
@@ -438,7 +438,7 @@ func Create(params Params) (*Instance, error) {
 	// home-page TV grid's watcher count live between moves (the hub drops
 	// counts for rooms whose game it isn't tracking yet).
 	go handlers.HandleCrowd(r.ID, r.PlayerIDs, func(spec int) {
-		tv.Publish(tv.Event{Kind: tv.Crowd, RoomID: r.ID, Watchers: spec})
+		home.Publish(home.Event{Kind: home.Crowd, RoomID: r.ID, Watchers: spec})
 	})
 
 	// populate the game config and create the initial game. No concurrency
@@ -467,6 +467,12 @@ func Create(params Params) (*Instance, error) {
 	r.stateMu.Lock()
 	r.setBusySeats()
 	r.stateMu.Unlock()
+
+	// A new room changes the home page — a public one adds an open challenge,
+	// and any of them marks its creator busy — but publishes no grid event until
+	// the game starts. Tell the digest directly (arch/HOME_ACTIVITY_STREAMING.md)
+	// rather than leaving it to the creator's socket arriving a moment later.
+	home.MarkDirty()
 
 	// log room creation
 	util.Info(str.CRoom, "[%s] room created by uid %s", r.ID, params.Creator)
@@ -538,7 +544,7 @@ func (r *Instance) cleanup() {
 	// drop this room from the home-page TV grid, freeing its slot for backfill.
 	// A room that ended without a rematch reaches cleanup, so this is what
 	// "swaps out" finished, non-rematching games on the home page.
-	tv.Publish(tv.Event{Kind: tv.RoomClosed, RoomID: r.ID})
+	home.Publish(home.Event{Kind: home.RoomClosed, RoomID: r.ID})
 	// clean up all existing room channels by type
 	for _, channelType := range roomChannelTypes {
 		c := fmt.Sprintf("%s%s", channelType, r.ID)
@@ -799,6 +805,11 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 		// the seat set just changed: the joiner is now busy too. stateMu is held
 		// for the whole of this method, which is what setBusySeats requires.
 		r.setBusySeats()
+
+		// the open challenge this room was is gone, and both seats now read as
+		// busy — a home-page change with no grid event behind it, since the game
+		// does not start until the players connect
+		home.MarkDirty()
 
 		// joined properly
 		return true
@@ -1528,7 +1539,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 		r.game.Outcome() == octad.NoOutcome
 
 	// snapshot the post-move state for the home-page TV stream while still locked
-	tvMove := r.tvEventLocked(tv.Move)
+	tvMove := r.homeEventLocked(home.Move)
 
 	r.stateMu.Unlock()
 
@@ -1536,7 +1547,7 @@ func (r *Instance) makeMove(move *message.RoomMove) bool {
 	go gamePub.Publish(moveStr, ofen)
 
 	// stream the move to home-page TV viewers
-	tv.Publish(tvMove)
+	home.Publish(tvMove)
 
 	// submit request for engine move after human move
 	// only if other player is configured as a bot and game is still ongoing
@@ -1782,8 +1793,8 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// snapshot the terminal position for the TV stream; the room keeps its grid
 	// slot until it actually closes (it may rematch), so this just freezes the
 	// shown board on the final position
-	tvEnd := r.tvEventLocked(tv.End)
-	// tvEventLocked reads the method off the board, which for an abandoned game
+	tvEnd := r.homeEventLocked(home.End)
+	// homeEventLocked reads the method off the board, which for an abandoned game
 	// is the resignation/draw the abandon path applied. Say what actually
 	// happened instead, exactly as the game-over broadcast does.
 	if abandoned {
@@ -1850,7 +1861,7 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	go storeGame(gameCopy, archiveRec, pgn, end)
 
 	// stream the final position to home-page TV viewers
-	tv.Publish(tvEnd)
+	home.Publish(tvEnd)
 
 	// return isOver=true with the game over event
 	return true, event

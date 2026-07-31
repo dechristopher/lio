@@ -13,11 +13,11 @@ func checkOrigin(t *testing.T, origin string) bool {
 	t.Helper()
 	app := fiber.New()
 	var got bool
-	app.Get("/socket/tv", func(c fiber.Ctx) error {
+	app.Get("/socket/home", func(c fiber.Ctx) error {
 		got = okOrigin(c)
 		return nil
 	})
-	req := httptest.NewRequest("GET", "/socket/tv", nil)
+	req := httptest.NewRequest("GET", "/socket/home", nil)
 	if origin != "" {
 		req.Header.Set("Origin", origin)
 	}
