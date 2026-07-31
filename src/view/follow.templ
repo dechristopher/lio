@@ -76,6 +76,80 @@ templ followModal(owner, viewer string) {
 	</div>
 }
 
+// followingButton is the header control (arch/FOLLOWING.md Phase 5): a way into
+// the people this viewer follows, badged with how many of them are here now.
+//
+// It renders only for a viewer who follows at least one account. That is the
+// answer to arch/NOTIFICATIONS.md's objection to a fourth header icon ("the
+// header is already narrow... a fourth icon makes the account name shorter on a
+// telephone"): a new account never grows one, following somebody is what
+// creates it, and its appearing is therefore self-explanatory.
+//
+// The badge is a render-time number, not a pushed one. Keeping it live would
+// need presence to emit connect/disconnect events — machinery that was
+// deliberately not built — so it is true when the page is painted and refreshed
+// when the panel opens. Every navigation repaints the header.
+templ followingButton() {
+	<button
+		type="button"
+		id="followingButton"
+		class="hdr-icon-btn hdr-badged shrink-0"
+		aria-label="Following"
+		title="Following"
+		aria-haspopup="true"
+		aria-expanded="false"
+	>
+		@iconUsersHeader()
+		if viewer(ctx).FollowingOnline > 0 {
+			<span class="notify-dot is-online" role="status" aria-label={ followingOnlineLabel(viewer(ctx).FollowingOnline) }></span>
+		}
+	</button>
+}
+
+// followingPanel is the dropdown behind it. It follows the other header
+// popovers exactly (prefsPopover, profilePopover, notifyPanel): hidden by
+// default, opened by navScript, dimmed behind the shared scrim, and closed on a
+// restore from the back/forward cache.
+//
+// Like the notification panel it renders no rows. lio-follow.js fetches
+// /api/follow/mine on the first open and builds them with the same row renderer
+// the profile's list dialog uses — one renderer, so the two surfaces cannot
+// describe the same person differently.
+templ followingPanel() {
+	// data-can-challenge is the viewer's own availability, which the rows need
+	// and the client cannot otherwise know: a seated viewer gets no swords, by
+	// the same rule canChallenge applies on the server-rendered surfaces.
+	<div
+		id="followingPanel"
+		class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5"
+		data-can-challenge={ strconv.FormatBool(!viewer(ctx).Seated) }
+	>
+		<div class="flex items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Following</p>
+			// Straight to the whole list rather than merely to the profile that
+			// holds it. The fragment is read by lio-follow.js, which opens the
+			// dialog on that tab — so "All" lands on the same content the
+			// popover was showing, just uncapped and paged.
+			<a href={ templ.SafeURL(profileURL(viewer(ctx).Username) + "#following") } class="text-xs text-fg-subtle hover:text-fg">All</a>
+		</div>
+		<div id="followingList" class="follow-panel-list mt-2" data-loaded="false">
+			<p class="follow-empty">Loading…</p>
+		</div>
+	</div>
+}
+
+// iconUsersHeader is the lucide "users" glyph at header size — the same drawing
+// the home page's "vs Human" button and the follow notification carry, so the
+// site draws people one way.
+templ iconUsersHeader() {
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+		<circle cx="9" cy="7" r="4"></circle>
+		<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+		<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+	</svg>
+}
+
 // iconUserPlus is the lucide "user-plus" glyph: the unfollowed state.
 templ iconUserPlus() {
 	<svg class="follow-glyph" data-state="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

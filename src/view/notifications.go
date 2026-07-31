@@ -30,6 +30,12 @@ func NotifyBadgeLabel(n int64) string {
 // right now, and offering the control anyway would produce an invitation that
 // sits unanswered until it expires.
 //
+// The rule is symmetric: a *viewer* who is seated cannot send one either
+// (v.Seated). A challenge issued from the board you are sitting at would commit
+// you to a second game you cannot play. This matters more than it used to now
+// that the create-game dialog is mounted on every page — the control would
+// otherwise be offered from the room page itself.
+//
 // The name comparison is case-insensitive because usernames are: the display
 // case is not the identity, and a viewer must never be offered the chance to
 // challenge themselves.
@@ -37,7 +43,7 @@ func NotifyBadgeLabel(n int64) string {
 // None of this is a security boundary. The creation path re-resolves the target
 // and refuses a self-challenge, an unknown name, and a banned account.
 func canChallenge(v Viewer, username string, busy bool) bool {
-	if !v.LoggedIn || !v.AccountsEnabled || busy || username == "" {
+	if !v.LoggedIn || !v.AccountsEnabled || busy || v.Seated || username == "" {
 		return false
 	}
 	return !strings.EqualFold(v.Username, username)

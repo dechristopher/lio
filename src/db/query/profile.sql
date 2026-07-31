@@ -30,12 +30,11 @@ SELECT g.game_id, g.room_id, g.game_index, g.start_ts,
        g.variant_name, g.variant_group, g.casual, g.rated,
        g.outcome, g.reason, g.bot_persona,
        g.white_user_id, g.black_user_id, g.white_uid, g.black_uid,
-       -- per-seat rating going in and the change the game caused, plus the
-       -- game's length. All already on the row, so the list can say what
-       -- happened rather than only that something did.
+       -- per-seat rating going in and the change the game caused. Both already
+       -- on the row, so the list can say what happened rather than only that
+       -- something did.
        g.white_rating, g.black_rating,
        g.white_rating_delta, g.black_rating_delta,
-       (octet_length(g.moves) / 2)::int AS plies,
        wu.username AS white_username, bu.username AS black_username,
        wt.code AS white_title_code, bt.code AS black_title_code
 FROM games g

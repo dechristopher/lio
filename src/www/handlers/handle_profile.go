@@ -284,7 +284,6 @@ func profileGameView(g db.ProfileGame) view.ProfileGameView {
 		OppTitle: g.OpponentTitle,
 		Ending:   view.ReasonPhrase(g.Reason),
 	}
-	v.Moves = view.MoveCount(g.Plies)
 	// ratings only mean something on a rated game
 	if g.Rated {
 		v.OppRating = g.OppRating

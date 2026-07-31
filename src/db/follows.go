@@ -122,6 +122,41 @@ func IsFollowing(followerID, followeeID int64) bool {
 	return following
 }
 
+// FollowSummary is the header control's state: how many accounts the viewer
+// follows, and how many of those are online right now.
+type FollowSummary struct {
+	Following int64
+	Online    int64
+}
+
+// FollowSummaryFor answers both of the header's questions in one read, given
+// the account ids currently connected (presence.OnlineIDs).
+//
+// This runs on every render of every signed-in page, which is the same budget
+// UnreadNotifications already spends there. It swallows its error for the same
+// reason: this decides whether a header control renders, and a failed read
+// should leave the header as it was rather than fail the page around it.
+func FollowSummaryFor(userID int64, onlineIDs []int64) FollowSummary {
+	if Pool == nil || userID == 0 {
+		return FollowSummary{}
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	// A nil array is not the same as an empty one to ANY(), and pgx encodes nil
+	// as NULL — against which every comparison is NULL rather than false. Send
+	// an empty array so "nobody is online" counts zero instead of erroring.
+	if onlineIDs == nil {
+		onlineIDs = []int64{}
+	}
+	row, err := gen.New(Pool).FollowSummary(ctx, gen.FollowSummaryParams{
+		FollowerID: userID, Ids: onlineIDs,
+	})
+	if err != nil {
+		return FollowSummary{}
+	}
+	return FollowSummary{Following: row.Following, Online: row.Online}
+}
+
 // FollowMember is one row of a follow list: an account, named. Deliberately
 // thin — no rating, no record. The list is a directory of people, and the name
 // links to the profile that holds the numbers; resolving a rating per row would

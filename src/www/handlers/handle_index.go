@@ -1,18 +1,24 @@
 package handlers
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/room"
+	"github.com/dechristopher/lio/str"
+	"github.com/dechristopher/lio/user"
+	"github.com/dechristopher/lio/util"
 	"github.com/dechristopher/lio/view"
 )
 
 // IndexHandler renders the home page
 func IndexHandler(c fiber.Ctx) error {
-	challenges, stats, community := homeActivity()
+	challenges, stats, community := homeActivity(c)
 
 	meta := view.PageMeta("Free Online Octad")
 	// one-shot notice for clients redirected off a room that no longer exists
@@ -57,7 +63,7 @@ func HomeActivityHandler(c fiber.Ctx) error {
 	// live fragment: must never be served from the browser cache, or htmx's
 	// self-poll swaps in a stale (pre-rebuild) copy of the stats/challenges
 	c.Set("Cache-Control", "no-store")
-	challenges, stats, community := homeActivity()
+	challenges, stats, community := homeActivity(c)
 	return view.Render(c, 200, view.HomeActivity(challenges, stats, community))
 }
 
@@ -75,17 +81,107 @@ const onlineShown = 8
 // The newest/top panels come from TTL-cached database reads, so serving them on
 // this path — which every viewer re-runs every 5 seconds — costs a mutex rather
 // than a query.
-func homeActivity() ([]message.OpenChallenge, message.SiteStats, message.Community) {
+func homeActivity(c fiber.Ctx) ([]message.OpenChallenge, message.SiteStats, message.Community) {
 	_, challenges, stats, seated := room.HomeListing()
 
 	online := presence.Online(seated, onlineShown)
 	stats.Playing = online.Total
 	stats.TotalGames = int(db.TotalGames())
 
-	return challenges, stats, message.Community{
-		Online: online.Members,
-		Anon:   online.Anon,
-		Newest: db.NewestMembers(),
-		Top:    db.TopRated(),
+	var viewerID int64
+	if acct := user.GetAccount(c); acct != nil {
+		viewerID = acct.ID
 	}
+	followed := followedOnline(viewerID, online)
+	return challenges, stats, message.Community{
+		Online:    rosterFor(online.Members, followed, viewerID),
+		Anon:      online.Anon,
+		Following: followed,
+		Newest:    db.NewestMembers(),
+		Top:       db.TopRated(),
+	}
+}
+
+// followedOnline picks the viewer's own followed players out of the presence
+// snapshot, available ones first (arch/FOLLOWING.md).
+//
+// This is the feature's central intersection, and the reason it is cheap: the
+// snapshot already names everybody online, so the only question for the
+// database is which of those ids the viewer follows — one index-only probe
+// whose cost is bounded by how many people are on the site, not by how many
+// accounts the viewer follows.
+//
+// It reads from Accounts rather than Members deliberately. Members is capped
+// for display, and a followed player who is fortieth in the site-wide order
+// still belongs in this section.
+//
+// A signed-out visitor follows nobody and costs no query at all.
+func followedOnline(viewerID int64, online presence.Snapshot) []message.OnlineMember {
+	if viewerID == 0 || len(online.Accounts) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(online.Accounts))
+	for id := range online.Accounts {
+		ids = append(ids, id)
+	}
+	followed, err := db.FollowedAmong(viewerID, ids)
+	if err != nil {
+		// The roster below is still worth rendering; this section is an extra
+		// view of it, not a replacement for it.
+		util.Error(str.CDB, "followed-online lookup failed error=%s", err.Error())
+		return nil
+	}
+
+	out := make([]message.OnlineMember, 0, len(followed))
+	for id := range followed {
+		// the viewer's own row is never here: a self-follow cannot exist
+		if m, ok := online.Accounts[id]; ok {
+			out = append(out, m)
+		}
+	}
+	// Available first — this section answers "who can I play right now", so the
+	// answer leads. Ties break alphabetically, so the 5s-polled region does not
+	// reshuffle itself between refreshes.
+	sort.Slice(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if a.Busy != b.Busy {
+			return !a.Busy
+		}
+		return strings.ToLower(a.Username) < strings.ToLower(b.Username)
+	})
+	return out
+}
+
+// rosterFor trims the site-wide roster to the people this section is actually
+// for: everybody online except the viewer themselves, and except anybody
+// already named in the Following section above it.
+//
+// The two follow sections are one roster split by whether the viewer cares
+// about the person, so a name appearing in both would read as two people.
+// Removing rather than marking also means the general roster keeps showing new
+// faces instead of spending its eight slots on people the viewer already
+// follows.
+//
+// The viewer goes too. They know they are here, their own chip is the one row
+// in the list with nothing to do — canChallenge never offers a sword against
+// yourself — and the section is for finding somebody else. They stay in the
+// headcount beside it, which counts the site rather than the list.
+func rosterFor(all, followed []message.OnlineMember, viewerID int64) []message.OnlineMember {
+	if len(followed) == 0 && viewerID == 0 {
+		return all
+	}
+	skip := make(map[int64]struct{}, len(followed)+1)
+	for _, m := range followed {
+		skip[m.ID] = struct{}{}
+	}
+	if viewerID != 0 {
+		skip[viewerID] = struct{}{}
+	}
+	out := make([]message.OnlineMember, 0, len(all))
+	for _, m := range all {
+		if _, hit := skip[m.ID]; !hit {
+			out = append(out, m)
+		}
+	}
+	return out
 }

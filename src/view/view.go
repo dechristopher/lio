@@ -21,7 +21,9 @@ import (
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/role"
+	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/variant"
@@ -135,6 +137,28 @@ type Viewer struct {
 	// paint, and a badge that appeared late would read as a message that had
 	// just arrived.
 	UnreadNotifications int64
+	// Following is how many accounts this viewer follows, and FollowingOnline
+	// how many of those are here right now (arch/FOLLOWING.md). The first
+	// decides whether the header's following control renders at all — a new
+	// account never grows a fourth header icon, and following somebody is what
+	// creates it — and the second is its badge.
+	//
+	// Unlike the bell's badge these are not pushed. Keeping the number live
+	// would need presence to emit connect/disconnect events, which it does not
+	// and which was deliberately not built; the number is true when the page is
+	// painted, and the popover refreshes it when it opens.
+	Following       int64
+	FollowingOnline int64
+	// Seated marks a viewer who already holds a seat in a room — playing, or
+	// waiting in a challenge of their own. It gates the create-game dialog the
+	// header mounts on every page (arch/FOLLOWING.md): a challenge sent from
+	// the board you are sitting at would commit you to a second game you cannot
+	// play, so the dialog is simply absent while you are occupied.
+	//
+	// Deliberately the same predicate that decides whether somebody may be
+	// *challenged* (room.AccountBusy). The rule is symmetric: a player who
+	// cannot accept an invitation is a player who should not be sending one.
+	Seated bool
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -159,6 +183,14 @@ func viewerFrom(c fiber.Ctx) Viewer {
 			// belongs to one account, so the process-wide cache the feedback
 			// count uses cannot serve it.
 			v.UnreadNotifications = db.UnreadNotifications(uc.Account.ID)
+			// And one more, answering both halves of the following control at
+			// once. The presence walk behind OnlineIDs is TTL-cached, so this
+			// costs a mutex plus one indexed count rather than a directory walk
+			// per render (arch/FOLLOWING.md).
+			s := db.FollowSummaryFor(uc.Account.ID, presence.OnlineIDs())
+			v.Following, v.FollowingOnline = s.Following, s.Online
+			// a constant-time index lookup, not a registry walk
+			v.Seated = room.AccountBusy(uc.Account.ID)
 		}
 	}
 	return v

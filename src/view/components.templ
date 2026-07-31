@@ -92,6 +92,11 @@ templ header(width string) {
 				// counted into this badge now, and the dot on the popover's System
 				// link still points a moderator at the inbox.
 				@bellButton()
+				// Only for a viewer who follows somebody, so a new account
+				// never grows a fourth icon (arch/FOLLOWING.md Phase 5).
+				if viewer(ctx).Following > 0 {
+					@followingButton()
+				}
 			} else if viewer(ctx).AccountsEnabled {
 				// Logged-out control: bare accent-colored text (no button chrome),
 				// shown at every width — this is where the header collapses to on
@@ -114,6 +119,9 @@ templ header(width string) {
 			@prefsPopover()
 			if viewer(ctx).LoggedIn {
 				@notifyPanel()
+				if viewer(ctx).Following > 0 {
+					@followingPanel()
+				}
 				@profilePopover(viewer(ctx).Username, viewer(ctx).Title)
 			}
 		</div>
@@ -122,6 +130,24 @@ templ header(width string) {
 	     while a menu is open, and dismisses it on click (navScript). Always in
 	     the DOM, invisible until a popover opens. -->
 	<div id="menuScrim" class="menu-scrim" aria-hidden="true"></div>
+	// The create-game dialog is mounted here, so it exists on every page: the
+	// following popover rides in this same header and its sword has to open
+	// something wherever it is clicked (arch/FOLLOWING.md). Before this it lived
+	// on the home and player pages only, and the popover's sword had to hide
+	// itself everywhere else.
+	//
+	// Mounted unconditionally, including for a viewer who is already seated. It
+	// is what the home page's Quick Game and "Create a custom game" buttons
+	// open too, and those must keep working in a second tab while a game is in
+	// progress — a dialog that is absent leaves them dead rather than refused.
+	// What a seat suppresses is the *challenge* affordance: see canChallenge,
+	// which now also asks whether the viewer is free to send one.
+	//
+	// No bot difficulty modal alongside it. Away from the home page this dialog
+	// is only ever opened as a challenge, and a challenge disables the Computer
+	// opponent, so the picker it would hand off to is unreachable. The home page
+	// mounts that one itself, beside its Quick Game buttons.
+	@createGameModal()
 	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
 		@accountModal()
 	}
@@ -143,6 +169,13 @@ templ header(width string) {
 		// page or their own profile. Deferred, so the page-level socket clients
 		// (lio.js, lio-tv.js) have already claimed ownership by the time it runs.
 		<script defer src={ asset("lio-notify.js") }></script>
+		// The follow client, for the header's following popover. It also owns
+		// the profile's list dialog, which is why a *signed-out* profile page
+		// loads the same file itself — between the two, exactly one tag is
+		// ever on a page (arch/FOLLOWING.md).
+		if viewer(ctx).Following > 0 {
+			<script defer src={ asset("lio-follow.js") }></script>
+		}
 	}
 	@navScript()
 	@connScript()
@@ -409,6 +442,8 @@ templ navScript() {
 			const popover = document.getElementById("prefsPopover"); // preferences
 			const notifyBtn = document.getElementById("notifyButton");
 			const notifyPop = document.getElementById("notifyPanel"); // notifications
+			const followBtn = document.getElementById("followingButton");
+			const followPop = document.getElementById("followingPanel"); // people you follow
 			const scrim = document.getElementById("menuScrim");
 
 			const isOpen = (el) => el && !el.classList.contains("hidden");
@@ -417,6 +452,11 @@ templ navScript() {
 				if (!notifyPop) return;
 				notifyPop.classList.add("hidden");
 				if (notifyBtn) notifyBtn.setAttribute("aria-expanded", "false");
+			};
+			const closeFollow = () => {
+				if (!followPop) return;
+				followPop.classList.add("hidden");
+				if (followBtn) followBtn.setAttribute("aria-expanded", "false");
 			};
 			// Restore the account popover to its pristine state whenever it is
 			// dismissed: clear every form field, collapse the expandable sections,
@@ -444,9 +484,9 @@ templ navScript() {
 			// header popover is open, hidden once both are closed
 			const syncScrim = () => {
 				if (scrim) scrim.classList.toggle("is-open",
-					isOpen(popover) || isOpen(profilePop) || isOpen(notifyPop));
+					isOpen(popover) || isOpen(profilePop) || isOpen(notifyPop) || isOpen(followPop));
 			};
-			const closeMenus = () => { closePrefs(); closeProfile(); closeNotify(); syncScrim(); };
+			const closeMenus = () => { closePrefs(); closeProfile(); closeNotify(); closeFollow(); syncScrim(); };
 
 			const closeModal = () => { if (modal) modal.classList.remove("open"); };
 			if (modal) {
@@ -498,6 +538,7 @@ templ navScript() {
 				e.stopPropagation();
 				closeProfile();
 				closeNotify();
+				closeFollow();
 				popover.classList.toggle("hidden");
 				if (isOpen(popover)) syncPrefs();
 				syncScrim();
@@ -510,6 +551,7 @@ templ navScript() {
 				e.stopPropagation();
 				closePrefs();
 				closeProfile();
+				closeFollow();
 				if (isOpen(notifyPop)) {
 					closeNotify();
 				} else {
@@ -519,10 +561,29 @@ templ navScript() {
 				}
 				syncScrim();
 			});
+			// The following control. Like the bell, opening it tells its client,
+			// which fetches the list on the first open and corrects the badge
+			// the header painted at render time — presence moves, and this is
+			// the moment the number can be made true again.
+			if (followPop && followBtn) followBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				closePrefs();
+				closeProfile();
+				closeNotify();
+				if (isOpen(followPop)) {
+					closeFollow();
+				} else {
+					followPop.classList.remove("hidden");
+					followBtn.setAttribute("aria-expanded", "true");
+					if (window.__followingPanelOpened) window.__followingPanelOpened();
+				}
+				syncScrim();
+			});
 			if (profilePop) profileBtns.forEach((btn) => btn.addEventListener("click", (e) => {
 				e.stopPropagation();
 				closePrefs();
 				closeNotify();
+				closeFollow();
 				// close (with reset) when open, otherwise reveal — a plain class
 				// toggle would bypass closeProfile's reset on the closing click
 				if (isOpen(profilePop)) closeProfile();
@@ -538,8 +599,10 @@ templ navScript() {
 					(popover && popover.contains(e.target)) ||
 					(profilePop && profilePop.contains(e.target)) ||
 					(notifyPop && notifyPop.contains(e.target)) ||
+					(followPop && followPop.contains(e.target)) ||
 					(prefsBtn && prefsBtn.contains(e.target)) ||
 					(notifyBtn && notifyBtn.contains(e.target)) ||
+					(followBtn && followBtn.contains(e.target)) ||
 					profileBtns.some((btn) => btn.contains(e.target));
 				if (!within) closeMenus();
 			});

@@ -39,15 +39,9 @@ templ Profile(meta Meta, m ProfileModel) {
 						@modBar(m)
 					}
 				</main>
-				// The Challenge button in the hero opens this, so the page that
-				// carries the button has to carry the dialog too — it lived only on
-				// the home page until now (arch/NOTIFICATIONS.md Phase 2).
-				//
-				// No bot difficulty modal here, unlike the home page. This dialog is
-				// only ever opened as a challenge from this page, and a challenge is
-				// addressed to a person: the Computer opponent is disabled, so the
-				// difficulty picker it would hand off to is unreachable.
-				@createGameModal()
+				// The Challenge button in the hero opens the create-game dialog,
+				// which the header now mounts on every page (arch/FOLLOWING.md) —
+				// it used to be mounted here and on the home page only.
 				// The follower / following lists (arch/FOLLOWING.md Phase 2),
 				// mounted wherever their counts can be clicked. A closed
 				// account publishes no counts, so it needs no dialog either.
@@ -67,10 +61,18 @@ templ Profile(meta Meta, m ProfileModel) {
 		@scriptsBase(meta)
 		if !m.Closed {
 			<script src={ asset("lio-profile.js") }></script>
-			// its own file, not a block in lio-profile.js: the same dialog and
-			// the same row renderer serve the header's following popover in
-			// Phase 5, which is not a profile-page script
-			<script src={ asset("lio-follow.js") }></script>
+			// Its own file, not a block in lio-profile.js: the same row
+			// renderer serves the header's following popover, which is not a
+			// profile-page concern.
+			//
+			// The header already loads it for a viewer who follows somebody.
+			// This covers everybody else — a signed-out reader, or an account
+			// that follows nobody yet — both of whom can still open the public
+			// lists on this page. Exactly one tag either way; loading it twice
+			// would bind every listener twice.
+			if viewer(ctx).Following == 0 {
+				<script defer src={ asset("lio-follow.js") }></script>
+			}
 		}
 		if m.ShowMod {
 			<script src={ asset("lio-mod.js") }></script>
@@ -911,9 +913,6 @@ templ profileGames(m ProfileModel) {
 							<span class="game-meta">
 								<span class="game-variant">{ g.Variant }</span>
 								<span class="game-mode">{ g.Mode }</span>
-								if g.Moves != "" {
-									<span class="game-moves">{ g.Moves }</span>
-								}
 								if g.Delta != "" {
 									<span class={ "game-delta", g.DeltaClass }>{ g.Delta }</span>
 								}

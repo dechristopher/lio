@@ -272,6 +272,17 @@ type FollowView struct {
 	IsFollowing bool
 }
 
+// followingOnlineLabel is the accessible name on the header control's badge. It
+// states the count, like the bell's: a bare dot says somebody is here without
+// saying whether that is one person or nine, and the badge is the only place a
+// screen reader can learn either.
+func followingOnlineLabel(n int64) string {
+	if n == 1 {
+		return "1 player you follow is online"
+	}
+	return strconv.FormatInt(n, 10) + " players you follow are online"
+}
+
 // NewFollowView renders the counts. The zero FollowCounts yields a block that
 // shows nothing, which is what an account nobody has met yet should render.
 func NewFollowView(c db.FollowCounts) FollowView {
@@ -347,11 +358,15 @@ type ProfileGameView struct {
 	// OppRating is the opponent's rating going into the game, shown only when
 	// the game was rated — an unrated game's ratings say nothing about it.
 	OppRating string
-	// Ending phrases how the game finished ("by checkmate"), Moves its length,
-	// and Delta the rating change with its tint. Each is empty when the archive
-	// has nothing to say, so a row never carries a placeholder.
+	// Ending phrases how the game finished ("by checkmate") and Delta the
+	// rating change with its tint. Each is empty when the archive has nothing
+	// to say, so a row never carries a placeholder.
+	//
+	// The game's length in plies used to sit here too. It was dropped: a row
+	// already carries the result, the method, the opponent, the rating change
+	// and the date, and "23 plies" is the one of those that tells a reader
+	// nothing they would act on.
 	Ending     string
-	Moves      string
 	Delta      string
 	DeltaClass string
 	// OppGlyph is the bot persona's piece glyph, kept out of Opponent so the

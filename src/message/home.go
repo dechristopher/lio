@@ -62,6 +62,15 @@ type SiteStats struct {
 // Community.Anon) but never listed, because a roster of "Anonymous ×4" is noise
 // and because being findable by name is exactly what an account buys.
 type OnlineMember struct {
+	// ID is the account's row id. It is what presence folds on — a person on a
+	// laptop and a phone is one player, and the id is that identity directly —
+	// and what lets the follow graph intersect this roster without a name
+	// lookup (arch/FOLLOWING.md).
+	//
+	// Server-side only. This struct is rendered by templ and never marshalled,
+	// so the id does not reach a client; keep it that way. Zero for an
+	// anonymous session, which is never listed anyway.
+	ID       int64
 	Username string
 	Title    title.Title
 	// Playing marks a member seated in a live game rather than browsing, so the
@@ -105,6 +114,14 @@ type Community struct {
 	// Anon is how many of the total headcount hold no account.
 	Online []OnlineMember
 	Anon   int
-	Newest []NewMember
-	Top    []RatedMember
+	// Following are the viewer's own followed players who are online right now,
+	// available ones first (arch/FOLLOWING.md). Empty for a signed-out visitor
+	// and for anybody whose follows are all elsewhere.
+	//
+	// These members are removed from Online rather than repeated in it: the two
+	// sections are one roster split by whether the viewer cares, and a name in
+	// both would read as two people.
+	Following []OnlineMember
+	Newest    []NewMember
+	Top       []RatedMember
 }

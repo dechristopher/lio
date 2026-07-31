@@ -103,6 +103,22 @@ FROM follows
 WHERE follower_id = sqlc.arg(follower_id)
   AND followee_id = ANY (sqlc.arg(ids)::bigint[]);
 
+-- name: FollowSummary :one
+-- Everything the header control needs, in one read: how many accounts this
+-- viewer follows (which decides whether the control renders at all) and how
+-- many of them are online (its badge).
+--
+-- One query rather than two, because this runs on every render of every
+-- signed-in page — the same budget db.UnreadNotifications already spends there.
+-- The scan is one account's edges on the primary key; the online half is a
+-- FILTER over the same rows, so the connected-id array costs nothing extra.
+SELECT count(*)                                                             AS following,
+       count(*) FILTER (WHERE f.followee_id = ANY (sqlc.arg(ids)::bigint[])) AS online
+FROM follows f
+         JOIN users u ON u.id = f.followee_id
+WHERE f.follower_id = sqlc.arg(follower_id)
+  AND (u.banned_until IS NULL OR u.banned_until <= now());
+
 -- name: CountFollowing :one
 -- Rows this account owns, for the follow cap. Deliberately unfiltered, unlike
 -- the counts above: the cap bounds this account's contribution to the table,

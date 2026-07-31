@@ -1,39 +1,41 @@
-// The follower / following lists (arch/FOLLOWING.md Phase 2).
+// The follow surfaces (arch/FOLLOWING.md Phases 2 and 5): the profile's
+// follower / following dialog, and the header popover listing the people this
+// viewer follows.
 //
-// The dialog's frame is server-rendered (view/follow.templ); this fills it. The
-// rows live here rather than in templ because the list is paged: a Go renderer
-// and a JavaScript renderer would both have to exist, and they would drift
-// apart the first time a row grew a field — the same reason the notification
-// panel renders in the client.
+// Both frames are server-rendered (view/follow.templ); this fills them. The
+// rows live here rather than in templ because the dialog's list is paged: a Go
+// renderer and a JavaScript renderer would both have to exist, and they would
+// drift apart the first time a row grew a field — the same reason the
+// notification panel renders in the client.
 //
-// Everything is scoped to the dialog's own elements and every one of them is
-// optional, so this file is inert on a page that has no follow lists.
+// One row renderer serves both surfaces, so a person cannot be described one
+// way in the dialog and another in the popover. Each surface is guarded on its
+// own element, so this file is inert wherever neither is present.
 (function () {
   "use strict";
 
   const modal = document.getElementById("modalFollow");
-  if (!modal) return;
+  const panel = document.getElementById("followingPanel");
+  if (!modal && !panel) return;
 
-  const list = modal.querySelector("[data-follow-list]");
-  const moreBtn = modal.querySelector("[data-follow-more]");
-  const closeBtn = modal.querySelector(".modal-close");
-  const tabs = Array.from(modal.querySelectorAll("[data-follow-tab]"));
-  const owner = modal.dataset.followOwner || "";
-  const viewer = modal.dataset.followViewer || "";
+  // Whether this viewer may send a challenge at all. The server decides it —
+  // a seated viewer may not, since a challenge issued from the board you are
+  // sitting at would commit you to a second game — and hands the answer down on
+  // the panel, because the client cannot work it out. The create-game dialog it
+  // would open is mounted on every page now, so its presence no longer says
+  // anything about whether a challenge is allowed.
+  const canChallengeHere =
+    !!panel && panel.dataset.canChallenge === "true";
+  const owner = modal ? modal.dataset.followOwner || "" : "";
+  // Who is reading. The dialog carries it; on a page that has only the header
+  // popover, the presence of that popover is itself proof of a signed-in
+  // viewer, so any non-empty marker will do.
+  const viewer = modal ? modal.dataset.followViewer || "" : "me";
   // A row toggle changes how many accounts the *viewer* follows. That figure is
   // only on screen when the viewer is looking at their own profile, which is
   // the one case where the count beside the name has to move with the button.
   const viewerIsOwner =
-    !!viewer && viewer.toLowerCase() === owner.toLowerCase();
-
-  // Per-tab state. Each tab remembers its own page and rows, so switching back
-  // and forth costs nothing and does not lose a reader's place.
-  const state = {
-    followers: { page: 0, more: false, rows: [], loaded: false },
-    following: { page: 0, more: false, rows: [], loaded: false },
-  };
-  let active = "followers";
-  let loading = false;
+    !!modal && !!viewer && viewer.toLowerCase() === owner.toLowerCase();
 
   // ------------------------------------------------------------------ render
 
@@ -47,7 +49,13 @@
   // One row: who they are, whether they are here, and what the viewer can do
   // about them. The name is the link — the row is a person, and a profile is
   // where a person's information is.
-  function rowEl(m) {
+  //
+  // opts.toggle asks for the Follow/Following control. The profile's dialog is
+  // a directory of people you may not know yet, so it offers one on every row;
+  // the header popover is a list of people you have *already* chosen, where the
+  // only thing that control can do is undo that choice by accident. It gets the
+  // sword instead, which is what the panel is for.
+  function rowEl(m, opts) {
     const row = document.createElement("li");
     row.className = "follow-row";
 
@@ -73,19 +81,75 @@
     name.className = "follow-name";
     name.textContent = m.name;
     link.appendChild(name);
+    // What an online member is doing, in words rather than by the dot's colour
+    // alone — and it says why the sword is missing rather than leaving that to
+    // be inferred. The same vocabulary the home roster's chips use.
     if (m.online) {
       const tag = document.createElement("span");
       tag.className = "follow-tag";
-      tag.textContent = "online";
+      tag.textContent = m.playing ? "playing" : m.busy ? "waiting" : "online";
       link.appendChild(tag);
     }
     row.appendChild(link);
 
-    // No button for a signed-out reader (there is no account to follow from)
-    // and none on the viewer's own row (the server refuses a self-follow, and
-    // offering the control would be a promise it will not keep).
-    if (viewer && !m.self) row.appendChild(toggleEl(m));
+    // The sword, for somebody who could actually accept right now. Same rule as
+    // the home roster's, and only where the row carries the flags to judge it:
+    // the profile's list endpoints report Online but not Playing/Busy, so a
+    // sword there could be offered for somebody already at a board.
+    if (opts && opts.sword && canChallengeHere && m.online && !m.busy && !m.self) {
+      row.appendChild(swordEl(m.name));
+    }
+    // No follow toggle for a signed-out reader (there is no account to follow
+    // from) and none on the viewer's own row (the server refuses a self-follow,
+    // and offering the control would be a promise it will not keep).
+    if (opts && opts.toggle && viewer && !m.self) row.appendChild(toggleEl(m));
     return row;
+  }
+
+  // The crossed-swords control, matching the one the roster and the profile
+  // render. It carries the same data attributes, so the create-game dialog's
+  // delegated opener picks it up with no wiring of its own.
+  function swordEl(name) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "follow-sword";
+    btn.setAttribute("data-open-create-game", "");
+    btn.setAttribute("data-challenge", name);
+    btn.setAttribute("aria-label", "Challenge " + name);
+    btn.title = "Challenge " + name;
+    btn.appendChild(
+      icon([
+        "M14.5 17.5 3 6V3h3l11.5 11.5",
+        "M13 19l6-6",
+        "M16 16l4 4",
+        "M19 21l2-2",
+        "M9.5 17.5 21 6V3h-3L6.5 14.5",
+        "M11 19l-6-6",
+        "M8 16l-4 4",
+        "M5 21l-2-2",
+      ])
+    );
+    return btn;
+  }
+
+  // Builds one lucide-style stroke icon, node by node: the site's CSP is strict
+  // and everything else here builds DOM the same way.
+  function icon(paths) {
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    paths.forEach(function (d) {
+      const p = document.createElementNS(NS, "path");
+      p.setAttribute("d", d);
+      svg.appendChild(p);
+    });
+    return svg;
   }
 
   function toggleEl(m) {
@@ -148,25 +212,51 @@
     el.disabled = n === 0;
   }
 
+  // Paints rows into a container, or the given empty-state copy when there are
+  // none. Shared by both surfaces; opts is passed through to rowEl.
+  function paint(into, rows, emptyCopy, opts) {
+    into.replaceChildren();
+    if (!rows.length) {
+      into.appendChild(empty(emptyCopy));
+      return;
+    }
+    const ul = document.createElement("ul");
+    ul.className = "follow-rows";
+    rows.forEach(function (m) {
+      ul.appendChild(rowEl(m, opts));
+    });
+    into.appendChild(ul);
+  }
+
+  // ------------------------------------------------- the profile's dialog
+
+  if (modal) mountModal();
+
+  function mountModal() {
+  const list = modal.querySelector("[data-follow-list]");
+  const moreBtn = modal.querySelector("[data-follow-more]");
+  const closeBtn = modal.querySelector(".modal-close");
+  const tabs = Array.from(modal.querySelectorAll("[data-follow-tab]"));
+
+  // Per-tab state. Each tab remembers its own page and rows, so switching back
+  // and forth costs nothing and does not lose a reader's place.
+  const state = {
+    followers: { page: 0, more: false, rows: [], loaded: false },
+    following: { page: 0, more: false, rows: [], loaded: false },
+  };
+  let active = "followers";
+  let loading = false;
+
   function render() {
     const s = state[active];
-    list.replaceChildren();
-    if (!s.rows.length) {
-      list.appendChild(
-        empty(
-          active === "followers"
-            ? "Nobody is following " + owner + " yet."
-            : owner + " is not following anybody yet."
-        )
-      );
-    } else {
-      const ul = document.createElement("ul");
-      ul.className = "follow-rows";
-      s.rows.forEach(function (m) {
-        ul.appendChild(rowEl(m));
-      });
-      list.appendChild(ul);
-    }
+    paint(
+      list,
+      s.rows,
+      active === "followers"
+        ? "Nobody is following " + owner + " yet."
+        : owner + " is not following anybody yet.",
+      { toggle: true, sword: false }
+    );
     if (moreBtn) moreBtn.hidden = !s.more;
   }
 
@@ -264,4 +354,99 @@
   window.addEventListener("pageshow", function (e) {
     if (e.persisted) close();
   });
+
+  // #followers / #following opens the dialog on that tab. It is what the
+  // header popover's "All" link points at, so following it lands on the whole
+  // list rather than merely on the profile that holds it — and it makes both
+  // lists linkable, which a click-only dialog is not.
+  //
+  // hashchange as well as load: clicking "All" while already standing on your
+  // own profile changes the fragment without navigating anywhere.
+  function openFromHash() {
+    const tab = (location.hash || "").replace("#", "").toLowerCase();
+    if (tab === "followers" || tab === "following") open(tab);
+  }
+  openFromHash();
+  window.addEventListener("hashchange", openFromHash);
+  }
+
+  // ------------------------------------------------- the header's popover
+
+  if (panel) mountPanel();
+
+  // The popover's rows: a sword, and no follow toggle. These are people the
+  // viewer has already chosen, so the only thing a toggle could do here is undo
+  // that choice by accident; the panel exists to start a game with one of them.
+  const PANEL_OPTS = { toggle: false, sword: true };
+
+  function mountPanel() {
+    const into = document.getElementById("followingList");
+    if (!into) return;
+
+    // The panel is opened by navScript, like every other header popover, which
+    // calls this hook so the fetch happens on the first open rather than on
+    // every page load. Reopening repaints from the cached rows; the numbers it
+    // shows are presence, which moves, so a reopen after a while refetches.
+    let rows = null;
+    let fetchedAt = 0;
+    let loading = false;
+    const STALE_MS = 15000;
+
+    window.__followingPanelOpened = function () {
+      if (rows && Date.now() - fetchedAt < STALE_MS) {
+        paint(into, rows, "You are not following anybody yet.", PANEL_OPTS);
+        return;
+      }
+      load();
+    };
+
+    async function load() {
+      if (loading) return;
+      loading = true;
+      try {
+        const res = await fetch("/api/follow/mine", {
+          headers: { Accept: "application/json" },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          rows = data.members || [];
+          fetchedAt = Date.now();
+          paint(into, rows, "You are not following anybody yet.", PANEL_OPTS);
+          paintBadge(rows.filter(function (m) { return m.online; }).length);
+        } else {
+          into.replaceChildren(empty("Could not load your list."));
+        }
+      } catch (e) {
+        into.replaceChildren(empty("Could not load your list."));
+      }
+      loading = false;
+      into.dataset.loaded = "true";
+    }
+
+    // The badge the header painted at render time, corrected by what the fetch
+    // actually found. It is not pushed — see followingButton in follow.templ —
+    // so opening the panel is the moment it can be made true again.
+    function paintBadge(n) {
+      const btn = document.getElementById("followingButton");
+      if (!btn) return;
+      const existing = btn.querySelector(".notify-dot");
+      if (n <= 0) {
+        if (existing) existing.remove();
+        return;
+      }
+      const label =
+        n === 1
+          ? "1 player you follow is online"
+          : n + " players you follow are online";
+      if (existing) {
+        existing.setAttribute("aria-label", label);
+        return;
+      }
+      const dot = document.createElement("span");
+      dot.className = "notify-dot is-online";
+      dot.setAttribute("role", "status");
+      dot.setAttribute("aria-label", label);
+      btn.appendChild(dot);
+    }
+  }
 })();

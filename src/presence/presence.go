@@ -93,6 +93,17 @@ type Snapshot struct {
 	Total   int
 	Members []message.OnlineMember
 	Anon    int
+	// Accounts is every online member keyed by account id, uncapped and
+	// unsorted — the same records Members is drawn from, before the display cap.
+	//
+	// It exists because a filtered view of the roster cannot be built from
+	// Members: the follow feature has to be able to name somebody who is
+	// fortieth in the site-wide order (arch/FOLLOWING.md). Exposing it is free,
+	// since the fold below builds exactly this map on the way to Members.
+	//
+	// Callers hand its keys to db.FollowedAmong and map the answer back through
+	// it, so the identities never leave the process.
+	Accounts map[int64]message.OnlineMember
 }
 
 // Online returns the site-wide presence picture: every session holding a live
@@ -110,56 +121,101 @@ type Snapshot struct {
 // Presence counts *people*, not sessions. Anonymous visitors are only
 // identifiable by uid, so each anonymous session is one person; but an account
 // signed in on a laptop and a phone holds two uids and is still one player, so
-// accounts fold together by username. Without that fold the same member would
-// appear twice in the roster and twice in the headcount.
+// its sessions fold together.
+//
+// The fold is on the **account id**, which is that identity directly and is
+// already on every socket. It used to be on the lowercased username, which was
+// a proxy for the same thing; keying on the id removes a string comparison from
+// this walk and is what makes Snapshot.Accounts free to produce. A named record
+// that somehow carries no id still folds by name rather than colliding with
+// every other id-less record, which is what the second map below is for.
 func Online(seated map[string]message.OnlineMember, limit int) Snapshot {
-	// named accumulates one entry per distinct account (keyed by lowercased
-	// username, which is the identity the unique index enforces); anon counts
-	// the account-less sessions alongside it
-	named := make(map[string]message.OnlineMember)
+	// accounts holds one entry per distinct account id; byName is the fallback
+	// for a named record that carries no id at all, which should not occur but
+	// must not be allowed to collapse several people into one row if it ever
+	// does. anon counts the account-less sessions alongside both.
+	accounts := make(map[int64]message.OnlineMember)
+	byName := make(map[string]message.OnlineMember)
 	anon := 0
 
-	// add folds one presence record in, upgrading an account already present if
-	// another of its sessions is in a busier state
-	add := func(m message.OnlineMember) {
+	conn := channel.Connected()
+
+	// record resolves one session to the member it represents. A seated session
+	// takes its record from the room, which carries the flags; everyone else —
+	// spectators, browsers, the creator of a room they have wandered away from —
+	// is named from their socket.
+	record := func(uid string, acct channel.Account) message.OnlineMember {
+		if m, isSeated := seated[uid]; isSeated {
+			return m
+		}
+		return message.OnlineMember{ID: acct.ID, Username: acct.Name, Title: acct.Title}
+	}
+
+	// First pass: learn which account id each online *name* belongs to.
+	//
+	// This exists because the two sources do not have to agree about whether a
+	// record carries an id — the socket always knows it, a hand-built seated
+	// overlay might not. Without this, one person's two sessions could land in
+	// two different buckets and be counted as two people, which is the exact
+	// double-count the fold is here to prevent.
+	nameID := make(map[string]int64)
+	for uid, acct := range conn {
+		m := record(uid, acct)
+		if m.Username != "" && m.ID != 0 {
+			nameID[strings.ToLower(m.Username)] = m.ID
+		}
+	}
+
+	// merge decides what a second session of the same person contributes. One
+	// account can hold several — a laptop at a board and a phone on the home
+	// page. The busier record wins for both flags: somebody playing on one
+	// device is playing, and somebody seated anywhere cannot take a challenge on
+	// another device either.
+	merge := func(prev, m message.OnlineMember) message.OnlineMember {
+		prev.Playing = prev.Playing || m.Playing
+		prev.Busy = prev.Busy || m.Busy
+		return prev
+	}
+
+	for uid, acct := range conn {
+		m := record(uid, acct)
 		if m.Username == "" {
 			anon++
-			return
-		}
-		key := strings.ToLower(m.Username)
-		prev, seen := named[key]
-		if !seen {
-			named[key] = m
-			return
-		}
-		// One account can hold several sessions — a laptop at a board and a phone
-		// on the home page. The busier record wins for both flags: somebody
-		// playing on one device is playing, and somebody seated anywhere cannot
-		// take a challenge on another device either.
-		if (m.Playing && !prev.Playing) || (m.Busy && !prev.Busy) {
-			prev.Playing = prev.Playing || m.Playing
-			prev.Busy = prev.Busy || m.Busy
-			named[key] = prev
-		}
-	}
-
-	for uid, acct := range channel.Connected() {
-		// A seated session takes its record from the room, which carries the
-		// flags. Everyone else — spectators, browsers, the creator of a room they
-		// have wandered away from — is named from their socket.
-		if m, isSeated := seated[uid]; isSeated {
-			add(m)
 			continue
 		}
-		add(message.OnlineMember{Username: acct.Name, Title: acct.Title})
+		key := strings.ToLower(m.Username)
+		// borrow the id another of this person's sessions reported
+		if m.ID == 0 {
+			m.ID = nameID[key]
+		}
+		if m.ID != 0 {
+			if prev, seen := accounts[m.ID]; seen {
+				accounts[m.ID] = merge(prev, m)
+			} else {
+				accounts[m.ID] = m
+			}
+			continue
+		}
+		if prev, seen := byName[key]; seen {
+			byName[key] = merge(prev, m)
+		} else {
+			byName[key] = m
+		}
 	}
 
-	snap := Snapshot{Total: len(named) + anon, Anon: anon}
+	snap := Snapshot{
+		Total:    len(accounts) + len(byName) + anon,
+		Anon:     anon,
+		Accounts: accounts,
+	}
 	if limit <= 0 {
 		return snap
 	}
-	snap.Members = make([]message.OnlineMember, 0, len(named))
-	for _, m := range named {
+	snap.Members = make([]message.OnlineMember, 0, len(accounts)+len(byName))
+	for _, m := range accounts {
+		snap.Members = append(snap.Members, m)
+	}
+	for _, m := range byName {
 		snap.Members = append(snap.Members, m)
 	}
 	// players at a board first, then alphabetical — a stable order, so the

@@ -76,8 +76,6 @@ type ProfileGame struct {
 	Reason       string
 	// Score is this account's result in the game: 1, 0.5 or 0.
 	Score float32
-	// Plies is the game's length in half-moves.
-	Plies int
 	// OppRating is the opponent's display rating going into the game ("1520" /
 	// "1500?"), empty for an unrated game or an anon/bot seat. Delta is the
 	// change this game made to *this* account's rating; nil when unrated.
@@ -127,7 +125,6 @@ func ListGamesForUser(userID int64, limit, offset int32) ([]ProfileGame, error) 
 		// game finished, so from game 2 of a match onward they are not this
 		// game's result at all (see the header note in db/query/profile.sql).
 		g.Score = SeatScore(r.Outcome, asWhite)
-		g.Plies = int(r.Plies)
 		if asWhite {
 			g.OpponentName = strOrEmpty(r.BlackUsername)
 			g.OpponentTitle = strOrEmpty(r.BlackTitleCode)

@@ -148,12 +148,20 @@ func (r *Instance) snapshot() roomSnapshot {
 		// person is not available to be challenged. Playing stays narrower — it
 		// says they are at a board right now, which is what the roster label
 		// claims.
-		s.seated[p.ID] = message.OnlineMember{
+		m := message.OnlineMember{
 			Username: p.Username,
 			Title:    p.Title,
 			Playing:  playing,
 			Busy:     true,
 		}
+		// The account id, when the seat holds one. Presence folds on it, so a
+		// seated record that omitted it would not merge with the same person's
+		// socket record elsewhere and would list them twice
+		// (arch/FOLLOWING.md). Nil for an anonymous seat, which stays anonymous.
+		if p.UserID != nil {
+			m.ID = *p.UserID
+		}
+		s.seated[p.ID] = m
 	}
 
 	// surface the still-open seat's color — the side a joiner would take — so a

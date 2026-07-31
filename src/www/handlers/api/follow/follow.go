@@ -15,6 +15,7 @@ package follow
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/presence"
+	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/str"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/util"
@@ -53,11 +55,20 @@ type stateResponse struct {
 // bare GET /:username, so the two list sub-paths below are unambiguous even for
 // an account whose name collides with a future static segment.
 func Wire(g fiber.Router) {
+	// static first: a GET on this path must reach MineHandler, not be captured
+	// as a username. There is no bare GET /:username, so this is the only place
+	// the two could collide.
+	g.Get("/mine", MineHandler)
 	g.Post("/:username", Handler)
 	g.Delete("/:username", Handler)
 	g.Get("/:username/followers", ListHandler)
 	g.Get("/:username/following", ListHandler)
 }
+
+// mineLimit bounds the header popover's list. It is a menu of the people this
+// viewer chose to watch, not a directory: somebody who follows four hundred
+// accounts is served the first fifty and reads the rest on their profile.
+const mineLimit = 50
 
 // pageSize bounds one page of a follow list. The modal is a directory that
 // people scroll, not an archive they page through deliberately, so this is
@@ -74,6 +85,12 @@ type memberRow struct {
 	// Online marks an account holding a live socket right now. It comes from
 	// the process, not the database — presence already knows.
 	Online bool `json:"online,omitempty"`
+	// Playing and Busy say what an online member is doing, and are set only by
+	// the header popover's endpoint: they come from the room registry, which
+	// the list endpoints have no reason to consult. Busy is the wider of the
+	// two and is what decides whether a challenge can be offered.
+	Playing bool `json:"playing,omitempty"`
+	Busy    bool `json:"busy,omitempty"`
 	// Following is the asking viewer's own edge to this row, which is what lets
 	// the list offer a follow button per person.
 	Following bool `json:"following,omitempty"`
@@ -148,6 +165,66 @@ func ListHandler(c fiber.Ctx) error {
 		Page:    page,
 		More:    more,
 	})
+}
+
+// MineHandler serves the header popover: the accounts this viewer follows,
+// the ones who are here now first (arch/FOLLOWING.md Phase 5).
+//
+// Session-scoped like the writes — it answers about the caller and takes no
+// account from them — so it needs no gate beyond being signed in.
+//
+// It lists offline follows too, muted, because the control is also the viewer's
+// "who do I follow" entry point. That is why it is not named /online: the
+// online ones lead, but they are not all of it.
+func MineHandler(c fiber.Ctx) error {
+	if !auth.Enabled() {
+		return c.Status(fiber.StatusServiceUnavailable).
+			JSON(errBody{Error: "following is unavailable in this environment"})
+	}
+	acct := user.GetAccount(c)
+	if acct == nil {
+		return c.Status(fiber.StatusUnauthorized).
+			JSON(errBody{Error: "log in to see who you follow"})
+	}
+
+	members, err := db.ListFollowing(acct.ID, mineLimit, 0)
+	if err != nil {
+		util.Error(str.CDB, "following list failed error=%s", err.Error())
+		return c.Status(fiber.StatusInternalServerError).
+			JSON(errBody{Error: "could not read your list"})
+	}
+
+	// The presence snapshot, with the room registry's seats overlaid, so a row
+	// can say whether somebody is merely here or actually at a board. This is
+	// the same pair of reads the home page's roster makes, and it is why the
+	// popover can offer a challenge to exactly the people who could accept one.
+	_, _, _, seated := room.HomeListing()
+	online := presence.Online(seated, 0).Accounts
+
+	rows := make([]memberRow, 0, len(members))
+	for _, m := range members {
+		row := memberRow{Name: m.Username, Title: m.Title.Code, Following: true}
+		if p, here := online[m.ID]; here {
+			row.Online, row.Playing, row.Busy = true, p.Playing, p.Busy
+		}
+		rows = append(rows, row)
+	}
+	// Available first, then the rest of the online ones, then everybody who is
+	// away — the order the question "who can I play right now" is asked in.
+	// Ties break alphabetically so reopening the panel does not reshuffle it.
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
+		if a.Online != b.Online {
+			return a.Online
+		}
+		if a.Online && a.Busy != b.Busy {
+			return !a.Busy
+		}
+		return strings.ToLower(a.Name) < strings.ToLower(b.Name)
+	})
+
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	return c.JSON(listResponse{Members: rows, Page: 1})
 }
 
 // notifyFollowed tells an account it has a new follower (arch/FOLLOWING.md

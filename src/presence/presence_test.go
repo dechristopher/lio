@@ -224,3 +224,78 @@ func TestLimitCapsMembersButNotAnonTally(t *testing.T) {
 		t.Fatalf("Anon = %d, want 1 (uncapped tally)", snap.Anon)
 	}
 }
+
+// Snapshot.Accounts is the uncapped, id-keyed view the follow feature filters
+// (arch/FOLLOWING.md). It must hold every online member even when Members has
+// been trimmed for display — a followed player who is fortieth in the site-wide
+// order still has to be findable.
+func TestSnapshotAccountsIsUncapped(t *testing.T) {
+	connect(t, map[string]channel.Account{
+		"uid-a": named("alpha"),
+		"uid-b": named("bravo"),
+		"uid-c": named("charlie"),
+		"uid-d": anon,
+	})
+
+	snap := Online(nil, 1)
+	if len(snap.Members) != 1 {
+		t.Fatalf("Members = %d, want 1 (capped)", len(snap.Members))
+	}
+	if len(snap.Accounts) != 3 {
+		t.Fatalf("Accounts = %d, want 3 (uncapped)", len(snap.Accounts))
+	}
+	for _, name := range []string{"alpha", "bravo", "charlie"} {
+		id := acctIDs[name]
+		m, ok := snap.Accounts[id]
+		if !ok {
+			t.Fatalf("%s missing from Accounts", name)
+		}
+		if m.ID != id {
+			t.Fatalf("%s carries ID %d, want %d", name, m.ID, id)
+		}
+	}
+	// the anonymous session is counted, never keyed: it has no account to key on
+	if _, ok := snap.Accounts[0]; ok {
+		t.Fatal("an anonymous session reached Accounts")
+	}
+}
+
+// Accounts is produced even when no roster was asked for. /system wants the
+// headcount only (limit 0) and takes the early return, but the follow filter
+// asks the same question of a snapshot it may not want names from.
+func TestAccountsPresentWithoutLimit(t *testing.T) {
+	connect(t, map[string]channel.Account{"uid-a": named("delta")})
+
+	snap := Online(nil, 0)
+	if len(snap.Members) != 0 {
+		t.Fatalf("Members = %d, want 0 at limit 0", len(snap.Members))
+	}
+	if len(snap.Accounts) != 1 {
+		t.Fatalf("Accounts = %d, want 1", len(snap.Accounts))
+	}
+}
+
+// A seated record that carries its account id folds with the same person's
+// socket record rather than standing beside it. This is the production path:
+// room.snapshot copies p.UserID onto the member it publishes.
+func TestSeatedRecordFoldsByID(t *testing.T) {
+	acct := named("echo")
+	connect(t, map[string]channel.Account{
+		"uid-laptop": acct,
+		"uid-phone":  acct,
+	})
+	seated := map[string]message.OnlineMember{
+		"uid-phone": {ID: acct.ID, Username: "echo", Playing: true, Busy: true},
+	}
+
+	snap := Online(seated, 5)
+	if snap.Total != 1 {
+		t.Fatalf("Total = %d, want 1", snap.Total)
+	}
+	if len(snap.Accounts) != 1 {
+		t.Fatalf("Accounts = %d, want 1", len(snap.Accounts))
+	}
+	if m := snap.Accounts[acct.ID]; !m.Playing || !m.Busy {
+		t.Fatalf("seated flags lost in the fold: %+v", m)
+	}
+}

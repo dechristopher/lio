@@ -126,43 +126,24 @@ templ playersCard(c message.Community) {
 			// no header link: there is no player directory to point at yet, and a
 			// heading link that goes somewhere unrelated is worse than none
 			<p class="font-display text-lg font-bold text-fg">Players</p>
+			// The viewer's own follows who are here, above the site-wide
+			// roster (arch/FOLLOWING.md). These names are removed from
+			// "Online now" rather than repeated there — the two lists are one
+			// roster split by whether the viewer cares, and a name in both
+			// would read as two people.
+			if len(c.Following) > 0 {
+				<p class="roster-label roster-label-following">Following</p>
+				<ul class="chip-list">
+					for _, m := range c.Following {
+						@rosterChip(m)
+					}
+				</ul>
+			}
 			if len(c.Online) > 0 {
 				<p class="roster-label">Online now</p>
 				<ul class="chip-list">
 					for _, m := range c.Online {
-						// One split pill per player: the name links to their profile,
-						// the sword opens a challenge. Two targets that read as a single
-						// object, which is what they are — a person and what you can do
-						// with them.
-						<li class="roster-item">
-							<a href={ templ.SafeURL(profileURL(m.Username)) } class={ "roster-chip", templ.KV("is-playing", m.Playing), templ.KV("is-busy", m.Busy) }>
-								<span class="roster-dot" aria-hidden="true"></span>
-								@playerTitle(m.Title)
-								<span class="roster-chip-name">{ m.Username }</span>
-								// Only the unavailable members carry a tag, so it reads as
-								// a distinction rather than noise repeated on every chip.
-								// It is text, not just the amber dot, so the state never
-								// depends on color alone — and it says why the sword is
-								// missing rather than leaving that to be inferred.
-								if m.Playing {
-									<span class="roster-chip-tag">playing</span>
-								} else if m.Busy {
-									<span class="roster-chip-tag">waiting</span>
-								}
-							</a>
-							// The sword is a sibling of the chip, not a child: the chip is
-							// a link to their profile, and a button inside an anchor is
-							// neither valid nor clickable in the way either one wants. The
-							// two are joined into one pill by the CSS.
-							//
-							// It appears only for somebody who could actually accept right
-							// now — see canChallenge — so it is absent for every member
-							// the dot has turned amber. A control that is present but
-							// fails is worse than one that is absent.
-							if canChallenge(viewer(ctx), m.Username, m.Busy) {
-								@challengeButton(m.Username, "roster-challenge")
-							}
-						</li>
+						@rosterChip(m)
 					}
 				</ul>
 			}
@@ -188,6 +169,47 @@ templ playersCard(c message.Community) {
 			}
 		</div>
 	}
+}
+
+// rosterChip is one player in the players card: a split pill whose name links
+// to their profile and whose sword opens a challenge. Two targets that read as
+// a single object, which is what they are — a person and what you can do with
+// them.
+//
+// Shared by the "Following" and "Online now" sections so the two cannot drift:
+// a followed player and a stranger are the same kind of row, and the only
+// difference between the lists is which of them the viewer chose to see first
+// (arch/FOLLOWING.md).
+templ rosterChip(m message.OnlineMember) {
+	<li class="roster-item">
+		<a href={ templ.SafeURL(profileURL(m.Username)) } class={ "roster-chip", templ.KV("is-playing", m.Playing), templ.KV("is-busy", m.Busy) }>
+			<span class="roster-dot" aria-hidden="true"></span>
+			@playerTitle(m.Title)
+			<span class="roster-chip-name">{ m.Username }</span>
+			// Only the unavailable members carry a tag, so it reads as a
+			// distinction rather than noise repeated on every chip. It is text,
+			// not just the amber dot, so the state never depends on color alone
+			// — and it says why the sword is missing rather than leaving that
+			// to be inferred.
+			if m.Playing {
+				<span class="roster-chip-tag">playing</span>
+			} else if m.Busy {
+				<span class="roster-chip-tag">waiting</span>
+			}
+		</a>
+		// The sword is a sibling of the chip, not a child: the chip is a link to
+		// their profile, and a button inside an anchor is neither valid nor
+		// clickable in the way either one wants. The two are joined into one
+		// pill by the CSS.
+		//
+		// It appears only for somebody who could actually accept right now — see
+		// canChallenge — so it is absent for every member the dot has turned
+		// amber. A control that is present but fails is worse than one that is
+		// absent.
+		if canChallenge(viewer(ctx), m.Username, m.Busy) {
+			@challengeButton(m.Username, "roster-challenge")
+		}
+	</li>
 }
 
 // leaderboardCard is the rating board in the home page's right column. It shows

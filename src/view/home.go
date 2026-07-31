@@ -70,7 +70,7 @@ func shortAgo(t time.Time) string {
 // entirely empty panel renders nothing at all rather than a stack of empty
 // states — a quiet site should look quiet, not broken.
 func hasPlayers(c message.Community) bool {
-	return len(c.Online) > 0 || len(c.Newest) > 0
+	return len(c.Online) > 0 || len(c.Newest) > 0 || len(c.Following) > 0
 }
 
 // anonNote is the roster's footnote for the visitors who hold no account: how

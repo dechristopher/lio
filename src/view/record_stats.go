@@ -619,13 +619,3 @@ func RatingDelta(d *int) (string, string) {
 	}
 	return "±0", "draw"
 }
-
-// MoveCount labels a game's length in half-moves. Plies rather than moves
-// because that is the unit the archive stores and the Game length section
-// buckets by — one page should not count a game two different ways.
-func MoveCount(plies int) string {
-	if plies <= 0 {
-		return ""
-	}
-	return plural(int64(plies), "ply", "plies")
-}

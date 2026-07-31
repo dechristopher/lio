@@ -37,7 +37,10 @@ templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteSta
 						@homeNews()
 					</div>
 				</main>
-				@createGameModal()
+				// The create-game dialog is mounted by the header now, on every
+				// page (arch/FOLLOWING.md). This page still owns the bot
+				// difficulty picker its Quick Game "vs Computer" button hands
+				// off to — that is a home-page flow, not a challenge one.
 				@botDifficultyModal()
 				@footer(meta, "max-w-[34rem] md:hidden")
 			</div>

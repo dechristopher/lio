@@ -4784,7 +4784,6 @@
 		font-weight: 500;
 		color: var(--text-subtle);
 	}
-	.game-moves { flex: none; font-size: 0.75rem; color: var(--text-subtle); }
 	.game-delta {
 		flex: none;
 		text-align: right;
@@ -4823,7 +4822,6 @@
 		.game-meta { flex-wrap: nowrap; }
 		.game-variant { width: 6.5rem; }
 		.game-mode { width: 3.4rem; }
-		.game-moves { width: 4.2rem; }
 		.game-delta { width: 2.4rem; }
 		.game-when { width: 5.8rem; }
 	}
@@ -5242,6 +5240,11 @@
 	/* a new follower is good news, so it shares the milestone tint rather than
 	   the accent every neutral kind already wears (arch/FOLLOWING.md) */
 	.notify-row.kind-follow { border-left-color: var(--win); }
+
+	/* The players card's "Following" heading, tinted so the section reads as
+	   the viewer's own rather than as another slice of the site-wide roster
+	   below it (arch/FOLLOWING.md). */
+	.roster-label-following { color: var(--accent); }
 
 	.notify-row-body {
 		flex: 1 1 auto;
@@ -5673,6 +5676,45 @@
 		cursor: pointer;
 	}
 	.follow-more:hover { border-color: var(--accent); color: var(--text); }
+
+	/* --- the header's following popover (arch/FOLLOWING.md Phase 5) --------- */
+
+	/* The badge on the header control. It reuses the bell's dot so the two read
+	   as the same kind of mark, in --win rather than --loss: the bell's dot
+	   means "something needs you", this one means "somebody is here". */
+	.notify-dot.is-online { background: var(--win); }
+
+	/* A badged icon button has to be the badge's positioning context. Without
+	   this the absolutely-positioned dot escapes to the header's control
+	   cluster and lands on whichever button happens to be last — which is
+	   exactly what it did on the theme toggle. .notify-bell says the same thing
+	   for the bell. */
+	.hdr-badged { position: relative; }
+
+	/* Bounded so a long list scrolls inside the popover instead of running off
+	   the bottom of the viewport. Rows are the dialog's rows, unchanged. */
+	.follow-panel-list { max-height: 20rem; overflow-y: auto; }
+	.follow-panel-list .follow-row { padding: 0.4rem 0.1rem; }
+	.follow-panel-list .follow-row:last-child { border-bottom: none; }
+	/* An offline row is muted whole — name, title and all — so the online ones
+	   read first without the list having to reorder itself under the reader. */
+	.follow-panel-list .follow-row:not(:has(.follow-dot)) .follow-who { opacity: 0.55; }
+
+	/* The sword in a follow row: the roster's control at list size. */
+	.follow-sword {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 1.6rem;
+		height: 1.6rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+	.follow-sword:hover { border-color: var(--accent); color: var(--accent); }
+	.follow-sword svg { width: 0.85rem; height: 0.85rem; }
 
 	/* --- feedback inbox (/system) ----------------------------------------- */
 
