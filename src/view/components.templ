@@ -106,15 +106,11 @@ templ header(width string) {
 				// PG-less local dev: accounts have no backing store
 				<button type="button" id="loginButton" class="shrink-0 whitespace-nowrap text-sm font-semibold text-accent opacity-50" disabled title="Accounts are unavailable in this environment">Log in</button>
 			}
+			// The gear is the only appearance control in the header now. The
+			// one-tap light/dark shortcut that sat beside it is gone; the prefs
+			// popover carries the full Light/Dark/System picker at every width.
 			<button type="button" id="prefsButton" aria-label="Preferences" title="Preferences" class="hdr-icon-btn shrink-0">
 				@iconGear()
-			</button>
-			// One-tap light/dark shortcut. Hidden under 768px, where the layout
-			// goes single-column — the prefs popover carries the full Light/Dark/
-			// System control there, so no capability is lost.
-			<button type="button" onclick="__toggleTheme()" aria-label="Toggle dark mode" title="Toggle dark mode" class="hdr-icon-btn shrink-0 max-[768px]:hidden">
-				@iconMoon()
-				@iconSun()
 			</button>
 			@prefsPopover()
 			if viewer(ctx).LoggedIn {
@@ -277,11 +273,21 @@ templ prefsPopover() {
 	<div id="prefsPopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-72 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
 		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Preferences</p>
 		<div class="mt-2">
-			<p class="mb-1 text-xs font-medium text-fg-muted">Theme</p>
-			<div class="grid grid-cols-3 gap-1">
-				<button type="button" data-set-theme="light" class="theme-btn">Light</button>
-				<button type="button" data-set-theme="dark" class="theme-btn">Dark</button>
-				<button type="button" data-set-theme="system" class="theme-btn">System</button>
+			<p class="mb-1.5 text-xs font-medium text-fg-muted">Theme</p>
+			// icon over label, like the piece-set cards below it
+			<div class="grid grid-cols-3 gap-1.5">
+				<button type="button" data-set-theme="light" class="mode-btn">
+					@iconSun()
+					<span>Light</span>
+				</button>
+				<button type="button" data-set-theme="dark" class="mode-btn">
+					@iconMoon()
+					<span>Dark</span>
+				</button>
+				<button type="button" data-set-theme="system" class="mode-btn">
+					@iconMonitor()
+					<span>System</span>
+				</button>
 			</div>
 		</div>
 		<div class="mt-3 border-t border-line pt-3">
@@ -635,18 +641,28 @@ templ navScript() {
 	</script>
 }
 
-// iconMoon is shown in light mode (click to switch to dark).
+// iconMoon / iconSun / iconMonitor label the Light/Dark/System choices in the
+// preferences popover. They are drawn unconditionally — each names one mode
+// rather than reporting the current one, so none of them hides per theme.
 templ iconMoon() {
-	<svg class="h-5 w-5 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
 	</svg>
 }
 
-// iconSun is shown in dark mode (click to switch to light).
 templ iconSun() {
-	<svg class="hidden h-5 w-5 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 		<circle cx="12" cy="12" r="4"></circle>
 		<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+	</svg>
+}
+
+// iconMonitor is the desktop display that stands for "follow the OS setting".
+// Same outline motif as iconCpu / iconGear beside it.
+templ iconMonitor() {
+	<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+		<path d="M8 21h8M12 17v4"></path>
 	</svg>
 }
 

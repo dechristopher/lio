@@ -32,7 +32,7 @@ templ head(meta Meta) {
 			// alpha for board/pieces). All three live as data-* attributes on
 			// <html> so board.css / piece.css (scoped [data-board]/[data-piece])
 			// and the per-board --accent overrides (app.css) apply with no FOUC.
-			// Exposes __toggleTheme/__setTheme/__useSystemTheme (color theme) and
+			// Exposes __setTheme/__useSystemTheme (color theme) and
 			// __setBoard/__setPiece for the preferences popover.
 			(function () {
 				var d = document.documentElement;
@@ -50,9 +50,6 @@ templ head(meta Meta) {
 				window.__setTheme = function (t) {
 					d.dataset.theme = t;
 					try { localStorage.setItem("theme", t); } catch (e) {}
-				};
-				window.__toggleTheme = function () {
-					window.__setTheme(d.dataset.theme === "dark" ? "light" : "dark");
 				};
 				window.__useSystemTheme = function () {
 					try { localStorage.removeItem("theme"); } catch (e) {}

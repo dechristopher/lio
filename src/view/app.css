@@ -3550,9 +3550,8 @@
 	}
 	.swatch-btn:hover { border-color: var(--border-strong); }
 	.swatch-btn.is-active { border-color: var(--accent); }
-	/* prefs popover theme mode (Light/Dark/System): same treatment as the board
-	   swatches / piece pills — quiet ring on hover, accent ring + tinted label
-	   when selected. A component class (not utilities) so the is-active state
+	/* the plain selected/unselected pill, used by the account modal's Log in /
+	   Sign up tabs. A component class (not utilities) so the is-active state
 	   isn't outranked by Tailwind's later utilities layer. */
 	.theme-btn {
 		padding: 0.375rem 0;
@@ -3568,6 +3567,31 @@
 	.theme-btn:hover { border-color: var(--border-strong); }
 	.theme-btn.is-active {
 		border-color: var(--accent);
+		color: var(--accent);
+	}
+	/* prefs popover theme mode (Light/Dark/System): an icon over its label, the
+	   same card as the piece-set pills below it — quiet ring on hover, accent
+	   ring + tinted art when selected. */
+	.mode-btn {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 5px;
+		padding: 8px 4px 7px;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		font-size: 0.7rem;
+		font-weight: 600;
+		line-height: 1;
+		color: var(--text);
+		cursor: pointer;
+		transition: border-color 0.15s var(--ease-snappy), background 0.15s var(--ease-snappy), color 0.15s var(--ease-snappy), transform 0.15s var(--ease-snappy);
+	}
+	.mode-btn:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+	.mode-btn.is-active {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
 		color: var(--accent);
 	}
 	/* a 2x2 checker preview built from the theme's two square colors (--l/--d
