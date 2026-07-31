@@ -63,6 +63,10 @@ type Notification struct {
 	// Actor names the account that caused the message. Empty for a message from
 	// the site, and also empty after the actor deletes their account.
 	Actor string
+	// ActorID identifies the same account, and is 0 whenever Actor is empty. It
+	// is here because a row can carry a viewer-relative control — the follow
+	// row's follow-back — and that state is keyed by id, not by a name.
+	ActorID int64
 	// Read is the zero time while the row is unread.
 	Read time.Time
 	// Expires bounds how long the message is worth acting on. The zero time
@@ -112,14 +116,21 @@ func CreateNotification(n NewNotification) (Notification, error) {
 	if err != nil {
 		return Notification{}, err
 	}
-	return Notification{
+	out := Notification{
 		ID:      row.ID,
 		Created: row.CreatedAt.Time,
 		Kind:    n.Kind,
 		Body:    n.Body,
 		Link:    n.Link,
 		Expires: n.Expires,
-	}, nil
+	}
+	// The caller gave the actor as a pointer (nil for a message from the site);
+	// the row carries it as a plain id, so the delivered item and the same row
+	// read back from the panel describe the actor the same way.
+	if n.ActorID != nil {
+		out.ActorID = *n.ActorID
+	}
+	return out, nil
 }
 
 // UnreadNotifications counts what one account has not read yet.
@@ -185,7 +196,7 @@ func ListNotifications(userID int64, limit int32) ([]Notification, error) {
 	}
 	out := make([]Notification, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, Notification{
+		row := Notification{
 			ID:      r.ID,
 			Created: r.CreatedAt.Time,
 			Kind:    r.Kind,
@@ -194,7 +205,11 @@ func ListNotifications(userID int64, limit int32) ([]Notification, error) {
 			Actor:   strOrEmpty(r.ActorUsername),
 			Read:    r.ReadAt.Time,
 			Expires: r.ExpiresAt.Time,
-		})
+		}
+		if r.ActorID != nil {
+			row.ActorID = *r.ActorID
+		}
+		out = append(out, row)
 	}
 	return out, nil
 }

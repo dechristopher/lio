@@ -80,26 +80,41 @@
 
   // ---------------------------------------------------------------- rows
 
-  // One glyph per kind. An unknown kind — a row written by a newer build and
-  // read by a page the deploy has not replaced yet — gets the neutral glyph and
-  // renders as a plain message. It must never throw, and it must never render
-  // nothing: the body is always readable on its own.
+  // One glyph per kind, every one a stroked SVG. No emoji: an emoji renders as
+  // whatever the reader's operating system decided it looks like, at a weight
+  // nothing else on the page shares, while a drawn glyph follows currentColor
+  // and sits in the row like the rest of the site's chrome.
+  //
+  // Each is the glyph the site already uses for that idea, so a row's mark and
+  // the surface it points at agree:
+  //
+  //   mod_action  lucide "shield"  the moderation surfaces
+  //   milestone   iconChart        the profile's stats (view/components.templ)
+  //   system      iconGear         the preferences and site controls
+  //   staff       iconMessage      the feedback inbox (view/feedback.templ)
+  //   challenge   iconSwords       the challenge control everywhere else
+  //   follow      iconUsers        the "vs Human" glyph; a follower is a person
+  //
+  // New kinds belong here. Copy the glyph from its templ twin rather than
+  // drawing a second version of it.
   const glyphs = {
-    mod_action: "\u{1F6E1}",
-    milestone: "\u{1F4C8}",
-    system: "⚙",
-    staff: "\u{1F4AC}",
-  };
-
-  // Kinds whose mark is a drawn icon rather than an emoji, checked before the
-  // glyph map above. An emoji renders as whatever the reader's operating system
-  // decided it looks like; a stroked icon is the site's own, follows
-  // currentColor, and matches the same glyph used on the buttons elsewhere on
-  // the page. New kinds belong here rather than in glyphs.
-  const svgGlyphs = {
-    // lucide "users" — the glyph the home page's "vs Human" button carries
-    // (iconUsers in view/components.templ). A follower is a person, and this is
-    // already how the site draws people.
+    mod_action: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"],
+    milestone: ["M18 20V10", "M12 20V4", "M6 20v-6"],
+    system: [
+      ["circle", { cx: 12, cy: 12, r: 3 }],
+      "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
+    ],
+    staff: ["M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"],
+    challenge: [
+      "M14.5 17.5 3 6V3h3l11.5 11.5",
+      "M13 19l6-6",
+      "M16 16l4 4",
+      "M19 21l2-2",
+      "M9.5 17.5 21 6V3h-3L6.5 14.5",
+      "M11 19l-6-6",
+      "M8 16l-4 4",
+      "M5 21l-2-2",
+    ],
     follow: [
       "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2",
       ["circle", { cx: 9, cy: 7, r: 4 }],
@@ -107,6 +122,16 @@
       "M16 3.13a4 4 0 0 1 0 7.75",
     ],
   };
+
+  // lucide "info", for a kind this build does not know — a row written by a
+  // newer one during a deploy. The row must never throw and must never render
+  // nothing: the body is always readable on its own, and this says only "a
+  // message", which is exactly as much as an older page can honestly say.
+  const unknownGlyph = [
+    ["circle", { cx: 12, cy: 12, r: 10 }],
+    "M12 16v-4",
+    "M12 8h.01",
+  ];
 
   function when(ms) {
     const secs = Math.max(0, Math.round((Date.now() - ms) / 1000));
@@ -148,27 +173,39 @@
     return item && item.l ? item.l.replace(/^\//, "") : "";
   }
 
+  // A follow row carries the reader's own edge back to their new follower, so it
+  // offers the same toggle every other follow control on the site does — the
+  // point of the message is that somebody is worth following back, and making
+  // the reader open a profile to do it is a trip for one click.
+  //
+  // An actor with no name is one who has since deleted their account. The
+  // message still reads on its own; there is simply nobody left to follow.
+  function canFollowBack(item) {
+    return !!(item && item.k === "follow" && item.a);
+  }
+
   // Builds one row. Everything a message carries is set with textContent, never
   // innerHTML: the body is written by the server but an actor's name is a
   // person's own text, and a row is not a place to run it.
   function row(item) {
-    // A live challenge is a block, not a link: it carries its own Accept and
-    // Decline, and wrapping those in an anchor would make Decline navigate.
+    // A row that carries a control is a block, not a link. A live challenge has
+    // Accept and Decline; a follow has the follow-back toggle. Either way a
+    // button inside an anchor is not something the HTML allows, and every press
+    // would navigate.
     const live = isLive(item);
-    const el = document.createElement(item.l && !live ? "a" : "div");
+    const toggle = canFollowBack(item);
+    // Whether the row has a destination of its own, separate from whether the
+    // row element is the thing that carries it.
+    const linked = !!item.l && !live;
+    const el = document.createElement(linked && !toggle ? "a" : "div");
     el.className = "notify-row kind-" + (item.k || "system") + (item.r ? "" : " is-unread");
-    if (item.l && !live) el.href = item.l;
+    if (linked && !toggle) el.href = item.l;
     if (item.id) el.dataset.id = item.id;
 
     const iconEl = document.createElement("span");
     iconEl.className = "notify-row-icon";
     iconEl.setAttribute("aria-hidden", "true");
-    const shapes = svgGlyphs[item.k];
-    if (shapes) {
-      iconEl.appendChild(icon(shapes));
-    } else {
-      iconEl.textContent = glyphs[item.k] || "•";
-    }
+    iconEl.appendChild(icon(glyphs[item.k] || unknownGlyph));
 
     const body = document.createElement("div");
     body.className = "notify-row-body";
@@ -190,10 +227,106 @@
     meta.appendChild(time);
     body.appendChild(meta);
 
-    el.appendChild(iconEl);
-    el.appendChild(body);
+    // A row with both a destination and a control is two surfaces side by side,
+    // like the roster pill: the message links to the person, the button acts on
+    // them. Two targets, separately clickable, that read as one object — because
+    // that is what they are.
+    const linkEl = linked && toggle ? document.createElement("a") : el;
+    if (linkEl !== el) {
+      linkEl.className = "notify-row-link";
+      linkEl.href = item.l;
+    }
+    linkEl.appendChild(iconEl);
+    linkEl.appendChild(body);
+    if (linkEl !== el) el.appendChild(linkEl);
     if (live) el.appendChild(challengeActions(item));
+    if (toggle) el.appendChild(followBackEl(item));
     return el;
+  }
+
+  // The follow-back toggle: the same two-state control the follow lists render
+  // (follow-mini in lio-follow.js), with the first label saying which of the two
+  // this is. Both labels are always in the DOM, stacked, so the button is sized
+  // by the longer of them and pressing it never resizes the row.
+  //
+  // It toggles rather than disappearing once pressed, which is why the server
+  // sends the relationship and not "offer a follow-back": a control that
+  // vanishes under the reader leaves them unable to undo a misclick, and every
+  // other follow button on the site works this way.
+  //
+  // Nothing here closes over the button or the item. The panel rebuilds its rows
+  // from the cache whenever a frame arrives while it is open, and reloading the
+  // list replaces the item objects wholesale — so a captured reference can
+  // outlive the row it was made for. Pressing this used to write the follow and
+  // then paint a button that was no longer on the page: the edge changed and the
+  // label did not. Everything below goes through the row id instead.
+  function followBackEl(item) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "follow-mini";
+    ["off", "on"].forEach(function (state) {
+      const span = document.createElement("span");
+      span.className = "follow-line";
+      span.dataset.state = state;
+      span.textContent = state === "on" ? "Following" : "Follow back";
+      btn.appendChild(span);
+    });
+    paintButton(btn, item);
+    btn.addEventListener("click", function () { toggleFollow(item.id); });
+    return btn;
+  }
+
+  // Ids with a follow write in flight. Held here rather than as a class on the
+  // button for the same reason: a rebuilt button would come back pressable in
+  // the middle of its own request.
+  const followBusy = new Set();
+
+  function paintButton(btn, item) {
+    const following = !!item.fw;
+    btn.classList.toggle("is-following", following);
+    btn.classList.toggle("is-busy", followBusy.has(item.id));
+    btn.setAttribute("aria-pressed", following ? "true" : "false");
+    // A refusal is kept on the item, not on the element, so it survives the
+    // rebuild too. A closed account is the one worth reading: it says why the
+    // button did nothing, and it is not the reader's doing.
+    if (item.fwError) btn.title = item.fwError;
+  }
+
+  // Repaints the row's button from the row's current item, both found by id.
+  function syncFollow(id) {
+    const item = cached.find(function (i) { return i.id === id; });
+    const btn = list.querySelector('.notify-row[data-id="' + id + '"] > .follow-mini');
+    if (item && btn) paintButton(btn, item);
+  }
+
+  async function toggleFollow(id) {
+    if (followBusy.has(id)) return;
+    const item = cached.find(function (i) { return i.id === id; });
+    if (!item || !item.a) return;
+    followBusy.add(id);
+    syncFollow(id);
+
+    const following = !!item.fw;
+    try {
+      const res = await fetch("/api/follow/" + encodeURIComponent(item.a), {
+        method: following ? "DELETE" : "POST",
+        headers: { Accept: "application/json" },
+      });
+      const data = await res.json().catch(function () { return null; });
+      if (res.ok) {
+        // The server answers with the state the edge landed in, which is the
+        // one to trust: both writes are idempotent, so a button that started on
+        // the wrong label still ends on the right one.
+        item.fw = data ? !!data.following : !following;
+        item.fwError = "";
+      } else {
+        item.fwError = (data && data.error) || "Could not save that.";
+      }
+    } catch (e) {
+      item.fwError = "Network error — that did not save.";
+    }
+    followBusy.delete(id);
+    syncFollow(id);
   }
 
   // Builds one lucide-style stroke icon. createElementNS rather than innerHTML:
@@ -437,8 +570,13 @@
   list.addEventListener("click", function (e) {
     const el = e.target.closest(".notify-row[data-id]");
     if (!el || !el.classList.contains("is-unread")) return;
+    const id = Number(el.dataset.id);
     el.classList.remove("is-unread");
-    post("/api/me/notifications/read", { id: Number(el.dataset.id) });
+    // The cached row too, or the next re-render brings the mark back. Most rows
+    // navigate away on this click and never see it; a row with a control of its
+    // own — the follow-back toggle — is pressed and stayed on.
+    cached.forEach(function (item) { if (item.id === id) item.r = true; });
+    post("/api/me/notifications/read", { id: id });
   });
 
   // ---------------------------------------------------------------- toast

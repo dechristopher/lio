@@ -68,7 +68,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 
 const listNotifications = `-- name: ListNotifications :many
 SELECT n.id, n.created_at, n.kind, n.body, n.link, n.read_at, n.expires_at,
-       a.username AS actor_username
+       n.actor_id, a.username AS actor_username
 FROM notifications n
          LEFT JOIN users a ON a.id = n.actor_id
 WHERE n.user_id = $1
@@ -89,6 +89,7 @@ type ListNotificationsRow struct {
 	Link          string
 	ReadAt        pgtype.Timestamptz
 	ExpiresAt     pgtype.Timestamptz
+	ActorID       *int64
 	ActorUsername *string
 }
 
@@ -98,6 +99,11 @@ type ListNotificationsRow struct {
 //
 // The actor join is LEFT: actor_id is NULL for a message from the site, and it
 // also becomes NULL after an actor deletes their account.
+//
+// The id comes back beside the name because a row can be viewer-relative: a
+// follow offers a follow-back, which is the question "does the reader already
+// follow this actor" and is answered by id, in one batched probe for the whole
+// page rather than a join per row.
 func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error) {
 	rows, err := q.db.Query(ctx, listNotifications, arg.UserID, arg.Limit)
 	if err != nil {
@@ -115,6 +121,7 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 			&i.Link,
 			&i.ReadAt,
 			&i.ExpiresAt,
+			&i.ActorID,
 			&i.ActorUsername,
 		); err != nil {
 			return nil, err

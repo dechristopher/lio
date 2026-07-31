@@ -106,10 +106,24 @@ func Push(n db.NewNotification, actor string) error {
 	}
 
 	row.Actor = actor
+	// One probe, and only for the kind that asks the question. The recipient is
+	// the reader here, so "does the reader follow the actor" is answerable
+	// directly — the panel's list has a page of rows and batches the same
+	// question instead.
+	follows := func(actorID int64) bool { return db.IsFollowing(n.UserID, actorID) }
 	channel.SendToAccount(n.UserID,
-		proto.NotifyMessage(db.UnreadNotifications(n.UserID), Item(row)))
+		proto.NotifyMessage(db.UnreadNotifications(n.UserID), Item(row, follows)))
 	return nil
 }
+
+// FollowLookup answers whether the reader of a notification already follows the
+// account that caused it. Item calls it for a follow row and for nothing else.
+//
+// It is a function rather than a flag because the two callers can answer it at
+// very different costs: an arriving message probes for its one actor, while the
+// panel's list resolves a whole page in one batched read. A nil lookup means
+// "do not ask", which is what a caller with no reader in hand passes.
+type FollowLookup func(actorID int64) bool
 
 // Item converts a stored notification into the shape the client renders.
 //
@@ -120,8 +134,11 @@ func Push(n db.NewNotification, actor string) error {
 // message with no countdown, no Accept, no Decline and no toast. The feature
 // looked built and did nothing.
 //
-// Anything added to NotifyItem belongs here, once.
-func Item(n db.Notification) proto.NotifyItem {
+// Anything added to NotifyItem belongs here, once. The follow lookup is an
+// argument for the same reason: a viewer-relative field that one path resolved
+// and the other did not is the same bug in a new place, and a parameter makes
+// the compiler ask every caller.
+func Item(n db.Notification, follows FollowLookup) proto.NotifyItem {
 	item := proto.NotifyItem{
 		ID:      n.ID,
 		Kind:    n.Kind,
@@ -136,6 +153,12 @@ func Item(n db.Notification) proto.NotifyItem {
 	// treat as long past.
 	if !n.Expires.IsZero() {
 		item.Expires = n.Expires.UnixMilli()
+	}
+	// The follow row is the one kind that carries a control about the person who
+	// caused it, so it is the one kind that needs the reader's own edge. An actor
+	// who deleted their account leaves no id, and there is nobody left to follow.
+	if n.Kind == db.KindFollow && n.ActorID != 0 && follows != nil {
+		item.Follows = follows(n.ActorID)
 	}
 	return item
 }

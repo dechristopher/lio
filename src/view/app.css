@@ -5245,8 +5245,26 @@
 	}
 	/* A row with a link is a link. One with no destination is a plain block, so
 	   it must not offer a pointer or a hover state that promises a navigation. */
-	a.notify-row:hover {
+	a.notify-row:hover,
+	.notify-row:has(> .notify-row-link:hover) {
 		border-color: var(--border-strong);
+	}
+	/* A row that carries both a destination and a control splits into two
+	   surfaces, like the roster pill: the message links to the person, the button
+	   beside it acts on them. The link keeps the row's own flex layout, so a row
+	   with a button and one without put their text on the same line. */
+	.notify-row-link {
+		display: flex;
+		flex: 1 1 auto;
+		gap: 0.5rem;
+		min-width: 0;
+		color: inherit;
+		text-decoration: none;
+	}
+	/* The toggle is centred against the message rather than stretched down it:
+	   a two-line body would otherwise give it the height of a panel button. */
+	.notify-row > .follow-mini {
+		align-self: center;
 	}
 	/* Unread is marked by weight and a wash rather than by color, so it never
 	   competes with the kind stripe on the same edge. */
@@ -5294,16 +5312,14 @@
 	.notify-row-icon {
 		flex: none;
 		width: 1.1rem;
-		font-size: 0.9rem;
-		line-height: 1.3;
-		text-align: center;
 	}
-	/* A drawn glyph rather than an emoji (svgGlyphs in lio-notify.js). The
-	   emoji marks sit on a text baseline and an SVG has none, so it is nudged
-	   down to line up with the first line of body text beside it. The lighter
-	   stroke overrides the helper's default, which is weighted for the 1rem
-	   tick and cross on the challenge buttons and reads as a blob at this size
-	   on a four-shape glyph. */
+	/* Every kind's mark is a drawn glyph (glyphs in lio-notify.js) — no emoji,
+	   which render as whatever the reader's operating system decided and at a
+	   weight nothing else on the page shares. An SVG has no text baseline to sit
+	   on, so it is nudged down to line up with the first line of body text
+	   beside it. The lighter stroke overrides the helper's default, which is
+	   weighted for the 1rem tick and cross on the challenge buttons and reads as
+	   a blob at this size on a multi-shape glyph. */
 	.notify-row-icon svg {
 		display: block;
 		width: 1rem;

@@ -272,7 +272,41 @@ func RoleHandler(c fiber.Ctx) error {
 		"from": rec.Role.String(),
 		"to":   next.String(),
 	}, req.Reason)
+	if body, link := roleNotice(rec.Role, next); body != "" {
+		notifyTarget(rec.ID, body, link)
+	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// roleNotice writes what an account is told about its own role changing, and
+// returns an empty body when there is nothing to say.
+//
+// An appointment is the one change here the account cannot discover any other
+// way: nothing on screen says "you may now moderate", and the tools simply
+// appear the next time they look. It links to /system, because the first useful
+// thing a new moderator does is open the page they just gained.
+//
+// A demotion is announced for the same reason a removed title is: the controls
+// disappear, and finding that out by pressing one is worse than being told. It
+// carries no link — the page it would point at is the one they no longer have.
+//
+// Like every other message from this file it names no moderator. The audit feed
+// records who made the appointment, which is where staff read it.
+func roleNotice(from, to role.Role) (body, link string) {
+	if from.String() == to.String() {
+		return "", ""
+	}
+	switch {
+	case to.CanAdmin():
+		return "You are now an administrator.", "/system"
+	case to.CanModerate():
+		return "You are now a moderator.", "/system"
+	case from.CanAdmin():
+		return "Your administrator access has been removed.", ""
+	case from.CanModerate():
+		return "Your moderator access has been removed.", ""
+	}
+	return "", ""
 }
 
 // RenameHandler applies a forced rename — the proportionate sanction for a

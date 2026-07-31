@@ -46,6 +46,15 @@ type NotifyItem struct {
 	// frame have exactly one shape between them. The client then has one row
 	// renderer instead of two that must be kept in step.
 	Read bool `json:"r,omitempty"`
+	// Follows reports that the recipient already follows the actor. It is set
+	// only on a follow row, which is the one kind that offers a control about
+	// the person who caused it (arch/FOLLOWING.md).
+	//
+	// It describes the relationship, not the button. A field meaning "offer a
+	// follow-back" would have nothing to say once the reader pressed it, and the
+	// control would vanish from under them; a relationship has two states, which
+	// is exactly what the two-state toggle everywhere else on the site paints.
+	Follows bool `json:"fw,omitempty"`
 }
 
 // NotifyPayload carries the unread counts, and the new message when one just

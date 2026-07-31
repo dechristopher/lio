@@ -23,7 +23,7 @@ func TestItemCarriesExpiry(t *testing.T) {
 		Actor:   "drewtest",
 		Created: time.Now(),
 		Expires: expires,
-	})
+	}, nil)
 
 	if item.Expires != expires.UnixMilli() {
 		t.Fatalf("Expires = %d, want %d — a challenge with no expiry is dead on arrival",
@@ -50,7 +50,7 @@ func TestItemWithoutExpiryIsZero(t *testing.T) {
 		Kind:    db.KindSystem,
 		Body:    "the site was updated",
 		Created: time.Now(),
-	})
+	}, nil)
 	if item.Expires != 0 {
 		t.Fatalf("Expires = %d, want 0 for a kind that does not expire", item.Expires)
 	}
@@ -65,8 +65,80 @@ func TestItemReadState(t *testing.T) {
 		Body:    "your report was reviewed",
 		Created: time.Now(),
 		Read:    time.Now(),
-	})
+	}, nil)
 	if !item.Read {
 		t.Fatal("a read notification came through as unread")
+	}
+}
+
+// The follow row's toggle is the reader's own edge back to their new follower,
+// so the state has to reach the item. Without it every row paints "Follow back"
+// and a mutual follow offers to do again what is already done.
+func TestItemCarriesFollowState(t *testing.T) {
+	row := db.Notification{
+		ID:      10,
+		Kind:    db.KindFollow,
+		Body:    "You have a new follower",
+		Link:    "/@/drewtest",
+		Actor:   "drewtest",
+		ActorID: 42,
+		Created: time.Now(),
+	}
+
+	var asked int64
+	item := Item(row, func(actorID int64) bool {
+		asked = actorID
+		return true
+	})
+	if asked != 42 {
+		t.Fatalf("lookup asked about account %d, want the actor 42", asked)
+	}
+	if !item.Follows {
+		t.Error("Follows = false for a reader who already follows the actor")
+	}
+
+	if Item(row, func(int64) bool { return false }).Follows {
+		t.Error("Follows = true for a reader who does not follow the actor")
+	}
+}
+
+// Every other kind is the same message for anybody, so nothing viewer-relative
+// is resolved for it. This is a cost test as much as a correctness one: the
+// panel would otherwise probe the follow graph for a page of rating records.
+func TestItemSkipsFollowLookupForOtherKinds(t *testing.T) {
+	kinds := []string{db.KindModAction, db.KindMilestone, db.KindSystem, db.KindChallenge}
+	for _, kind := range kinds {
+		item := Item(db.Notification{
+			ID:      11,
+			Kind:    kind,
+			Body:    "something happened",
+			Actor:   "drewtest",
+			ActorID: 42,
+			Created: time.Now(),
+		}, func(int64) bool {
+			t.Fatalf("kind %s asked the follow graph a question it has no use for", kind)
+			return true
+		})
+		if item.Follows {
+			t.Errorf("kind %s came through as a follow relationship", kind)
+		}
+	}
+}
+
+// An actor who deleted their account leaves the id NULL, and there is nobody
+// left to follow. The row still renders — the message reads on its own — but it
+// must not ask the graph about account 0, which is every anonymous session.
+func TestItemFollowWithNoActor(t *testing.T) {
+	item := Item(db.Notification{
+		ID:      12,
+		Kind:    db.KindFollow,
+		Body:    "You have a new follower",
+		Created: time.Now(),
+	}, func(int64) bool {
+		t.Fatal("asked the follow graph about a deleted actor")
+		return true
+	})
+	if item.Follows {
+		t.Error("Follows = true with no actor to follow")
 	}
 }

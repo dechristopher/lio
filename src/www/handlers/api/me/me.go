@@ -107,11 +107,45 @@ func ListHandler(c fiber.Ctx) error {
 	// notify.Item is the single mapping from a stored row to the wire shape,
 	// shared with the socket path so the panel's list and a message arriving
 	// live can never describe the same notification differently.
+	follows := followedActors(acct.ID, rows)
 	items := make([]proto.NotifyItem, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, notify.Item(r))
+		items = append(items, notify.Item(r, follows))
 	}
 	return c.JSON(listResponse{Unread: db.UnreadNotifications(acct.ID), Items: items})
+}
+
+// followedActors resolves, for the whole page at once, which of the accounts
+// that followed this reader the reader already follows back. That is what
+// decides the state of the toggle on a follow row.
+//
+// One indexed probe bounded by the panel's own limit, not one per row: the
+// batched read is the same one every other follow list on the site makes
+// (arch/FOLLOWING.md), and the ids are gathered from the follow rows only, so a
+// panel holding none costs nothing at all.
+//
+// A failed read reports "not following", which paints every toggle in its
+// default state. The write path is idempotent, so a button that started on the
+// wrong label still reaches the right state when it is pressed.
+func followedActors(viewerID int64, rows []db.Notification) notify.FollowLookup {
+	ids := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		if r.Kind == db.KindFollow && r.ActorID != 0 {
+			ids = append(ids, r.ActorID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	followed, err := db.FollowedAmong(viewerID, ids)
+	if err != nil {
+		util.Error(str.CDB, "notification follow state failed error=%s", err.Error())
+		return nil
+	}
+	return func(actorID int64) bool {
+		_, ok := followed[actorID]
+		return ok
+	}
 }
 
 // ReadHandler marks one row read.

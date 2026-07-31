@@ -23,8 +23,13 @@ WHERE user_id = $1 AND read_at IS NULL;
 --
 -- The actor join is LEFT: actor_id is NULL for a message from the site, and it
 -- also becomes NULL after an actor deletes their account.
+--
+-- The id comes back beside the name because a row can be viewer-relative: a
+-- follow offers a follow-back, which is the question "does the reader already
+-- follow this actor" and is answered by id, in one batched probe for the whole
+-- page rather than a join per row.
 SELECT n.id, n.created_at, n.kind, n.body, n.link, n.read_at, n.expires_at,
-       a.username AS actor_username
+       n.actor_id, a.username AS actor_username
 FROM notifications n
          LEFT JOIN users a ON a.id = n.actor_id
 WHERE n.user_id = $1
