@@ -145,7 +145,7 @@ func archiveGame(meta Meta, m ArchiveModel) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"game-room mt-2\"><div class=\"game-grid analyzing archive-grid\"><!-- the same clock sandwich as the live page (identity row + time +\n\t\t\t     progress bar), so replays carry names, ratings, colors, and — via\n\t\t\t     lio-game.js's archive clock renderer — the clock state as of the\n\t\t\t     viewed ply, draining in realtime during playback. .archive-clock\n\t\t\t     hides the live-only presence dot. --><div id=\"clockOpponent\" class=\"clockOpponent ga-opp archive-clock\" data-bot=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"game-room mt-2\"><div class=\"game-grid analyzing archive-grid\"><div id=\"clockOpponent\" class=\"clockOpponent ga-opp archive-clock\" data-bot=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -414,7 +414,7 @@ func archiveGame(meta Meta, m ArchiveModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-play\" class=\"nav-btn nav-play\" title=\"Play moves at recorded speed\" aria-label=\"Play moves at recorded speed\">⏵</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to end (↓)\" aria-label=\"Jump to end\">⏭</button></div><!-- free-exploration nudge, revealed when lio-game.js arms the\n\t\t\t\t\t\t     board for alternate lines --><div id=\"explore-hint\" class=\"explore-hint hidden\">Play moves on the board to explore alternate lines</div></div></div></aside><div class=\"ga-info\"><div class=\"info-bar\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-play\" class=\"nav-btn nav-play\" title=\"Play moves at recorded speed\" aria-label=\"Play moves at recorded speed\">⏵</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to end (↓)\" aria-label=\"Jump to end\">⏭</button></div><div id=\"explore-hint\" class=\"explore-hint hidden\">Play moves on the board to explore alternate lines</div></div></div></aside><div class=\"ga-info\"><div class=\"info-bar\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -474,7 +474,7 @@ func archiveGame(meta Meta, m ArchiveModel) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if m.ReportTarget != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<!-- Reporting the opponent, offered to a returning player of\n\t\t\t\t\t\t     this game. Understated and last in the line on purpose:\n\t\t\t\t\t\t     the archive is somewhere people come to review a game,\n\t\t\t\t\t\t     not to complain about one.\n\n\t\t\t\t\t\t     Grouped with its separator rather than sitting beside it\n\t\t\t\t\t\t     as a bare text node: the info bar wraps, and a loose \"·\"\n\t\t\t\t\t\t     is its own flex item that would be left stranded at the\n\t\t\t\t\t\t     end of the line above. lio-report.js drops the separator\n\t\t\t\t\t\t     entirely once the group wraps to its own line. --> <span class=\"info-report-group\"><span class=\"info-sep\" aria-hidden=\"true\">·</span> <button type=\"button\" class=\"info-report\" data-report-target=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "          <span class=\"info-report-group\"><span class=\"info-sep\" aria-hidden=\"true\">·</span> <button type=\"button\" class=\"info-report\" data-report-target=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -551,7 +551,7 @@ func archiveBoard(m ArchiveModel) templ.Component {
 			templ_7745c5c3_Var25 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"board-shell\"><!-- engine evaluation bar: a thin white-vs-black advantage column beside\n\t\t     the board, driven per viewed ply by lio-game.js (updateEvalBar) from\n\t\t     the cached evals in #archive-data. Hidden until the payload carries\n\t\t     any evals (the background evaluator fills them lazily). --><div id=\"eval-bar\" class=\"eval-bar\" hidden title=\"Engine evaluation\"><div class=\"eval-fill\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"board-shell\"><div id=\"eval-bar\" class=\"eval-bar\" hidden title=\"Engine evaluation\"><div class=\"eval-fill\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -599,7 +599,7 @@ func archiveBoard(m ArchiveModel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" data-deploy=\"false\"><div class=\"gwrap\"><div id=\"game\" class=\"og-wrap\"></div><!-- endgame annotation: the mid-board pill naming the game's result\n\t\t\t\t     while its final position is on the board --><div id=\"end-annotation\" class=\"end-annotation\" aria-hidden=\"true\"></div><!-- promotion picker for explored promotion pushes (free\n\t\t\t\t     exploration replays promotions too; same markup as the live\n\t\t\t\t     board's picker) --><div id=\"promo-shade\" class=\"promo-shade hidden\"></div><div id=\"promo-select\" class=\"promo hidden\"><piece class=\"promo queen\"></piece> <piece class=\"promo rook\"></piece> <piece class=\"promo bishop\"></piece> <piece class=\"promo knight\"></piece></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" data-deploy=\"false\"><div class=\"gwrap\"><div id=\"game\" class=\"og-wrap\"></div><div id=\"end-annotation\" class=\"end-annotation\" aria-hidden=\"true\"></div><div id=\"promo-shade\" class=\"promo-shade hidden\"></div><div id=\"promo-select\" class=\"promo hidden\"><piece class=\"promo queen\"></piece> <piece class=\"promo rook\"></piece> <piece class=\"promo bishop\"></piece> <piece class=\"promo knight\"></piece></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

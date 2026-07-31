@@ -67,7 +67,7 @@ templ gameSummary(payload message.RoomTemplatePayload) {
 			</dd>
 		</div>
 	</dl>
-	<!-- plain-language decode of the clock notation, so newcomers know exactly
-	     what they're signing up for without parsing "½ + 1" -->
+	// plain-language decode of the clock notation, so newcomers know exactly
+	// what they're signing up for without parsing "½ + 1"
 	<p class="wait-note spec-note">{ humanClock(payload.Variant) }</p>
 }

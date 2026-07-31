@@ -83,22 +83,20 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 			</div>
 			<div class="ga-board">
 				@board(payload)
-				<!--
-					Match score timeline: names + running totals on the left, then one
-					combined cell per game of the match — each cell stacks the opponent's
-					points over the local player's (matching the clock layout; the local
-					player is always the bottom half regardless of the color swaps
-					between games). lio-game.js fills the .tl-total chips and builds the
-					.tl-games cells from the match-history payload on every score-bearing
-					message, so reconnects rebuild it for free. Once the game is over,
-					cells become clickable: in-page browsing of the match's earlier games
-					(live rooms) or permalink navigation (archive pages). On desktop it's
-					a flex sibling of the board (fixed slight gap beneath it); on mobile
-					the .ga-board wrapper dissolves (display: contents) and the timeline
-					places itself into the "tline" grid row beneath the bottom clock —
-					or, once the game is over (.analyzing on the grid), beneath the
-					move list so the review nav sits directly under the board.
-				-->
+				// Match score timeline: names + running totals on the left, then one
+				// combined cell per game of the match — each cell stacks the opponent's
+				// points over the local player's (matching the clock layout; the local
+				// player is always the bottom half regardless of the color swaps
+				// between games). lio-game.js fills the .tl-total chips and builds the
+				// .tl-games cells from the match-history payload on every score-bearing
+				// message, so reconnects rebuild it for free. Once the game is over,
+				// cells become clickable: in-page browsing of the match's earlier games
+				// (live rooms) or permalink navigation (archive pages). On desktop it's
+				// a flex sibling of the board (fixed slight gap beneath it); on mobile
+				// the .ga-board wrapper dissolves (display: contents) and the timeline
+				// places itself into the "tline" grid row beneath the bottom clock —
+				// or, once the game is over (.analyzing on the grid), beneath the
+				// move list so the review nav sits directly under the board.
 				<div id="match-timeline" class="ga-timeline timeline" aria-label="Match score timeline" data-h2h-show={ strconv.FormatBool(payload.H2HShow) } data-h2h-bottom={ h2hAttr(bottomH2HScore(payload)) } data-h2h-top={ h2hAttr(topH2HScore(payload)) }>
 					<div class="tl-id" id="tl-row-opponent">
 						if payload.H2HShow {
@@ -142,14 +140,12 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 									· Competitive
 								}
 							</span>
-							<!--
-								Copy-PGN button: hidden during play, revealed by the grid's
-								.analyzing state once the game is over. lio-game.js copies the
-								canonical server-built PGN from the game-over broadcast,
-								swapping the copy icon for the check briefly; data-event names
-								this room's game for the fallback PGN it assembles itself when
-								that broadcast was missed (see pgnEventName).
-							-->
+							// Copy-PGN button: hidden during play, revealed by the grid's
+							// .analyzing state once the game is over. lio-game.js copies the
+							// canonical server-built PGN from the game-over broadcast,
+							// swapping the copy icon for the check briefly; data-event names
+							// this room's game for the fallback PGN it assembles itself when
+							// that broadcast was missed (see pgnEventName).
 							<button type="button" id="btn-copy-pgn" class="copy-pgn" title="Copy PGN to clipboard" aria-label="Copy game PGN to clipboard" data-variant={ payload.VariantName } data-event={ pgnEventName(payload) }>
 								<svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
 								<svg class="icon-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -162,24 +158,20 @@ templ roomGame(meta Meta, payload message.RoomTemplatePayload) {
 							<button type="button" id="nav-next" class="nav-btn" title="Next move (→)" aria-label="Next move">▶</button>
 							<button type="button" id="nav-last" class="nav-btn" title="Jump to live (↓)" aria-label="Jump to live">⏭</button>
 						</div>
-						<!-- free-exploration nudge, revealed when lio-game.js arms the
-						     board for alternate lines (post-game bot analysis) -->
+						// free-exploration nudge, revealed when lio-game.js arms the
+						// board for alternate lines (post-game bot analysis)
 						<div id="explore-hint" class="explore-hint hidden">Play moves on the board to explore alternate lines</div>
 					</div>
-					<!--
-						In-game controls. During play these are Resign / Draw (.play-ctrl);
-						once the game is over lio-game.js adds .controls-over, swapping in a
-						Rematch button (.over-ctrl) so a player reviewing the finished game
-						can rematch without the result overlay. The rematch button reuses the
-						result overlay's data-rematch-url bot fallback and shared enable/disable
-						state (perpetual vs a bot, disabled once a human opponent leaves).
-					-->
-					<!--
-						Spectators see the same control set, permanently disabled: the
-						buttons communicate what players can do without offering it.
-						lio-game.js never wires their handlers or state helpers while
-						spectating, and the server drops the frames regardless.
-					-->
+					// In-game controls. During play these are Resign / Draw (.play-ctrl);
+					// once the game is over lio-game.js adds .controls-over, swapping in a
+					// Rematch button (.over-ctrl) so a player reviewing the finished game
+					// can rematch without the result overlay. The rematch button reuses the
+					// result overlay's data-rematch-url bot fallback and shared enable/disable
+					// state (perpetual vs a bot, disabled once a human opponent leaves).
+					// Spectators see the same control set, permanently disabled: the
+					// buttons communicate what players can do without offering it.
+					// lio-game.js never wires their handlers or state helpers while
+					// spectating, and the server drops the frames regardless.
 					<div id="game-controls" class="controls">
 						<button type="button" id="btn-resign" class="ctrl-btn play-ctrl" title={ controlTitle(payload, "Resign the game") } disabled?={ payload.IsSpectator }>⚑ Resign</button>
 						<button type="button" id="btn-draw" class="ctrl-btn play-ctrl" title={ controlTitle(payload, "Offer a draw") } disabled?={ payload.IsSpectator }>½ Draw</button>

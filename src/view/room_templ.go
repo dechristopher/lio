@@ -279,14 +279,14 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<!--\n\t\t\t\t\tMatch score timeline: names + running totals on the left, then one\n\t\t\t\t\tcombined cell per game of the match — each cell stacks the opponent's\n\t\t\t\t\tpoints over the local player's (matching the clock layout; the local\n\t\t\t\t\tplayer is always the bottom half regardless of the color swaps\n\t\t\t\t\tbetween games). lio-game.js fills the .tl-total chips and builds the\n\t\t\t\t\t.tl-games cells from the match-history payload on every score-bearing\n\t\t\t\t\tmessage, so reconnects rebuild it for free. Once the game is over,\n\t\t\t\t\tcells become clickable: in-page browsing of the match's earlier games\n\t\t\t\t\t(live rooms) or permalink navigation (archive pages). On desktop it's\n\t\t\t\t\ta flex sibling of the board (fixed slight gap beneath it); on mobile\n\t\t\t\t\tthe .ga-board wrapper dissolves (display: contents) and the timeline\n\t\t\t\t\tplaces itself into the \"tline\" grid row beneath the bottom clock —\n\t\t\t\t\tor, once the game is over (.analyzing on the grid), beneath the\n\t\t\t\t\tmove list so the review nav sits directly under the board.\n\t\t\t\t--><div id=\"match-timeline\" class=\"ga-timeline timeline\" aria-label=\"Match score timeline\" data-h2h-show=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div id=\"match-timeline\" class=\"ga-timeline timeline\" aria-label=\"Match score timeline\" data-h2h-show=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(payload.H2HShow))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 102, Col: 143}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 100, Col: 143}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
@@ -299,7 +299,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(h2hAttr(bottomH2HScore(payload)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 102, Col: 196}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 100, Col: 196}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -312,7 +312,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(h2hAttr(topH2HScore(payload)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 102, Col: 243}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 100, Col: 243}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -352,7 +352,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(h2hText(topH2HScore(payload)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 108, Col: 166}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 106, Col: 166}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -401,7 +401,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(h2hText(bottomH2HScore(payload)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 117, Col: 169}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 115, Col: 169}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -427,7 +427,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatBool(bottomClockIsBot(payload)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 127, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 125, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -448,7 +448,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(payload.VariantName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 135, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 133, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -466,7 +466,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(payload.RaceTo))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 137, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 135, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -488,14 +488,14 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</span><!--\n\t\t\t\t\t\t\t\tCopy-PGN button: hidden during play, revealed by the grid's\n\t\t\t\t\t\t\t\t.analyzing state once the game is over. lio-game.js copies the\n\t\t\t\t\t\t\t\tcanonical server-built PGN from the game-over broadcast,\n\t\t\t\t\t\t\t\tswapping the copy icon for the check briefly; data-event names\n\t\t\t\t\t\t\t\tthis room's game for the fallback PGN it assembles itself when\n\t\t\t\t\t\t\t\tthat broadcast was missed (see pgnEventName).\n\t\t\t\t\t\t\t--><button type=\"button\" id=\"btn-copy-pgn\" class=\"copy-pgn\" title=\"Copy PGN to clipboard\" aria-label=\"Copy game PGN to clipboard\" data-variant=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</span><button type=\"button\" id=\"btn-copy-pgn\" class=\"copy-pgn\" title=\"Copy PGN to clipboard\" aria-label=\"Copy game PGN to clipboard\" data-variant=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(payload.VariantName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 153, Col: 168}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 149, Col: 168}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {
@@ -508,20 +508,20 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(pgnEventName(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 153, Col: 205}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 149, Col: 205}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\"><svg class=\"icon-copy\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg> <svg class=\"icon-check\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></button></span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div><!-- free-exploration nudge, revealed when lio-game.js arms the\n\t\t\t\t\t\t     board for alternate lines (post-game bot analysis) --><div id=\"explore-hint\" class=\"explore-hint hidden\">Play moves on the board to explore alternate lines</div></div><!--\n\t\t\t\t\t\tIn-game controls. During play these are Resign / Draw (.play-ctrl);\n\t\t\t\t\t\tonce the game is over lio-game.js adds .controls-over, swapping in a\n\t\t\t\t\t\tRematch button (.over-ctrl) so a player reviewing the finished game\n\t\t\t\t\t\tcan rematch without the result overlay. The rematch button reuses the\n\t\t\t\t\t\tresult overlay's data-rematch-url bot fallback and shared enable/disable\n\t\t\t\t\t\tstate (perpetual vs a bot, disabled once a human opponent leaves).\n\t\t\t\t\t--><!--\n\t\t\t\t\t\tSpectators see the same control set, permanently disabled: the\n\t\t\t\t\t\tbuttons communicate what players can do without offering it.\n\t\t\t\t\t\tlio-game.js never wires their handlers or state helpers while\n\t\t\t\t\t\tspectating, and the server drops the frames regardless.\n\t\t\t\t\t--><div id=\"game-controls\" class=\"controls\"><button type=\"button\" id=\"btn-resign\" class=\"ctrl-btn play-ctrl\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\"><svg class=\"icon-copy\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"9\" y=\"9\" width=\"13\" height=\"13\" rx=\"2\" ry=\"2\"></rect><path d=\"M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\"></path></svg> <svg class=\"icon-check\" xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg></button></span><div id=\"moveList\" class=\"move-list\" role=\"list\" aria-label=\"Move history\"></div><div class=\"move-nav\"><button type=\"button\" id=\"nav-first\" class=\"nav-btn\" title=\"Jump to start (↑)\" aria-label=\"Jump to start\">⏮</button> <button type=\"button\" id=\"nav-prev\" class=\"nav-btn\" title=\"Previous move (←)\" aria-label=\"Previous move\">◀</button> <button type=\"button\" id=\"nav-next\" class=\"nav-btn\" title=\"Next move (→)\" aria-label=\"Next move\">▶</button> <button type=\"button\" id=\"nav-last\" class=\"nav-btn\" title=\"Jump to live (↓)\" aria-label=\"Jump to live\">⏭</button></div><div id=\"explore-hint\" class=\"explore-hint hidden\">Play moves on the board to explore alternate lines</div></div><div id=\"game-controls\" class=\"controls\"><button type=\"button\" id=\"btn-resign\" class=\"ctrl-btn play-ctrl\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Resign the game"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 184, Col: 119}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 176, Col: 119}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 		if templ_7745c5c3_Err != nil {
@@ -544,7 +544,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Offer a draw"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 185, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 177, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -567,7 +567,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(controlTitle(payload, "Play again"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 186, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 178, Col: 128}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -580,7 +580,7 @@ func roomGame(meta Meta, payload message.RoomTemplatePayload) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(botRematchURL(payload))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 186, Col: 172}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/room.templ`, Line: 178, Col: 172}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {

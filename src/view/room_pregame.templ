@@ -56,8 +56,8 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 		<div class="wait-body">
 			<section class="wait-panel panel-invite">
 				<h2 class="panel-label">Invite</h2>
-				<!-- unhidden by lio-room-create.js only where navigator.share exists;
-				     hidden by CSS from 40rem up, where the QR + copy already serve -->
+				// unhidden by lio-room-create.js only where navigator.share exists;
+				// hidden by CSS from 40rem up, where the QR + copy already serve
 				<button type="button" id="shareInviteButton" class="btn btn-ghost share-btn" hidden title="Share the invite link">
 					@iconShare()
 					<span>Share invite</span>
@@ -69,19 +69,19 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 						@iconCopy()
 						@iconCheck()
 					</button>
-					<!-- phones only: the code is inline on desktop, so CSS drops this -->
+					// phones only: the code is inline on desktop, so CSS drops this
 					<button type="button" id="qrModalButton" class="btn btn-ghost qr-btn" title="Show QR code" aria-label="Show QR code">
 						@iconQR()
 					</button>
 				</div>
 				<p class="wait-note">Anyone who opens this link can take the open seat.</p>
-				<!-- One QR, two presentations. Below 40rem this is a real modal that
-				     dims the page (opened by #qrModalButton); from 40rem up the CSS
-				     collapses the shade and the modal box with display:contents, so
-				     the .qr-tile inside becomes a direct flex child of the invite
-				     panel and sits inline above the link. Rendering it once this way
-				     keeps a single source of truth for the code instead of emitting
-				     the SVG twice and risking the copies drifting. -->
+				// One QR, two presentations. Below 40rem this is a real modal that
+				// dims the page (opened by #qrModalButton); from 40rem up the CSS
+				// collapses the shade and the modal box with display:contents, so
+				// the .qr-tile inside becomes a direct flex child of the invite
+				// panel and sits inline above the link. Rendering it once this way
+				// keeps a single source of truth for the code instead of emitting
+				// the SVG twice and risking the copies drifting.
 				<div id="modalQR" class="modal-shade">
 					<div class="modal qr-modal card">
 						<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>

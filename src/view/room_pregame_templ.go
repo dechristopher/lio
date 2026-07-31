@@ -133,7 +133,7 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div class=\"wait-body\"><section class=\"wait-panel panel-invite\"><h2 class=\"panel-label\">Invite</h2><!-- unhidden by lio-room-create.js only where navigator.share exists;\n\t\t\t\t     hidden by CSS from 40rem up, where the QR + copy already serve --><button type=\"button\" id=\"shareInviteButton\" class=\"btn btn-ghost share-btn\" hidden title=\"Share the invite link\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><div class=\"wait-body\"><section class=\"wait-panel panel-invite\"><h2 class=\"panel-label\">Invite</h2><button type=\"button\" id=\"shareInviteButton\" class=\"btn btn-ghost share-btn\" hidden title=\"Share the invite link\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -166,7 +166,7 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</button><!-- phones only: the code is inline on desktop, so CSS drops this --><button type=\"button\" id=\"qrModalButton\" class=\"btn btn-ghost qr-btn\" title=\"Show QR code\" aria-label=\"Show QR code\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</button><button type=\"button\" id=\"qrModalButton\" class=\"btn btn-ghost qr-btn\" title=\"Show QR code\" aria-label=\"Show QR code\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -174,7 +174,7 @@ func roomCreator(meta Meta, payload message.RoomTemplatePayload) templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</button></div><p class=\"wait-note\">Anyone who opens this link can take the open seat.</p><!-- One QR, two presentations. Below 40rem this is a real modal that\n\t\t\t\t     dims the page (opened by #qrModalButton); from 40rem up the CSS\n\t\t\t\t     collapses the shade and the modal box with display:contents, so\n\t\t\t\t     the .qr-tile inside becomes a direct flex child of the invite\n\t\t\t\t     panel and sits inline above the link. Rendering it once this way\n\t\t\t\t     keeps a single source of truth for the code instead of emitting\n\t\t\t\t     the SVG twice and risking the copies drifting. --><div id=\"modalQR\" class=\"modal-shade\"><div class=\"modal qr-modal card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</button></div><p class=\"wait-note\">Anyone who opens this link can take the open seat.</p><div id=\"modalQR\" class=\"modal-shade\"><div class=\"modal qr-modal card\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -71,14 +71,14 @@ templ createGameModal() {
 							</span>
 							<span class="cg-switch" aria-hidden="true"></span>
 						</label>
-						<!-- Rated status + control. A game is rated only when a logged-in
-						     player faces another real player in a competitive (non-casual)
-						     game. The badge lights for that case and dims (via :has() on the
-						     opponent/casual/allow-anon inputs) otherwise. The "Allow anonymous
-						     players" toggle below is the opt-out: it opens the game to anon
-						     joiners and so makes it unrated. An anonymous creator instead
-						     gets the locked variant, since rated play needs an account. Kept
-						     always-visible to avoid layout shift. -->
+						// Rated status + control. A game is rated only when a logged-in
+						// player faces another real player in a competitive (non-casual)
+						// game. The badge lights for that case and dims (via :has() on the
+						// opponent/casual/allow-anon inputs) otherwise. The "Allow anonymous
+						// players" toggle below is the opt-out: it opens the game to anon
+						// joiners and so makes it unrated. An anonymous creator instead
+						// gets the locked variant, since rated play needs an account. Kept
+						// always-visible to avoid layout shift.
 						if !settings.Current().RatedEnabled {
 							@ratedPausedBadge()
 						} else if viewer(ctx).LoggedIn {
@@ -104,8 +104,8 @@ templ createGameModal() {
 								<span class="cg-switch" aria-hidden="true"></span>
 							</label>
 						} else if viewer(ctx).AccountsEnabled && settings.Current().RatedEnabled {
-							<!-- only worth inviting an anonymous visitor to log in for rated
-							     play while rated play actually exists -->
+							// only worth inviting an anonymous visitor to log in for rated
+							// play while rated play actually exists
 							<div class="cg-rated cg-rated-locked">
 								<span class="cg-rated-badge">
 									@iconLock("cg-rated-ico")
@@ -187,119 +187,14 @@ templ createGameModal() {
 					</div>
 				</div>
 				<input type="hidden" name="time-control" id="cg-variant" value=""/>
-				<!-- the direct-challenge target (arch/NOTIFICATIONS.md Phase 2).
-				     Empty for an ordinary creation; set when the modal is opened
-				     from a player's sword. The server re-validates the name — this
-				     field is as forgeable as any other. -->
+				// the direct-challenge target (arch/NOTIFICATIONS.md Phase 2).
+				// Empty for an ordinary creation; set when the modal is opened
+				// from a player's sword. The server re-validates the name — this
+				// field is as forgeable as any other.
 				<input type="hidden" name="invite" id="cg-invite" value=""/>
 			</form>
 		</div>
 	</div>
-	<script>
-		(function () {
-			const modal = document.getElementById("modalCreateGame");
-			const closeBtn = modal.querySelector(".modal-close");
-			const publicBox = modal.querySelector(".cg-public-box");
-			const humanOpp = modal.querySelector("#opp-human");
-			const inviteField = modal.querySelector("#cg-invite");
-			const kicker = modal.querySelector("[data-cg-kicker]");
-			const titleEl = modal.querySelector("[data-cg-title]");
-			// Challenge mode is a property of one opening, not of the page: the
-			// modal is a single element reused by every trigger, so it is reset
-			// on the way in rather than on the way out. Resetting on close would
-			// leave a stale target on any path that dismisses it some other way
-			// (Escape, the scrim, a bfcache restore).
-			const form = modal.querySelector("form.cg");
-			const botOpp = modal.querySelector("#opp-computer");
-			const anonBox = modal.querySelector(".cg-allow-anon-box");
-			const setChallenge = (name) => {
-				if (inviteField) inviteField.value = name || "";
-				if (kicker) kicker.textContent = name ? "Challenge" : "New game";
-				if (titleEl) titleEl.textContent = name ? "Challenging " + name : "Create a game";
-				// is-challenge hides the three settings a challenge already answers
-				// (opponent, open challenge, allow anonymous — see app.css).
-				if (form) form.classList.toggle("is-challenge", !!name);
-				// Hidden is not the same as harmless: these controls still submit
-				// whatever they were left holding by an earlier opening of this same
-				// dialog. Put them into the state a challenge means, every time.
-				// Disabling the Computer radio guards the one that would otherwise
-				// be reachable by keyboard if the styles ever failed to load.
-				if (botOpp) botOpp.disabled = !!name;
-				if (name) {
-					if (humanOpp) humanOpp.checked = true;
-					if (publicBox) publicBox.checked = false;
-					if (anonBox) anonBox.checked = false;
-				}
-			};
-			const open = () => modal.classList.add("open");
-			const close = () => modal.classList.remove("open");
-			// Delegated open: any [data-open-create-game] element opens the modal,
-			// including buttons that htmx swaps into the live home-activity region
-			// after the initial page load. A trigger carrying [data-prefill-public]
-			// (the Open Challenges "+ New" / "create one" affordances) pre-selects an
-			// Open Challenge: force a human opponent (public requires it) and check
-			// the toggle so the modal opens already set up to publish a seek.
-			document.addEventListener("click", (e) => {
-				const trigger = e.target.closest("[data-open-create-game]");
-				if (!trigger) return;
-				// A challenge is addressed to one person, so it is human-only, never
-				// a public seek, and never open to anonymous joiners. setChallenge
-				// puts all three into that state; the server forces them too.
-				const target = trigger.getAttribute("data-challenge");
-				setChallenge(target);
-				if (!target && trigger.hasAttribute("data-prefill-public") && publicBox) {
-					if (humanOpp) humanOpp.checked = true;
-					publicBox.checked = true;
-				}
-				open();
-			});
-			if (closeBtn) closeBtn.addEventListener("click", close);
-			modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
-			document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-
-			// Resolve the chosen time control into the hidden field the form
-			// submits. Every game is the blind-deploy variant now (no mode toggle),
-			// so each card carries a single data-variant. Runs on time-control change
-			// so the value is current before the color submit buttons (gated until a
-			// time control is picked) are clickable.
-			const variantField = modal.querySelector("#cg-variant");
-			const syncVariant = () => {
-				// :enabled — a card disabled by casual mode is not a choice, so
-				// the submitted field goes empty (the server ignores it anyway)
-				const tc = modal.querySelector(".tc-input:checked:enabled");
-				variantField.value = tc ? tc.dataset.variant : "";
-			};
-
-			modal.querySelectorAll(".tc-input").forEach((el) => el.addEventListener("change", syncVariant));
-
-			// Casual (untimed, any opponent) makes the time-control choice moot:
-			// disable the cards while it is on so their `required` can't block
-			// submission with none picked (CSS fades the section and opens the
-			// color-submit gate). The server resolves the untimed casual variant
-			// from the mode toggle instead. Race To is unaffected — a casual
-			// human match can still race.
-			const casualBox = modal.querySelector(".cg-casual-box");
-			const syncCasual = () => {
-				const on = !!casualBox && casualBox.checked;
-				modal.querySelectorAll(".tc-input").forEach((el) => { el.disabled = on; });
-				syncVariant();
-			};
-			if (casualBox) casualBox.addEventListener("change", syncCasual);
-
-			// Bot games are never public open challenges nor race-to matches: clear
-			// both when the computer is chosen (each control is faded + disabled in
-			// place via CSS — nothing is removed, so switching opponents never
-			// shifts the layout — and the server forces bot games private /
-			// single-game regardless).
-			modal.querySelectorAll("input[name=opponent]").forEach((el) =>
-				el.addEventListener("change", () => {
-					if (!modal.querySelector("#opp-computer").checked) return;
-					if (publicBox) publicBox.checked = false;
-					const raceOff = modal.querySelector("#race-0");
-					if (raceOff) raceOff.checked = true;
-				}));
-		})();
-	</script>
 	<link rel="prefetch" href="/res/img/cburnett/wK.svg"/>
 	<link rel="prefetch" href="/res/img/cburnett/bK.svg"/>
 	<link rel="prefetch" href="/res/img/cburnett/wbK.svg"/>

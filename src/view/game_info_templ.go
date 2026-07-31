@@ -163,7 +163,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</dd></div></dl><!-- plain-language decode of the clock notation, so newcomers know exactly\n\t     what they're signing up for without parsing \"½ + 1\" --><p class=\"wait-note spec-note\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</dd></div></dl><p class=\"wait-note spec-note\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

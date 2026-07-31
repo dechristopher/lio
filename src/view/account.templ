@@ -25,8 +25,8 @@ templ profilePopover(username string, t title.Title) {
 		if viewer(ctx).Role.CanModerate() {
             @staffLinks()
         }
-		<!-- ratings summary (Phase 5): lazy-loaded from GET /api/auth/ratings by
-		     lio-auth.js on first popover open -->
+		// ratings summary (Phase 5): lazy-loaded from GET /api/auth/ratings by
+		// lio-auth.js on first popover open
 		<div id="ratingsSummary" class="mt-2" data-loaded="false"></div>
 		<div class="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">
 			<details class="account-section">
@@ -60,9 +60,9 @@ templ profilePopover(username string, t title.Title) {
 			</button>
 		</div>
 		@feedbackPrompt()
-		<!-- items-stretch keeps both logout buttons the same height even though
-		     "Log out everywhere" wraps to two lines; Log out gets the slightly
-		     larger label as the primary action. -->
+		// items-stretch keeps both logout buttons the same height even though
+		// "Log out everywhere" wraps to two lines; Log out gets the slightly
+		// larger label as the primary action.
 		<div class="mt-3 flex items-stretch gap-2 border-t border-line pt-3">
 			<button type="button" id="logoutButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-base">Log out</button>
 			<button type="button" id="logoutAllButton" class="btn btn-ghost flex-1 justify-center py-1.5 text-sm text-loss">Log out everywhere</button>

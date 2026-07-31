@@ -25,9 +25,9 @@ templ Profile(meta Meta, m ProfileModel) {
 							@profileBotLadder(m)
 						</div>
 						@profileRecords(m)
-						<!-- the two distribution cards pair up on a wide viewport:
-						     both answer "what shape is a typical game", and side by
-						     side they use the width the column was widened for. -->
+						// the two distribution cards pair up on a wide viewport:
+						// both answer "what shape is a typical game", and side by
+						// side they use the width the column was widened for.
 						<div class="stat-pair">
 							@profileEndings(m)
 							@profileLengths(m)
@@ -145,8 +145,8 @@ templ profileIdentity(m ProfileModel) {
 			</div>
 			<div class="hero-aside">
 				if m.Lifetime.Show {
-					<!-- the two figures that summarise a whole history, as tiles
-					     rather than prose: they are the numbers a visitor scans for -->
+					// the two figures that summarise a whole history, as tiles
+					// rather than prose: they are the numbers a visitor scans for
 					<div class="hero-figures">
 						<div class="hero-figure">
 							<span class="hero-figure-value">{ m.Lifetime.Games }</span>
@@ -158,9 +158,9 @@ templ profileIdentity(m ProfileModel) {
 						</div>
 					</div>
 				}
-				<!-- The page is a snapshot of a history that keeps moving, so it
-				     says how old it is. data-rendered is the server's render time;
-				     lio-profile.js keeps the label current and reloads on a timer. -->
+				// The page is a snapshot of a history that keeps moving, so it
+				// says how old it is. data-rendered is the server's render time;
+				// lio-profile.js keeps the label current and reloads on a timer.
 				<p class="refresh-row" data-refresh-row data-rendered={ m.RenderedAt }>
 					<span data-refresh-label>Refreshed just now</span>
 					<button type="button" class="refresh-btn" data-refresh aria-label="Refresh profile" title="Refresh profile">
@@ -176,9 +176,9 @@ templ profileIdentity(m ProfileModel) {
 			<p class="hero-h2h">Your record against { m.Username } <span class="hero-h2h-score">{ m.H2H }</span></p>
 		}
 		if m.ShowReport {
-			<!-- Last thing in the hero, and deliberately quiet: a profile is
-			     somewhere people mostly come to read, and a prominent Report
-			     button would invite use as a reaction to losing. -->
+			// Last thing in the hero, and deliberately quiet: a profile is
+			// somewhere people mostly come to read, and a prominent Report
+			// button would invite use as a reaction to losing.
 			<p class="hero-report">
 				<button type="button" class="hero-report-btn" data-report-target={ m.Username }>Report { m.Username }</button>
 			</p>
@@ -336,15 +336,15 @@ templ ratingChartPanel(c RatingChartView) {
 					role="img"
 					aria-label={ "Rating history for " + c.Label }
 				>
-					<!-- gridlines: solid hairlines one step off the surface -->
+					// gridlines: solid hairlines one step off the surface
 					for _, t := range c.Ticks {
 						<line class="chart-grid" x1={ chartPlotLeft() } x2={ chartPlotRight() } y1={ t.Y } y2={ t.Y }></line>
 						<text class="chart-axis" x={ chartAxisX() } y={ t.Y } dy="0.32em" text-anchor="end">{ t.Label }</text>
 					}
 					<path class="chart-area" d={ c.Area }></path>
 					if c.Prov != "" {
-						<!-- the provisional stretch: the rating was still settling,
-						     so the stroke says so rather than implying equal confidence -->
+						// the provisional stretch: the rating was still settling,
+						// so the stroke says so rather than implying equal confidence
 						<polyline class="chart-line chart-line-prov" points={ c.Prov }></polyline>
 					}
 					if c.Line != "" {
@@ -356,7 +356,7 @@ templ ratingChartPanel(c RatingChartView) {
 					}
 					<circle class="chart-dot chart-dot-end" cx={ c.End.X } cy={ c.End.Y } r="4"></circle>
 					<text class="chart-label" x={ chartEndLabelX(c) } y={ c.End.Y } dy="0.32em">{ c.End.Rating }</text>
-					<!-- hover layer, driven by lio-profile.js -->
+					// hover layer, driven by lio-profile.js
 					<line class="chart-crosshair" y1={ chartPlotTop() } y2={ chartPlotBottom() } x1="0" x2="0"></line>
 					<circle class="chart-focus" r="4" cx="0" cy="0"></circle>
 				</svg>
@@ -368,13 +368,13 @@ templ ratingChartPanel(c RatingChartView) {
 					<span class="chart-caption-note">— dashed while provisional</span>
 				</figcaption>
 			}
-			<!-- The same numbers as a table, for screen readers and anyone who
-			     cannot use a hover readout. The wrapper carries sr-only, not the
-			     table: `sr-only` pins width/height to 1px with overflow hidden,
-			     and a <table> obeys none of that — table layout sizes to its
-			     content and ignores overflow, so the class left a full 209x360
-			     table in the page (clip-path was the only thing hiding it, and
-			     not reliably in every browser). A plain div hides properly. -->
+			// The same numbers as a table, for screen readers and anyone who
+			// cannot use a hover readout. The wrapper carries sr-only, not the
+			// table: `sr-only` pins width/height to 1px with overflow hidden,
+			// and a <table> obeys none of that — table layout sizes to its
+			// content and ignores overflow, so the class left a full 209x360
+			// table in the page (clip-path was the only thing hiding it, and
+			// not reliably in every browser). A plain div hides properly.
 			<div class="sr-only">
 				<table>
 					<caption>{ "Rating history for " + c.Label }</caption>
@@ -405,9 +405,9 @@ templ profileRecords(m ProfileModel) {
 			@recordRow("All games", m.Total)
 		</div>
 		if len(m.Colors) > 0 {
-			<!-- the seat split renders through the same row component as every
-			     other tally, so its bars and numbers line up with them instead of
-			     forming a second column layout beside them -->
+			// the seat split renders through the same row component as every
+			// other tally, so its bars and numbers line up with them instead of
+			// forming a second column layout beside them
 			<ul class="mt-2 flex flex-col gap-1.5">
 				for _, c := range m.Colors {
 					<li>
@@ -455,10 +455,10 @@ templ profileForm(m ProfileModel) {
 				Copy: "Your last games show here as a run of results, oldest to newest, grouped into the matches they belong to.",
 			})
 		} else {
-			<!-- Matches are the wrapping unit, so a narrow viewport reflows whole
-			     groups and never splits one across a line break. The strip itself
-			     stays bare pips + score; opponent and time control live in the
-			     readout, which costs no width. -->
+			// Matches are the wrapping unit, so a narrow viewport reflows whole
+			// groups and never splits one across a line break. The strip itself
+			// stays bare pips + score; opponent and time control live in the
+			// readout, which costs no width.
 			<ol class="form-strip" aria-label="Recent matches, oldest first">
 				for _, fg := range m.Form {
 					<li
@@ -476,9 +476,9 @@ templ profileForm(m ProfileModel) {
 						<ol class="form-pips">
 							for _, p := range fg.Pips {
 								<li>
-									<!-- each pip carries its own readout, so hovering one
-									     game inside a match reports that game and not the
-									     match around it -->
+									// each pip carries its own readout, so hovering one
+									// game inside a match reports that game and not the
+									// match around it
 									<a
 										class={ "form-pip", p.Class, templ.KV("is-latest", p.Latest) }
 										href={ templ.SafeURL(p.URL) }
@@ -493,14 +493,14 @@ templ profileForm(m ProfileModel) {
 							}
 						</ol>
 						if fg.Match() {
-							<!-- Only a real match carries a score. On a lone game the
-							     score restates what the pip's colour already says, and a
-							     row of "1–0 0–1 1–0" drowns out the matches that are the
-							     point of grouping at all.
-							     A real anchor so the match is keyboard-reachable and
-							     opens in a new tab like any link; the surrounding
-							     container forwards a click here too (lio-profile.js), so
-							     the whole match is a target and not just its score. -->
+							// Only a real match carries a score. On a lone game the
+							// score restates what the pip's colour already says, and a
+							// row of "1–0 0–1 1–0" drowns out the matches that are the
+							// point of grouping at all.
+							// A real anchor so the match is keyboard-reachable and
+							// opens in a new tab like any link; the surrounding
+							// container forwards a click here too (lio-profile.js), so
+							// the whole match is a target and not just its score.
 							<a
 								class={ "form-score", fg.Class, templ.KV("is-partial", fg.Partial) }
 								href={ templ.SafeURL(fg.FirstURL) }
@@ -510,21 +510,21 @@ templ profileForm(m ProfileModel) {
 					</li>
 				}
 			</ol>
-			<!-- A reserved line rather than a floating tooltip: a tip anchored to a
-			     wrapped group covers whatever sits above it (here, the streak
-			     line), and clamping it inside the card is positioning maths that
-			     buys nothing. The line always occupies its height, so filling it
-			     shifts nothing. -->
-			<!-- Split so the result half carries the win/draw/loss tint the pips
-			     use: the same outcome should read the same colour wherever it
-			     appears on the page. -->
+			// A reserved line rather than a floating tooltip: a tip anchored to a
+			// wrapped group covers whatever sits above it (here, the streak
+			// line), and clamping it inside the card is positioning maths that
+			// buys nothing. The line always occupies its height, so filling it
+			// shifts nothing.
+			// Split so the result half carries the win/draw/loss tint the pips
+			// use: the same outcome should read the same colour wherever it
+			// appears on the page.
 			<p class="form-readout" aria-live="polite">
 				{{ d := FormReadoutDefault(m.Form) }}
-				<!-- Named only while the line is describing the newest game, and set
-				     in the same colour as that game's ring, so the label and the
-				     highlight it refers to are visibly the same thing. Hidden the
-				     moment a hover takes over, since the line then describes
-				     whatever is ringed in accent instead. -->
+				// Named only while the line is describing the newest game, and set
+				// in the same colour as that game's ring, so the label and the
+				// highlight it refers to are visibly the same thing. Hidden the
+				// moment a hover takes over, since the line then describes
+				// whatever is ringed in accent instead.
 				<span class="form-readout-latest">Latest:</span>
 				<span class={ "form-readout-result", d.Class }>{ d.Result }</span>
 				<span class="form-readout-detail">{ d.Detail }</span>
@@ -584,10 +584,10 @@ templ profileLengths(m ProfileModel) {
 							data-len-loss={ b.Loss }
 						}
 					>
-						<!-- the dominant share, tinted like the segment it names. It
-						     frames the column: with the biggest share and its colour
-						     stated, the two remaining bands are readable at a glance,
-						     which three unlabelled bands are not. -->
+						// the dominant share, tinted like the segment it names. It
+						// frames the column: with the biggest share and its colour
+						// stated, the two remaining bands are readable at a glance,
+						// which three unlabelled bands are not.
 						<span class={ "length-top", b.TopClass }>{ b.Top }</span>
 						<div class="length-bar-wrap">
 							<div class="length-bar" style={ "height:" + b.Height }>
@@ -656,9 +656,9 @@ templ formationColumn(heading string, fs []FormationView) {
 						@wdlBar(f.Bar)
 					</span>
 					if f.Thin {
-						<!-- too few games to score: the row still shows, because
-						     having tried a formation twice is worth seeing, but it
-						     makes no claim about how it went -->
+						// too few games to score: the row still shows, because
+						// having tried a formation twice is worth seeing, but it
+						// makes no claim about how it went
 						<span class="formation-score is-thin">{ f.Games }</span>
 					} else {
 						<span class="formation-score">{ f.Score }</span>
@@ -678,9 +678,9 @@ templ matchupList(heading string, ms []MatchupView, tint string) {
 			for _, mu := range ms {
 				<li class="matchup-row">
 					<span class="matchup-name">{ mu.Name }</span>
-					<!-- the seat is not decoration: a matchup name is a
-					     White-vs-Black clash, so the same name is two opposite
-					     experiences and the row has to say which it reports -->
+					// the seat is not decoration: a matchup name is a
+					// White-vs-Black clash, so the same name is two opposite
+					// experiences and the row has to say which it reports
 					<span class="matchup-vs">{ mu.Mine } vs { mu.Them } · { mu.Seat }</span>
 					<span class={ "matchup-score", tint }>{ mu.Score }</span>
 				</li>
@@ -705,12 +705,12 @@ templ profileActivity(m ProfileModel) {
 				Copy: "A year of play, one square per day. The more you play in a day, the brighter its square.",
 			})
 		} else {
-			<!-- Both ramps ship on every cell and the mode swaps which one the
-			     stylesheet reads, so toggling a year of squares costs no round
-			     trip and no re-render. -->
-			<!-- the tooltip lives outside the scroll box: `overflow-x: auto` makes
-			     overflow-y compute to auto as well, so a tip anchored inside it
-			     gets cropped the moment it reaches above the first row -->
+			// Both ramps ship on every cell and the mode swaps which one the
+			// stylesheet reads, so toggling a year of squares costs no round
+			// trip and no re-render.
+			// the tooltip lives outside the scroll box: `overflow-x: auto` makes
+			// overflow-y compute to auto as well, so a tip anchored inside it
+			// gets cropped the moment it reaches above the first row
 			<div class="heatmap-wrap">
 			<div class="heatmap-scroll">
 				<div class="heatmap" data-heatmap data-mode="volume">
@@ -907,9 +907,9 @@ templ profileGames(m ProfileModel) {
 									<span class="game-opp-rating">{ g.OppRating }</span>
 								}
 							</span>
-							<!-- the metadata sits together at the right, so widening the card
-							     stretches the opponent column rather than scattering five
-							     separate fields across the row -->
+							// the metadata sits together at the right, so widening the card
+							// stretches the opponent column rather than scattering five
+							// separate fields across the row
 							<span class="game-meta">
 								<span class="game-variant">{ g.Variant }</span>
 								<span class="game-mode">{ g.Mode }</span>
@@ -942,9 +942,9 @@ templ modBar(m ProfileModel) {
 			<p class="text-xs font-semibold uppercase tracking-wider text-warn">⚑ Moderation</p>
 		}
 		if m.Mod.OpenReports > 0 {
-			<!-- Context before action: a moderator arriving from the queue should
-			     see this is not the only complaint, and one arriving from
-			     anywhere else should see there is a queue entry at all. -->
+			// Context before action: a moderator arriving from the queue should
+			// see this is not the only complaint, and one arriving from
+			// anywhere else should see there is a queue entry at all.
 			<p class="mt-1 text-xs">
 				<a class="font-semibold text-loss" href="/moderation">{ openReportsLabel(m.Mod.OpenReports) }</a>
 			</p>
@@ -1039,9 +1039,9 @@ templ modBar(m ProfileModel) {
 				</div>
 				<ul class="mt-2 flex flex-col gap-1">
 					for _, a := range m.Mod.Actions {
-						<!-- the same row the /system feed renders, minus the target: on
-						     this page the target IS the page. One component, so the two
-						     views of one log cannot drift apart. -->
+						// the same row the /system feed renders, minus the target: on
+						// this page the target IS the page. One component, so the two
+						// views of one log cannot drift apart.
 						@auditRow(a, false)
 					}
 				</ul>

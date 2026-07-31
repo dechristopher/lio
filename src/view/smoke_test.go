@@ -3,6 +3,8 @@ package view
 import (
 	"context"
 	"html"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -57,6 +59,38 @@ func mustNotContain(t *testing.T, s, sub string) {
 	}
 }
 
+// seatNameRe matches the two places a room page prints a seat's name: the
+// clocks (.clockName) and the match-timeline rows (.tl-name).
+var seatNameRe = regexp.MustCompile(`<span class="(?:clockName|tl-name)">([^<]*)</span>`)
+
+// seatNames returns every name the page labels a seat with, both clocks and
+// both timeline rows. Seat assertions go through this rather than searching the
+// whole page for ">Name</span>", which also matches static labels that are not
+// seats — the rematch card's "You"/"Opponent" ready chips being the one that
+// made two of these tests fail.
+func seatNames(out string) []string {
+	matches := seatNameRe.FindAllStringSubmatch(out, -1)
+	names := make([]string, 0, len(matches))
+	for _, m := range matches {
+		names = append(names, m[1])
+	}
+	return names
+}
+
+func mustSeatName(t *testing.T, out, name string) {
+	t.Helper()
+	if names := seatNames(out); !slices.Contains(names, name) {
+		t.Errorf("no seat labeled %q; seats are %q", name, names)
+	}
+}
+
+func mustNotSeatName(t *testing.T, out, name string) {
+	t.Helper()
+	if names := seatNames(out); slices.Contains(names, name) {
+		t.Errorf("a seat is labeled %q; seats are %q", name, names)
+	}
+}
+
 func TestRenderIndex(t *testing.T) {
 	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneTwoRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
@@ -65,7 +99,9 @@ func TestRenderIndex(t *testing.T) {
 	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
 	mustContain(t, out, `id="createGameButton"`) // modal opener
 	mustContain(t, out, `id="modalCreateGame"`)
-	mustContain(t, out, "getElementById(\"modalCreateGame\")") // inline modal script
+	// the dialog's wiring lives in the cached lio-nav.js, not inline
+	mustContain(t, out, "lio-nav")
+	mustNotContain(t, out, "getElementById(\"modalCreateGame\")")
 
 	// new home sections
 	mustContain(t, out, `id="home-activity"`) // streamed activity region
@@ -496,13 +532,13 @@ func TestRenderRoomSpectator(t *testing.T) {
 	// (.tl-seat / .tl-seat-glyph); the human seat has no account here, so it
 	// reads "Anonymous" (never "You" — the viewer is a spectator, not that
 	// player)
-	mustContain(t, out, "Knight</span>")
+	mustSeatName(t, out, "Knight")
 	mustContain(t, out, `class="clockBotGlyph"`)
 	mustContain(t, out, `class="tl-seat"`)
 	mustContain(t, out, `class="tl-seat-glyph"`)
-	mustContain(t, out, ">Anonymous</span>")
-	mustNotContain(t, out, ">You</span>")
-	mustNotContain(t, out, ">PLAYER</span>")
+	mustSeatName(t, out, "Anonymous")
+	mustNotSeatName(t, out, "You")
+	mustNotSeatName(t, out, "PLAYER")
 	mustContain(t, out, `id="clockPlayer" class="clockPlayer ga-you" data-bot="false"`)
 	mustContain(t, out, `id="clockOpponent" class="clockOpponent ga-opp" data-bot="true"`)
 
@@ -535,10 +571,10 @@ func TestRenderRoomUsernames(t *testing.T) {
 	}
 	out := renderSmoke(t, Room(RoomMeta(p), p))
 	// own seat shows the username (not "You") when logged in; opponent's too
-	mustContain(t, out, ">drewtest</span>")
-	mustContain(t, out, ">cdpplayer</span>")
-	mustNotContain(t, out, ">You</span>")
-	mustNotContain(t, out, ">Anonymous</span>")
+	mustSeatName(t, out, "drewtest")
+	mustSeatName(t, out, "cdpplayer")
+	mustNotSeatName(t, out, "You")
+	mustNotSeatName(t, out, "Anonymous")
 
 	// a logged-in viewer facing an anonymous opponent: opponent reads
 	// "Anonymous", the viewer's own seat their username
@@ -548,8 +584,8 @@ func TestRenderRoomUsernames(t *testing.T) {
 		VariantName: "Half One blitz",
 	}
 	out2 := renderSmoke(t, Room(RoomMeta(p2), p2))
-	mustContain(t, out2, ">drewtest</span>")
-	mustContain(t, out2, ">Anonymous</span>")
+	mustSeatName(t, out2, "drewtest")
+	mustSeatName(t, out2, "Anonymous")
 
 	// the OG/room title carries the challenger's username
 	mustContain(t, out, "Challenge from drewtest")
@@ -816,6 +852,42 @@ func TestRenderAboutAndNotFound(t *testing.T) {
 	mustContain(t, renderSmoke(t, About(PageMeta("About"), "notation")), "ppkn/4/4/NKPP w NCFncf - 0 1")
 	mustContain(t, renderSmoke(t, NotFound(PageMeta("404"))), "404")
 	mustContain(t, renderSmoke(t, DB(PageMeta("Game Database"))), "Game Database")
+}
+
+// TestNoHTMLComments locks the comment convention: notes in .templ files use
+// templ's own "//" comments, which the generator drops, not "<!-- -->" markup
+// comments, which it copies verbatim into the response. The notes explain
+// internals (JS hooks, state classes, why a node exists) and are for readers of
+// the source, not for the wire — shipping them cost the room page ~8KB, 15% of
+// its HTML. Rendering every page component is impractical here, so this covers
+// the pages that pull in the shared header, footer and board markup.
+func TestNoHTMLComments(t *testing.T) {
+	p := message.RoomTemplatePayload{
+		RoomID:      "abc",
+		PlayerColor: "w", OpponentColor: "b",
+		VariantName: "Half One blitz",
+		Variant:     variant.HalfOneBlitz,
+	}
+	pages := map[string]templ.Component{
+		"index": Index(PageMeta("Free Online Octad"), nil, message.SiteStats{}, message.Community{}),
+		"room":  Room(RoomMeta(p), p),
+		"about": About(PageMeta("About"), "board"),
+		"news":  News(PageMeta("News"), 1),
+		"db":    DB(PageMeta("Game Database")),
+		"404":   NotFound(PageMeta("404")),
+	}
+	for name, page := range pages {
+		t.Run(name, func(t *testing.T) {
+			mustNotContain(t, renderSmoke(t, page), "<!--")
+		})
+	}
+
+	// the logged-in header chrome (profile popover, notifications) renders only
+	// with a Viewer in the context, so the anonymous pages above never reach it
+	t.Run("viewer", func(t *testing.T) {
+		v := Viewer{AccountsEnabled: true, Username: "drewtest"}
+		mustNotContain(t, renderSmokeViewer(t, v, NotFound(PageMeta("404"))), "<!--")
+	})
 }
 
 // TestRenderHeaderViewerStates covers the header's three account states: a

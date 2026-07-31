@@ -122,9 +122,9 @@ templ header(width string) {
 			}
 		</div>
 	</header>
-	<!-- backdrop for the header popovers: dims + blurs the rest of the page
-	     while a menu is open, and dismisses it on click (navScript). Always in
-	     the DOM, invisible until a popover opens. -->
+	// backdrop for the header popovers: dims + blurs the rest of the page
+	// while a menu is open, and dismisses it on click (lio-nav.js). Always in
+	// the DOM, invisible until a popover opens.
 	<div id="menuScrim" class="menu-scrim" aria-hidden="true"></div>
 	// The create-game dialog is mounted here, so it exists on every page: the
 	// following popover rides in this same header and its sword has to open
@@ -173,7 +173,6 @@ templ header(width string) {
 			<script defer src={ asset("lio-follow.js") }></script>
 		}
 	}
-	@navScript()
 	@connScript()
 	@updateNoticeScript()
 }
@@ -191,7 +190,7 @@ templ connIndicator() {
 }
 
 // connScript defines window.lioConn — the shared connection-status sink both
-// WebSocket clients call. It is inlined in the header (like navScript) so it is
+// WebSocket clients call. It stays inlined in the header (unlike lio-nav.js) so it is
 // present on every page regardless of which JS bundle a page loads. It is
 // defensive: a no-op when the indicator element is absent.
 templ connScript() {
@@ -317,8 +316,8 @@ templ prefsPopover() {
 
 // boardSwatch is one board-theme choice in the preferences popover: a 2x2 checker
 // preview (built from the theme's two square colors) that, when clicked, calls
-// __setBoard via the delegated handler in navScript. The active swatch is ringed
-// by navScript on open.
+// __setBoard via the delegated handler in lio-nav.js. The active swatch is
+// ringed by lio-nav.js on open.
 templ boardSwatch(name, label, light, dark string) {
 	<button type="button" data-set-board={ name } title={ label } aria-label={ label } class="swatch-btn">
 		<span class="swatch" style={ "--l:" + light + ";--d:" + dark }></span>
@@ -328,7 +327,7 @@ templ boardSwatch(name, label, light, dark string) {
 // pieceOption is one piece-set choice: a preview of that set's king and pawn
 // (real SVGs served from /res/img/<set>/, so each card shows its own art
 // regardless of the page's active data-piece) over the label. Clicking it calls
-// __setPiece via the delegated handler in navScript.
+// __setPiece via the delegated handler in lio-nav.js.
 templ pieceOption(name, label string) {
 	<button type="button" data-set-piece={ name } title={ label } class="piece-btn">
 		<span class="piece-preview">
@@ -405,11 +404,11 @@ templ accountModal() {
 					<button type="submit" class="btn btn-primary w-full justify-center py-2">Create account</button>
 				</fieldset>
 			</form>
-			<!-- second-factor step: shown by lio-auth.js when login returns
-			     mfa:true. The tabs + login/register forms are hidden while it is
-			     up. The single code field serves TOTP or recovery-code entry
-			     depending on the chosen method; the alt buttons switch methods
-			     and trigger passkey verification. -->
+			// second-factor step: shown by lio-auth.js when login returns
+			// mfa:true. The tabs + login/register forms are hidden while it is
+			// up. The single code field serves TOTP or recovery-code entry
+			// depending on the chosen method; the alt buttons switch methods
+			// and trigger passkey verification.
 			<div id="mfaStep" class="mt-4 hidden flex-col gap-3 text-left" data-auth-form="mfa">
 				<p class="auth-hint" data-mfa-prompt>Enter the 6-digit code from your authenticator app.</p>
 				<form id="mfaCodeForm" class="flex flex-col gap-3" novalidate>
@@ -429,216 +428,6 @@ templ accountModal() {
 			</div>
 		</div>
 	</div>
-}
-
-// navScript wires the header's auth modal, profile popover and preferences
-// popover. It is self-contained (only touches its own elements, all optional
-// — the modal only exists logged-out, the profile popover only logged-in) so
-// it is safe on every page.
-templ navScript() {
-	<script>
-		(function () {
-			const modal = document.getElementById("modalAccount");
-			const loginBtn = document.getElementById("loginButton");
-			// the username text (logged in only) opens the profile popover
-			const profileBtns = ["profileButton"]
-				.map((id) => document.getElementById(id)).filter(Boolean);
-			const profilePop = document.getElementById("profilePopover");
-			const prefsBtn = document.getElementById("prefsButton");
-			const popover = document.getElementById("prefsPopover"); // preferences
-			const notifyBtn = document.getElementById("notifyButton");
-			const notifyPop = document.getElementById("notifyPanel"); // notifications
-			const followBtn = document.getElementById("followingButton");
-			const followPop = document.getElementById("followingPanel"); // people you follow
-			const scrim = document.getElementById("menuScrim");
-
-			const isOpen = (el) => el && !el.classList.contains("hidden");
-			const closePrefs = () => { if (popover) popover.classList.add("hidden"); };
-			const closeNotify = () => {
-				if (!notifyPop) return;
-				notifyPop.classList.add("hidden");
-				if (notifyBtn) notifyBtn.setAttribute("aria-expanded", "false");
-			};
-			const closeFollow = () => {
-				if (!followPop) return;
-				followPop.classList.add("hidden");
-				if (followBtn) followBtn.setAttribute("aria-expanded", "false");
-			};
-			// Restore the account popover to its pristine state whenever it is
-			// dismissed: clear every form field, collapse the expandable sections,
-			// and hide transient error/success lines. Dispatching an input event
-			// lets each form's own controller (lio-auth.js) recompute derived
-			// state — e.g. the change-password submit/confirm gating.
-			const resetProfile = () => {
-				if (!profilePop) return;
-				profilePop.querySelectorAll("form").forEach((f) => f.reset());
-				profilePop.querySelectorAll("details").forEach((d) => { d.open = false; });
-				profilePop.querySelectorAll("[data-auth-error],[data-auth-ok]")
-					.forEach((el) => el.classList.add("hidden"));
-				profilePop.querySelectorAll("input")
-					.forEach((i) => i.dispatchEvent(new Event("input", { bubbles: true })));
-			};
-			// expose so lio-auth.js can reset the popover when it hides it to open
-			// the edit-profile / security modals
-			window.__resetProfilePopover = resetProfile;
-			const closeProfile = () => {
-				if (!profilePop) return;
-				if (isOpen(profilePop)) resetProfile();
-				profilePop.classList.add("hidden");
-			};
-			// the backdrop follows the menus: shown (dim + blur) whenever either
-			// header popover is open, hidden once both are closed
-			const syncScrim = () => {
-				if (scrim) scrim.classList.toggle("is-open",
-					isOpen(popover) || isOpen(profilePop) || isOpen(notifyPop) || isOpen(followPop));
-			};
-			const closeMenus = () => { closePrefs(); closeProfile(); closeNotify(); closeFollow(); syncScrim(); };
-
-			const closeModal = () => { if (modal) modal.classList.remove("open"); };
-			if (modal) {
-				const closeBtn = modal.querySelector(".modal-close");
-				if (loginBtn) loginBtn.addEventListener("click", () => modal.classList.add("open"));
-				if (closeBtn) closeBtn.addEventListener("click", closeModal);
-				modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-			}
-
-			// Ring the swatch/pill matching the live <html> data-board/data-piece,
-			// and highlight the selected theme mode. The mode is derived from
-			// storage, not <html> data-theme: an explicit choice persists a
-			// "theme" key, while System is its absence (data-theme always holds
-			// the *resolved* light/dark, which can't distinguish the two).
-			const syncPrefs = () => {
-				const root = document.documentElement.dataset;
-				popover.querySelectorAll("[data-set-board]").forEach((b) =>
-					b.classList.toggle("is-active", b.dataset.setBoard === root.board));
-				popover.querySelectorAll("[data-set-piece]").forEach((b) =>
-					b.classList.toggle("is-active", b.dataset.setPiece === root.piece));
-				let mode = "system";
-				try {
-					const t = localStorage.getItem("theme");
-					if (t === "light" || t === "dark") mode = t;
-				} catch (e) {}
-				popover.querySelectorAll("[data-set-theme]").forEach((b) =>
-					b.classList.toggle("is-active", b.dataset.setTheme === mode));
-			};
-			// Delegated: a swatch sets the board theme, a pill sets the piece set,
-			// a theme button sets (or clears, for System) the color scheme.
-			// __setBoard/__setPiece/__setTheme/__useSystemTheme (layout.templ)
-			// flip the <html> attribute + persist; the CSS reacts instantly.
-			if (popover) popover.addEventListener("click", (e) => {
-				const boardBtn = e.target.closest("[data-set-board]");
-				if (boardBtn) { window.__setBoard(boardBtn.dataset.setBoard); syncPrefs(); return; }
-				const pieceBtn = e.target.closest("[data-set-piece]");
-				if (pieceBtn) { window.__setPiece(pieceBtn.dataset.setPiece); syncPrefs(); return; }
-				const themeBtn = e.target.closest("[data-set-theme]");
-				if (themeBtn) {
-					const v = themeBtn.dataset.setTheme;
-					if (v === "system") { window.__useSystemTheme(); } else { window.__setTheme(v); }
-					syncPrefs();
-				}
-			});
-
-			// Opening either popover closes the other first, so the two never
-			// stack; the scrim then reflects whether anything is open.
-			if (prefsBtn) prefsBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				closeProfile();
-				closeNotify();
-				closeFollow();
-				popover.classList.toggle("hidden");
-				if (isOpen(popover)) syncPrefs();
-				syncScrim();
-			});
-			// The bell. Opening it tells the notification client, which fetches
-			// the list on the first open and clears the badge — the dot means
-			// "something is new", and it has now been seen. The rows keep their
-			// own unread mark until they are read, a different question.
-			if (notifyPop && notifyBtn) notifyBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				closePrefs();
-				closeProfile();
-				closeFollow();
-				if (isOpen(notifyPop)) {
-					closeNotify();
-				} else {
-					notifyPop.classList.remove("hidden");
-					notifyBtn.setAttribute("aria-expanded", "true");
-					if (window.__notifyPanelOpened) window.__notifyPanelOpened();
-				}
-				syncScrim();
-			});
-			// The following control. Like the bell, opening it tells its client,
-			// which fetches the list on the first open and corrects the badge
-			// the header painted at render time — presence moves, and this is
-			// the moment the number can be made true again.
-			if (followPop && followBtn) followBtn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				closePrefs();
-				closeProfile();
-				closeNotify();
-				if (isOpen(followPop)) {
-					closeFollow();
-				} else {
-					followPop.classList.remove("hidden");
-					followBtn.setAttribute("aria-expanded", "true");
-					if (window.__followingPanelOpened) window.__followingPanelOpened();
-				}
-				syncScrim();
-			});
-			if (profilePop) profileBtns.forEach((btn) => btn.addEventListener("click", (e) => {
-				e.stopPropagation();
-				closePrefs();
-				closeNotify();
-				closeFollow();
-				// close (with reset) when open, otherwise reveal — a plain class
-				// toggle would bypass closeProfile's reset on the closing click
-				if (isOpen(profilePop)) closeProfile();
-				else profilePop.classList.remove("hidden");
-				syncScrim();
-			}));
-
-			// the backdrop dismisses any open menu on click
-			if (scrim) scrim.addEventListener("click", closeMenus);
-			// safety net for outside clicks not caught by the scrim
-			document.addEventListener("click", (e) => {
-				const within =
-					(popover && popover.contains(e.target)) ||
-					(profilePop && profilePop.contains(e.target)) ||
-					(notifyPop && notifyPop.contains(e.target)) ||
-					(followPop && followPop.contains(e.target)) ||
-					(prefsBtn && prefsBtn.contains(e.target)) ||
-					(notifyBtn && notifyBtn.contains(e.target)) ||
-					(followBtn && followBtn.contains(e.target)) ||
-					profileBtns.some((btn) => btn.contains(e.target));
-				if (!within) closeMenus();
-			});
-			document.addEventListener("keydown", (e) => {
-				if (e.key === "Escape") { closeModal(); closeMenus(); }
-			});
-
-			// Back/forward restores land here with the DOM exactly as it was left,
-			// so a menu that was open when the visitor navigated away is still open
-			// when they come back — and since the script does not re-run, nothing
-			// closes it. Now that the profile popover contains real navigation
-			// (System / Moderation), that is easy to hit: open the menu, follow a
-			// link, press Back, and the menu is sitting there over the page with
-			// the scrim dimming everything behind it.
-			//
-			// On a restore, any open overlay is by definition stale: no script has
-			// run to open it. Nothing opens a menu or modal at load time, so this
-			// can never undo something a page meant to show. Guarded on persisted
-			// because a normal load re-runs everything already closed.
-			window.addEventListener("pageshow", (e) => {
-				if (!e.persisted) return;
-				closeMenus();
-				closeModal();
-				// the other modals belong to other scripts (auth, create-game, bot
-				// difficulty, moderation), but the rule is the same for all of them
-				document.querySelectorAll(".modal-shade.open")
-					.forEach((m) => m.classList.remove("open"));
-			});
-		})();
-	</script>
 }
 
 // iconMoon / iconSun / iconMonitor label the Light/Dark/System choices in the
@@ -809,40 +598,6 @@ templ footerContent(meta Meta) {
 	// dropped these two lines to ~3.0:1. They are already de-emphasized by size.
 	<p class="m-0 text-xs text-warn"><a href="https://fbfiber.net">Proudly hosted by Fitchburg Fiber</a></p>
 	<p class="m-0">© 2021-2026 <span class="text-accent">octad</span>.gg</p>
-	@footerNavScript()
-}
-
-// footerNavScript hides any "·" separator left dangling at a wrap boundary when
-// the footer nav wraps to multiple lines (a separator whose two neighboring
-// links land on different visual lines). A centered, wrapping flex row can't
-// express this in pure CSS, so this runs on load + resize as a small
-// progressive enhancement. It toggles visibility (not display) so the
-// separator keeps its box: removing it from layout would let a just-wrapped
-// item slot back onto the previous line, which flips the separator right back
-// to "needed" and oscillates at the boundary width. Guarded so it binds once
-// even though footerContent renders twice on the home page (mobile + desktop).
-templ footerNavScript() {
-	<script>
-		(function () {
-			if (window.__footerNavInit) { return; }
-			window.__footerNavInit = true;
-			function reflow() {
-				document.querySelectorAll("[data-footer-nav]").forEach(function (nav) {
-					var seps = nav.querySelectorAll(":scope > span");
-					seps.forEach(function (s) { s.style.visibility = ""; });
-					seps.forEach(function (s) {
-						var a = s.previousElementSibling, b = s.nextElementSibling;
-						if (a && b && Math.abs(a.offsetTop - b.offsetTop) > 1) {
-							s.style.visibility = "hidden";
-						}
-					});
-				});
-			}
-			window.addEventListener("resize", reflow);
-			window.addEventListener("load", reflow);
-			reflow();
-		})();
-	</script>
 }
 
 // footer is the shared, full-width page footer with nav links and the build
@@ -908,31 +663,31 @@ templ createGameButton() {
 // rematch link the result overlay's Rematch button navigates to.
 templ board(payload message.RoomTemplatePayload) {
 	<div class="board-shell">
-		<!-- engine evaluation bar: revealed by lio-game.js only after a *bot*
-		     game ends and the player enters analysis (requestLiveEvals fetches
-		     the finished game's cached evals). Human-vs-human rooms never show
-		     it — their games get the bar on the archive page instead. -->
+		// engine evaluation bar: revealed by lio-game.js only after a *bot*
+		// game ends and the player enters analysis (requestLiveEvals fetches
+		// the finished game's cached evals). Human-vs-human rooms never show
+		// it — their games get the bar on the archive page instead.
 		<div id="eval-bar" class="eval-bar" hidden title="Engine evaluation">
 			<div class="eval-fill"></div>
 		</div>
 		<div id="gcon-xx" class={ "gcon " + boardOrientation(payload) } data-spectator={ strconv.FormatBool(payload.IsSpectator) } data-anchor={ payload.AnchorID } data-tc={ strconv.FormatInt(payload.Variant.Control.Time.Centi(), 10) } data-casual={ strconv.FormatBool(payload.Variant.Casual) } data-deploy={ strconv.FormatBool(payload.Variant.Deploy) }>
 			<div class="gwrap">
 				<div id="game" class="og-wrap"></div>
-				<!-- blind deploy: opponent home-rank "?" cells, overlaid on the top rank -->
+				// blind deploy: opponent home-rank "?" cells, overlaid on the top rank
 				<div id="deploy-questions" class="deploy-questions" aria-hidden="true">
 					<span class="dq-cell">?</span>
 					<span class="dq-cell">?</span>
 					<span class="dq-cell">?</span>
 					<span class="dq-cell">?</span>
 				</div>
-				<!-- blind deploy (spectator): bottom home-rank "?" cells, hiding both sides -->
+				// blind deploy (spectator): bottom home-rank "?" cells, hiding both sides
 				<div id="deploy-questions-btm" class="deploy-questions deploy-questions-btm" aria-hidden="true">
 					<span class="dq-cell">?</span>
 					<span class="dq-cell">?</span>
 					<span class="dq-cell">?</span>
 					<span class="dq-cell">?</span>
 				</div>
-				<!-- blind deploy: on-board controls (non-blocking so the board stays interactive) -->
+				// blind deploy: on-board controls (non-blocking so the board stays interactive)
 				<div id="deploy-overlay" class="deploy-overlay">
 					<div class="deploy-card">
 						<div class="deploy-headline">Arrange your pieces</div>
@@ -943,10 +698,10 @@ templ board(payload message.RoomTemplatePayload) {
 						<div id="deploy-opponent-status" class="deploy-opp-status hidden"></div>
 					</div>
 				</div>
-				<!-- pre-start countdown: small radial timer shown mid-board after the
-				     deploy reveal until white moves or the countdown expires and their
-				     clock starts on its own (lio-game.js toggles .ps-show and drives
-				     the ring's stroke-dashoffset). Non-blocking: white can move under it. -->
+				// pre-start countdown: small radial timer shown mid-board after the
+				// deploy reveal until white moves or the countdown expires and their
+				// clock starts on its own (lio-game.js toggles .ps-show and drives
+				// the ring's stroke-dashoffset). Non-blocking: white can move under it.
 				<div id="prestart-overlay" class="prestart-overlay" aria-hidden="true">
 					<div class="prestart-dial">
 						<svg class="prestart-ring" viewBox="0 0 48 48">
@@ -956,11 +711,11 @@ templ board(payload message.RoomTemplatePayload) {
 						<div id="prestart-number" class="prestart-number"></div>
 					</div>
 				</div>
-				<!-- spectator audio-unlock: browsers keep audio muted until a page
-				     gesture, and a spectator may never otherwise interact. lio-game.js
-				     shows this tappable mid-board icon while audio is locked so the
-				     silent state has a visible fix; any tap on the page unlocks too —
-				     this is just the affordance (hidden again the moment audio runs). -->
+				// spectator audio-unlock: browsers keep audio muted until a page
+				// gesture, and a spectator may never otherwise interact. lio-game.js
+				// shows this tappable mid-board icon while audio is locked so the
+				// silent state has a visible fix; any tap on the page unlocks too —
+				// this is just the affordance (hidden again the moment audio runs).
 				<div id="audio-unlock-overlay" class="audio-unlock-overlay" aria-hidden="true">
 					<button id="audio-unlock" type="button" class="audio-unlock" title="Tap to enable sound" aria-label="Enable sound">
 						<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -968,9 +723,9 @@ templ board(payload message.RoomTemplatePayload) {
 						</svg>
 					</button>
 				</div>
-				<!-- endgame annotation: a small non-interactive pill naming the finished
-				     game's result, shown mid-board while the final position is reviewed
-				     with the result card out of the way (lio-game.js toggles .ea-show) -->
+				// endgame annotation: a small non-interactive pill naming the finished
+				// game's result, shown mid-board while the final position is reviewed
+				// with the result card out of the way (lio-game.js toggles .ea-show)
 				<div id="end-annotation" class="end-annotation" aria-hidden="true"></div>
 				<div id="promo-shade" class="promo-shade hidden"></div>
 				<div id="promo-select" class="promo hidden">
@@ -983,35 +738,35 @@ templ board(payload message.RoomTemplatePayload) {
 					<div class="result-card">
 						<div id="result-headline" class="result-headline"></div>
 						<div id="result-reason" class="result-reason"></div>
-						<!-- race-to match context, filled and revealed by lio-game.js
-						     only for a match room: the points target, plus a
-						     match-point note when the next game can decide it. It
-						     leads the score below it — the number means little until
-						     you know what it is racing to — and is separated from it
-						     by the rule beneath. Classic rooms never show it. -->
+						// race-to match context, filled and revealed by lio-game.js
+						// only for a match room: the points target, plus a
+						// match-point note when the next game can decide it. It
+						// leads the score below it — the number means little until
+						// you know what it is racing to — and is separated from it
+						// by the rule beneath. Classic rooms never show it.
 						<div id="result-match" class="result-match hidden">
 							<div id="result-match-target" class="result-match-target"></div>
 							<div id="result-match-note" class="result-match-note hidden"></div>
 						</div>
 						<div id="result-score" class="result-score"></div>
-						<!-- per-player rating change (rated games only): filled by
-						     lio-game.js from the rating-update frame, empty (and
-						     collapsed) otherwise -->
+						// per-player rating change (rated games only): filled by
+						// lio-game.js from the rating-update frame, empty (and
+						// collapsed) otherwise
 						<div id="result-ratings" class="result-ratings"></div>
 						<div id="result-note" class="result-note hidden"></div>
 						<div class="result-actions">
-							<!-- mid-match only: skip the rest of the interlude. Both
-							     seats must ask; one seat asking just shows the other
-							     a check while the pause runs out normally. Shown in
-							     place of Rematch, which has no meaning mid-match. -->
+							// mid-match only: skip the rest of the interlude. Both
+							// seats must ask; one seat asking just shows the other
+							// a check while the pause runs out normally. Shown in
+							// place of Rematch, which has no meaning mid-match.
 							<button id="result-next" type="button" class="result-btn result-next hidden" title={ controlTitle(payload, "Start the next game now") } disabled?={ payload.IsSpectator }>Next game</button>
 							<button id="result-rematch" type="button" class="result-btn result-rematch" title={ controlTitle(payload, "Play again") } data-rematch-url={ botRematchURL(payload) } disabled?={ payload.IsSpectator }>Rematch</button>
 							<button id="result-home" type="button" class="result-btn result-home">Home</button>
 						</div>
-						<!-- who has asked for the next game: this seat's check lands
-						     on click, the opponent's when their request arrives. Sits
-						     under the actions because it reports on the button above
-						     it — both checks mean the next game starts now. -->
+						// who has asked for the next game: this seat's check lands
+						// on click, the opponent's when their request arrives. Sits
+						// under the actions because it reports on the button above
+						// it — both checks mean the next game starts now.
 						<div id="result-ready" class="result-ready hidden">
 							<span id="ready-you" class="ready-chip">
 								<span class="ready-mark" aria-hidden="true">✓</span>
@@ -1023,19 +778,19 @@ templ board(payload message.RoomTemplatePayload) {
 							</span>
 						</div>
 						<button id="result-analyze" type="button" class="result-analyze">Analyze board</button>
-						<!-- Reporting the opponent, offered only where it can mean
-						     something: a logged-in viewer who played this game against
-						     another account. A bot, an anonymous opponent, a spectator
-						     or a logged-out viewer all render nothing rather than a
-						     control that would be refused. Understated on purpose —
-						     it sits below the result, not beside Rematch, because
-						     most games end without anyone needing it. -->
+						// Reporting the opponent, offered only where it can mean
+						// something: a logged-in viewer who played this game against
+						// another account. A bot, an anonymous opponent, a spectator
+						// or a logged-out viewer all render nothing rather than a
+						// control that would be refused. Understated on purpose —
+						// it sits below the result, not beside Rematch, because
+						// most games end without anyone needing it.
 						if opp := reportableOpponent(payload); opp != "" && viewer(ctx).LoggedIn {
 							<button id="result-report" type="button" class="result-report" data-report-target={ opp }>Report { opp }</button>
 						}
 						<div id="result-countdown" class="result-countdown"></div>
 					</div>
-					<!-- shown once the result card is dismissed for board review; restores it -->
+					// shown once the result card is dismissed for board review; restores it
 					<button id="result-restore" type="button" class="result-restore hidden" title="Show result">Result ▲</button>
 				</div>
 			</div>
@@ -1115,9 +870,9 @@ templ clock(seatTitle title.Title, name string, botGlyph string, rating string, 
 		</div>
 		<div class="clock-body">
 			<div class="clock-meta">
-				<!-- seat presence: green while this seat's socket is connected (crowd
-				     messages toggle .presence-on on the wrapper). A bot seat hides the
-				     dot and tints the CPU glyph below as its indicator instead. -->
+				// seat presence: green while this seat's socket is connected (crowd
+				// messages toggle .presence-on on the wrapper). A bot seat hides the
+				// dot and tints the CPU glyph below as its indicator instead.
 				<span class="clockPresence" title="Player connection"></span>
 				<span class="clockBot" aria-label="Computer player" title="Computer player">
 					@iconCpu("h-3.5 w-3.5")
@@ -1125,9 +880,9 @@ templ clock(seatTitle title.Title, name string, botGlyph string, rating string, 
 				if botGlyph != "" {
 					<span class="clockBotGlyph" aria-hidden="true">{ botGlyph }</span>
 				}
-				<!-- a seat that is a real account links to its page; "You",
-				     "Anonymous" and "BOT" are labels, not accounts, so the caller
-				     passes no href for them -->
+				// a seat that is a real account links to its page; "You",
+				// "Anonymous" and "BOT" are labels, not accounts, so the caller
+				// passes no href for them
 				if profile != "" {
 					<a class="player-link" href={ templ.SafeURL(profile) }>
 						@playerTitle(seatTitle)
@@ -1145,10 +900,10 @@ templ clock(seatTitle title.Title, name string, botGlyph string, rating string, 
 						}
 					</span>
 				}
-				<!-- material-difference icons (lichess-style): lio-game.js fills this
-				     with <piece> sprites for the piece types this seat is up, plus a
-				     +N point score when this seat leads; empty (and collapsed via
-				     :empty) while material is level -->
+				// material-difference icons (lichess-style): lio-game.js fills this
+				// with <piece> sprites for the piece types this seat is up, plus a
+				// +N point score when this seat leads; empty (and collapsed via
+				// :empty) while material is level
 				<span class="clockMaterial" title="Material advantage"></span>
 				<span class="thinking" aria-label="thinking"><i></i><i></i><i></i></span>
 				<span class="clockScore">0</span>

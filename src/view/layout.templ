@@ -18,12 +18,12 @@ templ head(meta Meta) {
 		<meta charset="utf-8"/>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5"/>
-		<!-- build version this page was rendered by; compared against the
-		     server's socket version hello to prompt a refresh after a deploy -->
+		// build version this page was rendered by; compared against the
+		// server's socket version hello to prompt a refresh after a deploy
 		<meta name="lio-version" content={ config.VersionString() }/>
-		<!-- the viewer's session uid (the seat/socket identity). This replaced
-		     the old JS-readable uid cookie: lio.js myUid() reads it for turn/
-		     seat checks, with the WS identity echo as the dynamic authority -->
+		// the viewer's session uid (the seat/socket identity). This replaced
+		// the old JS-readable uid cookie: lio.js myUid() reads it for turn/
+		// seat checks, with the WS identity echo as the dynamic authority
 		<meta name="lio-uid" content={ viewer(ctx).UID }/>
 		<script>
 			// Resolve and apply the color theme, board theme, and piece set
@@ -128,6 +128,20 @@ templ head(meta Meta) {
 		// defer: htmx self-initializes on DOMContentLoaded, so it need not block
 		// first paint. defer preserves execution order and runs after parse.
 		<script defer src={ asset("htmx.min.js") }></script>
+		// Header/footer chrome: the popovers, the footer nav and the create-game
+		// dialog. These were three inline <script> blocks in the header, footer
+		// and modal components, which put ~15KB of identical uncacheable JS in
+		// the HTML of every page. Declared here rather than beside the markup so
+		// the fetch starts while the head is still parsing and the file is ready
+		// the moment parsing ends — the shortest path to the controls going live.
+		// defer, so it never blocks parsing, and it is ordered before lio-auth.js,
+		// which calls into it (window.__resetProfilePopover).
+		//
+		// Safe to run this late because nothing in it establishes visual state:
+		// every popover ships `hidden` and every modal ships without `.open`
+		// straight from the server, so there is nothing for this file to set up
+		// and nothing it can move after first paint.
+		<script defer src={ asset("lio-nav.js") }></script>
 		// account/auth wiring (login/register forms, profile popover actions);
 		// on every page because the header's account controls are
 		<script defer src={ asset("lio-auth.js") }></script>

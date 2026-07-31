@@ -110,7 +110,7 @@ func Profile(meta Meta, m ProfileModel) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " <!-- the two distribution cards pair up on a wide viewport:\n\t\t\t\t\t\t     both answer \"what shape is a typical game\", and side by\n\t\t\t\t\t\t     side they use the width the column was widened for. --> <div class=\"stat-pair\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "    <div class=\"stat-pair\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -433,7 +433,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if m.Lifetime.Show {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<!-- the two figures that summarise a whole history, as tiles\n\t\t\t\t\t     rather than prose: they are the numbers a visitor scans for --> <div class=\"hero-figures\"><div class=\"hero-figure\"><span class=\"hero-figure-value\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "  <div class=\"hero-figures\"><div class=\"hero-figure\"><span class=\"hero-figure-value\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -464,7 +464,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<!-- The page is a snapshot of a history that keeps moving, so it\n\t\t\t\t     says how old it is. data-rendered is the server's render time;\n\t\t\t\t     lio-profile.js keeps the label current and reloads on a timer. --><p class=\"refresh-row\" data-refresh-row data-rendered=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"refresh-row\" data-refresh-row data-rendered=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -528,7 +528,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			}
 		}
 		if m.ShowReport {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<!-- Last thing in the hero, and deliberately quiet: a profile is\n\t\t\t     somewhere people mostly come to read, and a prominent Report\n\t\t\t     button would invite use as a reaction to losing. --> <p class=\"hero-report\"><button type=\"button\" class=\"hero-report-btn\" data-report-target=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "   <p class=\"hero-report\"><button type=\"button\" class=\"hero-report-btn\" data-report-target=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1221,7 +1221,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\"><!-- gridlines: solid hairlines one step off the surface -->")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1340,7 +1340,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if c.Prov != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<!-- the provisional stretch: the rating was still settling,\n\t\t\t\t\t\t     so the stroke says so rather than implying equal confidence --> <polyline class=\"chart-line chart-line-prov\" points=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "  <polyline class=\"chart-line chart-line-prov\" points=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1513,7 +1513,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "</text><!-- hover layer, driven by lio-profile.js --><line class=\"chart-crosshair\" y1=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "</text><line class=\"chart-crosshair\" y1=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1562,7 +1562,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, " <!-- The same numbers as a table, for screen readers and anyone who\n\t\t\t     cannot use a hover readout. The wrapper carries sr-only, not the\n\t\t\t     table: `sr-only` pins width/height to 1px with overflow hidden,\n\t\t\t     and a <table> obeys none of that — table layout sizes to its\n\t\t\t     content and ignores overflow, so the class left a full 209x360\n\t\t\t     table in the page (clip-path was the only thing hiding it, and\n\t\t\t     not reliably in every browser). A plain div hides properly. --> <div class=\"sr-only\"><table><caption>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "        <div class=\"sr-only\"><table><caption>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1676,7 +1676,7 @@ func profileRecords(m ProfileModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(m.Colors) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "<!-- the seat split renders through the same row component as every\n\t\t\t     other tally, so its bars and numbers line up with them instead of\n\t\t\t     forming a second column layout beside them --> <ul class=\"mt-2 flex flex-col gap-1.5\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 145, "   <ul class=\"mt-2 flex flex-col gap-1.5\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1852,7 +1852,7 @@ func profileForm(m ProfileModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "<!-- Matches are the wrapping unit, so a narrow viewport reflows whole\n\t\t\t     groups and never splits one across a line break. The strip itself\n\t\t\t     stays bare pips + score; opponent and time control live in the\n\t\t\t     readout, which costs no width. --> <ol class=\"form-strip\" aria-label=\"Recent matches, oldest first\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 166, "    <ol class=\"form-strip\" aria-label=\"Recent matches, oldest first\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1957,7 +1957,7 @@ func profileForm(m ProfileModel) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, p := range fg.Pips {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "<li><!-- each pip carries its own readout, so hovering one\n\t\t\t\t\t\t\t\t\t     game inside a match reports that game and not the\n\t\t\t\t\t\t\t\t\t     match around it -->")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 176, "<li>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -2067,7 +2067,7 @@ func profileForm(m ProfileModel) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if fg.Match() {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 186, "<!-- Only a real match carries a score. On a lone game the\n\t\t\t\t\t\t\t     score restates what the pip's colour already says, and a\n\t\t\t\t\t\t\t     row of \"1–0 0–1 1–0\" drowns out the matches that are the\n\t\t\t\t\t\t\t     point of grouping at all.\n\t\t\t\t\t\t\t     A real anchor so the match is keyboard-reachable and\n\t\t\t\t\t\t\t     opens in a new tab like any link; the surrounding\n\t\t\t\t\t\t\t     container forwards a click here too (lio-profile.js), so\n\t\t\t\t\t\t\t     the whole match is a target and not just its score. --> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 186, "        ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -2138,12 +2138,12 @@ func profileForm(m ProfileModel) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 193, "</ol><!-- A reserved line rather than a floating tooltip: a tip anchored to a\n\t\t\t     wrapped group covers whatever sits above it (here, the streak\n\t\t\t     line), and clamping it inside the card is positioning maths that\n\t\t\t     buys nothing. The line always occupies its height, so filling it\n\t\t\t     shifts nothing. --> <!-- Split so the result half carries the win/draw/loss tint the pips\n\t\t\t     use: the same outcome should read the same colour wherever it\n\t\t\t     appears on the page. --> <p class=\"form-readout\" aria-live=\"polite\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 193, "</ol>        <p class=\"form-readout\" aria-live=\"polite\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			d := FormReadoutDefault(m.Form)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 194, "<!-- Named only while the line is describing the newest game, and set\n\t\t\t\t     in the same colour as that game's ring, so the label and the\n\t\t\t\t     highlight it refers to are visibly the same thing. Hidden the\n\t\t\t\t     moment a hover takes over, since the line then describes\n\t\t\t\t     whatever is ringed in accent instead. --><span class=\"form-readout-latest\">Latest:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 194, "<span class=\"form-readout-latest\">Latest:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2425,7 +2425,7 @@ func profileLengths(m ProfileModel) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, "><!-- the dominant share, tinted like the segment it names. It\n\t\t\t\t\t\t     frames the column: with the biggest share and its colour\n\t\t\t\t\t\t     stated, the two remaining bands are readable at a glance,\n\t\t\t\t\t\t     which three unlabelled bands are not. -->")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 219, ">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2735,7 +2735,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if f.Thin {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "<!-- too few games to score: the row still shows, because\n\t\t\t\t\t\t     having tried a formation twice is worth seeing, but it\n\t\t\t\t\t\t     makes no claim about how it went --> <span class=\"formation-score is-thin\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "   <span class=\"formation-score is-thin\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2838,7 +2838,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 255, "</span><!-- the seat is not decoration: a matchup name is a\n\t\t\t\t\t     White-vs-Black clash, so the same name is two opposite\n\t\t\t\t\t     experiences and the row has to say which it reports --><span class=\"matchup-vs\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 255, "</span><span class=\"matchup-vs\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -3010,7 +3010,7 @@ func profileActivity(m ProfileModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 269, "<!-- Both ramps ship on every cell and the mode swaps which one the\n\t\t\t     stylesheet reads, so toggling a year of squares costs no round\n\t\t\t     trip and no re-render. --> <!-- the tooltip lives outside the scroll box: `overflow-x: auto` makes\n\t\t\t     overflow-y compute to auto as well, so a tip anchored inside it\n\t\t\t     gets cropped the moment it reaches above the first row --> <div class=\"heatmap-wrap\"><div class=\"heatmap-scroll\"><div class=\"heatmap\" data-heatmap data-mode=\"volume\"><div class=\"heatmap-months\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 269, "      <div class=\"heatmap-wrap\"><div class=\"heatmap-scroll\"><div class=\"heatmap\" data-heatmap data-mode=\"volume\"><div class=\"heatmap-months\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -3905,7 +3905,7 @@ func profileGames(m ProfileModel) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 346, "</span><!-- the metadata sits together at the right, so widening the card\n\t\t\t\t\t\t\t     stretches the opponent column rather than scattering five\n\t\t\t\t\t\t\t     separate fields across the row --><span class=\"game-meta\"><span class=\"game-variant\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 346, "</span><span class=\"game-meta\"><span class=\"game-variant\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -4045,7 +4045,7 @@ func modBar(m ProfileModel) templ.Component {
 			}
 		}
 		if m.Mod.OpenReports > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 359, "<!-- Context before action: a moderator arriving from the queue should\n\t\t\t     see this is not the only complaint, and one arriving from\n\t\t\t     anywhere else should see there is a queue entry at all. --> <p class=\"mt-1 text-xs\"><a class=\"font-semibold text-loss\" href=\"/moderation\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 359, "   <p class=\"mt-1 text-xs\"><a class=\"font-semibold text-loss\" href=\"/moderation\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -4278,7 +4278,7 @@ func modBar(m ProfileModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, a := range m.Mod.Actions {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 388, "<!-- the same row the /system feed renders, minus the target: on\n\t\t\t\t\t\t     this page the target IS the page. One component, so the two\n\t\t\t\t\t\t     views of one log cannot drift apart. --> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 388, "   ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
