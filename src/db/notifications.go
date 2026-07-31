@@ -28,12 +28,18 @@ const (
 	// KindChallenge is an invitation to a game from another player. It is the
 	// one kind that expires, and the one the panel offers an action on.
 	KindChallenge = "challenge"
+	// KindFollow is a new follower (arch/FOLLOWING.md). Durable like a
+	// moderation decision: no expiry, no action, it simply waits to be read.
+	KindFollow = "follow"
 )
 
 // NotificationKinds are the accepted kinds. They match the CHECK constraint in
-// migrations 00021 and 00022. Exported so a writer validates against the same
-// set the database accepts, rather than a second list that can drift from it.
-var NotificationKinds = []string{KindModAction, KindMilestone, KindSystem, KindChallenge}
+// migrations 00021, 00022 and 00024. Exported so a writer validates against the
+// same set the database accepts, rather than a second list that can drift from
+// it.
+var NotificationKinds = []string{
+	KindModAction, KindMilestone, KindSystem, KindChallenge, KindFollow,
+}
 
 // ValidNotificationKind reports whether k is one of NotificationKinds.
 func ValidNotificationKind(k string) bool {
@@ -136,6 +142,31 @@ func UnreadNotifications(userID int64) int64 {
 		return 0
 	}
 	return n
+}
+
+// RecentFollowNotice reports whether userID has already been told about
+// actorID following them within the last day (arch/FOLLOWING.md Phase 3).
+//
+// It is the suppression on a follow/unfollow/refollow loop, which would
+// otherwise announce itself every time round: each new edge really is new, so
+// db.Follow reports it as created and the producer would push again.
+//
+// A failed read answers true — suppress. The cost of being wrong that way is
+// one notification somebody does not get; the cost the other way is a panel
+// filling with the same name, which is the thing this exists to prevent.
+func RecentFollowNotice(userID, actorID int64) bool {
+	if Pool == nil || userID == 0 || actorID == 0 {
+		return true
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	found, err := gen.New(Pool).RecentFollowNotice(ctx, gen.RecentFollowNoticeParams{
+		UserID: userID, ActorID: &actorID,
+	})
+	if err != nil {
+		return true
+	}
+	return found
 }
 
 // ListNotifications returns one account's messages, newest first.

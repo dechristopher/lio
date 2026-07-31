@@ -590,4 +590,75 @@
       return [];
     }
   }
+
+  // --- follow --------------------------------------------------------------
+  //
+  // The follow control (arch/FOLLOWING.md). The server renders the button in
+  // its current state, so the page is correct before this file runs; all this
+  // adds is changing that state without a navigation.
+  //
+  // The write is pessimistic rather than optimistic: it is a single fast round
+  // trip, and a button that flips, fails and flips back reads as a bug. The
+  // control goes busy, waits, and then shows what actually happened.
+  (function () {
+    const btn = document.querySelector("[data-follow]");
+    if (!btn) return;
+    const status = document.querySelector("[data-follow-status]");
+    const countEl = document.querySelector("[data-follower-count]");
+    const username = btn.dataset.follow;
+    let busy = false;
+
+    function say(msg) {
+      if (status) status.textContent = msg || "";
+    }
+
+    // The follower count is the one number this action moves — following
+    // somebody does not change how many people *they* follow — so only the
+    // first figure is rewritten. The phrasing is duplicated from the Go side
+    // (view.NewFollowView) because the response carries a number, not a
+    // sentence: an API that returned rendered copy would be deciding how the
+    // page reads.
+    function setCount(n) {
+      if (!countEl || typeof n !== "number") return;
+      countEl.textContent =
+        n === 1 ? "1 follower" : n.toLocaleString() + " followers";
+    }
+
+    function setState(following) {
+      btn.classList.toggle("is-following", following);
+      btn.setAttribute("aria-pressed", following ? "true" : "false");
+    }
+
+    btn.addEventListener("click", async function () {
+      if (busy) return;
+      busy = true;
+      btn.classList.add("is-busy");
+      say("");
+
+      // The button's rendered state decides the direction, so the two verbs
+      // stay the only difference between following and unfollowing.
+      const following = btn.classList.contains("is-following");
+      try {
+        const res = await fetch("/api/follow/" + encodeURIComponent(username), {
+          method: following ? "DELETE" : "POST",
+          headers: { Accept: "application/json" },
+        });
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          // Trust the server's answer rather than the flip that was intended:
+          // both writes are idempotent, so this is also what repairs a button
+          // that rendered from a stale read.
+          setState(data ? !!data.following : !following);
+          if (data) setCount(data.followers);
+        } else {
+          const err = await res.json().catch(() => null);
+          say((err && err.error) || "Could not save that.");
+        }
+      } catch (e) {
+        say("Network error — that did not save.");
+      }
+      btn.classList.remove("is-busy");
+      busy = false;
+    });
+  })();
 })();

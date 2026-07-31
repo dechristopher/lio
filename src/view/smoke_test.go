@@ -904,6 +904,96 @@ func TestRenderProfile(t *testing.T) {
 	mustNotContain(t, out, "lio-mod")
 }
 
+// TestRenderProfileFollow covers the follow block's gating (arch/FOLLOWING.md
+// Phase 1): the counts render on their own, the control only for a viewer who
+// may press it, and the button carries its state in words as well as in a
+// class — a control whose only difference is a tint says nothing to somebody
+// who cannot see the tint.
+func TestRenderProfileFollow(t *testing.T) {
+	// counts alone: a visitor who cannot act still sees who follows whom
+	m := profileFixture()
+	m.Follow = NewFollowView(db.FollowCounts{Followers: 12, Following: 1})
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, out, "12 followers")
+	mustContain(t, out, "1 following") // "following" does not inflect
+	mustNotContain(t, out, "data-follow=")
+
+	// a single follower is not "1 followers"
+	m.Follow = NewFollowView(db.FollowCounts{Followers: 1})
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, out, "1 follower<")
+
+	// nothing to say, and nobody who could act: the line is absent rather than
+	// rendered as a row of zeroes
+	m.Follow = NewFollowView(db.FollowCounts{})
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustNotContain(t, out, "0 followers")
+	mustNotContain(t, out, `class="hero-social"`)
+
+	// the control renders the counts with it, even at zero: the button's whole
+	// effect is on the number beside it
+	m.Follow.Control = true
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, out, `class="hero-social"`)
+	mustContain(t, out, "0 followers")
+	mustContain(t, out, `data-follow="drewtest"`)
+	mustContain(t, out, `aria-pressed="false"`)
+	mustContain(t, out, ">Follow<")
+	mustNotContain(t, out, "is-following")
+
+	// already following: the state is on the class, on aria-pressed, and in the
+	// visible label. Both labels stay in the DOM so the button cannot resize.
+	m.Follow.IsFollowing = true
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustContain(t, out, "is-following")
+	mustContain(t, out, `aria-pressed="true"`)
+	mustContain(t, out, ">Following<")
+	mustContain(t, out, ">Follow<")
+
+	// a closed account publishes nothing, the follow block included
+	m.Closed = true
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustNotContain(t, out, `class="hero-social"`)
+	mustNotContain(t, out, "data-follow=")
+}
+
+// TestRenderProfileFollowLists covers the counts as list openers and the dialog
+// they open (arch/FOLLOWING.md Phase 2). The rows are not asserted here — they
+// are rendered in the client, on purpose, so there is nothing in the server's
+// output to check beyond the frame.
+func TestRenderProfileFollowLists(t *testing.T) {
+	m := profileFixture()
+	m.Follow = NewFollowView(db.FollowCounts{Followers: 31, Following: 3})
+	out := renderSmoke(t, Profile(ProfileMeta(m), m))
+
+	// each count opens its own list
+	mustContain(t, out, `data-follow-open="followers"`)
+	mustContain(t, out, `data-follow-open="following"`)
+	// the dialog is mounted with the account it belongs to; the viewer is empty
+	// in a smoke render, which is the signed-out case
+	mustContain(t, out, `id="modalFollow"`)
+	mustContain(t, out, `data-follow-owner="drewtest"`)
+	mustContain(t, out, "Followers")
+	mustContain(t, out, "Load more")
+	mustContain(t, out, "lio-follow.")
+
+	// A count with nothing behind it is disabled rather than swapped for plain
+	// text, so a first follower does not change the shape of the line.
+	m.Follow = NewFollowView(db.FollowCounts{Followers: 4})
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	if strings.Count(out, `data-follow-open`) != 2 {
+		t.Fatal("both counts must render as controls, populated or not")
+	}
+	mustContain(t, out, `data-following-count disabled`)
+	mustNotContain(t, out, `data-follower-count disabled`)
+
+	// a closed account has no counts, so it needs no dialog either
+	m.Closed = true
+	out = renderSmoke(t, Profile(ProfileMeta(m), m))
+	mustNotContain(t, out, `id="modalFollow"`)
+	mustNotContain(t, out, "lio-follow.")
+}
+
 // TestRenderProfileRatingHistory covers the rating curve on the page: the SVG
 // renders server-side, the tiles become selectors, exactly one panel opens, and
 // every plotted value is also reachable without hovering.

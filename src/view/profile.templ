@@ -48,6 +48,12 @@ templ Profile(meta Meta, m ProfileModel) {
 				// addressed to a person: the Computer opponent is disabled, so the
 				// difficulty picker it would hand off to is unreachable.
 				@createGameModal()
+				// The follower / following lists (arch/FOLLOWING.md Phase 2),
+				// mounted wherever their counts can be clicked. A closed
+				// account publishes no counts, so it needs no dialog either.
+				if !m.Closed {
+					@followModal(m.Username, viewer(ctx).Username)
+				}
 				@footer(meta, "max-w-[60rem]")
 			</div>
 			if m.ShowMod {
@@ -61,6 +67,10 @@ templ Profile(meta Meta, m ProfileModel) {
 		@scriptsBase(meta)
 		if !m.Closed {
 			<script src={ asset("lio-profile.js") }></script>
+			// its own file, not a block in lio-profile.js: the same dialog and
+			// the same row renderer serve the header's following popover in
+			// Phase 5, which is not a profile-page script
+			<script src={ asset("lio-follow.js") }></script>
 		}
 		if m.ShowMod {
 			<script src={ asset("lio-mod.js") }></script>
@@ -86,10 +96,49 @@ templ profileIdentity(m ProfileModel) {
 				if m.Joined != "" {
 					<p class="hero-since">Member since { m.Joined }</p>
 				}
+				// The two public counts (arch/FOLLOWING.md), each opening its
+				// list. The line renders whenever the follow control does, even
+				// at zero: the button's whole effect is on the number beside
+				// it, and a figure that appeared on the first press would read
+				// as a page changing shape under the person pressing it.
+				if !m.Closed && (m.Follow.Show || m.Follow.Control) {
+					<p class="hero-social">
+						<button
+							type="button"
+							class="hero-social-figure"
+							data-follow-open="followers"
+							data-follower-count
+							disabled?={ !m.Follow.HasFollowers }
+						>{ m.Follow.Followers }</button>
+						<span class="hero-social-sep" aria-hidden="true">·</span>
+						<button
+							type="button"
+							class="hero-social-figure"
+							data-follow-open="following"
+							data-following-count
+							disabled?={ !m.Follow.HasFollowing }
+						>{ m.Follow.Following }</button>
+					</p>
+				}
 				// A closed account cannot answer, and neither can one already
 				// seated at a board — see canChallenge for the rest of the rule.
-				if !m.Closed && canChallenge(viewer(ctx), m.Username, m.Busy) {
-					@challengeButton(m.Username, "btn btn-ghost challenge-btn")
+				// Following is not withheld from a busy player: it asks nothing
+				// of them, so there is nothing for them to be too busy for.
+				if !m.Closed && (canChallenge(viewer(ctx), m.Username, m.Busy) || m.Follow.Control) {
+					<div class="hero-actions">
+						if canChallenge(viewer(ctx), m.Username, m.Busy) {
+							@challengeButton(m.Username, "btn btn-ghost challenge-btn")
+						}
+						if m.Follow.Control {
+							@followButton(m.Username, m.Follow.IsFollowing)
+							// Sits inside the action row, not under it, so the
+							// row's height is set by the buttons and a message
+							// appearing costs no reflow. Doubles as the polite
+							// announcement of a state change that a tint and an
+							// aria-pressed flip would not otherwise speak.
+							<span class="follow-status" role="status" aria-live="polite" data-follow-status></span>
+						}
+					</div>
 				}
 			</div>
 			<div class="hero-aside">

@@ -3703,6 +3703,47 @@
 	}
 	.hero-since { margin-top: 0.2rem; font-size: 0.78rem; color: var(--text-subtle); }
 
+	/* the follow counts, as a sentence under the name rather than as tiles: the
+	   hero already carries two figure tiles on the other side, and four numbers
+	   competing for the same glance is three too many (arch/FOLLOWING.md) */
+	.hero-social {
+		margin-top: 0.3rem;
+		display: flex;
+		align-items: baseline;
+		gap: 0.4rem;
+		font-size: 0.78rem;
+		color: var(--text-muted);
+	}
+	/* Each figure opens its list. A count with nothing behind it is disabled
+	   rather than swapped for plain text, so the line keeps its shape when a
+	   first follower arrives. */
+	.hero-social-figure {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: inherit;
+		font-variant-numeric: tabular-nums;
+		cursor: pointer;
+		border-bottom: 2px dashed transparent;
+	}
+	.hero-social-figure:not(:disabled):hover {
+		color: var(--text);
+		border-bottom-color: var(--accent);
+	}
+	.hero-social-figure:disabled { cursor: default; opacity: 0.75; }
+	.hero-social-sep { color: var(--text-subtle); }
+
+	/* the hero's action row. Challenge and Follow sit side by side and wrap
+	   together on a narrow viewport; the margin lives here rather than on either
+	   button so a hero showing only one of them spaces identically. */
+	.hero-actions {
+		margin-top: 0.5rem;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
 	/* figures, not prose: these are the numbers a visitor scans for */
 	.hero-figures { display: flex; gap: 0.5rem; }
 	.hero-figure {
@@ -5198,6 +5239,9 @@
 	.notify-row.kind-milestone { border-left-color: var(--win); }
 	.notify-row.kind-system { border-left-color: var(--accent); }
 	.notify-row.kind-staff { border-left-color: var(--accent); }
+	/* a new follower is good news, so it shares the milestone tint rather than
+	   the accent every neutral kind already wears (arch/FOLLOWING.md) */
+	.notify-row.kind-follow { border-left-color: var(--win); }
 
 	.notify-row-body {
 		flex: 1 1 auto;
@@ -5226,6 +5270,19 @@
 		font-size: 0.9rem;
 		line-height: 1.3;
 		text-align: center;
+	}
+	/* A drawn glyph rather than an emoji (svgGlyphs in lio-notify.js). The
+	   emoji marks sit on a text baseline and an SVG has none, so it is nudged
+	   down to line up with the first line of body text beside it. The lighter
+	   stroke overrides the helper's default, which is weighted for the 1rem
+	   tick and cross on the challenge buttons and reads as a blob at this size
+	   on a four-shape glyph. */
+	.notify-row-icon svg {
+		display: block;
+		width: 1rem;
+		height: 1rem;
+		margin: 0.12rem auto 0;
+		stroke-width: 2;
 	}
 
 	.notify-row.kind-challenge { border-left-color: var(--accent); }
@@ -5447,12 +5504,175 @@
 	}
 	.roster-challenge svg { width: 0.85rem; height: 0.85rem; }
 
-	/* The full button on a player page, under their name. */
+	/* The full button on a player page, under their name. The top margin lives
+	   on .hero-actions now, which is what actually spaces the row. */
 	.challenge-btn {
-		margin-top: 0.5rem;
 		gap: 0.4rem;
 		align-self: flex-start;
 	}
+
+	/* --- follow control (arch/FOLLOWING.md) -------------------------------- */
+
+	/* Both states are always rendered, stacked, so the button is sized by the
+	   longer label from the first paint and pressing it never resizes it — the
+	   same no-layout-shift rule the create-game dialog's copy swaps follow. */
+	.follow-btn { gap: 0.4rem; align-self: flex-start; }
+	.follow-ico { display: grid; place-items: center; width: 1rem; height: 1rem; }
+	.follow-glyph { grid-area: 1 / 1; width: 1rem; height: 1rem; }
+	.follow-copy { display: grid; align-items: center; }
+	.follow-line { grid-area: 1 / 1; white-space: nowrap; }
+
+	/* unfollowed: the "off" half shows */
+	.follow-glyph[data-state="on"],
+	.follow-line[data-state="on"] { visibility: hidden; }
+	/* followed: swap both halves, and tint the button so the state reads at a
+	   glance as well as in words */
+	.follow-btn.is-following .follow-glyph[data-state="off"],
+	.follow-btn.is-following .follow-line[data-state="off"] { visibility: hidden; }
+	.follow-btn.is-following .follow-glyph[data-state="on"],
+	.follow-btn.is-following .follow-line[data-state="on"] { visibility: visible; }
+	.follow-btn.is-following {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	/* the hover promise: pressing a followed button unfollows, so it warns
+	   rather than reinforcing the state it is about to leave */
+	.follow-btn.is-following:not(:disabled):hover {
+		border-color: var(--loss);
+		color: var(--loss);
+	}
+	/* in flight: the write is one round trip, so the control simply stops
+	   accepting presses rather than growing a spinner */
+	.follow-btn.is-busy { opacity: 0.6; pointer-events: none; }
+
+	/* The status line rides *inside* the action row, so the row keeps the
+	   buttons' height and a message costs no reflow. Empty almost always. */
+	.follow-status {
+		align-self: center;
+		font-size: 0.72rem;
+		color: var(--loss);
+	}
+
+	/* --- the follower / following dialog ----------------------------------- */
+
+	/* Reuses the shared .modal-shade / .modal-close chrome.
+
+	   The height is fixed, not max-height. The dialog is centred, so a box that
+	   sized itself to its contents would re-centre every time the reader
+	   switched tabs — a two-row Following list next to a thirty-row Followers
+	   list moves the close button out from under the cursor that just used it.
+	   A short list leaves whitespace below instead, which costs nothing. */
+	.follow-modal {
+		display: flex;
+		flex-direction: column;
+		width: min(28rem, 92vw);
+		height: min(26rem, 75vh);
+		gap: 0.75rem;
+	}
+	.follow-head { display: flex; flex-direction: column; gap: 0.6rem; }
+	.follow-title {
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.follow-tabs {
+		display: flex;
+		gap: 0.25rem;
+		border-bottom: 1px solid var(--border);
+	}
+	.follow-tab {
+		background: none;
+		border: none;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -1px;
+		padding: 0.4rem 0.6rem;
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--text-subtle);
+		cursor: pointer;
+	}
+	.follow-tab:hover { color: var(--text); }
+	.follow-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+
+	.follow-list { flex: 1; overflow-y: auto; min-height: 6rem; }
+	.follow-empty { padding: 1.2rem 0.2rem; font-size: 0.8rem; color: var(--text-subtle); }
+	.follow-rows { display: flex; flex-direction: column; }
+	.follow-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		padding: 0.45rem 0.2rem;
+		border-bottom: 1px solid var(--border);
+	}
+	.follow-row:last-child { border-bottom: none; }
+	.follow-who {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 0.4rem;
+		text-decoration: none;
+		color: var(--text);
+		font-size: 0.88rem;
+		font-weight: 600;
+	}
+	.follow-who:hover .follow-name { color: var(--accent); }
+	.follow-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	/* online is said in words beside the dot, so the state never depends on
+	   color alone — the same rule the home roster's chips follow */
+	.follow-dot {
+		flex: none;
+		width: 0.45rem;
+		height: 0.45rem;
+		border-radius: 50%;
+		background: var(--win);
+	}
+	.follow-tag {
+		flex: none;
+		font-size: 0.62rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-subtle);
+	}
+
+	/* the per-row toggle: the same two-state control as the hero button, sized
+	   for a list row and stacked the same way so it never resizes */
+	.follow-mini {
+		display: grid;
+		align-items: center;
+		flex: none;
+		padding: 0.2rem 0.55rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+	.follow-mini:hover { border-color: var(--accent); color: var(--text); }
+	.follow-mini.is-following { border-color: var(--accent); color: var(--accent); }
+	.follow-mini.is-following:hover { border-color: var(--loss); color: var(--loss); }
+	.follow-mini.is-busy { opacity: 0.6; pointer-events: none; }
+	.follow-mini .follow-line { grid-area: 1 / 1; white-space: nowrap; }
+	.follow-mini .follow-line[data-state="on"] { visibility: hidden; }
+	.follow-mini.is-following .follow-line[data-state="off"] { visibility: hidden; }
+	.follow-mini.is-following .follow-line[data-state="on"] { visibility: visible; }
+
+	.follow-more {
+		align-self: center;
+		padding: 0.35rem 0.9rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+	.follow-more:hover { border-color: var(--accent); color: var(--text); }
 
 	/* --- feedback inbox (/system) ----------------------------------------- */
 

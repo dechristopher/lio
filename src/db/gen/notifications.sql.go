@@ -209,3 +209,35 @@ func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotification
 	err := row.Scan(&id)
 	return id, err
 }
+
+const recentFollowNotice = `-- name: RecentFollowNotice :one
+SELECT EXISTS (SELECT 1
+               FROM notifications
+               WHERE user_id = $1
+                 AND actor_id = $2
+                 AND kind = 'follow'
+                 AND created_at > now() - INTERVAL '1 day') AS found
+`
+
+type RecentFollowNoticeParams struct {
+	UserID  int64
+	ActorID *int64
+}
+
+// Has this account already been told about this follower lately?
+//
+// Without it, follow → unfollow → follow is a notification generator: each new
+// edge is genuinely new (db.Follow reports it as created), so each one would
+// announce itself. The write path is rate limited and a follow needs an
+// account, but neither of those stops a slow, deliberate loop from filling
+// somebody's panel.
+//
+// It rides the existing notifications_recent_idx (user_id, created_at DESC), so
+// it needs no index of its own: the range is one day of one account's messages,
+// and it runs only on a follow that actually created an edge.
+func (q *Queries) RecentFollowNotice(ctx context.Context, arg RecentFollowNoticeParams) (bool, error) {
+	row := q.db.QueryRow(ctx, recentFollowNotice, arg.UserID, arg.ActorID)
+	var found bool
+	err := row.Scan(&found)
+	return found, err
+}

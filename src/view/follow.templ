@@ -1,0 +1,96 @@
+package view
+
+import "strconv"
+
+// The follow control (arch/FOLLOWING.md). The counts it changes are rendered by
+// the profile hero; this is the button, and it lives in its own file because
+// the feature's list modal joins it here in Phase 2.
+
+// followButton is the two-state control on a player page. It is rendered only
+// for a viewer who may press it — logged in, looking at somebody else's open
+// account — which the model decides (FollowView.Control).
+//
+// The state is carried three ways on purpose. The class drives the styling,
+// aria-pressed tells a screen reader which of the two states holds, and the
+// visible label says it in words. A control whose only difference is a tint
+// says nothing to somebody who cannot see the tint.
+//
+// It carries no form and no href. Following is a fetch against /api/follow,
+// because the answer belongs in the button rather than in a new page.
+templ followButton(username string, following bool) {
+	<button
+		type="button"
+		class={ "btn btn-ghost follow-btn", templ.KV("is-following", following) }
+		data-follow={ username }
+		aria-pressed={ strconv.FormatBool(following) }
+	>
+		<span class="follow-ico" aria-hidden="true">
+			@iconUserPlus()
+			@iconUserCheck()
+		</span>
+		// Both labels stay in the DOM, stacked in one grid cell, so the button
+		// is as wide as the longer of the two from the first paint. Pressing it
+		// must not resize it and shift the Challenge button beside it.
+		<span class="follow-copy">
+			<span class="follow-line" data-state="off">Follow</span>
+			<span class="follow-line" data-state="on">Following</span>
+		</span>
+	</button>
+}
+
+// followModal is the dialog behind the two counts in the hero: who follows this
+// player, and who they follow.
+//
+// One dialog with two tabs rather than two dialogs. The lists are the same
+// shape, comparing them is a thing people do, and a reader who opened the wrong
+// one should not have to close it to reach the other.
+//
+// The rows are **not** rendered here. The list is paged, so a Go renderer and a
+// JavaScript renderer would both have to exist and would drift apart the first
+// time a row grew a field — the same reason the notification panel renders in
+// the client (arch/NOTIFICATIONS.md). This is the frame; lio-follow.js fills it.
+//
+// owner is the account whose lists these are. viewer is the account reading
+// them, empty when signed out: the client needs it to know whether a row toggle
+// also moves the owner's "following" figure, which happens exactly when the two
+// are the same person.
+templ followModal(owner, viewer string) {
+	<div id="modalFollow" class="modal-shade" data-follow-owner={ owner } data-follow-viewer={ viewer }>
+		<div class="modal follow-modal card">
+			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
+			<div class="follow-head">
+				<h2 class="follow-title">{ owner }</h2>
+				<div class="follow-tabs" role="tablist" aria-label="Follow lists">
+					<button type="button" class="follow-tab" role="tab" aria-selected="true" data-follow-tab="followers">Followers</button>
+					<button type="button" class="follow-tab" role="tab" aria-selected="false" data-follow-tab="following">Following</button>
+				</div>
+			</div>
+			<div class="follow-list" data-follow-list role="tabpanel">
+				<p class="follow-empty">Loading…</p>
+			</div>
+			// Rendered always and revealed only when another page exists. A
+			// paginator that is created on demand would shift the list under a
+			// reader at the moment they reached the end of it.
+			<button type="button" class="follow-more" data-follow-more hidden>Load more</button>
+		</div>
+	</div>
+}
+
+// iconUserPlus is the lucide "user-plus" glyph: the unfollowed state.
+templ iconUserPlus() {
+	<svg class="follow-glyph" data-state="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+		<circle cx="9" cy="7" r="4"></circle>
+		<line x1="19" y1="8" x2="19" y2="14"></line>
+		<line x1="22" y1="11" x2="16" y2="11"></line>
+	</svg>
+}
+
+// iconUserCheck is the lucide "user-check" glyph: the followed state.
+templ iconUserCheck() {
+	<svg class="follow-glyph" data-state="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+		<circle cx="9" cy="7" r="4"></circle>
+		<polyline points="16 11 18 13 22 9"></polyline>
+	</svg>
+}

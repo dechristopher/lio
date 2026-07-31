@@ -20,6 +20,12 @@ type Feedback struct {
 	ReadBy    *int64
 }
 
+type Follow struct {
+	FollowerID int64
+	FolloweeID int64
+	CreatedAt  pgtype.Timestamptz
+}
+
 type Game struct {
 	ID               int32
 	GameID           uuid.UUID

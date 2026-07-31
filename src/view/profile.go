@@ -83,6 +83,10 @@ type ProfileModel struct {
 	H2H     string
 	H2HShow bool
 
+	// Follow is the social block: the two public counts, and the follow control
+	// for a viewer who may press it (arch/FOLLOWING.md).
+	Follow FollowView
+
 	// ShowReport offers the report control (arch/ADMIN_MODERATION.md Phase 4)
 	// to a logged-in visitor looking at somebody else's open account. Mutually
 	// exclusive with ShowMod: a moderator who can act on this account has the
@@ -228,6 +232,58 @@ func commas(n int64) string {
 		b.WriteString(s[i : i+3])
 	}
 	return b.String()
+}
+
+// FollowView is the profile's social block (arch/FOLLOWING.md): who follows
+// this account, who it follows, and — for a viewer who may act — the control
+// that changes the first of those.
+type FollowView struct {
+	// Followers / Following are finished phrases ("128 followers",
+	// "34 following"), not bare numbers: they read as a sentence under the
+	// name, where two unlabelled figures beside the hero's games/played tiles
+	// would be four numbers competing to be understood.
+	Followers string
+	Following string
+	// HasFollowers / HasFollowing report whether each count has a list behind
+	// it. A count of zero renders its button *disabled* rather than as plain
+	// text: the control keeps its place and its shape, so a first follower does
+	// not make the line change form under the person who just arrived. It is
+	// the same fade-in-place rule the create-game dialog follows.
+	HasFollowers bool
+	HasFollowing bool
+	// Show renders the counts line for a visitor who cannot act on it. False
+	// when nobody follows this account and it follows nobody — the same rule
+	// LifetimeView follows, for the same reason: "0 followers · 0 following" is
+	// a worse greeting for a new player than silence.
+	//
+	// The line renders regardless when Control does. A viewer holding the button
+	// is owed the number it changes, including while that number is zero.
+	Show bool
+	// Control offers the Follow button: a logged-in visitor looking at somebody
+	// else's open account.
+	//
+	// Unlike the challenge sword this is not withheld from a busy player.
+	// Following somebody who is mid-game is exactly when a person would want to,
+	// and unlike a challenge it asks nothing of them.
+	Control bool
+	// IsFollowing is the button's initial state. It is only the initial one:
+	// both writes are idempotent, so a button that rendered from a stale read
+	// still reaches the state its label promises.
+	IsFollowing bool
+}
+
+// NewFollowView renders the counts. The zero FollowCounts yields a block that
+// shows nothing, which is what an account nobody has met yet should render.
+func NewFollowView(c db.FollowCounts) FollowView {
+	return FollowView{
+		Followers: plural(c.Followers, "follower", "followers"),
+		// "following" does not inflect, so it is not run through plural: "1
+		// following" is correct and "1 followings" is not a word.
+		Following:    commas(c.Following) + " following",
+		HasFollowers: c.Followers > 0,
+		HasFollowing: c.Following > 0,
+		Show:         c.Followers > 0 || c.Following > 0,
+	}
 }
 
 // RecordView is a win/draw/loss tally rendered as strings.

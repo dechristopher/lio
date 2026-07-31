@@ -91,6 +91,23 @@
     staff: "\u{1F4AC}",
   };
 
+  // Kinds whose mark is a drawn icon rather than an emoji, checked before the
+  // glyph map above. An emoji renders as whatever the reader's operating system
+  // decided it looks like; a stroked icon is the site's own, follows
+  // currentColor, and matches the same glyph used on the buttons elsewhere on
+  // the page. New kinds belong here rather than in glyphs.
+  const svgGlyphs = {
+    // lucide "users" — the glyph the home page's "vs Human" button carries
+    // (iconUsers in view/components.templ). A follower is a person, and this is
+    // already how the site draws people.
+    follow: [
+      "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2",
+      ["circle", { cx: 9, cy: 7, r: 4 }],
+      "M23 21v-2a4 4 0 0 0-3-3.87",
+      "M16 3.13a4 4 0 0 1 0 7.75",
+    ],
+  };
+
   function when(ms) {
     const secs = Math.max(0, Math.round((Date.now() - ms) / 1000));
     if (secs < 60) return "just now";
@@ -143,10 +160,15 @@
     if (item.l && !live) el.href = item.l;
     if (item.id) el.dataset.id = item.id;
 
-    const icon = document.createElement("span");
-    icon.className = "notify-row-icon";
-    icon.textContent = glyphs[item.k] || "•";
-    icon.setAttribute("aria-hidden", "true");
+    const iconEl = document.createElement("span");
+    iconEl.className = "notify-row-icon";
+    iconEl.setAttribute("aria-hidden", "true");
+    const shapes = svgGlyphs[item.k];
+    if (shapes) {
+      iconEl.appendChild(icon(shapes));
+    } else {
+      iconEl.textContent = glyphs[item.k] || "•";
+    }
 
     const body = document.createElement("div");
     body.className = "notify-row-body";
@@ -168,7 +190,7 @@
     meta.appendChild(time);
     body.appendChild(meta);
 
-    el.appendChild(icon);
+    el.appendChild(iconEl);
     el.appendChild(body);
     if (live) el.appendChild(challengeActions(item));
     return el;
@@ -176,9 +198,14 @@
 
   // Builds one lucide-style stroke icon. createElementNS rather than innerHTML:
   // everything else in this file builds DOM node by node, and the site's CSP is
-  // strict enough that it is not worth introducing a second habit for two
+  // strict enough that it is not worth introducing a second habit for a few
   // glyphs.
-  function icon(paths) {
+  //
+  // A shape is either a path's "d" string or a [tag, attributes] pair, for the
+  // primitives a path cannot express readably — a circle written as two arcs is
+  // correct and unreadable, and these glyphs are copied from their templ twins
+  // by hand.
+  function icon(shapes) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("fill", "none");
@@ -187,10 +214,18 @@
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
     svg.setAttribute("aria-hidden", "true");
-    paths.forEach(function (d) {
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("d", d);
-      svg.appendChild(p);
+    shapes.forEach(function (shape) {
+      if (typeof shape === "string") {
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p.setAttribute("d", shape);
+        svg.appendChild(p);
+        return;
+      }
+      const el = document.createElementNS("http://www.w3.org/2000/svg", shape[0]);
+      Object.keys(shape[1]).forEach(function (k) {
+        el.setAttribute(k, shape[1][k]);
+      });
+      svg.appendChild(el);
     });
     return svg;
   }

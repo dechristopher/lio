@@ -5,6 +5,7 @@ import (
 
 	"github.com/dechristopher/lio/www/handlers/api/account"
 	"github.com/dechristopher/lio/www/handlers/api/feedback"
+	"github.com/dechristopher/lio/www/handlers/api/follow"
 	"github.com/dechristopher/lio/www/handlers/api/me"
 	"github.com/dechristopher/lio/www/handlers/api/mod"
 	"github.com/dechristopher/lio/www/handlers/api/pools"
@@ -31,6 +32,12 @@ func Wire(a fiber.Router) {
 	// limited because it is reachable by any logged-in visitor, and a queue is
 	// only useful while someone can still read it.
 	report.Wire(a.Group("/report", middleware.AuthAPILimiter()))
+
+	// the follow graph (arch/FOLLOWING.md), reachable by any logged-in visitor.
+	// Rate-limited like the other account-reachable groups. The writes inside are
+	// scoped to the session — the follower is always the caller — so the group
+	// needs no role check either.
+	follow.Wire(a.Group("/follow", middleware.AuthAPILimiter()))
 
 	// site feedback, reachable by any logged-in visitor. Its own limiter rather
 	// than the auth one: this is a burst bound on a single deliberate action

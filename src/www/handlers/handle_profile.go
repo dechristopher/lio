@@ -73,6 +73,9 @@ func ProfileHandler(c fiber.Ctx) error {
 	if !m.Closed {
 		fillProfileStats(&m, rec.ID)
 		fillViewerH2H(c, &m, rec.ID)
+		// after fillProfileStats: the counts are loaded there, and this adds the
+		// control that sits beside them
+		fillFollowControl(c, &m, rec.ID)
 	}
 
 	fillModBar(c, &m, rec)
@@ -227,6 +230,12 @@ func fillProfileStats(m *view.ProfileModel, userID int64) {
 		}
 		return nil
 	})
+	g.Go(func() error {
+		if counts, err := db.FollowCountsForUser(userID); err == nil {
+			m.Follow = view.NewFollowView(counts)
+		}
+		return nil
+	})
 
 	_ = g.Wait() // never non-nil; every leg degrades in place
 
@@ -308,6 +317,21 @@ func fillViewerH2H(c fiber.Ctx, m *view.ProfileModel, userID int64) {
 	}
 	m.H2HShow = true
 	m.H2H = view.FormatPoints(h2h.AScore) + " – " + view.FormatPoints(h2h.BScore)
+}
+
+// fillFollowControl adds the follow button and its current state, for a
+// logged-in visitor looking at somebody else's account (arch/FOLLOWING.md).
+//
+// Only reached for an open account: a closed one publishes nothing, so the
+// whole social block is absent along with the rest of the page's claims about
+// it. The API refuses a follow of a banned account independently.
+func fillFollowControl(c fiber.Ctx, m *view.ProfileModel, userID int64) {
+	acct := user.GetAccount(c)
+	if acct == nil || acct.ID == userID {
+		return
+	}
+	m.Follow.Control = true
+	m.Follow.IsFollowing = db.IsFollowing(acct.ID, userID)
 }
 
 // fillReportControl decides whether the page offers the report control: a

@@ -31,10 +31,57 @@ package presence
 import (
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/message"
 )
+
+// idsTTL bounds how stale the cached online-account set may be.
+//
+// The walk behind it snapshots every channel's socket map, which is cheap on
+// the home page's 5-second poll and not cheap once per page render. The cache
+// makes concurrent callers share one walk. Two seconds is under the home
+// page's own poll interval, so no two surfaces can visibly disagree about who
+// is online (arch/FOLLOWING.md).
+const idsTTL = 2 * time.Second
+
+var idsCache struct {
+	sync.Mutex
+	ids     []int64
+	fetched time.Time
+}
+
+// OnlineIDs returns the account ids holding a live socket anywhere on the site,
+// deduplicated — one entry for a person reading on a laptop and a phone.
+// Anonymous sessions are absent: they hold no account, so nothing can be keyed
+// to them.
+//
+// It is the left-hand side of the follow feature's central intersection. The
+// caller hands this set to db.FollowedAmong, which answers which of them the
+// viewer follows; the identities never leave the process (arch/FOLLOWING.md —
+// "The graph answers membership").
+func OnlineIDs() []int64 {
+	idsCache.Lock()
+	defer idsCache.Unlock()
+	if time.Since(idsCache.fetched) < idsTTL {
+		return idsCache.ids
+	}
+	seen := make(map[int64]struct{})
+	for _, acct := range channel.Connected() {
+		if acct.ID != 0 {
+			seen[acct.ID] = struct{}{}
+		}
+	}
+	ids := make([]int64, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	idsCache.ids = ids
+	idsCache.fetched = time.Now()
+	return ids
+}
 
 // Snapshot is the site-wide online picture, produced by a single walk so its
 // parts can never disagree: Total is the headcount behind the "Online" stat

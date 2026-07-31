@@ -77,3 +77,22 @@ SET read_at = now()
 WHERE user_id = $1
   AND read_at IS NULL
   AND (kind <> 'challenge' OR expires_at IS NULL OR expires_at <= now());
+
+-- name: RecentFollowNotice :one
+-- Has this account already been told about this follower lately?
+--
+-- Without it, follow → unfollow → follow is a notification generator: each new
+-- edge is genuinely new (db.Follow reports it as created), so each one would
+-- announce itself. The write path is rate limited and a follow needs an
+-- account, but neither of those stops a slow, deliberate loop from filling
+-- somebody's panel.
+--
+-- It rides the existing notifications_recent_idx (user_id, created_at DESC), so
+-- it needs no index of its own: the range is one day of one account's messages,
+-- and it runs only on a follow that actually created an edge.
+SELECT EXISTS (SELECT 1
+               FROM notifications
+               WHERE user_id = $1
+                 AND actor_id = $2
+                 AND kind = 'follow'
+                 AND created_at > now() - INTERVAL '1 day') AS found;
