@@ -553,6 +553,16 @@
 	.home-cta-list strong { color: var(--text); font-weight: 600; }
 	html[data-homecta="off"] .home-cta { display: none; }
 
+	/* The "What is Octad?" explainer. It borrows the pitch card's × (.home-cta-x)
+	   without its accent tint: this one is ordinary content a member may be done
+	   with, not an ask. Its dismissal is an account preference rather than a
+	   localStorage key, so there is no data-attribute rule beside the two above —
+	   the card is simply not rendered (view/home.templ octadAbout). The relative
+	   position is what the × anchors to. */
+	.home-about { position: relative; }
+	/* keep the heading clear of the × on the narrowest column */
+	.home-about > h2 { padding-right: 1.75rem; }
+
 	/* Rosters come in two shapes, because the two are read differently.
 
 	   The online/newest lists are *sets* — order carries little meaning, and a
@@ -3642,6 +3652,42 @@
 	}
 	.piece-btn:hover .piece-label { color: var(--text); }
 	.piece-btn.is-active .piece-label { color: var(--accent); }
+
+	/* Account-backed preference rows in the popover (view/components.templ
+	   prefSwitch). The switch itself is the create-game dialog's (.cg-switch,
+	   .cg-toggle-box, .cg-toggle-text, .cg-toggle-hint) so a toggle means the
+	   same thing everywhere; only the row chrome is redrawn tighter, because the
+	   popover is a menu of small settings rather than a form. */
+	.pref-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.45rem 0.55rem;
+		border-radius: var(--radius-md);
+		border: 2px solid var(--border);
+		background: var(--surface-2);
+		cursor: pointer;
+		text-align: left;
+		transition: border-color 0.15s var(--ease-snappy), background 0.15s var(--ease-snappy);
+	}
+	.pref-toggle:hover { border-color: var(--border-strong); }
+	.pref-toggle:has(.cg-toggle-box:checked) {
+		border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+		background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+	}
+	.pref-toggle-title { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+	/* the shared switch is sized for the dialog; the popover wants it smaller */
+	.pref-toggle .cg-switch { width: 1.85rem; height: 1.05rem; }
+	.pref-toggle .cg-switch::after { width: calc(1.05rem - 4px); height: calc(1.05rem - 4px); }
+	.pref-toggle:has(.cg-toggle-box:checked) .cg-switch { background: var(--accent); }
+	.pref-toggle:has(.cg-toggle-box:checked) .cg-switch::after { transform: translateX(0.8rem); }
+	.pref-toggle:has(.cg-toggle-box:focus-visible) .cg-switch {
+		outline: 2px solid var(--focus-ring);
+		outline-offset: 2px;
+	}
+	/* the row is inert while its write is in flight, so a second click cannot
+	   race the first (lio-nav.js clears it either way) */
+	.pref-toggle.is-saving { pointer-events: none; opacity: 0.6; }
 
 	/* --- player pages (/@/username) ------------------------------------- */
 

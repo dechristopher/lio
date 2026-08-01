@@ -198,6 +198,13 @@ type User struct {
 	BanReason          *string
 }
 
+type UserPref struct {
+	UserID    int64
+	Key       string
+	Value     string
+	UpdatedAt pgtype.Timestamptz
+}
+
 type WebauthnCredential struct {
 	ID              int64
 	UserID          int64

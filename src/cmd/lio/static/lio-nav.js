@@ -131,6 +131,86 @@
         }
     });
 
+    // ---- account-backed preferences -----------------------------------
+    // The theme/board/piece controls above persist to localStorage, because
+    // they resolve before first paint. These persist to the account instead,
+    // so they follow the player to their next device, and are therefore a
+    // round trip rather than a synchronous write.
+    //
+    // Two controls drive the same preference: the switch in this popover, and
+    // the × on the thing itself (the home page's "What is Octad?" card). Both
+    // land here, so there is one place that knows what a preference does to
+    // the page it is currently on.
+    const savePref = (key, on) =>
+        fetch("/api/me/prefs", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({key: key, on: on}),
+        }).then((r) => {
+            if (!r.ok) throw new Error("pref");
+        });
+
+    // What each preference does to the page in front of the viewer right now.
+    // Turning one *off* is applied in place — the card is simply taken out.
+    // Turning one back *on* cannot be: the markup is server-rendered and this
+    // page was built without it, so the home page reloads to fetch it and any
+    // other page has nothing to do until its next load.
+    const prefEffects = {
+        "home.about": (on) => {
+            const card = document.getElementById("homeAbout");
+            if (on) {
+                if (!card && document.getElementById("home-activity")) {
+                    window.location.reload();
+                }
+                return;
+            }
+            if (!card) return;
+            // the demo board keeps a timer and refetches; a detached one would
+            // keep doing both for as long as the page stayed open
+            if (window.lioHomeDemoStop) window.lioHomeDemoStop();
+            card.remove();
+        },
+    };
+    const applyPref = (key, on) => {
+        const effect = prefEffects[key];
+        if (effect) effect(on);
+    };
+
+    // The popover switch. The box carries the state, so a failed write puts it
+    // back rather than leaving the control claiming something the account does
+    // not say.
+    if (popover) popover.addEventListener("change", (e) => {
+        const box = e.target.closest("[data-pref]");
+        if (!box) return;
+        const row = box.closest(".pref-toggle");
+        const key = box.dataset.pref;
+        const on = box.checked;
+        if (row) row.classList.add("is-saving");
+        savePref(key, on)
+            .then(() => applyPref(key, on))
+            .catch(() => { box.checked = !on; })
+            .then(() => { if (row) row.classList.remove("is-saving"); });
+    });
+
+    // The × on a dismissible card. Delegated from the document because the
+    // card is elsewhere on the page, and only appears on some pages. The card
+    // stays put until the write lands: it comes back on the next load anyway
+    // if the write failed, and hiding it first would promise otherwise.
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-pref-off]");
+        if (!btn) return;
+        const key = btn.dataset.prefOff;
+        btn.disabled = true;
+        savePref(key, false)
+            .then(() => {
+                // keep the popover's switch honest without reopening it
+                const box = popover && popover.querySelector("[data-pref='" + key + "']");
+                if (box) box.checked = false;
+                applyPref(key, false);
+            })
+            .catch(() => { btn.disabled = false; });
+    });
+
     // Opening either popover closes the other first, so the two never
     // stack; the scrim then reflects whether anything is open.
     if (prefsBtn && popover) prefsBtn.addEventListener("click", (e) => {

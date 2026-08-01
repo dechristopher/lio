@@ -21,6 +21,7 @@ import (
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/prefs"
 	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/room"
@@ -166,6 +167,11 @@ type Viewer struct {
 	// *challenged* (room.AccountBusy). The rule is symmetric: a player who
 	// cannot accept an invitation is a player who should not be sending one.
 	Seated bool
+	// Prefs is the account's own display preferences (the prefs package): what
+	// this viewer has chosen to be shown. The zero value is the default set, so
+	// an anonymous viewer — and a component test that arranges nothing — reads
+	// exactly what a player who has never changed anything reads.
+	Prefs prefs.Snapshot
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -198,6 +204,11 @@ func viewerFrom(c fiber.Ctx) Viewer {
 			v.Following, v.FollowingOnline = s.Following, s.Online
 			// a constant-time index lookup, not a registry walk
 			v.Seated = room.AccountBusy(uc.Account.ID)
+			// TTL-cached per account, so this is a map lookup on all but the
+			// first render in a window. Read on every page, not just the ones
+			// that act on a preference: the header's popover renders the
+			// switches themselves.
+			v.Prefs = prefs.For(uc.Account.ID)
 		}
 	}
 	return v

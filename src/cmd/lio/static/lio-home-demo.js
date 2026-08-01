@@ -55,8 +55,16 @@
 	let timer = null;
 	let pending = null; // { fn, delay }
 	let paused = document.hidden;
+	// stopped is one-way, unlike paused: the card can be dismissed out from
+	// under the demo (lio-nav.js), and nothing should re-arm the loop after
+	// that — not a tab coming back to the foreground, and not a fetch that was
+	// already in flight when the card went away.
+	let stopped = false;
 
 	const arm = (fn, delay) => {
+		if (stopped) {
+			return;
+		}
 		pending = {fn: fn, delay: delay};
 		clearTimeout(timer);
 		if (paused) {
@@ -190,6 +198,19 @@
 			og.destroy();
 		} catch (e) { /* ignore */ }
 	});
+
+	// Called by lio-nav.js when a signed-in player hides the explainer card the
+	// board lives in. The card only comes back on a fresh load, which re-runs
+	// this file, so tearing down for good is exactly right here.
+	window.lioHomeDemoStop = function () {
+		stopped = true;
+		pending = null;
+		clearTimeout(timer);
+		timer = null;
+		try {
+			og.destroy();
+		} catch (e) { /* ignore */ }
+	};
 
 	fetchBatch();
 })();

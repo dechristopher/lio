@@ -89,5 +89,10 @@ templ scriptsTV(meta Meta) {
 	<script src={ asset("octadground.js") }></script>
 	<script src={ asset("lio-tv.js") }></script>
 	<script src={ asset("lio-home.js") }></script>
-	<script src={ asset("lio-home-demo.js") }></script>
+	// the demo board only exists while the explainer does, and a member who put
+	// that card away should not pay for the script that drives it. It
+	// self-guards on its mount too, so this is a saved request, not a fix
+	if viewer(ctx).Prefs.ShowHomeAbout() {
+		<script src={ asset("lio-home-demo.js") }></script>
+	}
 }

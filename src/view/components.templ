@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/prefs"
 	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/title"
 )
@@ -269,7 +270,13 @@ templ updateNoticeScript() {
 // theme control is wired to the no-flash theme helpers; the rest are stubbed
 // placeholders for settings that land alongside accounts.
 templ prefsPopover() {
-	<div id="prefsPopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-72 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
+	// The menu is taller than a short viewport (a laptop in a small window, a
+	// phone in landscape) once every section is in it, so it scrolls inside
+	// itself rather than running off the bottom with its last rows unreachable.
+	// dvh, not vh: on mobile the browser chrome collapses as the page scrolls,
+	// and vh would size to the *expanded* viewport and hide the bottom row
+	// behind it.
+	<div id="prefsPopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden max-h-[calc(100dvh-5.5rem)] w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
 		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Preferences</p>
 		<div class="mt-2">
 			<p class="mb-1.5 text-xs font-medium text-fg-muted">Theme</p>
@@ -308,10 +315,49 @@ templ prefsPopover() {
 				@pieceOption("merida", "Merida")
 			</div>
 		</div>
+		if viewer(ctx).LoggedIn {
+			// Account-backed preferences, below the three that are not: theme,
+			// board and pieces live in localStorage because they must resolve
+			// before first paint, while these are stored against the account and
+			// follow the player between devices (the prefs package). Shown only
+			// to a signed-in viewer — there is nowhere to keep the answer
+			// otherwise, and a switch that forgets is worse than no switch.
+			<div class="mt-3 border-t border-line pt-3">
+				<p class="mb-1.5 text-xs font-medium text-fg-muted">Home page</p>
+				@prefSwitch(prefs.KeyHomeAbout, "What is Octad?",
+					"The explainer card and its demo board",
+					viewer(ctx).Prefs.ShowHomeAbout())
+			</div>
+		}
 		<div class="mt-3 flex flex-col gap-2 border-t border-line pt-3 opacity-60">
 			@prefStub("Sounds")
 		</div>
 	</div>
+}
+
+// prefSwitch is one account-backed preference in the popover: a label, a hint
+// and a switch. It reuses the create-game dialog's switch chrome (.cg-switch) at
+// a size that fits the popover, so the site has one thing a toggle looks like.
+//
+// The checkbox is the state — no separate active class to keep in step — and
+// lio-nav.js persists the change from the popover's delegated listener. It is
+// left checked optimistically on click and put back only if the write fails: a
+// display preference that flickers while a round trip resolves reads as a
+// control that did not take.
+templ prefSwitch(key, label, hint string, on bool) {
+	<label class="pref-toggle">
+		<input
+			type="checkbox"
+			class="cg-toggle-box"
+			data-pref={ key }
+			checked?={ on }
+		/>
+		<span class="cg-toggle-text">
+			<span class="pref-toggle-title">{ label }</span>
+			<span class="cg-toggle-hint">{ hint }</span>
+		</span>
+		<span class="cg-switch"></span>
+	</label>
 }
 
 // boardSwatch is one board-theme choice in the preferences popover: a 2x2 checker

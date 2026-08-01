@@ -16,6 +16,7 @@ import (
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/news"
+	"github.com/dechristopher/lio/prefs"
 	"github.com/dechristopher/lio/role"
 	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/store"
@@ -165,6 +166,49 @@ func TestRenderIndex(t *testing.T) {
 	// viewer is anonymous with accounts disabled, so it must not render (and the
 	// dangling "Log in" link is never emitted)
 	mustNotContain(t, out, `class="cg-rated`)
+}
+
+// The "What is Octad?" explainer is dismissible, but only by somebody with an
+// account to remember the answer. Three viewers, three outcomes:
+//
+//   - anonymous: the card renders and carries no ×. It is the one thing on the
+//     page that says what this site is, and there is nowhere to store a
+//     dismissal anyway.
+//   - signed in, never dismissed: the card renders with its ×, and the header
+//     popover offers the switch that brings it back.
+//   - signed in, dismissed: the card is gone server-side, and so is the demo
+//     board's script — a member who put it away does not pay for it.
+func TestHomeAboutPreference(t *testing.T) {
+	page := func(v Viewer) string {
+		return renderSmokeViewer(t, v,
+			Index(PageMeta("Free Online Octad"), nil, message.SiteStats{}, message.Community{}))
+	}
+
+	anon := page(Viewer{AccountsEnabled: true})
+	mustContain(t, anon, "What is Octad?")
+	mustContain(t, anon, `id="homeAbout"`)
+	mustNotContain(t, anon, "data-pref-off")                  // no dismiss control
+	mustNotContain(t, anon, `data-pref="`+prefs.KeyHomeAbout) // and no switch
+
+	member := page(Viewer{AccountsEnabled: true, LoggedIn: true, Username: "drewtest"})
+	mustContain(t, member, `id="homeAbout"`)
+	mustContain(t, member, `data-pref-off="`+prefs.KeyHomeAbout+`"`)
+	// the popover switch, reflecting "shown"
+	mustContain(t, member, `data-pref="`+prefs.KeyHomeAbout+`" checked`)
+	mustContain(t, member, "lio-home-demo")
+
+	hidden := page(Viewer{AccountsEnabled: true, LoggedIn: true, Username: "drewtest",
+		Prefs: prefs.Snapshot{}.With(prefs.KeyHomeAbout, false)})
+	mustNotContain(t, hidden, "What is Octad?</h2>")
+	mustNotContain(t, hidden, `id="homeAbout"`)
+	mustNotContain(t, hidden, `id="home-demo-board"`)
+	mustNotContain(t, hidden, "lio-home-demo") // the script goes with the card
+	// the switch stays — it is the way back — and reads as off
+	mustContain(t, hidden, `data-pref="`+prefs.KeyHomeAbout+`">`)
+	mustNotContain(t, hidden, `data-pref="`+prefs.KeyHomeAbout+`" checked`)
+	// the rest of the page is untouched
+	mustContain(t, hidden, `id="home-activity"`)
+	mustContain(t, hidden, "octadground")
 }
 
 // An empty region still renders every section's shell, because the stream needs

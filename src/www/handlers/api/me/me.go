@@ -1,6 +1,7 @@
-// Package me holds the endpoints an account uses to read its own state. Today
-// that is the notification panel behind the bell in the header
-// (arch/NOTIFICATIONS.md).
+// Package me holds the endpoints an account uses to read and change its own
+// state: the notification panel behind the bell in the header
+// (arch/NOTIFICATIONS.md), and the display preferences the header's popover
+// offers (the prefs package).
 //
 // Everything here is scoped to the session. No handler accepts an account id
 // from a client, and no handler takes a username in a path: the answer is
@@ -46,6 +47,7 @@ func Wire(g fiber.Router) {
 	g.Post("/notifications/read", ReadHandler)
 	g.Post("/notifications/read-all", ReadAllHandler)
 	g.Post("/challenge/decline", DeclineChallengeHandler)
+	g.Post("/prefs", PrefHandler)
 }
 
 // listResponse is the panel's payload. The items use the socket's own item
@@ -70,8 +72,8 @@ type declineRequest struct {
 }
 
 // account resolves the signed-in account, or writes the refusal and reports
-// false. Notifications belong to accounts, so an anonymous visitor has nothing
-// to read here.
+// false. Everything in this group belongs to an account — its notifications,
+// its preferences — so an anonymous visitor has nothing to reach here.
 func account(c fiber.Ctx) (*user.Account, bool) {
 	if !auth.Enabled() {
 		_ = c.Status(fiber.StatusServiceUnavailable).
@@ -81,7 +83,7 @@ func account(c fiber.Ctx) (*user.Account, bool) {
 	acct := user.GetAccount(c)
 	if acct == nil {
 		_ = c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "log in to read notifications"})
+			JSON(errBody{Error: "log in first"})
 		return nil, false
 	}
 	return acct, true
