@@ -17,6 +17,12 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
+		Title: "Following & Learning",
+		Date:  "Jul 30, 2026",
+		Body: "You can now follow players. We've shipped updates to the homepage, notification " +
+			"system, and profile. There is also a new learning mode for beginner players.",
+	},
+	{
 		Title: "A Challenger Approaches",
 		Date:  "Jul 30, 2026",
 		Body: "You can now challenge players to a game (or match) directly on their profile " +
