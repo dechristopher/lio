@@ -70,6 +70,7 @@
 		reset: document.getElementById('learn-reset'),
 		next: document.getElementById('learn-next'),
 		finished: document.getElementById('learn-finished'),
+		doneModal: document.getElementById('learn-done-modal'),
 		annotation: document.getElementById('learn-annotation'),
 		deployQuestions: document.getElementById('learn-deploy-questions'),
 		deployOverlay: document.getElementById('learn-deploy-overlay'),
@@ -506,12 +507,27 @@
 			openLesson(course.lessons[i + 1].slug, true);
 			return;
 		}
-		// end of the course: the completion card is already revealed by
-		// renderProgress, so just settle the panel on it
+		// End of the course. renderProgress has already revealed the standing
+		// card; the congratulation itself is the modal, because the card is
+		// below the board on a phone and finishing used to mean being scrolled
+		// to a small green box under the pieces. Pressing Finish again reopens
+		// it — the button stays, so a dismissal is never final.
 		say('That is the whole course. Well done.', 'good');
 		renderActions();
-		if (el.finished) {
+		openDone();
+	}
+
+	// ---- completion modal ----
+	function openDone() {
+		if (el.doneModal) {
+			el.doneModal.classList.add('open');
+		} else if (el.finished) {
 			el.finished.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+		}
+	}
+	function closeDone() {
+		if (el.doneModal) {
+			el.doneModal.classList.remove('open');
 		}
 	}
 
@@ -1035,6 +1051,25 @@
 	}
 	if (el.deployConfirm) {
 		el.deployConfirm.addEventListener('click', commitDeploy);
+	}
+
+	// the completion modal dismisses like every other dialog on the site: its
+	// ×, a click on the shade, or Escape
+	if (el.doneModal) {
+		const closeBtn = el.doneModal.querySelector('.modal-close');
+		if (closeBtn) {
+			closeBtn.addEventListener('click', closeDone);
+		}
+		el.doneModal.addEventListener('click', (e) => {
+			if (e.target === el.doneModal) {
+				closeDone();
+			}
+		});
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') {
+				closeDone();
+			}
+		});
 	}
 
 	// the rail swaps lessons in place; every entry stays a real link, so

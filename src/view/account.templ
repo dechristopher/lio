@@ -14,11 +14,24 @@ import (
 // actions. lio-auth.js drives the forms/sections.
 templ profilePopover(username string, t title.Title) {
 	<div id="profilePopover" class="absolute right-0 top-[calc(100%+0.5rem)] z-50 hidden w-80 max-w-[calc(100vw-1.5rem)] max-[400px]:w-[calc(100vw-1.5rem)] rounded-lg border-2 border-line-strong bg-elevated p-3 text-left shadow-lg ring-1 ring-black/5">
-		<div class="mt-1 flex items-center gap-2">
-			<p class="flex min-w-0 flex-1 items-center gap-1.5 truncate text-md font-semibold text-fg">
+		// The title row doubles as the narrow-screen home of two header
+		// controls. Under 500px the header cannot hold the username and four
+		// icons, so the following list and the preferences gear render here
+		// instead (app.css .hdr-relocatable / .hdr-relocated display exactly one
+		// copy of each). The pencil is a full hdr-icon-btn rather than the
+		// smaller square it used to be, so the row is one size of control at
+		// every width instead of a 36px pair beside a 28px odd one out.
+		<div class="mt-1 flex items-center gap-1.5">
+			<p class="flex min-w-0 flex-1 items-center gap-1.5 truncate text-md font-semibold text-fg mr-0.5">
 				@playerName(t, username, "/@/"+username)
 			</p>
-			<button type="button" id="editProfileButton" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 border-line bg-panel text-fg-muted transition duration-150 ease-snappy hover:border-line-strong hover:text-fg" aria-label="Edit profile" title="Edit profile">
+			if viewer(ctx).Following > 0 {
+				@followingButton("followingButtonProfile", "hdr-relocated")
+			}
+			<button type="button" id="prefsButtonProfile" aria-label="Preferences" title="Preferences" class="hdr-icon-btn hdr-relocated shrink-0">
+				@iconGear()
+			</button>
+			<button type="button" id="editProfileButton" class="hdr-icon-btn shrink-0" aria-label="Edit profile" title="Edit profile">
 				@iconPencil()
 			</button>
 		</div>

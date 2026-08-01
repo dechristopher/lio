@@ -95,11 +95,19 @@ templ followModal(owner, viewer string) {
 // Rendering it here as well is still right: the socket opens a moment after the
 // paint, and a badge that appeared late would read as somebody who had just
 // signed on.
-templ followingButton() {
+//
+// Rendered twice per page — once in the header, once in the profile popover's
+// title row — because under 500px the header has no room for it beside the
+// username (app.css .hdr-relocatable / .hdr-relocated show exactly one of the
+// pair). Hence the id and placement class as parameters, and data-following-btn
+// on both: it is how lio-follow.js repaints every copy of the badge, and how
+// lio-nav.js is spared knowing which copies a page happens to carry.
+templ followingButton(id string, place string) {
 	<button
 		type="button"
-		id="followingButton"
-		class="hdr-icon-btn hdr-badged shrink-0"
+		id={ id }
+		data-following-btn
+		class={ "hdr-icon-btn hdr-badged shrink-0 " + place }
 		aria-label="Following"
 		title="Following"
 		aria-haspopup="true"

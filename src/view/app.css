@@ -1990,6 +1990,19 @@
 	}
 	.hdr-icon-btn:active { transform: translateY(0); }
 
+	/* Two header controls — the following list and the preferences gear —
+	   relocate into the profile popover's title row on a narrow phone, where
+	   the header cannot hold the username and four icons at once. They are
+	   copies, not moves: both are server-rendered, and this pair of rules
+	   displays exactly one of each. The breakpoint is written once, here, so a
+	   fractional viewport width can never show both copies or neither. The
+	   header copy carries .hdr-relocatable, the popover copy .hdr-relocated. */
+	.hdr-relocated { display: none; }
+	@media (max-width: 499.98px) {
+		.hdr-relocatable { display: none; }
+		.hdr-relocated { display: inline-flex; }
+	}
+
 	/* ---- header popover backdrop ----
 	   Dims + blurs the page behind an open header popover (preferences /
 	   profile). Deliberately lighter than .modal-shade — a menu is less modal
@@ -5283,22 +5296,37 @@
 	/* One message. The kind is carried on the left edge only, like the feedback
 	   rows: a rating record and a moderation decision are different things, but
 	   neither is a severity, and tinting whole rows would make the panel shout. */
+	/* --kind is the row's own color, set by the kind-* classes below and read
+	   by every border rule here. It exists because the kind lives on one edge
+	   at rest and on all four on hover, and a plain `border-color` shorthand in
+	   any later rule would silently take the left edge with it — which is
+	   exactly what the hover state used to do, flattening a colored row to
+	   grey under the cursor. Anything that sets border-color on a row must
+	   re-assert border-left-color, or set --kind instead.
+
+	   The default is the strong grey, so a row of an unknown kind — one written
+	   by a newer build and read by an older page — still reads as a plain
+	   message and still answers the cursor. */
 	.notify-row {
+		--kind: var(--border-strong);
 		display: flex;
 		gap: 0.5rem;
 		padding: 0.5rem 0.6rem;
 		border: 2px solid var(--border);
 		border-left-width: 4px;
+		border-left-color: var(--kind);
 		border-radius: var(--radius-sm);
 		color: inherit;
 		text-align: left;
 		text-decoration: none;
 	}
 	/* A row with a link is a link. One with no destination is a plain block, so
-	   it must not offer a pointer or a hover state that promises a navigation. */
+	   it must not offer a pointer or a hover state that promises a navigation.
+	   Hovering spreads the edge color the rest of the way around the row: the
+	   row is answering in its own color rather than losing it. */
 	a.notify-row:hover,
 	.notify-row:has(> .notify-row-link:hover) {
-		border-color: var(--border-strong);
+		border-color: var(--kind);
 	}
 	/* A row that carries both a destination and a control splits into two
 	   surfaces, like the roster pill: the message links to the person, the button
@@ -5317,22 +5345,49 @@
 	.notify-row > .follow-mini {
 		align-self: center;
 	}
+	/* In a notification the two states are inverted against every other
+	   follow control on the site, because the question is inverted. A follow
+	   list is a list of people already followed, where the tint reports a
+	   standing relationship; a "somebody followed you" row is an *offer*, and
+	   the thing worth marking is the one press that has not happened yet. So
+	   the accent goes on "Follow back", and "Following" — the answered row —
+	   goes quiet. The unfollow warning on hover is kept: it is a promise about
+	   what the press does, not a statement about the state. */
+	.notify-row > .follow-mini {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	.notify-row > .follow-mini:hover {
+		border-color: var(--accent-hover);
+		color: var(--accent-hover);
+	}
+	.notify-row > .follow-mini.is-following {
+		border-color: var(--border);
+		color: var(--text-muted);
+	}
+	.notify-row > .follow-mini.is-following:hover {
+		border-color: var(--loss);
+		color: var(--loss);
+	}
 	/* Unread is marked by weight and a wash rather than by color, so it never
-	   competes with the kind stripe on the same edge. */
+	   competes with the kind stripe on the same edge — hence the left edge put
+	   back after the shorthand. */
 	.notify-row.is-unread {
 		border-color: var(--border-strong);
+		border-left-color: var(--kind);
 		background: color-mix(in srgb, var(--text) 5%, transparent);
 	}
-	/* Kind stripes. An unknown kind — a row written by a newer build and read by
-	   an older page — keeps the default border and simply reads as a message,
-	   which is why no rule here is required for the row to render. */
-	.notify-row.kind-mod_action { border-left-color: var(--warn); }
-	.notify-row.kind-milestone { border-left-color: var(--win); }
-	.notify-row.kind-system { border-left-color: var(--accent); }
-	.notify-row.kind-staff { border-left-color: var(--accent); }
+	/* Kind stripes. Each kind names its color once; the row's borders read it
+	   from --kind. An unknown kind sets nothing, keeps the default, and simply
+	   reads as a message, which is why no rule here is required for the row to
+	   render. */
+	.notify-row.kind-mod_action { --kind: var(--warn); }
+	.notify-row.kind-milestone { --kind: var(--win); }
+	.notify-row.kind-system { --kind: var(--accent); }
+	.notify-row.kind-staff { --kind: var(--accent); }
 	/* a new follower is good news, so it shares the milestone tint rather than
 	   the accent every neutral kind already wears (arch/FOLLOWING.md) */
-	.notify-row.kind-follow { border-left-color: var(--win); }
+	.notify-row.kind-follow { --kind: var(--win); }
 
 	/* The players card's "Following" heading, tinted so the section reads as
 	   the viewer's own rather than as another slice of the site-wide roster
@@ -5358,6 +5413,14 @@
 		font-weight: 600;
 		color: var(--text-muted);
 	}
+	/* A name inside the message itself, rather than under it in the meta line —
+	   the follow row reads "<name> is now following you". Accent, so the person
+	   is the first thing found in a panel of sentences that all start the same
+	   way. */
+	.notify-name {
+		font-weight: 700;
+		color: var(--accent);
+	}
 	/* The glyph column. Fixed width so every row's text starts on the same line
 	   whatever the icon is. */
 	.notify-row-icon {
@@ -5379,11 +5442,11 @@
 		stroke-width: 2;
 	}
 
-	.notify-row.kind-challenge { border-left-color: var(--accent); }
+	.notify-row.kind-challenge { --kind: var(--accent); }
 	/* A broadcast: one message the whole site is reading. Warn-tinted like the
 	   site notice it sits beside in an operator's toolkit — it is the site
 	   speaking, not another player. */
-	.notify-row.kind-announce { border-left-color: var(--warn); }
+	.notify-row.kind-announce { --kind: var(--warn); }
 
 	/* A row that asks a question. The options are the only way to clear it, so
 	   they are full buttons rather than the icon pair a challenge uses: a
@@ -5519,7 +5582,14 @@
 		flex: 1 1 auto;
 		min-width: 0;
 		border: 0;
+		/* All three left properties, because `border: 0` resets all three: it
+		   zeroes the width, drops the style to `none` — which makes any width
+		   set after it compute back to 0, so this edge was silently missing
+		   entirely — and repaints every side in currentcolor, which would have
+		   left the kind stripe the color of the text. */
 		border-left-width: 4px;
+		border-left-style: solid;
+		border-left-color: var(--kind);
 		border-radius: 0;
 		background: none;
 	}
@@ -6958,6 +7028,33 @@
 		margin: 0.25rem 0 0.6rem;
 		font-size: 0.8rem;
 		color: var(--text-muted);
+	}
+
+	/* the completion modal: the same hand-off as the card, at the size the
+	   moment deserves. Shared .modal-shade / .modal / .modal-close chrome, with
+	   the card's win-colored border and title carried over so the two read as
+	   the same thing said twice. */
+	.learn-done {
+		/* a touch wider than the default dialog, so the headline sits on one
+		   line wherever the viewport allows it */
+		width: min(92vw, 24rem);
+		border-color: var(--win);
+		text-align: center;
+	}
+	.learn-done h2 {
+		margin-bottom: 0.35rem;
+		color: var(--win);
+	}
+	.learn-done-mark {
+		display: block;
+		margin-bottom: 0.35rem;
+		font-size: 2.25rem;
+		line-height: 1;
+		color: var(--win);
+	}
+	.learn-done .learn-finished-text {
+		margin: 0 0 1rem;
+		font-size: 0.9rem;
 	}
 }
 

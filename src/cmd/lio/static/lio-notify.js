@@ -254,11 +254,14 @@
 
     const body = document.createElement("div");
     body.className = "notify-row-body";
-    body.textContent = item.b || "";
+    const named = writeBody(item, body);
 
     const meta = document.createElement("div");
     meta.className = "notify-row-meta";
-    if (item.a) {
+    // Only when the sentence has not already said who this is about. A row
+    // that names its subject and then repeats it underneath reads as two
+    // different people at a glance.
+    if (item.a && !named) {
       const actor = document.createElement("span");
       actor.className = "notify-row-actor";
       actor.textContent = item.a;
@@ -376,6 +379,29 @@
     removeToast(k);
     paintBadge();
     render(cached);
+  }
+
+  // Fills a row's body and reports whether the sentence names the actor.
+  //
+  // A follow row is the one kind whose subject belongs in the sentence, and it
+  // is composed here rather than stored, because the name is the one part of a
+  // notification that is resolved fresh on every read (the wire's `a`). The
+  // stored body deliberately has no subject in it — see notifyFollowed in
+  // www/handlers/api/follow: a name written into the row at the time of the
+  // follow is a name that goes stale the moment its owner is renamed. So the
+  // stored sentence stays the fallback, and it is what a row whose follower has
+  // since deleted their account still reads correctly as.
+  function writeBody(item, body) {
+    if (item.k === "follow" && item.a) {
+      const name = document.createElement("b");
+      name.className = "notify-name";
+      name.textContent = item.a;
+      body.appendChild(name);
+      body.appendChild(document.createTextNode(" is now following you"));
+      return true;
+    }
+    body.textContent = item.b || "";
+    return false;
   }
 
   // The follow-back toggle: the same two-state control the follow lists render

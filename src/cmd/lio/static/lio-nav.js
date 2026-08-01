@@ -36,11 +36,17 @@
     const profileBtns = ["profileButton"]
         .map((id) => document.getElementById(id)).filter(Boolean);
     const profilePop = document.getElementById("profilePopover");
-    const prefsBtn = document.getElementById("prefsButton");
+    // The gear and the following control are each rendered twice for a
+    // logged-in viewer: once in the header, once in the profile popover's title
+    // row, with CSS displaying whichever the viewport has room for (app.css
+    // .hdr-relocatable / .hdr-relocated). Both copies are the same control, so
+    // every handler below works over the list rather than a single element.
+    const byId = (ids) => ids.map((id) => document.getElementById(id)).filter(Boolean);
+    const prefsBtns = byId(["prefsButton", "prefsButtonProfile"]);
     const popover = document.getElementById("prefsPopover"); // preferences
     const notifyBtn = document.getElementById("notifyButton");
     const notifyPop = document.getElementById("notifyPanel"); // notifications
-    const followBtn = document.getElementById("followingButton");
+    const followBtns = byId(["followingButton", "followingButtonProfile"]);
     const followPop = document.getElementById("followingPanel"); // people you follow
     const scrim = document.getElementById("menuScrim");
 
@@ -54,7 +60,7 @@
     const closeFollow = () => {
         if (!followPop) return;
         followPop.classList.add("hidden");
-        if (followBtn) followBtn.setAttribute("aria-expanded", "false");
+        followBtns.forEach((b) => b.setAttribute("aria-expanded", "false"));
     };
     // Restore the account popover to its pristine state whenever it is
     // dismissed: clear every form field, collapse the expandable sections,
@@ -212,8 +218,10 @@
     });
 
     // Opening either popover closes the other first, so the two never
-    // stack; the scrim then reflects whether anything is open.
-    if (prefsBtn && popover) prefsBtn.addEventListener("click", (e) => {
+    // stack; the scrim then reflects whether anything is open. closeProfile is
+    // what makes the popover-hosted copy of this button work: it dismisses the
+    // menu the click came from, leaving the preferences panel in its place.
+    if (popover) prefsBtns.forEach((btn) => btn.addEventListener("click", (e) => {
         e.stopPropagation();
         closeProfile();
         closeNotify();
@@ -221,7 +229,7 @@
         popover.classList.toggle("hidden");
         if (isOpen(popover)) syncPrefs();
         syncScrim();
-    });
+    }));
     // The bell. Opening it tells the notification client, which fetches
     // the list on the first open and clears the badge — the dot means
     // "something is new", and it has now been seen. The rows keep their
@@ -244,7 +252,7 @@
     // which fetches the list on the first open and corrects the badge
     // the header painted at render time — presence moves, and this is
     // the moment the number can be made true again.
-    if (followPop && followBtn) followBtn.addEventListener("click", (e) => {
+    if (followPop) followBtns.forEach((btn) => btn.addEventListener("click", (e) => {
         e.stopPropagation();
         closePrefs();
         closeProfile();
@@ -253,11 +261,11 @@
             closeFollow();
         } else {
             followPop.classList.remove("hidden");
-            followBtn.setAttribute("aria-expanded", "true");
+            followBtns.forEach((b) => b.setAttribute("aria-expanded", "true"));
             if (window.__followingPanelOpened) window.__followingPanelOpened();
         }
         syncScrim();
-    });
+    }));
     if (profilePop) profileBtns.forEach((btn) => btn.addEventListener("click", (e) => {
         e.stopPropagation();
         closePrefs();
@@ -279,9 +287,9 @@
             (profilePop && profilePop.contains(e.target)) ||
             (notifyPop && notifyPop.contains(e.target)) ||
             (followPop && followPop.contains(e.target)) ||
-            (prefsBtn && prefsBtn.contains(e.target)) ||
             (notifyBtn && notifyBtn.contains(e.target)) ||
-            (followBtn && followBtn.contains(e.target)) ||
+            prefsBtns.some((btn) => btn.contains(e.target)) ||
+            followBtns.some((btn) => btn.contains(e.target)) ||
             profileBtns.some((btn) => btn.contains(e.target));
         if (!within) closeMenus();
     });

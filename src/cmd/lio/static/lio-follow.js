@@ -437,9 +437,16 @@
       paintBadge(window.__lioFollowOnline);
     }
 
+    // Every copy of the control, not just the header one: a logged-in viewer
+    // also carries a copy in the profile popover's title row, which is the only
+    // one displayed under 500px (app.css .hdr-relocatable / .hdr-relocated).
     function paintBadge(n) {
-      const btn = document.getElementById("followingButton");
-      if (!btn) return;
+      document
+        .querySelectorAll("[data-following-btn]")
+        .forEach((btn) => paintOne(btn, n));
+    }
+
+    function paintOne(btn, n) {
       const existing = btn.querySelector(".notify-dot");
       if (n <= 0) {
         if (existing) existing.remove();
