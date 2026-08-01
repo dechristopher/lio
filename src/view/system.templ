@@ -2,30 +2,35 @@ package view
 
 import "strconv"
 
-// System renders the site console: what is currently overriding the site's
-// defaults, the controls that set them (admins only), and the global audit
-// feed. Per-player actions are not here by design — they live on the player
-// page, where the moderator can see who they are acting on.
+// System renders one page of the site console. Per-player actions are not here
+// by design — they live on the player page, where the moderator can see who
+// they are acting on.
+//
+// The console is three routes, grouped by what an operator is doing (see
+// SystemTab). Each renders only its own cards, and the handler loads only their
+// data.
+//
+// The page widens with the viewport — 44rem, then 3xl, then 5xl — because the
+// cards sit two abreast above md. The ladder is the home page's, one step
+// wider at the base: this content was always denser than the home column.
 templ System(meta Meta, m SystemModel) {
 	@base(meta) {
 		<body>
 			<div class="page">
-				@header("w-[92vw] max-w-[44rem]")
-				<main class="w-[92vw] max-w-[44rem] text-left">
+				@header(systemWidth)
+				<main class={ systemWidth + " pb-6 text-left" }>
 					<h1 class="font-display text-xl font-bold">System</h1>
-					@liveOps(m)
-					if m.IsAdmin {
-						@instancePanel(m.Stats)
+					@systemTabs(m)
+					switch m.Tab {
+						case TabPeople:
+							@systemPeople(m)
+						case TabLog:
+							@auditFeed(m)
+						default:
+							@systemOverview(m)
 					}
-					@FeedbackInboxSection(m.Feedback)
-					@messagePlayer()
-					if m.IsAdmin {
-						@activeNotices(m)
-						@siteControls(m)
-					}
-					@auditFeed(m)
 				</main>
-				@footer(meta, "max-w-[44rem]")
+				@footer(meta, "max-w-[44rem] md:max-w-3xl lg:max-w-5xl")
 			</div>
 			if m.IsAdmin {
 				@confirmActionModal()
@@ -34,6 +39,106 @@ templ System(meta Meta, m SystemModel) {
 		@scriptsBase(meta)
 		<script src={ asset("lio-mod.js") }></script>
 	}
+}
+
+// systemWidth is the console's responsive width, shared by the header, the main
+// column and the footer so the three cannot drift apart.
+const systemWidth = "w-[92vw] max-w-[44rem] md:max-w-3xl lg:max-w-5xl"
+
+// systemTabs is the page strip.
+//
+// Plain links, deliberately, where the About page's tabs are htmx swaps. Two
+// reasons, and the second is the decisive one:
+//
+//   - The console already navigates this way. Every action in lio-mod.js posts
+//     and then reloads, because a moderation action must be shown as the server
+//     recorded it; a tab change is cheaper than what the page already does after
+//     every button.
+//   - lio-mod.js resolves its forms once, at load. A swapped-in Site tab would
+//     leave its broadcast composer holding a null form — the controller would
+//     look present and do nothing, which is the worst failure available to a
+//     surface that sends messages to every account.
+//
+// About swaps because its content is static prose with no controller behind it.
+templ systemTabs(m SystemModel) {
+	<nav class="sys-tabs" aria-label="Console sections">
+		for _, tab := range SystemTabs {
+			if tab == m.Tab {
+				<a class="sys-tab is-active" href={ templ.SafeURL(tab.Path()) } aria-current="page">{ tab.Label() }</a>
+			} else {
+				<a class="sys-tab" href={ templ.SafeURL(tab.Path()) }>{ tab.Label() }</a>
+			}
+		}
+	</nav>
+}
+
+// systemOverview is the site itself: what is happening, what is overriding a
+// default, the switches that set them, and the process underneath.
+//
+// The live picture and the controls are one page deliberately. "What is
+// happening" and "what do I turn" are the same question during an incident, and
+// splitting them put a navigation between reading the answer and acting on it.
+//
+// **Active notices runs full width, above the columns, at every size.** It is
+// the page's alert line: "what is still switched on?" is the one question here
+// whose answer must not depend on which column somebody happened to read first.
+// Putting it above the grid rather than at the top of a column also means it
+// stays first on a telephone, where a column is just the thing that comes
+// before the other one. Its usual state — "nothing is overridden" — is worth
+// the two lines it costs, because during an incident that is a positive answer
+// rather than an empty card.
+//
+// Below it, the two columns are not two topics; they are one reading order
+// folded in half. Above md they sit side by side, and below md the left column
+// is read out in full before the right — so the split is chosen to make that
+// single column come out in the order an operator wants it:
+//
+//	what is overridden                                    (full width)
+//	what is happening  →  the process  →  the switches    (left)
+//	tell everybody     →  what was told                   (right)
+//
+// The left column is this instance and the switches that govern it; the right
+// is everything outbound. The instance panel sits directly under the live
+// picture because the two are the same kind of reading — what the site and the
+// process are doing right now — one a level below the other.
+templ systemOverview(m SystemModel) {
+	if m.IsAdmin {
+		@activeNotices(m)
+		<div class="sys-grid">
+			<div class="sys-col">
+				@liveOps(m)
+				@instancePanel(m.Stats)
+				@siteControls(m)
+			</div>
+			<div class="sys-col">
+				@broadcastComposer()
+				@sentBroadcasts(m.Broadcasts)
+			</div>
+		</div>
+	} else {
+		// A moderator sees none of the admin cards, so there is no second column
+		// to make — and a lone card at half width reads as a layout that failed
+		// rather than one with nothing to put beside it.
+		@liveOps(m)
+	}
+}
+
+// systemPeople is the community half of the console.
+//
+// The feedback inbox and the message composer stay adjacent, in that order, in
+// the same column. Feedback has no reply thread — the dialog says so — and
+// writing to the player is the nearest thing to an answer; splitting them
+// across columns would put the reply beside a different question.
+templ systemPeople(m SystemModel) {
+	<div class="sys-grid">
+		<div class="sys-col">
+			@FeedbackInboxSection(m.Feedback)
+			@messagePlayer()
+		</div>
+		<div class="sys-col">
+			@staffPanel(m.Staff)
+		</div>
+	</div>
 }
 
 // messagePlayer is the operator message composer (arch/NOTIFICATIONS.md
@@ -73,11 +178,183 @@ templ messagePlayer() {
 				Message
 				<textarea id="msgBody" class="auth-input" rows="3" maxlength="500" placeholder="What do you want them to know?"></textarea>
 			</label>
+			@answerOptions("msgChoices", "Leave empty unless they must answer")
 			<p id="msgError" class="auth-error hidden" role="alert"></p>
 			<p id="msgOk" class="auth-ok hidden" role="status"></p>
 			<button type="button" id="msgSend" class="btn btn-primary justify-center py-1.5" disabled>Send</button>
 		</div>
 	</div>
+}
+
+// answerOptions is the control that turns a message into a question
+// (arch/NOTIFICATIONS.md, *A message can ask a question*). Shared by both
+// composers, because the flag belongs to notifications rather than to
+// broadcasts and the two must not offer it differently.
+//
+// One free-text field rather than a preset picker. The useful sets differ by
+// what is being asked — one "OK" for a change somebody must confirm they saw,
+// "Yes"/"No" for an offer worth counting — and a dropdown of three presets
+// would be a list of guesses about a question nobody has written yet. The field
+// is empty by default, which is the ordinary message.
+templ answerOptions(id string, help string) {
+	<label class="auth-label">
+		Answer options
+		// name as well as id: the broadcast composer is a form and its controller
+		// reads form.elements, while the one-player composer is not and reads by
+		// id. One component serves both.
+		<input
+			id={ id }
+			name="choices"
+			class="auth-input"
+			type="text"
+			autocomplete="off"
+			maxlength="120"
+			placeholder="OK — or Yes, No"
+			aria-describedby={ id + "Help" }
+		/>
+	</label>
+	<p id={ id + "Help" } class="-mt-1 text-xs text-fg-subtle">
+		Separate with commas. A message with options stays in the bell until it is
+		answered. { help }
+	</p>
+}
+
+// broadcastComposer sends one message to every account
+// (arch/NOTIFICATIONS.md, *A broadcast is one row*).
+//
+// Admin-only, and that is the line /system already draws: writing to one player
+// is moderator work; anything every visitor sees belongs with the site
+// controls. It sits under the one-player composer so the pair reads as a
+// choice of audience.
+//
+// It goes through the confirmation modal, unlike the composer above it. That
+// one is deliberately unconfirmed because a message to one player is frequent
+// and small; this reaches every account at once and cannot be recalled — only
+// retired, after everyone has already seen it.
+templ broadcastComposer() {
+	<div class="card mt-3 mod-bar">
+		<p class="text-xs font-semibold uppercase tracking-wider text-warn">⚑ Broadcast</p>
+		// No "below" or "beside": the site notice is above this card on a
+		// telephone and next to it on a desktop, so the copy names the control
+		// rather than pointing at where it happens to sit.
+		<p class="mt-2 text-sm text-fg-subtle">
+			Goes to the notification bell of every account, one row for the whole site.
+			Signed-out visitors do not have a bell — the site notice is what reaches them.
+		</p>
+		<form id="broadcastForm" class="msg-compose mt-3" novalidate>
+			<label class="auth-label">
+				Message
+				<textarea name="body" class="auth-input" rows="3" maxlength="500" placeholder="What does everybody need to know?"></textarea>
+			</label>
+			<label class="auth-label">
+				Link
+				<input name="link" class="auth-input" type="text" autocomplete="off" maxlength="200" placeholder="/news — optional, a path on this site"/>
+			</label>
+			@answerOptions("bcChoices", "An offer with options can be tallied below.")
+			<div class="flex flex-wrap items-end gap-2">
+				<label class="auth-label">
+					Runs for
+					<select name="expiresDays" class="auth-input">
+						<option value="0">Until I retire it</option>
+						<option value="1">1 day</option>
+						<option value="7">7 days</option>
+						<option value="30">30 days</option>
+					</select>
+				</label>
+				<button
+					type="button"
+					class="btn btn-primary py-1.5"
+					data-broadcast
+					data-confirm="Broadcast to every account"
+					data-effect="Every account sees this in their notification bell, immediately. It can be retired afterwards, but not unsent."
+				>Send to everyone</button>
+			</div>
+		</form>
+	</div>
+}
+
+// sentBroadcasts is what has been sent, newest first, with how each question
+// was answered and a way to pull one that is still running.
+//
+// It is directly under the composer because the two are one loop: an offer is
+// only worth sending if the answers come back somewhere, and the retire control
+// has to be next to the thing it retires.
+templ sentBroadcasts(items []BroadcastView) {
+	<div class="card mt-3">
+		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Sent broadcasts</p>
+		if len(items) == 0 {
+			<p class="mt-3 text-sm text-fg-subtle">Nothing has been broadcast yet.</p>
+		} else {
+			<ul class="mt-3 flex flex-col gap-1.5">
+				for _, b := range items {
+					@broadcastRow(b)
+				}
+			</ul>
+		}
+	</div>
+}
+
+// broadcastRow is one sent message. Live and retired rows use the same shape,
+// tinted by state: a retired message is history and must stay readable, because
+// the answers it collected are the reason it was sent.
+templ broadcastRow(b BroadcastView) {
+	<li class={ "bc-row", templ.KV("is-live", b.Live) }>
+		<div class="bc-head">
+			<time class="bc-when" title={ b.WhenExact }>{ b.When }</time>
+			if b.Live {
+				<span class="bc-state bc-live" title="Still showing in every account's bell">live</span>
+			} else {
+				<span class="bc-state bc-ended" title="No longer shown">ended</span>
+			}
+			if b.Actor != "" {
+				<a class="bc-actor" href={ templ.SafeURL("/@/" + b.Actor) } title="Admin who sent it">{ b.Actor }</a>
+			}
+			if b.Ends != "" {
+				<span class="bc-ends" title={ b.EndsExact }>
+					if b.Live {
+						ends { b.Ends }
+					} else {
+						ended { b.Ends }
+					}
+				</span>
+			}
+			if b.Live {
+				<button
+					type="button"
+					class="btn btn-ghost bc-retire"
+					data-retire-broadcast={ b.ID }
+					data-confirm="Retire this broadcast"
+					data-effect="It stops showing in every account's bell. Answers already given are kept."
+				>Retire</button>
+			}
+		</div>
+		<p class="bc-body">{ b.Body }</p>
+		if b.Link != "" {
+			<a class="bc-link" href={ templ.SafeURL(b.Link) }>{ b.Link }</a>
+		}
+		if len(b.Asks) > 0 {
+			<div class="bc-tally">
+				<span class="bc-tally-label">{ BroadcastAnswersLabel(b) }</span>
+				if len(b.Tally) == 0 {
+					// The options are still worth showing with no replies: they say
+					// what was asked, which is the half a zero count cannot.
+					for _, choice := range b.Asks {
+						<span class="bc-chip bc-chip-empty" title="Nobody has chosen this">
+							<span class="bc-chip-key">{ choice }</span>
+							<span class="bc-chip-value">0</span>
+						</span>
+					}
+				} else {
+					for _, t := range b.Tally {
+						<span class="bc-chip">
+							<span class="bc-chip-key">{ t.Choice }</span>
+							<span class="bc-chip-value">{ t.Count }</span>
+						</span>
+					}
+				}
+			</div>
+		}
+	</li>
 }
 
 // liveOps is the operational picture: who is here, what is running, and a way
@@ -403,7 +680,7 @@ templ auditFilters(f AuditFeed) {
 	<form
 		class="mt-3 flex flex-wrap items-end gap-2"
 		method="GET"
-		action="/system"
+		action="/system/log"
 		hx-get="/system/actions"
 		hx-target="#auditFeed"
 		hx-swap="innerHTML"
@@ -423,7 +700,7 @@ templ auditFilters(f AuditFeed) {
 		</label>
 		<button type="submit" class="btn btn-ghost">Filter</button>
 		if f.Filtered {
-			<a href="/system" class="btn btn-ghost no-underline">Clear</a>
+			<a href="/system/log" class="btn btn-ghost no-underline">Clear</a>
 		}
 	</form>
 }

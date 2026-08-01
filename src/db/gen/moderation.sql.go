@@ -304,6 +304,93 @@ func (q *Queries) ListModeratorIDs(ctx context.Context) ([]int64, error) {
 	return items, nil
 }
 
+const listStaff = `-- name: ListStaff :many
+SELECT u.id,
+       u.username,
+       u.role,
+       u.created_at,
+       t.code                              AS title_code,
+       t.name                              AS title_name,
+       (u.banned_until IS NOT NULL)::bool  AS sanctioned,
+       g.created_at                        AS granted_at,
+       -- COALESCE, not the bare column: the LATERAL is a LEFT join, so this is
+       -- NULL for a bootstrapped role, and sqlc cannot see that through a
+       -- LATERAL — it would type the column as a plain string and the scan
+       -- would fail on exactly the row that matters.
+       COALESCE(g.actor_username, '')      AS granted_by
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+         LEFT JOIN LATERAL (
+    SELECT m.created_at, a.username AS actor_username
+    FROM mod_actions m
+             JOIN users a ON a.id = m.actor_user_id
+    WHERE m.target_user_id = u.id
+      AND m.action = 'role'
+      AND m.detail ->> 'to' = u.role
+    ORDER BY m.created_at DESC
+    LIMIT 1
+    ) g ON TRUE
+WHERE u.role IN ('mod', 'admin')
+ORDER BY (u.role = 'admin') DESC, lower(u.username)
+`
+
+type ListStaffRow struct {
+	ID         int64
+	Username   string
+	Role       string
+	CreatedAt  pgtype.Timestamptz
+	TitleCode  *string
+	TitleName  *string
+	Sanctioned bool
+	GrantedAt  pgtype.Timestamptz
+	GrantedBy  string
+}
+
+// Everyone who holds a role above player, for the staff overview
+// (arch/ADMIN_MODERATION.md). Two surfaces read it: the panel on /system and
+// the public /staff page. One query serves both, and the *handler* decides
+// which columns reach a page — the appointment trail is staff-only, and gating
+// it here would mean a second query that could drift from this one.
+//
+// The LATERAL is the appointment: the audit log is the record of who did what,
+// so it is also the record of who granted this role and when. It matches on the
+// role the account holds *now*, so an admin who was a mod first shows the
+// promotion that put them where they are rather than their first appointment.
+// No row means the role came from outside the app (the SQL bootstrap), which is
+// exactly the account that has no grantor and cannot be demoted through the UI.
+//
+// Admins first, then alphabetically. The staff is a handful of rows, so the
+// ordering is for the reader rather than for a pager.
+func (q *Queries) ListStaff(ctx context.Context) ([]ListStaffRow, error) {
+	rows, err := q.db.Query(ctx, listStaff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListStaffRow
+	for rows.Next() {
+		var i ListStaffRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Role,
+			&i.CreatedAt,
+			&i.TitleCode,
+			&i.TitleName,
+			&i.Sanctioned,
+			&i.GrantedAt,
+			&i.GrantedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTitles = `-- name: ListTitles :many
 SELECT id, code, name FROM titles ORDER BY code
 `

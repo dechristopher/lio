@@ -380,6 +380,69 @@ func ModeratorIDs() ([]int64, error) {
 	return gen.New(Pool).ListModeratorIDs(ctx)
 }
 
+// StaffMember is one account holding a role above player, for the staff
+// overview (arch/ADMIN_MODERATION.md).
+//
+// One type serves two audiences, and the difference is what each caller reads
+// from it rather than a second query: the public page shows the name, the title
+// and the role; the /system panel additionally shows GrantedBy, GrantedAt and
+// Sanctioned, which are the accountability half and are staff business.
+type StaffMember struct {
+	ID       int64
+	Username string
+	Role     role.Role
+	// TitleCode / TitleName are the account's display title, empty when it holds
+	// none. Read here rather than looked up per row so the staff list renders a
+	// name exactly as every other surface does.
+	TitleCode string
+	TitleName string
+	// Joined is when the account registered, not when it was appointed.
+	Joined time.Time
+	// GrantedBy is the moderator who granted the role the account holds now, and
+	// GrantedAt is when. Both are empty for a role set outside the app — the
+	// bootstrapped first admin, which by design has no grantor on record and
+	// cannot be demoted through the UI.
+	GrantedBy string
+	GrantedAt time.Time
+	// Sanctioned marks a staff account that is itself banned. It should never be
+	// true; it is surfaced because the one thing worse than it happening is it
+	// happening unnoticed.
+	Sanctioned bool
+}
+
+// Staff lists every moderator and admin, admins first and then alphabetically.
+//
+// Read on two page renders and nothing else. The result is the site's staff —
+// a handful of rows — so it is neither paged nor cached: a cache here would be
+// a second copy of who holds power, and it could be stale at the moment
+// somebody checks.
+func Staff() ([]StaffMember, error) {
+	if Pool == nil {
+		return nil, nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	rows, err := gen.New(Pool).ListStaff(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]StaffMember, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, StaffMember{
+			ID:         r.ID,
+			Username:   r.Username,
+			Role:       role.Parse(r.Role),
+			TitleCode:  strOrEmpty(r.TitleCode),
+			TitleName:  strOrEmpty(r.TitleName),
+			Joined:     r.CreatedAt.Time,
+			GrantedBy:  r.GrantedBy,
+			GrantedAt:  r.GrantedAt.Time,
+			Sanctioned: r.Sanctioned,
+		})
+	}
+	return out, nil
+}
+
 // errUniqueViolation is Postgres' unique_violation SQLSTATE.
 const errUniqueViolation = "23505"
 

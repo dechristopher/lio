@@ -80,10 +80,11 @@ templ profilePopover(username string, t title.Title) {
 // piles up.
 templ staffLinks() {
 	<div class="mb-3 flex items-stretch gap-2 border-b border-line pt-3 pb-3">
-		// the System link carries the unread-feedback dot: the inbox lives on
-		// that page, so this is the step between seeing that there is something
-		// and reading it
-		<a href="/system" data-unread-anchor class="btn btn-ghost flex-1 justify-center gap-1.5 py-1.5 text-sm no-underline">
+		// The System link carries the unread-feedback dot, so it points at the
+		// console page the inbox is actually on rather than at its front page:
+		// this is the step between seeing that there is something and reading
+		// it, and a landing that does not show the thing wastes the dot.
+		<a href="/system/people" data-unread-anchor class="btn btn-ghost flex-1 justify-center gap-1.5 py-1.5 text-sm no-underline">
 			System
 			@unreadDot(viewer(ctx).UnreadFeedback)
 		</a>

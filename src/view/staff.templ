@@ -1,0 +1,114 @@
+package view
+
+// The staff overview (arch/ADMIN_MODERATION.md, *Who holds power is not a
+// secret*). One set of components, two surfaces: the public /staff page and the
+// panel on /system. The difference is StaffList.Detailed — the appointment
+// trail is staff business, because the audit log it comes from is too.
+
+// Staff is the public page: who runs the site, and who moderates it.
+//
+// It exists because moderation here is not anonymous. The audit log already
+// says there is no silent moderation among staff; this says the same thing
+// outward, so a player who has been sanctioned, or who is deciding whether to
+// report something, knows who the tools belong to.
+templ Staff(meta Meta, m StaffList) {
+	@base(meta) {
+		<body>
+			<div class="page">
+				@header("w-[92vw] max-w-[34rem]")
+				<main class="card mb-4 w-[92vw] max-w-[34rem] text-left">
+					<h1 class="font-display text-xl font-bold">Staff</h1>
+					<p class="mt-2 text-sm text-fg-subtle">
+						These accounts hold the site's moderation tools. Nobody else can ban an
+						account, change a name, or alter what the site does.
+					</p>
+					if m.Empty() {
+						<p class="mt-3 text-sm text-fg-subtle">Nobody holds a staff role yet.</p>
+					} else {
+						@staffGroups(m)
+					}
+					<p class="mt-4 text-xs text-fg-subtle">
+						A message from the site never comes from one of these accounts by name.
+						Anybody who contacts you claiming to be staff, and asks for your password,
+						is not.
+					</p>
+				</main>
+				@footer(meta, "max-w-[34rem]")
+			</div>
+		</body>
+		@scriptsBase(meta)
+	}
+}
+
+// staffPanel is the same list on /system, with the accountability half added:
+// who granted each role, when, and whether a staff account is itself
+// sanctioned.
+//
+// It sits directly under the live-ops card because it answers the same kind of
+// question — who and what is currently in play — and above everything that acts
+// on anybody. Every moderator sees it, like the audit feed: the tools are
+// accountable to the people who hold them first.
+templ staffPanel(m StaffList) {
+	<div class="card mt-3">
+		<div class="flex flex-wrap items-baseline justify-between gap-2">
+			<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Staff</p>
+			<p class="text-xs text-fg-subtle">{ StaffCountLabel(m) } · <a class="text-fg-subtle underline hover:text-fg" href="/staff">public page</a></p>
+		</div>
+		if m.Empty() {
+			<p class="mt-3 text-sm text-fg-subtle">Nobody holds a staff role yet.</p>
+		} else {
+			@staffGroups(m)
+		}
+	</div>
+}
+
+// staffGroups renders the two role groups in order of what they may do.
+templ staffGroups(m StaffList) {
+	if len(m.Admins) > 0 {
+		@staffGroup("Admins", "Everything a moderator can do, plus site controls and appointing staff", m.Admins, m.Detailed)
+	}
+	if len(m.Mods) > 0 {
+		@staffGroup("Moderators", "Can sanction accounts: bans, forced renames, reports", m.Mods, m.Detailed)
+	}
+}
+
+// staffGroup is one role's people, under a heading that says what the role can
+// do. The heading carries the capability rather than the count: "Admins" alone
+// tells a player nothing, and the whole point of the page is that it should.
+templ staffGroup(label string, can string, rows []StaffView, detailed bool) {
+	<div class="staff-group">
+		<p class="staff-group-title">{ label }</p>
+		<p class="staff-group-can">{ can }</p>
+		<ul class="staff-list">
+			for _, s := range rows {
+				@staffRow(s, detailed)
+			}
+		</ul>
+	</div>
+}
+
+// staffRow is one person. The name is the same title-plus-username link every
+// other surface renders, so a staff account reads as the account it is.
+templ staffRow(s StaffView, detailed bool) {
+	<li class="staff-row">
+		<span class="staff-name">
+			@playerName(s.Title, s.Username, "/@/"+s.Username)
+		</span>
+		<span class="staff-joined" title={ s.JoinedExact }>joined { s.Joined }</span>
+		if detailed {
+			if s.Bootstrapped() {
+				// Not missing data: this is the account promoted by hand in SQL,
+				// which by design has no grantor and cannot be demoted through the
+				// UI. Saying so is the difference between a gap and a fact.
+				<span class="staff-granted staff-bootstrap" title="Role set outside the app, so no grantor is on record — this account cannot be demoted through the UI">bootstrapped</span>
+			} else {
+				<span class="staff-granted" title={ "Appointed " + s.GrantedExact }>
+					by { s.GrantedBy } { s.Granted }
+				</span>
+			}
+			if s.Sanctioned {
+				<span class="staff-sanctioned" title="This staff account is itself under a sanction">banned</span>
+			}
+		}
+	</li>
+}

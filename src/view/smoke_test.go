@@ -1373,8 +1373,13 @@ func TestRenderProfileModBar(t *testing.T) {
 }
 
 // systemFixture is a console model with a small first page of audit entries.
+//
+// The console is four pages now, so a test picks the one it is about by setting
+// Tab; the fixture carries every tab's data at once, which no real handler
+// does — each of those loads only what its own page shows.
 func systemFixture() SystemModel {
 	return SystemModel{
+		Tab:      TabOverview,
 		IsAdmin:  true,
 		Settings: settings.Snapshot{RegistrationOpen: true, RatedEnabled: true},
 		Feed: AuditFeed{
@@ -1396,49 +1401,139 @@ func systemFixture() SystemModel {
 	}
 }
 
-// TestRenderSystemConsole covers /system: an admin sees the site controls, a
-// plain moderator does not (they affect every visitor at once), and both see
-// the audit log.
-func TestRenderSystemConsole(t *testing.T) {
+// systemTab renders one page of the console from the shared fixture.
+func systemTab(t *testing.T, tab SystemTab, isAdmin bool) string {
+	t.Helper()
 	m := systemFixture()
-	admin := renderSmoke(t, System(SystemMeta(), m))
+	m.Tab, m.IsAdmin = tab, isAdmin
+	return renderSmoke(t, System(SystemMeta(), m))
+}
+
+// TestRenderSystemConsole covers the overview: an admin sees the controls
+// beside the live picture, and a moderator sees neither them nor the modal.
+func TestRenderSystemConsole(t *testing.T) {
+	admin := systemTab(t, TabOverview, true)
 	mustContain(t, admin, `id="settingsForm"`)
 	mustContain(t, admin, `data-setting="maintenance"`)
 	mustContain(t, admin, `data-setting="registrationOpen"`)
 	mustContain(t, admin, `data-setting="notice"`)
 	mustContain(t, admin, `name="reason"`) // every change carries one
-	mustContain(t, admin, "Audit log")
-	mustContain(t, admin, "2 entries on record")
-	mustContain(t, admin, "spammer99")
-	mustContain(t, admin, `href="/@/spammer99"`) // targets link to their page
-	mustContain(t, admin, "site-wide")           // site-level entry, no target
 
-	// a moderator who is not an admin gets the log but no site controls
-	m.IsAdmin = false
-	mod := renderSmoke(t, System(SystemMeta(), m))
-	mustNotContain(t, mod, `id="settingsForm"`)
-	mustContain(t, mod, "Audit log")
+	// The log has the page to itself. Its rows are scanned across rather than
+	// read down, which is why it is the one tab with no second column.
+	log := systemTab(t, TabLog, true)
+	mustContain(t, log, "Audit log")
+	mustContain(t, log, "2 entries on record")
+	mustContain(t, log, "spammer99")
+	mustContain(t, log, `href="/@/spammer99"`) // targets link to their page
+	mustContain(t, log, "site-wide")           // site-level entry, no target
+	mustNotContain(t, log, `id="settingsForm"`)
+
+	// A moderator gets the live picture and the log, and none of the controls.
+	modOverview := systemTab(t, TabOverview, false)
+	mustContain(t, modOverview, "Right now")
+	mustNotContain(t, modOverview, `id="settingsForm"`)
+	mustNotContain(t, modOverview, `id="broadcastForm"`)
+	mustContain(t, systemTab(t, TabLog, false), "Audit log")
 
 	// The operator message composer is a moderator tool, not an admin one: it
 	// writes to one account, like every other action a moderator takes, rather
 	// than changing something every visitor sees (arch/NOTIFICATIONS.md
 	// Phase 3). It ships to both, and it is a search box rather than a list of
 	// accounts — the site has more players than any picker could hold.
-	for name, out := range map[string]string{"admin": admin, "moderator": mod} {
+	for name, isAdmin := range map[string]bool{"admin": true, "moderator": false} {
+		out := systemTab(t, TabPeople, isAdmin)
 		if !strings.Contains(out, `id="msgSearch"`) {
 			t.Errorf("%s is missing the message composer", name)
 		}
 		if !strings.Contains(out, `id="msgBody"`) {
 			t.Errorf("%s is missing the message body field", name)
 		}
+		if !strings.Contains(out, "Message a player") {
+			t.Errorf("%s is missing the composer heading", name)
+		}
 	}
-	mustContain(t, mod, "Message a player")
 
 	// empty log distinguishes "nothing yet" from "nothing matches"
-	mustContain(t, renderSmoke(t, System(SystemMeta(), SystemModel{})),
+	mustContain(t, renderSmoke(t, System(SystemMeta(), SystemModel{Tab: TabLog})),
 		"Nothing has been actioned yet.")
 	empty := AuditFeed{Filtered: true, Query: "nobody", Page: 1, Pages: 1}
 	mustContain(t, renderSmoke(t, AuditFeedBody(empty)), "No actions match that search.")
+}
+
+// TestSystemTabs: the strip names every page this viewer may open and no page
+// they may not, and marks the current one on two channels rather than colour
+// alone.
+func TestSystemTabs(t *testing.T) {
+	// Every moderator gets the same three pages. The admin-only cards are
+	// unrendered within a page rather than hidden behind a tab of their own.
+	for name, isAdmin := range map[string]bool{"admin": true, "moderator": false} {
+		out := systemTab(t, TabOverview, isAdmin)
+		for _, path := range []string{"/system", "/system/people", "/system/log"} {
+			if !strings.Contains(out, `href="`+path+`"`) {
+				t.Errorf("%s is missing the %s tab", name, path)
+			}
+		}
+		if strings.Contains(out, `href="/system/site"`) {
+			t.Errorf("%s still links the folded-in Site tab", name)
+		}
+	}
+	mustContain(t, systemTab(t, TabOverview, true),
+		`class="sys-tab is-active" href="/system" aria-current="page"`)
+
+	if len(SystemTabs) != 3 {
+		t.Errorf("SystemTabs = %v, want three pages", SystemTabs)
+	}
+	if got := TabOverview.Path(); got != "/system" {
+		t.Errorf("the overview must stay the bare path, got %q", got)
+	}
+}
+
+// TestSystemTwoColumns: above md the cards sit two abreast, and each column is
+// an explicit stack so the single-column order on a telephone is a decision
+// rather than whatever the wrap produced.
+func TestSystemTwoColumns(t *testing.T) {
+	overview := systemTab(t, TabOverview, true)
+	if n := strings.Count(overview, `class="sys-col"`); n != 2 {
+		t.Errorf("the overview has %d columns, want 2", n)
+	}
+
+	// Active notices is the page's alert line and runs full width above the
+	// grid, so it is first at every size rather than first in whichever column
+	// somebody happens to read.
+	if strings.Index(overview, "Active notices") > strings.Index(overview, `class="sys-grid"`) {
+		t.Error("active notices must sit above the columns, not inside one")
+	}
+
+	// The two columns are one reading order folded in half: below md the left
+	// is read out in full before the right, so the split has to produce the
+	// order an operator wants. Anything that reorders these cards changes what
+	// somebody sees first on a telephone.
+	order := []string{
+		"Active notices",                                     // full width, above both
+		"Right now", `id="systemStats"`, `id="settingsForm"`, // this instance and its switches
+		`id="broadcastForm"`, "Sent broadcasts", // everything outbound
+	}
+	for i := 1; i < len(order); i++ {
+		if strings.Index(overview, order[i]) < strings.Index(overview, order[i-1]) {
+			t.Errorf("%s renders before %s, which changes the single-column order",
+				order[i], order[i-1])
+		}
+	}
+
+	// The feedback inbox and the composer that answers it stay adjacent, in that
+	// order, in one column: feedback has no reply thread, and writing to the
+	// player is the nearest thing to an answer.
+	people := systemTab(t, TabPeople, true)
+	if strings.Index(people, `id="msgSearch"`) < strings.Index(people, "Feedback") {
+		t.Error("the message composer must stay under the feedback inbox")
+	}
+
+	// A moderator's overview has one card, so it is not put in a half-width
+	// column with nothing beside it.
+	if n := strings.Count(systemTab(t, TabOverview, false), `class="sys-col"`); n != 0 {
+		t.Error("a moderator's overview should render as one column, not a grid")
+	}
 }
 
 // TestRenderInstancePanel covers the perf panel: admins get it, moderators do
@@ -1493,8 +1588,8 @@ func TestRenderAuditPager(t *testing.T) {
 	mid.NextURL = AuditURL(ModActionQuery{Page: 3})
 	out := renderSmoke(t, AuditFeedBody(mid))
 	mustContain(t, out, "Page 2 of 3")
-	mustContain(t, out, `href="/system"`)                  // page 1 is the bare path
-	mustContain(t, out, `href="/system?page=3"`)           // next page
+	mustContain(t, out, `href="/system/log"`)              // page 1 is the bare path
+	mustContain(t, out, `href="/system/log?page=3"`)       // next page
 	mustContain(t, out, `hx-get="/system/actions?page=3"`) // its fragment
 	mustNotContain(t, out, "is-disabled")
 
@@ -1511,12 +1606,12 @@ func TestAuditURL(t *testing.T) {
 		q    ModActionQuery
 		want string
 	}{
-		{ModActionQuery{Page: 1}, "/system"},
-		{ModActionQuery{Page: 0}, "/system"},
-		{ModActionQuery{Page: 2}, "/system?page=2"},
-		{ModActionQuery{Query: "drewtest", Page: 1}, "/system?q=drewtest"},
+		{ModActionQuery{Page: 1}, "/system/log"},
+		{ModActionQuery{Page: 0}, "/system/log"},
+		{ModActionQuery{Page: 2}, "/system/log?page=2"},
+		{ModActionQuery{Query: "drewtest", Page: 1}, "/system/log?q=drewtest"},
 		{ModActionQuery{Query: "drewtest", Action: "ban", Page: 3},
-			"/system?action=ban&page=3&q=drewtest"},
+			"/system/log?action=ban&page=3&q=drewtest"},
 	}
 	for _, tc := range cases {
 		if got := AuditURL(tc.q); got != tc.want {
@@ -1704,13 +1799,14 @@ func TestRenderStaffLinks(t *testing.T) {
 	plain := renderSmokeViewer(t, Viewer{
 		UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true,
 	}, page)
-	mustNotContain(t, plain, `href="/system"`)
+	mustNotContain(t, plain, `href="/system/people"`)
 	mustNotContain(t, plain, `href="/moderation"`)
 
 	staff := renderSmokeViewer(t, Viewer{
 		UID: "u", LoggedIn: true, Username: "drew", AccountsEnabled: true, Role: role.Mod,
 	}, page)
-	mustContain(t, staff, `href="/system"`)
+	// the console link points at the page the inbox is on, not its front page
+	mustContain(t, staff, `href="/system/people"`)
 	mustContain(t, staff, `href="/moderation"`)
 	// renamed security section
 	mustContain(t, staff, "Account Security")
@@ -1759,7 +1855,7 @@ func TestRenderModHistoryLink(t *testing.T) {
 	}
 	out := renderSmoke(t, Profile(ProfileMeta(m), m))
 	mustContain(t, out, "latest 1 of 37")
-	mustContain(t, out, `href="/system?q=drewtest"`)
+	mustContain(t, out, `href="/system/log?q=drewtest"`)
 	mustContain(t, out, "See everything involving this account")
 
 	// a complete history needs no link out
@@ -1891,8 +1987,8 @@ func TestRenderAuditRowFields(t *testing.T) {
 // consequence for the confirmation, and the reason lives in the modal rather
 // than at the top of the form.
 func TestRenderConfirmModal(t *testing.T) {
-	m := systemFixture()
-	out := renderSmoke(t, System(SystemMeta(), m))
+	// the overview: where the controls that need confirming live
+	out := systemTab(t, TabOverview, true)
 
 	mustContain(t, out, `id="modalConfirmChange"`)
 	mustContain(t, out, `id="confirmReason"`)
@@ -1911,9 +2007,7 @@ func TestRenderConfirmModal(t *testing.T) {
 	}
 
 	// a non-admin moderator gets neither the controls nor the modal
-	m.IsAdmin = false
-	mod := renderSmoke(t, System(SystemMeta(), m))
-	mustNotContain(t, mod, `id="modalConfirmChange"`)
+	mustNotContain(t, systemTab(t, TabOverview, false), `id="modalConfirmChange"`)
 }
 
 // TestRenderModBarConfirmFlow: the player-page mod bar no longer carries its own
@@ -2272,7 +2366,7 @@ func TestFeedbackPromptShownToEveryAccount(t *testing.T) {
 	player := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
 		profilePopover("drewtest", title.Title{}))
 	mustContain(t, player, `id="feedbackButton"`)
-	mustNotContain(t, player, `href="/system"`)
+	mustNotContain(t, player, `href="/system/people"`)
 	mustNotContain(t, player, "unread-dot")
 
 	// a moderator with unread feedback gets the dot on the System link, which
@@ -2280,7 +2374,7 @@ func TestFeedbackPromptShownToEveryAccount(t *testing.T) {
 	mod := renderSmokeViewer(t,
 		Viewer{LoggedIn: true, Username: "drewtest", Role: role.Mod, UnreadFeedback: 4},
 		profilePopover("drewtest", title.Title{}))
-	mustContain(t, mod, `href="/system"`)
+	mustContain(t, mod, `href="/system/people"`)
 	mustContain(t, mod, "unread-dot")
 	mustContain(t, mod, "4 unread feedback messages")
 }
@@ -2448,4 +2542,187 @@ func TestRosterNoteWindowWithFollowingOnly(t *testing.T) {
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
 		HomeActivity(nil, message.SiteStats{}, c))
 	mustContain(t, out, "active in the last 15 minutes")
+}
+
+// staffFixture is a site with one bootstrapped admin, one appointed admin and
+// one moderator — the three states the panel has to tell apart.
+func staffFixture() []db.StaffMember {
+	return []db.StaffMember{
+		{
+			ID: 1, Username: "drewtest", Role: role.Admin,
+			TitleCode: "DEV", TitleName: "Developer",
+			Joined: time.Now().Add(-400 * 24 * time.Hour),
+			// no grantor: promoted by hand in SQL
+		},
+		{
+			ID: 2, Username: "secondadmin", Role: role.Admin,
+			Joined:    time.Now().Add(-90 * 24 * time.Hour),
+			GrantedBy: "drewtest", GrantedAt: time.Now().Add(-30 * 24 * time.Hour),
+		},
+		{
+			ID: 3, Username: "helpfulmod", Role: role.Mod,
+			Joined:    time.Now().Add(-60 * 24 * time.Hour),
+			GrantedBy: "drewtest", GrantedAt: time.Now().Add(-10 * 24 * time.Hour),
+		},
+	}
+}
+
+// TestRenderStaffPage: the public page names who holds the tools, grouped by
+// what they may do, and carries none of the staff-only accountability trail.
+//
+// The last part is the one worth guarding. The appointment comes out of the
+// audit log, which is not public, and a field that reaches the model of a
+// public page is one render mistake away from being on it — so StaffListOf
+// refuses to populate it at all when detailed is false.
+func TestRenderStaffPage(t *testing.T) {
+	out := renderSmoke(t, Staff(StaffMeta(), StaffListOf(staffFixture(), false)))
+
+	mustContain(t, out, "Admins")
+	mustContain(t, out, "Moderators")
+	mustContain(t, out, `href="/@/drewtest"`)
+	mustContain(t, out, `href="/@/secondadmin"`)
+	mustContain(t, out, `href="/@/helpfulmod"`)
+	// a staff account's title renders like it does everywhere else
+	mustContain(t, out, "DEV")
+
+	// none of the audit trail
+	mustNotContain(t, out, "bootstrapped")
+	mustNotContain(t, out, "by drewtest")
+}
+
+// TestStaffListSplitsByRole: two groups, because what separates a moderator
+// from an admin is what they may do — which is the question the page answers.
+func TestStaffListSplitsByRole(t *testing.T) {
+	list := StaffListOf(staffFixture(), true)
+	if len(list.Admins) != 2 || len(list.Mods) != 1 {
+		t.Fatalf("admins=%d mods=%d, want 2 and 1", len(list.Admins), len(list.Mods))
+	}
+	if list.Total() != 3 {
+		t.Errorf("Total = %d, want 3", list.Total())
+	}
+	if list.Empty() {
+		t.Error("a site with three staff reported itself empty")
+	}
+	if !list.Admins[0].Bootstrapped() {
+		t.Error("the hand-promoted admin should have no grantor on record")
+	}
+	if list.Admins[1].Bootstrapped() {
+		t.Error("an appointed admin was reported as bootstrapped")
+	}
+	if StaffCountLabel(StaffListOf(staffFixture()[:1], false)) != "1 person" {
+		t.Error("the count label does not singularize")
+	}
+}
+
+// TestRenderStaffPanel: the /system panel is the same list plus the
+// accountability half — who granted each role, and the account that was
+// promoted outside the app and therefore cannot be demoted through the UI.
+//
+// It renders for a plain moderator as well as an admin. The tools are
+// accountable to the people who hold them first, and there is no version of
+// this page where a moderator should have to ask who else can act.
+func TestRenderStaffPanel(t *testing.T) {
+	m := systemFixture()
+	m.Tab = TabPeople
+	m.Staff = StaffListOf(staffFixture(), true)
+
+	admin := renderSmoke(t, System(SystemMeta(), m))
+	m.IsAdmin = false
+	mod := renderSmoke(t, System(SystemMeta(), m))
+
+	for name, out := range map[string]string{"admin": admin, "moderator": mod} {
+		if !strings.Contains(out, `href="/@/helpfulmod"`) {
+			t.Errorf("%s cannot see the staff list", name)
+		}
+		if !strings.Contains(out, "bootstrapped") {
+			t.Errorf("%s: the hand-promoted admin is not marked, so its missing "+
+				"grantor reads as a gap in the data", name)
+		}
+		if !strings.Contains(out, "by drewtest") {
+			t.Errorf("%s: the appointment trail is missing", name)
+		}
+	}
+
+	// a sanctioned staff account should never exist; if one does, it is loud
+	sanctioned := StaffListOf([]db.StaffMember{
+		{ID: 4, Username: "compromised", Role: role.Mod, Sanctioned: true},
+	}, true)
+	m.Staff = sanctioned
+	mustContain(t, renderSmoke(t, System(SystemMeta(), m)), "staff-sanctioned")
+
+	// an empty site says so rather than rendering an empty box
+	m.Staff = StaffList{Detailed: true}
+	mustContain(t, renderSmoke(t, System(SystemMeta(), m)), "Nobody holds a staff role yet.")
+}
+
+// TestRenderBroadcastComposer: sending to every account is admin work, and the
+// line is the one /system already draws — writing to one player is a
+// moderator's, anything every visitor sees is an admin's.
+func TestRenderBroadcastComposer(t *testing.T) {
+	admin := systemTab(t, TabOverview, true)
+	mustContain(t, admin, `id="broadcastForm"`)
+	mustContain(t, admin, "data-broadcast")
+	mustContain(t, admin, "Sent broadcasts")
+	// it goes through the confirmation modal, unlike the one-player composer:
+	// a broadcast reaches everybody and cannot be unsent
+	mustContain(t, admin, `data-confirm="Broadcast to every account"`)
+
+	// A moderator sees no broadcast composer on the same page.
+	mustNotContain(t, systemTab(t, TabOverview, false), `id="broadcastForm"`)
+	// ...but the one-player composer still ships to them, on People
+	mustContain(t, systemTab(t, TabPeople, false), `id="msgSearch"`)
+}
+
+// TestRenderAnswerOptions: the control that turns a message into a question is
+// offered by both composers, because the flag belongs to notifications rather
+// than to broadcasts.
+func TestRenderAnswerOptions(t *testing.T) {
+	people := systemTab(t, TabPeople, true)
+	site := systemTab(t, TabOverview, true)
+	mustContain(t, people, `id="msgChoices"`)
+	mustContain(t, site, `id="bcChoices"`)
+	// both carry the form name their controller reads: the broadcast composer
+	// is a form and reads form.elements, the one-player composer is not and
+	// reads by id
+	for name, out := range map[string]string{"people": people, "site": site} {
+		if n := strings.Count(out, `name="choices"`); n != 1 {
+			t.Errorf(`%s: name="choices" appears %d times, want 1`, name, n)
+		}
+	}
+}
+
+// TestRenderSentBroadcasts: a live message can be retired, an ended one cannot,
+// and a question shows what it asked even before anybody answers — the options
+// are the half a zero count cannot state.
+func TestRenderSentBroadcasts(t *testing.T) {
+	m := systemFixture()
+	m.Tab = TabOverview
+	m.Broadcasts = []BroadcastView{
+		{
+			ID: "1", Body: "the server restarts at 9pm", When: "2 hours ago",
+			Actor: "drewtest", Live: true,
+			Asks: []string{"OK"},
+		},
+		{
+			ID: "2", Body: "do you want rated blitz?", When: "yesterday",
+			Actor: "drewtest", Live: false,
+			Asks: []string{"Yes", "No"}, Answers: 12,
+			Tally: []BroadcastTallyView{{Choice: "Yes", Count: "9"}, {Choice: "No", Count: "3"}},
+		},
+	}
+	out := renderSmoke(t, System(SystemMeta(), m))
+
+	// only the live one offers a retire
+	if n := strings.Count(out, "data-retire-broadcast"); n != 1 {
+		t.Errorf("retire controls = %d, want 1 (only the live message)", n)
+	}
+	mustContain(t, out, `data-retire-broadcast="1"`)
+	mustContain(t, out, "the server restarts at 9pm")
+	// the ended one keeps its answers: the tally is why it was sent
+	mustContain(t, out, "12 answers")
+	mustContain(t, out, "bc-chip")
+	// an unanswered question still names its options
+	mustContain(t, out, "bc-chip-empty")
+
+	mustContain(t, systemTab(t, TabOverview, true), "Nothing has been broadcast yet.")
 }

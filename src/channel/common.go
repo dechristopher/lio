@@ -228,6 +228,39 @@ func SendToAccounts(ids []int64, d []byte) int {
 	return sent
 }
 
+// SendToEveryAccount queues a message for every connection held by any signed-in
+// account, in a single walk of the directory. It is the fan-out behind a
+// broadcast: one message stored one time and delivered to everybody at once
+// (arch/NOTIFICATIONS.md).
+//
+// It skips anonymous sockets. A broadcast lands in the bell, an anonymous
+// visitor has no bell, and the frame would be a message that visitor can never
+// see or clear. Reaching them is the site notice banner's job.
+//
+// Note what it cannot carry: a per-account unread count. One frame goes to
+// every account and their counts all differ, so the payload carries the message
+// alone — see proto.NotifyBroadcastMessage for what the client does with that.
+//
+// Returns the number of connections the message was queued for.
+func SendToEveryAccount(d []byte) int {
+	sent := 0
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.Sockets() {
+			// 0 is the anonymous marker.
+			if s.Acct.ID != 0 {
+				s.Enqueue(d)
+				sent++
+			}
+		}
+		return true
+	})
+	return sent
+}
+
 // CloseForUID sends a close frame with the given code to every tracked
 // connection belonging to one session uid, across every channel, then shuts
 // those connections down. It is moderation's socket-level reach

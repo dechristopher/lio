@@ -49,6 +49,16 @@ type userMatch struct {
 type notifyRequest struct {
 	UserID int64  `json:"userId"`
 	Body   string `json:"body"`
+	// Choices makes the message an acknowledgement: it stays in the recipient's
+	// bell, and in their badge, until they pick one. Empty for a message they
+	// only have to read.
+	//
+	// The same flag a broadcast carries, and validated by the same function. A
+	// question is worth asking of one player as well as of everybody — a
+	// moderator answering a report can ask that player to confirm they have read
+	// the decision — so it is a property of a notification rather than of a
+	// broadcast.
+	Choices []string `json:"choices"`
 }
 
 // SearchUsersHandler answers the player picker, closest match first.
@@ -114,6 +124,11 @@ func NotifyUserHandler(c fiber.Ctx) error {
 			JSON(errBody{Error: "that message is too long"})
 	}
 
+	choices, err := cleanChoices(req.Choices)
+	if err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(errBody{Error: err.Error()})
+	}
+
 	rec, found, err := db.GetUserByID(req.UserID)
 	if err != nil {
 		util.Error(str.CDB, "notify target lookup failed error=%s", err.Error())
@@ -125,9 +140,10 @@ func NotifyUserHandler(c fiber.Ctx) error {
 	}
 
 	if err := notify.Push(db.NewNotification{
-		UserID: rec.ID,
-		Kind:   db.KindSystem,
-		Body:   body,
+		UserID:  rec.ID,
+		Kind:    db.KindSystem,
+		Body:    body,
+		Choices: choices,
 	}, ""); err != nil {
 		util.Error(str.CNotif, "operator notify failed target=%d error=%s", rec.ID, err.Error())
 		return c.Status(fiber.StatusInternalServerError).

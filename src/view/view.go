@@ -21,6 +21,7 @@ import (
 	"github.com/dechristopher/lio/engine"
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/message"
+	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/prefs"
 	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/role"
@@ -130,8 +131,9 @@ type Viewer struct {
 	// badge. Only ever populated for a viewer who can moderate — an ordinary
 	// account has nowhere to act on it, so it is not worth the count.
 	UnreadFeedback int64
-	// UnreadNotifications is how many of this account's own notifications it has
-	// not read (arch/NOTIFICATIONS.md), which is the rest of the bell's badge.
+	// UnreadNotifications is how much of this account's own backlog it has not
+	// read (arch/NOTIFICATIONS.md), which is the rest of the bell's badge: its
+	// own notifications, plus any broadcast it has neither read nor answered.
 	//
 	// Rendered as well as pushed on the socket. The socket is what keeps the
 	// badge true on a page nobody reloads, but it opens a moment after the
@@ -194,8 +196,13 @@ func viewerFrom(c fiber.Ctx) Viewer {
 			}
 			// One partial-index count for each render of a signed-in page. It
 			// belongs to one account, so the process-wide cache the feedback
-			// count uses cannot serve it.
-			v.UnreadNotifications = db.UnreadNotifications(uc.Account.ID)
+			// count uses cannot serve it. notify.Unread rather than the db call
+			// underneath it: what one badge adds up is that package's rule, and
+			// the render must not reach a different total from the socket.
+			//
+			// The broadcast half it adds costs nothing while nothing is being
+			// broadcast, which is the site's usual state.
+			v.UnreadNotifications = notify.Unread(uc.Account.ID)
 			// And one more, answering both halves of the following control at
 			// once. The presence walk behind OnlineIDs is TTL-cached, so this
 			// costs a mutex plus one indexed count rather than a directory walk

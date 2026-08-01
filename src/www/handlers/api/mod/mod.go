@@ -57,6 +57,11 @@ func Wire(g fiber.Router) {
 	g.Get("/users/search", SearchUsersHandler)
 	g.Post("/notify", NotifyUserHandler)
 
+	// the broadcast composer on /system (admin-only; see broadcast.go): one
+	// message, every account
+	g.Post("/broadcast", BroadcastHandler)
+	g.Post("/broadcast/retire", RetireBroadcastHandler)
+
 	// live ops: force-close a room (admin-only; see rooms.go)
 	g.Post("/room/close", CloseRoomHandler)
 

@@ -88,12 +88,13 @@
   // Each is the glyph the site already uses for that idea, so a row's mark and
   // the surface it points at agree:
   //
-  //   mod_action  lucide "shield"  the moderation surfaces
-  //   milestone   iconChart        the profile's stats (view/components.templ)
-  //   system      iconGear         the preferences and site controls
-  //   staff       iconMessage      the feedback inbox (view/feedback.templ)
-  //   challenge   iconSwords       the challenge control everywhere else
-  //   follow      iconUsers        the "vs Human" glyph; a follower is a person
+  //   mod_action  lucide "shield"    the moderation surfaces
+  //   milestone   iconChart          the profile's stats (view/components.templ)
+  //   system      iconGear           the preferences and site controls
+  //   staff       iconMessage        the feedback inbox (view/feedback.templ)
+  //   challenge   iconSwords         the challenge control everywhere else
+  //   follow      iconUsers          the "vs Human" glyph; a follower is a person
+  //   announce    lucide "megaphone" a broadcast: the site talking to everybody
   //
   // New kinds belong here. Copy the glyph from its templ twin rather than
   // drawing a second version of it.
@@ -121,6 +122,7 @@
       "M23 21v-2a4 4 0 0 0-3-3.87",
       "M16 3.13a4 4 0 0 1 0 7.75",
     ],
+    announce: ["m3 11 18-5v12L3 14v-3z", "M11.6 16.8a3 3 0 1 1-5.8-1.6"],
   };
 
   // lucide "info", for a kind this build does not know — a row written by a
@@ -132,6 +134,43 @@
     "M12 16v-4",
     "M12 8h.01",
   ];
+
+  // A row's identity in the panel.
+  //
+  // The list is two stores merged: this account's notifications, and the
+  // broadcasts every account reads. They have separate id sequences, so a
+  // notification and a broadcast can carry the same number and are not the same
+  // row — a lookup on the bare id would find whichever came first, mark the
+  // wrong one read, and answer the wrong question. Everything that addresses a
+  // row goes through this: the DOM key, the toast map, the busy sets, and every
+  // lookup in the cache.
+  function key(item) {
+    if (!item || !item.id) return "";
+    return (item.bc ? "b" : "n") + item.id;
+  }
+
+  function find(k) {
+    return cached.find(function (i) { return key(i) === k; });
+  }
+
+  // A message that demands an answer. It is not finished by being looked at:
+  // read-all leaves it, clicking it does not clear it, and only one of its own
+  // options does. The generalization of the rule a live challenge was the first
+  // instance of.
+  function asks(item) {
+    return !!(item && item.c && item.c.length);
+  }
+
+  function needsAnswer(item) {
+    return asks(item) && !item.an;
+  }
+
+  // Everything the reader still has to act on: a challenge that expires, and a
+  // question that is waiting. These float to the top of the panel, survive
+  // read-all, and are the only arrivals that raise a toast.
+  function needsAction(item) {
+    return isLive(item) || needsAnswer(item);
+  }
 
   function when(ms) {
     const secs = Math.max(0, Math.round((Date.now() - ms) / 1000));
@@ -189,18 +228,24 @@
   // person's own text, and a row is not a place to run it.
   function row(item) {
     // A row that carries a control is a block, not a link. A live challenge has
-    // Accept and Decline; a follow has the follow-back toggle. Either way a
-    // button inside an anchor is not something the HTML allows, and every press
-    // would navigate.
+    // Accept and Decline; a question has its options; a follow has the
+    // follow-back toggle. Either way a button inside an anchor is not something
+    // the HTML allows, and every press would navigate.
     const live = isLive(item);
+    const question = needsAnswer(item);
     const toggle = canFollowBack(item);
+    const control = question || toggle;
     // Whether the row has a destination of its own, separate from whether the
     // row element is the thing that carries it.
     const linked = !!item.l && !live;
-    const el = document.createElement(linked && !toggle ? "a" : "div");
+    const el = document.createElement(linked && !control ? "a" : "div");
     el.className = "notify-row kind-" + (item.k || "system") + (item.r ? "" : " is-unread");
-    if (linked && !toggle) el.href = item.l;
-    if (item.id) el.dataset.id = item.id;
+    if (linked && !control) el.href = item.l;
+    if (item.id) {
+      el.dataset.key = key(item);
+      el.dataset.id = item.id;
+      if (item.bc) el.dataset.bc = "1";
+    }
 
     const iconEl = document.createElement("span");
     iconEl.className = "notify-row-icon";
@@ -231,7 +276,7 @@
     // like the roster pill: the message links to the person, the button acts on
     // them. Two targets, separately clickable, that read as one object — because
     // that is what they are.
-    const linkEl = linked && toggle ? document.createElement("a") : el;
+    const linkEl = linked && control ? document.createElement("a") : el;
     if (linkEl !== el) {
       linkEl.className = "notify-row-link";
       linkEl.href = item.l;
@@ -240,8 +285,97 @@
     linkEl.appendChild(body);
     if (linkEl !== el) el.appendChild(linkEl);
     if (live) el.appendChild(challengeActions(item));
+    if (question) el.appendChild(choicesEl(item));
+    if (item.an) el.appendChild(answeredEl(item));
     if (toggle) el.appendChild(followBackEl(item));
     return el;
+  }
+
+  // The options on a question, as full buttons rather than the tick-and-cross a
+  // challenge uses. A challenge is always the same yes/no, so a matched icon
+  // pair reads faster than words; these carry whatever the sender wrote, and
+  // the label is the whole message of the control.
+  //
+  // Nothing here closes over the item or the button, for the reason followBackEl
+  // records: the panel rebuilds its rows whenever a frame arrives, so a captured
+  // reference can outlive the row it was made for. The row key and the chosen
+  // label are both plain strings, and everything is looked up from them.
+  function choicesEl(item) {
+    const wrap = document.createElement("div");
+    wrap.className = "notify-choices";
+    const k = key(item);
+    const busy = answerBusy.has(k);
+    item.c.forEach(function (choice) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "notify-choice" + (busy ? " is-busy" : "");
+      btn.textContent = choice;
+      // A refusal is kept on the item so it survives the rebuild, like the
+      // follow-back's. It says why the press did nothing.
+      if (item.anError) btn.title = item.anError;
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        answer(k, choice);
+      });
+      wrap.appendChild(btn);
+    });
+    return wrap;
+  }
+
+  // What the reader answered, once they have. It replaces the buttons rather
+  // than sitting beside them: the question is closed, and the row still has to
+  // say which way — otherwise somebody who answered an offer in one tab cannot
+  // tell in another whether they did.
+  function answeredEl(item) {
+    const p = document.createElement("p");
+    p.className = "notify-answered";
+    p.appendChild(document.createTextNode("You answered "));
+    const choice = document.createElement("span");
+    choice.className = "notify-answered-choice";
+    choice.textContent = item.an;
+    p.appendChild(choice);
+    return p;
+  }
+
+  // Row keys with an answer in flight. Held here rather than as a class on the
+  // button, for the same reason followBusy is: a rebuilt button would come back
+  // pressable in the middle of its own request.
+  const answerBusy = new Set();
+
+  // Records one answer. The first answer stands on the server, so this never
+  // offers a way to change it — a failure repaints the buttons rather than
+  // pretending the answer landed.
+  async function answer(k, choice) {
+    if (answerBusy.has(k)) return;
+    const item = find(k);
+    if (!item) return;
+    answerBusy.add(k);
+    render(cached);
+
+    try {
+      const res = await fetch("/api/me/notifications/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ id: item.id, bc: !!item.bc, choice: choice }),
+      });
+      const data = await res.json().catch(function () { return null; });
+      if (res.ok) {
+        item.an = choice;
+        item.r = true;
+        item.anError = "";
+        if (data && typeof data.unread === "number") unread = data.unread;
+      } else {
+        item.anError = (data && data.error) || "Could not record that.";
+      }
+    } catch (e) {
+      item.anError = "Network error — that did not save.";
+    }
+    answerBusy.delete(k);
+    // An answered question stops needing the reader, so its card goes with it.
+    removeToast(k);
+    paintBadge();
+    render(cached);
   }
 
   // The follow-back toggle: the same two-state control the follow lists render
@@ -272,19 +406,20 @@
       btn.appendChild(span);
     });
     paintButton(btn, item);
-    btn.addEventListener("click", function () { toggleFollow(item.id); });
+    const k = key(item);
+    btn.addEventListener("click", function () { toggleFollow(k); });
     return btn;
   }
 
-  // Ids with a follow write in flight. Held here rather than as a class on the
-  // button for the same reason: a rebuilt button would come back pressable in
-  // the middle of its own request.
+  // Row keys with a follow write in flight. Held here rather than as a class on
+  // the button for the same reason: a rebuilt button would come back pressable
+  // in the middle of its own request.
   const followBusy = new Set();
 
   function paintButton(btn, item) {
     const following = !!item.fw;
     btn.classList.toggle("is-following", following);
-    btn.classList.toggle("is-busy", followBusy.has(item.id));
+    btn.classList.toggle("is-busy", followBusy.has(key(item)));
     btn.setAttribute("aria-pressed", following ? "true" : "false");
     // A refusal is kept on the item, not on the element, so it survives the
     // rebuild too. A closed account is the one worth reading: it says why the
@@ -292,19 +427,19 @@
     if (item.fwError) btn.title = item.fwError;
   }
 
-  // Repaints the row's button from the row's current item, both found by id.
-  function syncFollow(id) {
-    const item = cached.find(function (i) { return i.id === id; });
-    const btn = list.querySelector('.notify-row[data-id="' + id + '"] > .follow-mini');
+  // Repaints the row's button from the row's current item, both found by key.
+  function syncFollow(k) {
+    const item = find(k);
+    const btn = list.querySelector('.notify-row[data-key="' + k + '"] > .follow-mini');
     if (item && btn) paintButton(btn, item);
   }
 
-  async function toggleFollow(id) {
-    if (followBusy.has(id)) return;
-    const item = cached.find(function (i) { return i.id === id; });
+  async function toggleFollow(k) {
+    if (followBusy.has(k)) return;
+    const item = find(k);
     if (!item || !item.a) return;
-    followBusy.add(id);
-    syncFollow(id);
+    followBusy.add(k);
+    syncFollow(k);
 
     const following = !!item.fw;
     try {
@@ -325,8 +460,8 @@
     } catch (e) {
       item.fwError = "Network error — that did not save.";
     }
-    followBusy.delete(id);
-    syncFollow(id);
+    followBusy.delete(k);
+    syncFollow(k);
   }
 
   // Builds one lucide-style stroke icon. createElementNS rather than innerHTML:
@@ -399,7 +534,7 @@
       // room has already gone is still a decline.
       item.r = true;
       post("/api/me/challenge/decline", { room: roomOf(item), id: item.id });
-      removeToast(item.id);
+      removeToast(key(item));
       render(cached);
     });
 
@@ -429,7 +564,10 @@
       list.appendChild(row({
         k: "staff",
         b: staffLabel(staff),
-        l: "/system",
+        // the People page, where the inbox is — not the console's front page.
+        // The row exists to take a moderator to the unread feedback, and the
+        // overview does not have it.
+        l: "/system/people",
         ts: Date.now(),
         r: true,
       }));
@@ -438,12 +576,14 @@
       if (staff === 0) list.appendChild(empty("Nothing yet."));
       return;
     }
-    // Live challenges first. They expire, and everything below them does not —
-    // a challenge with forty seconds left must not sit under a week of rating
-    // records. The rest keep the newest-first order the server sent.
-    const live = cached.filter(isLive);
-    const rest = cached.filter(function (i) { return !isLive(i); });
-    live.concat(rest).forEach(function (item) { list.appendChild(row(item)); });
+    // Anything still waiting on the reader goes first: a challenge that expires,
+    // a question that has not been answered. Neither can be dealt with by
+    // scrolling past it, and a challenge with forty seconds left must not sit
+    // under a week of rating records. The rest keep the newest-first order the
+    // server sent, across both stores.
+    const waiting = cached.filter(needsAction);
+    const rest = cached.filter(function (i) { return !needsAction(i); });
+    waiting.concat(rest).forEach(function (item) { list.appendChild(row(item)); });
     syncCountdowns();
   }
 
@@ -473,7 +613,7 @@
     // A challenge that ran out stops being actionable, so the rows are rebuilt
     // rather than left showing buttons that would now fail.
     if (expired) {
-      dismissToastsFor(function (item) { return !isLive(item); });
+      dismissToastsFor(function (item) { return !needsAction(item); });
       render(cached);
     }
   }
@@ -538,10 +678,11 @@
   };
 
   function markAllRead() {
-    // A live challenge is not finished by being looked at, so the server leaves
-    // it unread and the badge keeps reporting it. Predicting that here keeps the
+    // A row that is waiting on the reader — a live challenge, an unanswered
+    // question — is not finished by being looked at, so the server leaves it
+    // unread and the badge keeps reporting it. Predicting that here keeps the
     // badge from flashing to zero and back when the response lands.
-    const pending = cached.filter(isLive).length;
+    const pending = cached.filter(needsAction).length;
     // Paint first: the reader has seen the panel, and the badge must not sit
     // there while a request is in flight. The response corrects the number.
     unread = pending;
@@ -550,10 +691,10 @@
     // read is about the badge, and stripping the marks in the same instant the
     // panel opened would take away the one thing the reader came to see: which
     // of these are the new ones. The cached copies are updated, so the next time
-    // the panel renders they are read — except a live challenge, which must keep
-    // offering its buttons until it is answered.
+    // the panel renders they are read — except a row that is still waiting,
+    // which must keep offering its buttons until it is answered.
     cached.forEach(function (item) {
-      if (!isLive(item)) item.r = true;
+      if (!needsAction(item)) item.r = true;
     });
     post("/api/me/notifications/read-all");
   }
@@ -568,29 +709,43 @@
   // A click on a row follows its link. Mark that one read on the way out so it
   // is not still tinted when the reader comes back.
   list.addEventListener("click", function (e) {
-    const el = e.target.closest(".notify-row[data-id]");
+    const el = e.target.closest(".notify-row[data-key]");
     if (!el || !el.classList.contains("is-unread")) return;
-    const id = Number(el.dataset.id);
+    const k = el.dataset.key;
+    const item = find(k);
+    // Clicking a question is not answering it. The server refuses this write
+    // for exactly that reason; stopping here as well keeps the row on screen
+    // from claiming otherwise.
+    if (item && needsAnswer(item)) return;
     el.classList.remove("is-unread");
     // The cached row too, or the next re-render brings the mark back. Most rows
     // navigate away on this click and never see it; a row with a control of its
     // own — the follow-back toggle — is pressed and stayed on.
-    cached.forEach(function (item) { if (item.id === id) item.r = true; });
-    post("/api/me/notifications/read", { id: id });
+    if (item) item.r = true;
+    // bc routes the write: a notification is stamped read, while a broadcast is
+    // one row shared by everybody and moves this account's watermark instead.
+    post("/api/me/notifications/read", {
+      id: Number(el.dataset.id),
+      bc: el.dataset.bc === "1",
+    });
   });
 
   // ---------------------------------------------------------------- toast
 
-  // A toast is for the arrivals that cannot wait for somebody to open the bell.
-  // Today that is a challenge, which expires; every other kind can be read
-  // whenever its reader gets to it, and interrupting them for it would train
-  // them to ignore the thing that matters.
+  // A toast is for the arrivals that cannot wait for somebody to open the bell:
+  // a challenge, which expires, and a question, which stays until it is
+  // answered. Every other kind can be read whenever its reader gets to it, and
+  // interrupting them for it would train them to ignore the thing that matters.
+  //
+  // That line is why an ordinary broadcast raises no card. It reaches everybody
+  // at once, which makes it the easiest thing on the site to over-use; it goes
+  // to the badge and waits, like any other message somebody can read later.
   //
   // The host is fixed, so nothing it does can move the page. It is created on
   // first use rather than rendered into every page's markup — most pages never
   // show one.
   let toastHost = null;
-  const toasts = new Map(); // notification id -> element
+  const toasts = new Map(); // row key -> element
 
   function ensureToastHost() {
     if (!toastHost) {
@@ -616,7 +771,8 @@
   }
 
   function showToast(item) {
-    if (!isLive(item) || inGame() || toasts.has(item.id)) return;
+    const k = key(item);
+    if (!needsAction(item) || inGame() || toasts.has(k)) return;
     const host = ensureToastHost();
 
     // The card is a two-part surface, like the roster pill: the message on the
@@ -633,29 +789,31 @@
     dismiss.setAttribute("aria-label", "Dismiss");
     dismiss.title = "Dismiss";
     dismiss.appendChild(icon(crossPath));
-    // Dismissing the card is not declining. It says "not now, stop covering my
-    // page", and the challenge stays in the bell until it is answered or runs
-    // out. Conflating the two would decline by accident — which is exactly why
-    // this control must not look like the cross inside the message.
-    dismiss.addEventListener("click", function () { removeToast(item.id); });
+    // Dismissing the card is not declining, and it is not answering. It says
+    // "not now, stop covering my page", and the row stays in the bell until it
+    // is dealt with. Conflating the two would decline by accident — which is
+    // exactly why this control must not look like the cross inside the message,
+    // and why it stays on a question whose options sit alongside it.
+    dismiss.addEventListener("click", function () { removeToast(k); });
     card.appendChild(dismiss);
 
     host.appendChild(card);
-    toasts.set(item.id, card);
+    toasts.set(k, card);
     ping();
   }
 
-  function removeToast(id) {
-    const el = toasts.get(id);
+  function removeToast(k) {
+    const el = toasts.get(k);
     if (el) el.remove();
-    toasts.delete(id);
+    toasts.delete(k);
   }
 
   // Drops every toast whose item now satisfies gone — used when a challenge
   // expires or is answered, so a dead card never sits there offering an Accept.
   function dismissToastsFor(gone) {
     cached.forEach(function (item) {
-      if (toasts.has(item.id) && gone(item)) removeToast(item.id);
+      const k = key(item);
+      if (toasts.has(k) && gone(item)) removeToast(k);
     });
   }
 
@@ -695,11 +853,24 @@
       // now would fetch on every arrival for a panel nobody has opened, so mark
       // it stale and let the next open pay for it.
       loaded = false;
-      // A challenge cannot wait for somebody to open the bell — it expires. The
-      // item is put in the cache first so the toast and the panel render the
-      // same row, and so declining from the toast updates both.
-      if (isLive(d.i)) {
-        cached = [d.i].concat(cached.filter(function (i) { return i.id !== d.i.id; }));
+      const k = key(d.i);
+      const known = cached.some(function (i) { return key(i) === k; });
+      // A broadcast frame carries no count, and cannot: one frame goes to every
+      // account on the site and their totals all differ. This is the only place
+      // the client is allowed to move the number itself, and here it is exact
+      // rather than a guess — a message that was just created is unread for
+      // every account that existed before it, without exception. Keying the
+      // bump on the row stops a repeated frame counting twice, and the next
+      // socket connect replaces the total outright either way.
+      if (d.i.bc && !known) {
+        unread += 1;
+        paintBadge();
+      }
+      // A row that is waiting on the reader cannot wait for somebody to open
+      // the bell. The item is put in the cache first so the toast and the panel
+      // render the same row, and so answering from the toast updates both.
+      if (needsAction(d.i)) {
+        cached = [d.i].concat(cached.filter(function (i) { return key(i) !== k; }));
         showToast(d.i);
       }
     }

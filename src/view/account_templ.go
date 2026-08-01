@@ -112,7 +112,7 @@ func staffLinks() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"mb-3 flex items-stretch gap-2 border-b border-line pt-3 pb-3\"><a href=\"/system\" data-unread-anchor class=\"btn btn-ghost flex-1 justify-center gap-1.5 py-1.5 text-sm no-underline\">System")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"mb-3 flex items-stretch gap-2 border-b border-line pt-3 pb-3\"><a href=\"/system/people\" data-unread-anchor class=\"btn btn-ghost flex-1 justify-center gap-1.5 py-1.5 text-sm no-underline\">System")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -214,7 +214,7 @@ func editProfileModal(username string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(username)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 128, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 129, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -270,7 +270,7 @@ func SessionList(sessions []SessionView) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(s.Device)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 165, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 166, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -293,7 +293,7 @@ func SessionList(sessions []SessionView) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(s.LastSeen)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 170, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 171, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -311,7 +311,7 @@ func SessionList(sessions []SessionView) templ.Component {
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(s.ID, 10))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 173, Col: 96}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/account.templ`, Line: 174, Col: 96}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 					if templ_7745c5c3_Err != nil {

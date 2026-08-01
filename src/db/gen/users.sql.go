@@ -36,7 +36,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT u.id, u.created_at, u.username, u.email, u.password_hash, u.totp_secret_enc, u.totp_confirmed_at, u.webauthn_user_handle, u.username_changed_at, u.title_id, u.role, u.banned_until, u.ban_reason, t.code AS title_code, t.name AS title_name
+SELECT u.id, u.created_at, u.username, u.email, u.password_hash, u.totp_secret_enc, u.totp_confirmed_at, u.webauthn_user_handle, u.username_changed_at, u.title_id, u.role, u.banned_until, u.ban_reason, u.broadcast_seen_at, t.code AS title_code, t.name AS title_name
 FROM users u
          LEFT JOIN titles t ON t.id = u.title_id
 WHERE u.id = $1
@@ -67,6 +67,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 		&i.User.Role,
 		&i.User.BannedUntil,
 		&i.User.BanReason,
+		&i.User.BroadcastSeenAt,
 		&i.TitleCode,
 		&i.TitleName,
 	)
@@ -74,7 +75,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 }
 
 const getUserByUsernameLower = `-- name: GetUserByUsernameLower :one
-SELECT u.id, u.created_at, u.username, u.email, u.password_hash, u.totp_secret_enc, u.totp_confirmed_at, u.webauthn_user_handle, u.username_changed_at, u.title_id, u.role, u.banned_until, u.ban_reason, t.code AS title_code, t.name AS title_name
+SELECT u.id, u.created_at, u.username, u.email, u.password_hash, u.totp_secret_enc, u.totp_confirmed_at, u.webauthn_user_handle, u.username_changed_at, u.title_id, u.role, u.banned_until, u.ban_reason, u.broadcast_seen_at, t.code AS title_code, t.name AS title_name
 FROM users u
          LEFT JOIN titles t ON t.id = u.title_id
 WHERE lower(u.username) = lower($1)
@@ -106,6 +107,7 @@ func (q *Queries) GetUserByUsernameLower(ctx context.Context, lower string) (Get
 		&i.User.Role,
 		&i.User.BannedUntil,
 		&i.User.BanReason,
+		&i.User.BroadcastSeenAt,
 		&i.TitleCode,
 		&i.TitleName,
 	)

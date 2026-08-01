@@ -24,9 +24,10 @@
   const errorEl = document.getElementById("confirmError");
   const applyBtn = document.getElementById("confirmApply");
 
-  // the two surfaces; either may be absent depending on the page
+  // the three surfaces; any may be absent depending on the page
   const modForm = document.getElementById("modForm");
   const settingsForm = document.getElementById("settingsForm");
+  const broadcastForm = document.getElementById("broadcastForm");
 
   // { kind: "mod" | "setting", btn } awaiting confirmation, or null when closed
   let pending = null;
@@ -49,7 +50,7 @@
   // Safe at init: nothing has been typed yet on a fresh load, and a bfcache
   // restore does not re-run this script (that path is handled separately, by
   // the pageshow reset in navScript).
-  [modForm, settingsForm].forEach(function (f) {
+  [modForm, settingsForm, broadcastForm].forEach(function (f) {
     if (f) f.reset();
   });
 
@@ -133,6 +134,22 @@
     };
   }
 
+  // A broadcast. The summary quotes what is about to be sent, because that is
+  // the part nobody can take back: retiring a broadcast stops it showing, it
+  // does not unsend it. Whether it asks a question is stated as well — the
+  // difference between a message people can ignore and one that sits in every
+  // bell until it is answered.
+  function describeBroadcast(btn) {
+    const body = field(broadcastForm, "body");
+    const choices = parseChoices(field(broadcastForm, "choices"));
+    let effect = btn.dataset.effect || "";
+    if (choices.length) {
+      effect += " It asks for an answer (" + choices.join(" / ") +
+        ") and stays in every bell until each person gives one.";
+    }
+    return { label: btn.dataset.confirm || "Broadcast", value: body, effect: effect };
+  }
+
   // A queue or ops action. Both are single-button: the server-rendered
   // data-confirm already names the specific report or room, so there is no
   // field to read back.
@@ -152,6 +169,8 @@
       d = describeMod(btn);
     } else if (kind === "setting") {
       d = describeSetting(btn);
+    } else if (kind === "broadcast") {
+      d = describeBroadcast(btn);
     } else {
       d = describeSimple(btn);
     }
@@ -160,6 +179,13 @@
     // change the server would reject — a rename to nothing.
     if (kind === "mod" && btn.dataset.modAction === "rename" && !d.value) {
       const el = modForm.elements["username"];
+      if (el) el.focus();
+      return;
+    }
+    // Same rule for an empty broadcast, and it matters more here: the dialog
+    // would ask for a reason to send nothing to everybody.
+    if (kind === "broadcast" && !d.value) {
+      const el = broadcastForm.elements["body"];
       if (el) el.focus();
       return;
     }
@@ -226,6 +252,30 @@
     return body;
   }
 
+  // The options that turn a broadcast into a question, from one comma-separated
+  // field. Empty entries are dropped here as well as on the server, so a
+  // trailing comma is a typo rather than an unnamed third button.
+  //
+  // The server validates and normalizes the same way, and stores the answer as
+  // the option's own label. Nothing here is the check — it exists so the
+  // confirmation can name the options before they are sent.
+  function parseChoices(raw) {
+    return (raw || "")
+      .split(",")
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s.length > 0; });
+  }
+
+  function broadcastBody(reason) {
+    return {
+      reason: reason,
+      body: field(broadcastForm, "body"),
+      link: field(broadcastForm, "link"),
+      choices: parseChoices(field(broadcastForm, "choices")),
+      expiresDays: Number(field(broadcastForm, "expiresDays")) || 0,
+    };
+  }
+
   async function apply() {
     if (!pending || submitting) return;
     const reason = reasonInput.value.trim();
@@ -254,6 +304,14 @@
       case "room":
         url = "/api/mod/room/close";
         body = { roomId: btn.dataset.closeRoom, reason: reason };
+        break;
+      case "broadcast":
+        url = "/api/mod/broadcast";
+        body = broadcastBody(reason);
+        break;
+      case "retire":
+        url = "/api/mod/broadcast/retire";
+        body = { id: Number(btn.dataset.retireBroadcast), reason: reason };
         break;
     }
 
@@ -321,6 +379,18 @@
       open("room", roomBtn);
       return;
     }
+    const bcBtn = ev.target.closest("[data-broadcast]");
+    if (bcBtn && broadcastForm) {
+      ev.preventDefault();
+      open("broadcast", bcBtn);
+      return;
+    }
+    const retireBtn = ev.target.closest("[data-retire-broadcast]");
+    if (retireBtn) {
+      ev.preventDefault();
+      open("retire", retireBtn);
+      return;
+    }
     if (!modal.classList.contains("open")) return;
     if (ev.target === modal || ev.target.closest("#confirmCancel") ||
         ev.target.closest("#modalConfirmChange .modal-close")) {
@@ -338,8 +408,8 @@
     apply();
   });
 
-  // neither bar is a real form submission; Enter must never navigate
-  [modForm, settingsForm].forEach(function (f) {
+  // none of these is a real form submission; Enter must never navigate
+  [modForm, settingsForm, broadcastForm].forEach(function (f) {
     if (f) f.addEventListener("submit", function (ev) { ev.preventDefault(); });
   });
 })();
@@ -379,6 +449,7 @@
   const results = document.getElementById("msgResults");
   const picked = document.getElementById("msgPicked");
   const bodyEl = document.getElementById("msgBody");
+  const choicesEl = document.getElementById("msgChoices");
   const sendBtn = document.getElementById("msgSend");
   const errorEl = document.getElementById("msgError");
   const okEl = document.getElementById("msgOk");
@@ -474,6 +545,18 @@
 
   if (bodyEl) bodyEl.addEventListener("input", function () { clearStatus(); syncSend(); });
 
+  // The same comma-separated options the broadcast composer takes, because the
+  // flag belongs to notifications rather than to broadcasts: an operator
+  // answering a report can ask that one player to confirm they have read the
+  // decision. Parsed the same way, and validated on the server by the same
+  // function.
+  function messageChoices() {
+    return (choicesEl ? choicesEl.value : "")
+      .split(",")
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s.length > 0; });
+  }
+
   sendBtn.addEventListener("click", async function () {
     if (!target) return;
     const body = bodyEl ? bodyEl.value.trim() : "";
@@ -485,7 +568,11 @@
       const res = await fetch("/api/mod/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ userId: target.id, body: body }),
+        body: JSON.stringify({
+          userId: target.id,
+          body: body,
+          choices: messageChoices(),
+        }),
       });
       const data = await res.json().catch(function () { return null; });
       if (!res.ok) {
@@ -499,6 +586,10 @@
       target = null;
       if (picked) picked.classList.add("hidden");
       if (bodyEl) bodyEl.value = "";
+      // The options go too. They belong to the message that was just sent, and
+      // leaving them would silently attach the last question to the next
+      // message somebody types.
+      if (choicesEl) choicesEl.value = "";
       search.value = "";
       results.replaceChildren();
     } catch (e) {

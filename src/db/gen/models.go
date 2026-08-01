@@ -9,6 +9,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Broadcast struct {
+	ID        int64
+	CreatedAt pgtype.Timestamptz
+	ActorID   *int64
+	Body      string
+	Link      string
+	Choices   []string
+	ExpiresAt pgtype.Timestamptz
+}
+
+type BroadcastAck struct {
+	BroadcastID int64
+	UserID      int64
+	Choice      string
+	CreatedAt   pgtype.Timestamptz
+}
+
 type Feedback struct {
 	ID        int64
 	CreatedAt pgtype.Timestamptz
@@ -90,6 +107,8 @@ type Notification struct {
 	Link      string
 	ReadAt    pgtype.Timestamptz
 	ExpiresAt pgtype.Timestamptz
+	Choices   []string
+	Response  *string
 }
 
 type Position struct {
@@ -196,6 +215,7 @@ type User struct {
 	Role               string
 	BannedUntil        pgtype.Timestamptz
 	BanReason          *string
+	BroadcastSeenAt    pgtype.Timestamptz
 }
 
 type UserPref struct {

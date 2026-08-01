@@ -136,3 +136,47 @@ ORDER BY (lower(username) = lower($2)) DESC,
          length(username),
          lower(username)
 LIMIT $3;
+
+-- name: ListStaff :many
+-- Everyone who holds a role above player, for the staff overview
+-- (arch/ADMIN_MODERATION.md). Two surfaces read it: the panel on /system and
+-- the public /staff page. One query serves both, and the *handler* decides
+-- which columns reach a page — the appointment trail is staff-only, and gating
+-- it here would mean a second query that could drift from this one.
+--
+-- The LATERAL is the appointment: the audit log is the record of who did what,
+-- so it is also the record of who granted this role and when. It matches on the
+-- role the account holds *now*, so an admin who was a mod first shows the
+-- promotion that put them where they are rather than their first appointment.
+-- No row means the role came from outside the app (the SQL bootstrap), which is
+-- exactly the account that has no grantor and cannot be demoted through the UI.
+--
+-- Admins first, then alphabetically. The staff is a handful of rows, so the
+-- ordering is for the reader rather than for a pager.
+SELECT u.id,
+       u.username,
+       u.role,
+       u.created_at,
+       t.code                              AS title_code,
+       t.name                              AS title_name,
+       (u.banned_until IS NOT NULL)::bool  AS sanctioned,
+       g.created_at                        AS granted_at,
+       -- COALESCE, not the bare column: the LATERAL is a LEFT join, so this is
+       -- NULL for a bootstrapped role, and sqlc cannot see that through a
+       -- LATERAL — it would type the column as a plain string and the scan
+       -- would fail on exactly the row that matters.
+       COALESCE(g.actor_username, '')      AS granted_by
+FROM users u
+         LEFT JOIN titles t ON t.id = u.title_id
+         LEFT JOIN LATERAL (
+    SELECT m.created_at, a.username AS actor_username
+    FROM mod_actions m
+             JOIN users a ON a.id = m.actor_user_id
+    WHERE m.target_user_id = u.id
+      AND m.action = 'role'
+      AND m.detail ->> 'to' = u.role
+    ORDER BY m.created_at DESC
+    LIMIT 1
+    ) g ON TRUE
+WHERE u.role IN ('mod', 'admin')
+ORDER BY (u.role = 'admin') DESC, lower(u.username);

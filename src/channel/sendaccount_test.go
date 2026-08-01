@@ -119,3 +119,54 @@ func TestSendToAccountAnonymousIsNoop(t *testing.T) {
 		t.Errorf("anonymous socket received %d messages, want 0", got)
 	}
 }
+
+// TestSendToEveryAccountSkipsAnonymous: a broadcast reaches every signed-in
+// connection in one walk, and nothing else.
+//
+// The anonymous case is the one that matters. Every anonymous socket carries
+// account id 0, and a broadcast lands in the notification bell — which a
+// signed-out visitor does not have. A frame sent there is a message that
+// visitor can never see or clear, so the walk must skip them; the site notice
+// banner is what reaches them instead.
+func TestSendToEveryAccountSkipsAnonymous(t *testing.T) {
+	home := Map.GetSockMap("bcast-home")
+	idle := Map.GetSockMap("bcast-idle")
+
+	// one account on two devices, a second account, and two anonymous visitors
+	laptop := NewSocket(nil, "bc-laptop", "c1", "", Account{ID: 7})
+	phone := NewSocket(nil, "bc-phone", "c1", "", Account{ID: 7})
+	other := NewSocket(nil, "bc-other", "c1", "", Account{ID: 8})
+	anonA := NewSocket(nil, "bc-anon-a", "c1", "", Account{})
+	anonB := NewSocket(nil, "bc-anon-b", "c1", "", Account{})
+
+	home.Track(laptop)
+	home.Track(other)
+	home.Track(anonA)
+	idle.Track(phone)
+	idle.Track(anonB)
+	t.Cleanup(func() {
+		home.UnTrack("bc-laptop", "c1")
+		home.UnTrack("bc-other", "c1")
+		home.UnTrack("bc-anon-a", "c1")
+		idle.UnTrack("bc-phone", "c1")
+		idle.UnTrack("bc-anon-b", "c1")
+	})
+
+	if sent := SendToEveryAccount([]byte(`{"t":"nt"}`)); sent != 3 {
+		t.Fatalf("SendToEveryAccount reached %d connections, want 3", sent)
+	}
+
+	for name, s := range map[string]*Socket{
+		"laptop": laptop, "phone": phone, "other": other,
+	} {
+		if got := len(drain(s)); got != 1 {
+			t.Errorf("%s received %d messages, want 1", name, got)
+		}
+	}
+	for name, s := range map[string]*Socket{"anonA": anonA, "anonB": anonB} {
+		if got := len(drain(s)); got != 0 {
+			t.Errorf("%s received %d messages, want 0 — an anonymous visitor has "+
+				"no bell to put a broadcast in", name, got)
+		}
+	}
+}

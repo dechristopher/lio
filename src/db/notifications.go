@@ -73,10 +73,21 @@ type Notification struct {
 	// means it never stops being worth reading, which is every kind but a
 	// challenge.
 	Expires time.Time
+	// Choices are the answers this message demands, in the order they are shown,
+	// and nil for a message that asks nothing. A message with choices is not
+	// finished by being seen — only by being answered — which is the general
+	// case the live-challenge rule was the first instance of.
+	Choices []string
+	// Response is what the recipient chose, empty while the question is
+	// outstanding.
+	Response string
 }
 
 // Unread reports whether the recipient has not read this row yet.
 func (n Notification) Unread() bool { return n.Read.IsZero() }
+
+// Asks reports whether this message demands an answer before it is finished.
+func (n Notification) Asks() bool { return len(n.Choices) > 0 }
 
 // NewNotification is one message to write. The caller builds body and link, so
 // nothing a client sent reaches either column.
@@ -91,6 +102,10 @@ type NewNotification struct {
 	// Expires bounds how long the message is worth acting on. Leave it zero for
 	// a message that does not expire, which is every kind but a challenge.
 	Expires time.Time
+	// Choices makes the message an acknowledgement: it stays unread, and keeps
+	// counting against the badge, until the recipient picks one of them. Leave
+	// it empty for a message that only has to be read.
+	Choices []string
 }
 
 // CreateNotification writes one message and returns the row it wrote. The
@@ -112,6 +127,7 @@ func CreateNotification(n NewNotification) (Notification, error) {
 		Body:      n.Body,
 		Link:      n.Link,
 		ExpiresAt: pgtype.Timestamptz{Time: n.Expires, Valid: !n.Expires.IsZero()},
+		Choices:   n.Choices,
 	})
 	if err != nil {
 		return Notification{}, err
@@ -123,6 +139,7 @@ func CreateNotification(n NewNotification) (Notification, error) {
 		Body:    n.Body,
 		Link:    n.Link,
 		Expires: n.Expires,
+		Choices: n.Choices,
 	}
 	// The caller gave the actor as a pointer (nil for a message from the site);
 	// the row carries it as a plain id, so the delivered item and the same row
@@ -197,14 +214,16 @@ func ListNotifications(userID int64, limit int32) ([]Notification, error) {
 	out := make([]Notification, 0, len(rows))
 	for _, r := range rows {
 		row := Notification{
-			ID:      r.ID,
-			Created: r.CreatedAt.Time,
-			Kind:    r.Kind,
-			Body:    r.Body,
-			Link:    r.Link,
-			Actor:   strOrEmpty(r.ActorUsername),
-			Read:    r.ReadAt.Time,
-			Expires: r.ExpiresAt.Time,
+			ID:       r.ID,
+			Created:  r.CreatedAt.Time,
+			Kind:     r.Kind,
+			Body:     r.Body,
+			Link:     r.Link,
+			Actor:    strOrEmpty(r.ActorUsername),
+			Read:     r.ReadAt.Time,
+			Expires:  r.ExpiresAt.Time,
+			Choices:  r.Choices,
+			Response: strOrEmpty(r.Response),
 		}
 		if r.ActorID != nil {
 			row.ActorID = *r.ActorID
@@ -214,9 +233,42 @@ func ListNotifications(userID int64, limit int32) ([]Notification, error) {
 	return out, nil
 }
 
+// AnswerNotification records the recipient's answer to a message that demands
+// one, and finishes the row in the same statement.
+//
+// ok=false with no error covers every way the question is not open to this
+// caller: they do not own the row, the row asks nothing, the choice is not one
+// it offered, or they already answered. The choice is checked against the row's
+// own options inside the query, so a crafted request cannot store an option the
+// sender never wrote.
+func AnswerNotification(id, userID int64, choice string) (ok bool, err error) {
+	if Pool == nil {
+		return false, nil
+	}
+	ctx, cancel := Ctx()
+	defer cancel()
+	_, err = gen.New(Pool).AnswerNotification(ctx, gen.AnswerNotificationParams{
+		ID:     id,
+		UserID: userID,
+		// A pointer because response is a nullable column and sqlc types the
+		// assignment from it, not from the ARRAY test. The value is never nil:
+		// an empty answer is refused above this layer, and would match no row
+		// here in any case.
+		Choice: &choice,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // MarkNotificationRead stamps one row read for one account. ok=false with no
-// error means the account does not own that row, or the row was already read.
-// Both answers are the same to the caller: nothing changed.
+// error means the account does not own that row, the row was already read, or
+// the row asks a question that only an answer can finish. All of those are the
+// same answer to the caller: nothing changed.
 func MarkNotificationRead(id, userID int64) (ok bool, err error) {
 	if Pool == nil {
 		return false, nil

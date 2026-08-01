@@ -15,11 +15,11 @@ import (
 type Charset int
 
 const (
-	Hex Charset = iota
-	Base58
-
 	// Version of lio
 	Version = "v1.11.0"
+
+	Hex Charset = iota
+	Base58
 
 	charsetHex    = "abcdef01234567890"
 	charsetBase58 = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ123456789"

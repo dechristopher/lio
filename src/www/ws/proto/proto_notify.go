@@ -55,6 +55,28 @@ type NotifyItem struct {
 	// control would vanish from under them; a relationship has two states, which
 	// is exactly what the two-state toggle everywhere else on the site paints.
 	Follows bool `json:"fw,omitempty"`
+	// Choices are the answers this message demands, in the order they are shown,
+	// and absent on a message that asks nothing. A row with choices renders them
+	// as buttons and is not dismissible any other way: it does not clear by
+	// being seen, and read-all leaves it alone.
+	//
+	// It is the general case of the rule a live challenge was the first instance
+	// of. A challenge is not expressed through this field — it has its own kind,
+	// its own expiry and two actions that are not a stored answer — but both
+	// obey "a row that asks a question is not finished by being looked at".
+	Choices []string `json:"c,omitempty"`
+	// Response is what this reader already answered, empty while the question is
+	// outstanding. The row then shows the answer instead of the buttons, which
+	// is what stops somebody answering an offer twice from a second tab.
+	Response string `json:"an,omitempty"`
+	// Broadcast marks a row that came from the broadcasts table rather than from
+	// notifications. The two have separate id sequences, so this is also half of
+	// the client's row key: without it a notification and a broadcast that
+	// happen to share an id would be the same row to every lookup in the panel.
+	//
+	// It routes the writes as well. Marking one read moves an account's
+	// watermark; marking a notification read stamps one row.
+	Broadcast bool `json:"bc,omitempty"`
 }
 
 // NotifyPayload carries the unread counts, and the new message when one just
@@ -121,6 +143,28 @@ func NotifyMessage(unread int64, item NotifyItem) []byte {
 	msg := Message{
 		Tag:  string(NotifyTag),
 		Data: NotifyPayload{Unread: &unread, Item: &item},
+	}
+	return msg.Please()
+}
+
+// NotifyBroadcastMessage builds the frame for a message sent to every account
+// at once: the new row, and no count at all.
+//
+// It cannot carry one. This single frame goes to every signed-in socket on the
+// site, and each account's unread total is its own — sending any number would
+// overwrite everybody else's with one reader's. That is the same reason
+// NotifyStaffMessage omits the personal count, and the client's rule covers
+// both: an absent field means "unchanged".
+//
+// So the client adds one itself, which is the one place it is allowed to. A
+// message that has just been created is unread for every account that existed
+// before it, without exception — so +1 is not an estimate, it is the answer.
+// The client still keys the bump on the row id, so a repeated frame cannot
+// count twice, and the next socket connect replaces the total outright.
+func NotifyBroadcastMessage(item NotifyItem) []byte {
+	msg := Message{
+		Tag:  string(NotifyTag),
+		Data: NotifyPayload{Item: &item},
 	}
 	return msg.Please()
 }

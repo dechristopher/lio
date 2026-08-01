@@ -40,32 +40,125 @@ const (
 	// worked to empty — read messages stay as history — so the section shows a
 	// recent window and counts the rest.
 	feedbackShown = 30
+	// broadcastsShown bounds the sent-broadcast list. Recent history, not an
+	// archive: what an operator needs to see is what is live and what just
+	// ended, and the audit log holds the permanent record of every one.
+	broadcastsShown = 20
 )
 
-// SystemHandler renders the moderation console for a moderator, and a 404 for
-// everyone else.
-func SystemHandler(c fiber.Ctx) error {
-	acct := user.GetAccount(c)
-	if acct == nil || !acct.Role.CanModerate() {
-		return view.Render(c, fiber.StatusNotFound, view.NotFound(view.PageMeta("404")))
-	}
+// The console's three pages (arch/ADMIN_MODERATION.md, *The console is three
+// pages*). Each is a real route so that a tab is a URL and — the reason that
+// shows up in the logs — each page runs only its own reads. The console's loads
+// are not cheap: the overview probes three backends, and a moderator reading
+// the audit log should pay for none of it.
 
-	current := settings.Current()
-	m := view.SystemModel{
-		IsAdmin:  acct.Role.CanAdmin(),
-		Settings: current,
-		Active:   view.ActiveNoticesOf(current),
-		Feed:     auditFeed(c),
-		Live:     liveOps(),
-		Feedback: feedbackInbox(),
+// SystemHandler renders the overview: the live picture, what is currently
+// overriding a default, the switches that set them, and the process itself.
+//
+// Moderator-gated, with the admin cards unrendered inside. The live picture and
+// the controls are one page because they answer the same question during an
+// incident; the privilege boundary is not the page in any case, since every
+// /api/mod route re-checks the caller's role independently.
+func SystemHandler(c fiber.Ctx) error {
+	acct, m, ok := systemPage(c, view.TabOverview)
+	if !ok {
+		return systemNotFound(c)
 	}
-	// the instance panel probes three backends, so it is sampled only for the
-	// admin who can actually see it — a moderator's page load does no I/O it
-	// would then throw away
-	if m.IsAdmin {
+	m.Live = liveOps()
+	// Everything below is admin-only on the page, so a moderator's load does no
+	// I/O it would then throw away — including the instance panel's three
+	// backend probes.
+	if acct.Role.CanAdmin() {
+		current := settings.Current()
+		m.Settings = current
+		m.Active = view.ActiveNoticesOf(current)
+		m.Broadcasts = sentBroadcasts()
 		m.Stats = instanceStats()
 	}
 	return view.Render(c, fiber.StatusOK, view.System(view.SystemMeta(), m))
+}
+
+// SystemPeopleHandler renders the community page: the staff overview, the
+// feedback inbox and the message composer.
+func SystemPeopleHandler(c fiber.Ctx) error {
+	_, m, ok := systemPage(c, view.TabPeople)
+	if !ok {
+		return systemNotFound(c)
+	}
+	m.Feedback = feedbackInbox()
+	// Detailed: this is the staff-facing render, so it carries the appointment
+	// trail the public /staff page does not.
+	m.Staff = staffList(true)
+	return view.Render(c, fiber.StatusOK, view.System(view.SystemMeta(), m))
+}
+
+// SystemLogHandler renders the audit feed, which has the page to itself.
+func SystemLogHandler(c fiber.Ctx) error {
+	_, m, ok := systemPage(c, view.TabLog)
+	if !ok {
+		return systemNotFound(c)
+	}
+	m.Feed = auditFeed(c)
+	return view.Render(c, fiber.StatusOK, view.System(view.SystemMeta(), m))
+}
+
+// systemPage resolves the caller and starts the model for one tab. It answers
+// ok=false for anyone who may not moderate at all; a page with a stricter gate
+// applies it on top.
+func systemPage(c fiber.Ctx, tab view.SystemTab) (*user.Account, view.SystemModel, bool) {
+	acct := user.GetAccount(c)
+	if acct == nil || !acct.Role.CanModerate() {
+		return nil, view.SystemModel{}, false
+	}
+	return acct, view.SystemModel{Tab: tab, IsAdmin: acct.Role.CanAdmin()}, true
+}
+
+// systemNotFound is the console's refusal. A visitor without the role gets the
+// ordinary 404, not a 403: a privilege boundary should not be an oracle for its
+// own existence.
+func systemNotFound(c fiber.Ctx) error {
+	return view.Render(c, fiber.StatusNotFound, view.NotFound(view.PageMeta("404")))
+}
+
+// StaffHandler renders the public staff page: who runs the site and who
+// moderates it.
+//
+// Open to everybody, unlike everything else in this file. Moderation here is
+// not anonymous — the audit log says so among staff, and this says the same
+// thing outward, so a player who has been sanctioned knows whose tools they
+// were. It carries no appointment trail and no sanction marker: those come from
+// the audit log, which is staff-only.
+func StaffHandler(c fiber.Ctx) error {
+	return view.Render(c, fiber.StatusOK, view.Staff(view.StaffMeta(), staffList(false)))
+}
+
+// staffList loads the staff overview. A read failure renders an empty list
+// rather than failing the page: on /system the switches above it are the reason
+// somebody opened the console, and on the public page the rest of the page
+// still says what the site is.
+func staffList(detailed bool) view.StaffList {
+	members, err := db.Staff()
+	if err != nil {
+		util.Error(str.CDB, "staff list failed error=%s", err.Error())
+		return view.StaffList{Detailed: detailed}
+	}
+	return view.StaffListOf(members, detailed)
+}
+
+// sentBroadcasts loads the console's broadcast history with each message's
+// answers folded in (arch/NOTIFICATIONS.md). Degrades to an empty list on a
+// read failure, like every other section of the page.
+func sentBroadcasts() []view.BroadcastView {
+	rows, err := db.ListBroadcasts(broadcastsShown)
+	if err != nil {
+		util.Error(str.CDB, "broadcast list failed error=%s", err.Error())
+		return nil
+	}
+	out := make([]view.BroadcastView, 0, len(rows))
+	for _, b := range rows {
+		out = append(out, view.BroadcastViewOf(b))
+	}
+	return out
 }
 
 // SystemStatsHandler serves the instance panel on its own, for its self-poll.
@@ -75,7 +168,7 @@ func SystemHandler(c fiber.Ctx) error {
 func SystemStatsHandler(c fiber.Ctx) error {
 	acct := user.GetAccount(c)
 	if acct == nil || !acct.Role.CanAdmin() {
-		return view.Render(c, fiber.StatusNotFound, view.NotFound(view.PageMeta("404")))
+		return systemNotFound(c)
 	}
 	// a sample is stale the instant it is taken; a cached copy would show an
 	// operator a process state that no longer holds
@@ -98,7 +191,7 @@ func instanceStats() view.SystemStats {
 func SystemActionsHandler(c fiber.Ctx) error {
 	acct := user.GetAccount(c)
 	if acct == nil || !acct.Role.CanModerate() {
-		return view.Render(c, fiber.StatusNotFound, view.NotFound(view.PageMeta("404")))
+		return systemNotFound(c)
 	}
 	// a filtered feed is live data; a cached copy would show a moderator a
 	// state of the log that no longer holds

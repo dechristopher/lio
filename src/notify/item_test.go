@@ -142,3 +142,87 @@ func TestItemFollowWithNoActor(t *testing.T) {
 		t.Error("Follows = true with no actor to follow")
 	}
 }
+
+// BroadcastItem is the twin of Item, and the same rule applies to it: the
+// panel's list and the frame that arrives live must describe one message
+// identically, so both build the row here. A field this mapping forgets is a
+// row the client cannot act on — which is exactly how the challenge expiry was
+// lost once already.
+func TestBroadcastItemCarriesEverythingTheRowNeeds(t *testing.T) {
+	created := time.Now().Add(-time.Minute)
+	expires := time.Now().Add(24 * time.Hour)
+	item := BroadcastItem(db.Broadcast{
+		ID:      12,
+		Created: created,
+		Body:    "the server restarts at 9pm",
+		Link:    "/news",
+		Choices: []string{"OK"},
+		Expires: expires,
+	})
+
+	if !item.Broadcast {
+		t.Fatal("a broadcast row did not say so, so the client would address it " +
+			"as a notification and write the read to the wrong store")
+	}
+	if item.Kind != KindAnnounce {
+		t.Errorf("Kind = %q, want %q", item.Kind, KindAnnounce)
+	}
+	if item.ID != 12 || item.Body == "" || item.Link != "/news" {
+		t.Errorf("item lost a field: %+v", item)
+	}
+	if len(item.Choices) != 1 || item.Choices[0] != "OK" {
+		t.Errorf("Choices = %v — a question with no options can never be cleared", item.Choices)
+	}
+	if item.Response != "" {
+		t.Error("an unanswered broadcast came through as answered")
+	}
+	if item.Created != created.UnixMilli() {
+		t.Errorf("Created = %d, want %d", item.Created, created.UnixMilli())
+	}
+	if item.Expires != expires.UnixMilli() {
+		t.Errorf("Expires = %d, want %d", item.Expires, expires.UnixMilli())
+	}
+}
+
+// Zero means "never expires" on the wire. It must stay 0 rather than become the
+// unix epoch in milliseconds, which the client compares against now and reads as
+// long past — so an open-ended announcement would render as one that had
+// already ended.
+func TestBroadcastItemOpenEndedHasNoExpiry(t *testing.T) {
+	item := BroadcastItem(db.Broadcast{ID: 1, Created: time.Now(), Body: "x"})
+	if item.Expires != 0 {
+		t.Errorf("Expires = %d, want 0 for a broadcast that runs until it is retired",
+			item.Expires)
+	}
+}
+
+// A reader who has answered gets the answer back, not the buttons. Without it a
+// second tab would offer the question again, and the reader could not tell
+// which way they had already answered.
+func TestBroadcastItemCarriesTheReadersAnswer(t *testing.T) {
+	item := BroadcastItem(db.Broadcast{
+		ID: 3, Created: time.Now(), Body: "new terms",
+		Choices: []string{"Accept", "Decline"}, Response: "Accept", Read: true,
+	})
+	if item.Response != "Accept" {
+		t.Errorf("Response = %q, want Accept", item.Response)
+	}
+	if !item.Read {
+		t.Error("an answered broadcast came through unread")
+	}
+}
+
+// The acknowledgement flag belongs to notifications too, so Item must carry it
+// for a message addressed to one account.
+func TestItemCarriesChoices(t *testing.T) {
+	item := Item(db.Notification{
+		ID: 5, Kind: db.KindSystem, Body: "please confirm", Created: time.Now(),
+		Choices: []string{"OK"},
+	}, nil)
+	if len(item.Choices) != 1 || item.Choices[0] != "OK" {
+		t.Errorf("Choices = %v — the row would render with no way to clear it", item.Choices)
+	}
+	if item.Broadcast {
+		t.Error("a notification claimed to be a broadcast")
+	}
+}

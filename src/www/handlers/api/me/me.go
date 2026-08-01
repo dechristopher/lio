@@ -15,6 +15,9 @@
 package me
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/auth"
@@ -46,6 +49,7 @@ func Wire(g fiber.Router) {
 	g.Get("/notifications", ListHandler)
 	g.Post("/notifications/read", ReadHandler)
 	g.Post("/notifications/read-all", ReadAllHandler)
+	g.Post("/notifications/answer", AnswerHandler)
 	g.Post("/challenge/decline", DeclineChallengeHandler)
 	g.Post("/prefs", PrefHandler)
 }
@@ -59,9 +63,21 @@ type listResponse struct {
 	Items  []proto.NotifyItem `json:"items"`
 }
 
-// readRequest marks one row read.
+// readRequest marks one row read. Broadcast picks which store the id belongs
+// to: the two have separate sequences, so the flag is part of the address and
+// not a hint.
 type readRequest struct {
-	ID int64 `json:"id"`
+	ID        int64 `json:"id"`
+	Broadcast bool  `json:"bc"`
+}
+
+// answerRequest answers a message that demands an answer. Choice is validated
+// against the message's own options in SQL, so nothing here has to hold a list
+// of what is acceptable.
+type answerRequest struct {
+	ID        int64  `json:"id"`
+	Broadcast bool   `json:"bc"`
+	Choice    string `json:"choice"`
 }
 
 // declineRequest turns down a direct challenge. Room is what the refusal acts
@@ -114,7 +130,31 @@ func ListHandler(c fiber.Ctx) error {
 	for _, r := range rows {
 		items = append(items, notify.Item(r, follows))
 	}
-	return c.JSON(listResponse{Unread: db.UnreadNotifications(acct.ID), Items: items})
+
+	// The broadcasts this account should see, merged into the same list. They
+	// come from a different table and cost nothing to ask for while nothing is
+	// being broadcast, but the reader has one panel: two sections, one for
+	// "messages" and one for "announcements", would make them look in two places
+	// for the same thing.
+	//
+	// A failed read leaves the notifications alone rather than failing the
+	// panel. The badge would then disagree with the list until the next open,
+	// which is a smaller wrong than an empty panel.
+	if live, bErr := db.BroadcastsFor(acct.ID, panelLimit); bErr != nil {
+		util.Error(str.CNotif, "broadcast list failed error=%s", bErr.Error())
+	} else {
+		for _, b := range live {
+			items = append(items, notify.BroadcastItem(b))
+		}
+		// Newest first across both sources. The client keeps whatever order it
+		// is given for everything except the rows that need an answer, which it
+		// floats to the top itself.
+		sort.SliceStable(items, func(i, j int) bool {
+			return items[i].Created > items[j].Created
+		})
+	}
+
+	return c.JSON(listResponse{Unread: notify.Unread(acct.ID), Items: items})
 }
 
 // followedActors resolves, for the whole page at once, which of the accounts
@@ -155,6 +195,11 @@ func followedActors(viewerID int64, rows []db.Notification) notify.FollowLookup 
 // The row must belong to the session's account. That test is in the query
 // itself (MarkNotificationRead is scoped by user_id), so a guessed id from
 // another account changes nothing and reports nothing.
+//
+// A broadcast is read differently, because it is one row shared by everybody
+// and cannot carry one reader's state: reading it moves this account's
+// watermark up to that message instead. The move is monotonic, so an old
+// message read after a new one cannot bring the new one back.
 func ReadHandler(c fiber.Ctx) error {
 	acct, ok := account(c)
 	if !ok {
@@ -165,6 +210,15 @@ func ReadHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
 			JSON(errBody{Error: "malformed request"})
+	}
+
+	if req.Broadcast {
+		if err := db.SeeBroadcast(acct.ID, req.ID); err != nil {
+			util.Error(str.CNotif, "broadcast read failed error=%s", err.Error())
+			return c.Status(fiber.StatusInternalServerError).
+				JSON(errBody{Error: "could not mark that read"})
+		}
+		return countAfterWrite(c, acct)
 	}
 
 	// A row that was already read, and a row this account does not own, are the
@@ -179,7 +233,13 @@ func ReadHandler(c fiber.Ctx) error {
 	return countAfterWrite(c, acct)
 }
 
-// ReadAllHandler clears the account's unread backlog.
+// ReadAllHandler clears the account's unread backlog: its own messages, and
+// every announcement sent up to now.
+//
+// Neither write finishes something that asks a question — not a live challenge,
+// not an unanswered acknowledgement, and not an unanswered broadcast. Opening
+// the bell means "I have seen these", which is the whole of what most rows
+// need, and none of what those need.
 func ReadAllHandler(c fiber.Ctx) error {
 	acct, ok := account(c)
 	if !ok {
@@ -189,6 +249,61 @@ func ReadAllHandler(c fiber.Ctx) error {
 		util.Error(str.CNotif, "notification read-all failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
 			JSON(errBody{Error: "could not clear notifications"})
+	}
+	// Best effort, and deliberately not a failure: the account's own backlog is
+	// already cleared, and refusing the whole request over the watermark would
+	// undo nothing and report an error for work that was done.
+	if err := db.MarkBroadcastsSeen(acct.ID); err != nil {
+		util.Error(str.CNotif, "broadcast read-all failed error=%s", err.Error())
+	}
+	return countAfterWrite(c, acct)
+}
+
+// AnswerHandler records the reader's answer to a message that demands one
+// (arch/NOTIFICATIONS.md, *A message can ask a question*).
+//
+// The choice is checked against the message's own options inside the SQL, for
+// both stores. So this handler holds no list of acceptable answers, and a
+// crafted request cannot store an option the sender never offered — it simply
+// matches no row.
+//
+// A write that changed nothing is reported as a refusal rather than as success.
+// Every way to get there means the question is not open to this reader: they do
+// not own the row, it asks nothing, it has ended, or they already answered. The
+// client repaints from the count either way, so a stale panel corrects itself.
+func AnswerHandler(c fiber.Ctx) error {
+	acct, ok := account(c)
+	if !ok {
+		return nil
+	}
+
+	var req answerRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+	}
+	choice := strings.TrimSpace(req.Choice)
+	if choice == "" {
+		return c.Status(fiber.StatusUnprocessableEntity).
+			JSON(errBody{Error: "pick one of the options"})
+	}
+
+	var (
+		answered bool
+		err      error
+	)
+	if req.Broadcast {
+		answered, err = db.AnswerBroadcast(req.ID, acct.ID, choice)
+	} else {
+		answered, err = db.AnswerNotification(req.ID, acct.ID, choice)
+	}
+	if err != nil {
+		util.Error(str.CNotif, "notification answer failed error=%s", err.Error())
+		return c.Status(fiber.StatusInternalServerError).
+			JSON(errBody{Error: "could not record that"})
+	}
+	if !answered {
+		return c.Status(fiber.StatusConflict).
+			JSON(errBody{Error: "that is no longer open"})
 	}
 	return countAfterWrite(c, acct)
 }
@@ -261,5 +376,5 @@ func DeclineChallengeHandler(c fiber.Ctx) error {
 func countAfterWrite(c fiber.Ctx, acct *user.Account) error {
 	c.Set(fiber.HeaderCacheControl, "no-store")
 	notify.SendCount(acct.ID, acct.Role.CanModerate())
-	return c.JSON(fiber.Map{"unread": db.UnreadNotifications(acct.ID)})
+	return c.JSON(fiber.Map{"unread": notify.Unread(acct.ID)})
 }

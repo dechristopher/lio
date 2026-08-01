@@ -212,12 +212,20 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// system console (site controls + active notices + audit feed) and the
 	// moderation queue. Both 404 for anyone without the role; per-player actions
 	// live on the player page instead.
+	// The console is three pages, grouped by what an operator is doing. Each is
+	// a real route so a tab is a URL, and so each page runs only its own reads.
 	r.Get("/system", handlers.SystemHandler)
+	r.Get("/system/people", handlers.SystemPeopleHandler)
+	r.Get("/system/log", handlers.SystemLogHandler)
 	// the audit feed on its own, for the filter form + pager's htmx swaps
 	r.Get("/system/actions", handlers.SystemActionsHandler)
 	// the instance panel on its own, for its self-poll (admin only)
 	r.Get("/system/stats", handlers.SystemStatsHandler)
 	r.Get("/moderation", handlers.ModerationHandler)
+
+	// the public staff page: who holds the moderation tools. Open to everybody
+	// — moderation here is not anonymous — and reachable from the footer.
+	r.Get("/staff", handlers.StaffHandler)
 
 	// public player pages. Registered before the room wildcards for the same
 	// reason /game/:uuid is: "/@/drewtest" would otherwise match /:id/:num and

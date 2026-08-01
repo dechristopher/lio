@@ -6,13 +6,18 @@
 -- account's open sockets, and it must send the timestamp the database wrote
 -- rather than one it made itself, so the live row and the same row after a
 -- reload sort identically.
-INSERT INTO notifications (user_id, kind, actor_id, body, link, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO notifications (user_id, kind, actor_id, body, link, expires_at, choices)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, created_at;
 
 -- name: CountUnreadNotifications :one
 -- The badge. This runs one time for each socket connect of a signed-in account,
 -- which is the whole reason the site needs no poll. Served by the partial index.
+--
+-- An unanswered acknowledgement counts here through read_at, and stays counted:
+-- nothing but AnswerNotification can stamp one read (MarkNotificationRead and
+-- MarkAllNotificationsRead both skip a row with choices), so the badge keeps
+-- reporting a question until it has an answer.
 SELECT count(*) FROM notifications
 WHERE user_id = $1 AND read_at IS NULL;
 
@@ -29,7 +34,7 @@ WHERE user_id = $1 AND read_at IS NULL;
 -- follow this actor" and is answered by id, in one batched probe for the whole
 -- page rather than a join per row.
 SELECT n.id, n.created_at, n.kind, n.body, n.link, n.read_at, n.expires_at,
-       n.actor_id, a.username AS actor_username
+       n.choices, n.response, n.actor_id, a.username AS actor_username
 FROM notifications n
          LEFT JOIN users a ON a.id = n.actor_id
 WHERE n.user_id = $1
@@ -43,11 +48,34 @@ LIMIT $2;
 --
 -- Also scoped to still-unread, so a second click reports no row instead of
 -- moving the timestamp.
+--
+-- A row that asks a question is skipped. Clicking one is not answering it, and
+-- stamping it read here would drop it out of the badge while it still needs an
+-- answer — AnswerNotification is the only statement that finishes one.
 UPDATE notifications
 SET read_at = now()
 WHERE id = $1
   AND user_id = $2
   AND read_at IS NULL
+  AND choices IS NULL
+RETURNING id;
+
+-- name: AnswerNotification :one
+-- Record the recipient's answer, and finish the row in the same statement: a
+-- question that has been answered has certainly been read.
+--
+-- The choice is validated against the row's own options here rather than in Go.
+-- An answer that is not on the list matches nothing and writes nothing, so a
+-- crafted request cannot store an option the sender never offered, and no
+-- caller can forget the check. Scoped to still-unanswered, so the first answer
+-- stands.
+UPDATE notifications
+SET response = sqlc.arg(choice),
+    read_at  = now()
+WHERE id = sqlc.arg(id)
+  AND user_id = sqlc.arg(user_id)
+  AND response IS NULL
+  AND choices @> ARRAY [sqlc.arg(choice)::text]
 RETURNING id;
 
 -- name: MarkChallengeNotificationsRead :execrows
@@ -77,10 +105,16 @@ WHERE user_id = $1
 -- them; a challenge is not finished until it is accepted, declined or runs out.
 -- Marking it read here would clear the one row that still needs an answer, and
 -- the badge would stop saying somebody is waiting on this player.
+--
+-- An unanswered acknowledgement is left for the same reason, and it is the
+-- general case the challenge rule was the first instance of: a row that asks a
+-- question is not finished by being looked at. Only AnswerNotification finishes
+-- one.
 UPDATE notifications
 SET read_at = now()
 WHERE user_id = $1
   AND read_at IS NULL
+  AND (choices IS NULL OR response IS NOT NULL)
   AND (kind <> 'challenge' OR expires_at IS NULL OR expires_at <= now());
 
 -- name: RecentFollowNotice :one

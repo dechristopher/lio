@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/settings"
 )
 
@@ -17,8 +18,72 @@ import (
 // Phase 3 fills in the site controls and the audit feed; the reports queue and
 // live ops view land in later phases.
 
+// SystemTab is which page of the console is being shown. The console outgrew
+// one column: ten cards in a 44rem strip is a long scroll on a desktop and an
+// eternity on a telephone, so it is three pages grouped by what an operator is
+// doing — running the site, dealing with people, reading history.
+//
+// Each tab is a real route, not a client-side toggle. Two things follow from
+// that and are the reason for it:
+//
+//   - A tab is a URL an operator can bookmark and paste into a ticket, which
+//     the audit feed's filters already relied on.
+//   - Each page runs only its own reads. The console's loads are not cheap —
+//     the instance panel probes three backends, and the audit feed pages a
+//     permanent table — and neither page should pay for the other.
+type SystemTab string
+
+const (
+	// TabOverview is the site itself: what is happening right now, what is
+	// currently overriding a default, the switches that set them, and the
+	// process underneath.
+	//
+	// The live picture and the controls are one page on purpose. "What is
+	// happening" and "what do I turn" are the same question during an incident,
+	// and an operator should not change page between reading the answer and
+	// acting on it.
+	TabOverview SystemTab = "overview"
+	// TabPeople is the community half: who the staff are, what players have
+	// said, and writing back to one of them.
+	TabPeople SystemTab = "people"
+	// TabLog is the audit feed, which gets the full width to itself — its rows
+	// are scanned across, not read down.
+	TabLog SystemTab = "log"
+)
+
+// SystemTabs are the console's pages, in order.
+//
+// Every moderator sees all three. The admin-only cards are unrendered within a
+// page rather than hidden behind a tab of their own: a tab that opens onto a
+// nearly empty page is worse than one card fewer on a full one, and the
+// privilege boundary was never the tab — every /api/mod route re-checks the
+// caller's role independently.
+var SystemTabs = []SystemTab{TabOverview, TabPeople, TabLog}
+
+// Path is the tab's route.
+func (t SystemTab) Path() string {
+	if t == TabOverview {
+		return "/system"
+	}
+	return "/system/" + string(t)
+}
+
+// Label is the tab's name in the strip.
+func (t SystemTab) Label() string {
+	switch t {
+	case TabPeople:
+		return "People"
+	case TabLog:
+		return "Log"
+	}
+	return "Overview"
+}
+
 // SystemModel is the console's page state.
 type SystemModel struct {
+	// Tab is the page being rendered. Only that tab's fields below are
+	// populated — the handler reads nothing it will not show.
+	Tab SystemTab
 	// IsAdmin gates the site controls: they affect every visitor at once, a
 	// different order of blast radius from a per-account sanction, so they sit
 	// above the moderator ladder.
@@ -41,6 +106,85 @@ type SystemModel struct {
 	// moderator, not just admins: it is not a control and nothing in it acts on
 	// anyone, so gating it would only mean fewer people read it.
 	Feedback FeedbackInbox
+	// Staff is who holds a role above player, with the appointment trail. Shown
+	// to every moderator for the same reason the audit feed is: the tools are
+	// accountable to the people who hold them first, and nobody should have to
+	// ask who else can act.
+	Staff StaffList
+	// Broadcasts is what has been sent to every account, newest first, with how
+	// each one was answered. Admin-only and only populated for an admin — a
+	// moderator cannot send one, so the page does not pay for the read.
+	Broadcasts []BroadcastView
+}
+
+// BroadcastView is one sent broadcast on the console: what was said, whether it
+// is still showing, and how it was answered.
+type BroadcastView struct {
+	ID   string
+	Body string
+	Link string
+	// When is the relative send time, WhenExact the absolute one on hover.
+	When      string
+	WhenExact string
+	// Actor is the admin who sent it, empty after that account is deleted.
+	Actor string
+	// Live reports that the message is still showing in people's panels; Ends
+	// describes when it stops, and is empty on one that runs until retired.
+	Live      bool
+	Ends      string
+	EndsExact string
+	// Asks are the options on a question, empty on an announcement.
+	Asks []string
+	// Answers is the total reply count, and Tally the breakdown, most-chosen
+	// first. There is deliberately no denominator — see db/query/broadcasts.sql.
+	Answers int64
+	Tally   []BroadcastTallyView
+}
+
+// BroadcastTallyView is one option and how many accounts chose it.
+type BroadcastTallyView struct {
+	Choice string
+	Count  string
+}
+
+// BroadcastViewOf renders one stored broadcast for the console.
+func BroadcastViewOf(b db.BroadcastRecord) BroadcastView {
+	v := BroadcastView{
+		ID:        strconv.FormatInt(b.ID, 10),
+		Body:      b.Body,
+		Link:      b.Link,
+		When:      RelativeDay(b.Created),
+		WhenExact: exactTime(b.Created),
+		Actor:     b.Actor,
+		Live:      b.Live(),
+		Asks:      b.Choices,
+		Answers:   b.Answers,
+	}
+	if !b.Expires.IsZero() {
+		// One string for both cases: a future stamp is when it will stop, a past
+		// one is when it did. The operator reads the same field either way, and
+		// Live already says which of the two this is.
+		v.Ends = RelativeDay(b.Expires)
+		v.EndsExact = exactTime(b.Expires)
+	}
+	for _, t := range b.Tally {
+		v.Tally = append(v.Tally, BroadcastTallyView{
+			Choice: t.Choice,
+			Count:  strconv.FormatInt(t.Count, 10),
+		})
+	}
+	return v
+}
+
+// BroadcastAnswersLabel summarizes a question's replies for the row's heading.
+func BroadcastAnswersLabel(b BroadcastView) string {
+	if len(b.Asks) == 0 {
+		return ""
+	}
+	if b.Answers == 1 {
+		return "1 answer"
+	}
+	return strconv.FormatInt(b.Answers, 10) + " answers"
 }
 
 // LiveOps is the operational picture: who is here and what is running. It is an
@@ -139,7 +283,9 @@ func ActionClass(action string) string {
 		return "act-unban"
 	case "role":
 		return "act-role"
-	case "setting":
+	case "setting", "broadcast":
+		// Both are site-wide rather than aimed at one account, and read as the
+		// same kind of thing in the feed.
 		return "act-setting"
 	default:
 		// title, rename, and anything added later
@@ -162,6 +308,10 @@ func ActionHelp(action string) string {
 		return "Username changed by a moderator"
 	case "setting":
 		return "Site-wide control changed"
+	case "notify":
+		return "Message sent to one account's notifications"
+	case "broadcast":
+		return "Message sent to every account's notifications, or one retired"
 	}
 	return "Moderation action"
 }
@@ -205,6 +355,12 @@ func detailHelp(key string) string {
 		return "Whether new games count toward ratings"
 	case "ratedEnabledWas":
 		return "Ratings before this change"
+	case "body":
+		return "The message that was sent"
+	case "asks":
+		return "Answers the message demands before it clears"
+	case "retired":
+		return "The broadcast that was pulled"
 	}
 	return "Recorded with this action"
 }
@@ -373,7 +529,9 @@ func SettingEffect(key string, turningOn bool) string {
 // shown. Kept here rather than derived from the data so the dropdown is stable
 // — a filter whose options appear only once something has been logged is a
 // filter nobody discovers.
-var ModActionKinds = []string{"ban", "unban", "title", "role", "rename", "setting"}
+var ModActionKinds = []string{
+	"ban", "unban", "title", "role", "rename", "setting", "notify", "broadcast",
+}
 
 // AuditPageSize is how many entries one page of the feed shows.
 const AuditPageSize = 50
@@ -390,9 +548,14 @@ func auditCountLabel(f AuditFeed) string {
 	}
 }
 
-// AuditURL builds a /system link for one page of the feed, preserving the
-// active filters. Page 1 with no filters is the bare path, so the common case
-// does not carry a query string around.
+// AuditURL builds a link to one page of the feed, preserving the active
+// filters. Page 1 with no filters is the bare path, so the common case does not
+// carry a query string around.
+//
+// It points at the Log tab rather than at /system: the feed moved there when
+// the console split into pages, and a filtered view is a URL somebody pastes
+// into a ticket — one that landed on the overview would be a broken link with
+// no error.
 func AuditURL(f ModActionQuery) string {
 	v := url.Values{}
 	if f.Query != "" {
@@ -405,16 +568,16 @@ func AuditURL(f ModActionQuery) string {
 		v.Set("page", strconv.Itoa(f.Page))
 	}
 	if len(v) == 0 {
-		return "/system"
+		return TabLog.Path()
 	}
-	return "/system?" + v.Encode()
+	return TabLog.Path() + "?" + v.Encode()
 }
 
-// fragmentURL turns a /system page link into its htmx fragment equivalent, so
-// the pager's href (a real, shareable page URL) and its hx-get (the swappable
+// fragmentURL turns a Log tab link into its htmx fragment equivalent, so the
+// pager's href (a real, shareable page URL) and its hx-get (the swappable
 // fragment) stay derived from one construction rather than two.
 func fragmentURL(pageURL string) string {
-	return strings.Replace(pageURL, "/system", "/system/actions", 1)
+	return strings.Replace(pageURL, TabLog.Path(), "/system/actions", 1)
 }
 
 // ModActionQuery is the parsed audit-feed request: the filters plus the

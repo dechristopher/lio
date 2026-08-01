@@ -5380,6 +5380,56 @@
 	}
 
 	.notify-row.kind-challenge { border-left-color: var(--accent); }
+	/* A broadcast: one message the whole site is reading. Warn-tinted like the
+	   site notice it sits beside in an operator's toolkit — it is the site
+	   speaking, not another player. */
+	.notify-row.kind-announce { border-left-color: var(--warn); }
+
+	/* A row that asks a question. The options are the only way to clear it, so
+	   they are full buttons rather than the icon pair a challenge uses: a
+	   challenge is always the same yes/no, and these carry whatever was
+	   written. */
+	.notify-choices {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-top: 0.4rem;
+	}
+	.notify-choice {
+		flex: 1 1 auto;
+		padding: 0.25rem 0.6rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		color: var(--text);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.notify-choice:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	/* Held down for the duration of the write. The answer is recorded once and
+	   the first one stands, so a second press has nothing to do and must not
+	   look like it does. */
+	.notify-choice.is-busy {
+		opacity: 0.5;
+		pointer-events: none;
+	}
+	/* What this reader answered, once they have. It replaces the buttons rather
+	   than sitting beside them: the question is closed, and the row still has to
+	   say which way it was closed. */
+	.notify-answered {
+		margin-top: 0.3rem;
+		color: var(--text-subtle);
+		font-size: 0.72rem;
+	}
+	.notify-answered-choice {
+		color: var(--accent);
+		font-weight: 600;
+	}
 
 	/* A live challenge carries its own controls, so it is the one row that is a
 	   block rather than a link. The buttons sit under the message on their own
@@ -5531,6 +5581,258 @@
 		font-size: 0.8rem;
 		font-weight: 600;
 		color: var(--accent);
+	}
+
+	/* --- system console: tabs and columns ----------------------------------- */
+
+	/* The page strip. It scrolls horizontally rather than wrapping, so the tabs
+	   stay on one line at every width and the cards below always start at the
+	   same height — a strip that wrapped to two rows on a narrow telephone would
+	   move the whole page down. Four short labels do not overflow a 320px screen
+	   in practice; the scroll is the guarantee, not the plan. */
+	.sys-tabs {
+		display: flex;
+		gap: 0.35rem;
+		margin-top: 0.75rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.sys-tabs::-webkit-scrollbar { display: none; }
+
+	.sys-tab {
+		flex: none;
+		padding: 0.35rem 0.85rem;
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		color: var(--text-muted);
+		font-size: 0.85rem;
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+		transition: all 150ms var(--ease-snappy);
+	}
+	.sys-tab:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+	/* The current page reads as selected on two channels, not just colour: it is
+	   filled as well as tinted. aria-current carries it for a reader who gets
+	   neither. */
+	.sys-tab.is-active {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
+		color: var(--accent);
+	}
+
+	/* Two columns above md, one below. align-items:start so a short card does
+	   not stretch to the height of a tall neighbour — the same rule the home
+	   page's grid uses. Each column is its own stack, assigned in the template
+	   rather than flowed, so the mobile order (column 1, then column 2) is a
+	   decision somebody made rather than whatever the wrap produced. */
+	.sys-grid {
+		display: grid;
+		grid-template-columns: 1fr;
+		align-items: start;
+		gap: 0;
+	}
+	.sys-col {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	@media (min-width: 48rem) {
+		.sys-grid {
+			grid-template-columns: 1fr 1fr;
+			gap: 0 0.75rem;
+		}
+	}
+
+	/* --- staff overview ----------------------------------------------------- */
+
+	/* Two groups, one per role, on the public /staff page and in the /system
+	   panel. What separates them is what each may do, so the capability is the
+	   subheading rather than a column somebody has to scan a row for. */
+	.staff-group {
+		margin-top: 0.75rem;
+	}
+	.staff-group-title {
+		font-size: 0.78rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text);
+	}
+	.staff-group-can {
+		font-size: 0.75rem;
+		color: var(--text-subtle);
+	}
+	.staff-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		margin-top: 0.4rem;
+	}
+	.staff-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.3rem 0.5rem;
+		padding: 0.3rem 0.5rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.8rem;
+	}
+	.staff-row:nth-child(odd) {
+		background: color-mix(in srgb, var(--text) 4%, transparent);
+	}
+	.staff-name {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.3em;
+		min-width: 0;
+		font-weight: 600;
+	}
+	.staff-joined {
+		color: var(--text-subtle);
+		font-size: 0.72rem;
+		cursor: help;
+	}
+	/* The appointment, on the staff render only. Pushed to the end of the row so
+	   the names stay in one column and the trail reads as an annotation on
+	   them. */
+	.staff-granted {
+		margin-left: auto;
+		color: var(--text-muted);
+		font-size: 0.72rem;
+		cursor: help;
+	}
+	/* Not a gap in the data: this is the account promoted by hand in SQL, which
+	   has no grantor on record and cannot be demoted through the UI. It is
+	   marked rather than left blank so nobody reads it as a missing row. */
+	.staff-bootstrap {
+		font-style: italic;
+		color: var(--text-subtle);
+	}
+	/* A staff account under a sanction. It should never render; it is loud
+	   because the only thing worse than it happening is it going unnoticed. */
+	.staff-sanctioned {
+		padding: 0.05em 0.4em;
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--loss) 16%, transparent);
+		color: var(--loss);
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		cursor: help;
+	}
+
+	/* --- broadcasts --------------------------------------------------------- */
+
+	/* One sent broadcast on the console. A retired one keeps the same shape and
+	   stays readable: the answers it collected are the reason it was sent, and
+	   they outlive the message. */
+	.bc-row {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		padding: 0.5rem 0.6rem;
+		border: 2px solid var(--border);
+		border-left-width: 4px;
+		border-left-color: var(--border);
+		border-radius: var(--radius-sm);
+		font-size: 0.8rem;
+	}
+	.bc-row.is-live {
+		border-left-color: var(--accent);
+	}
+	.bc-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.3rem 0.5rem;
+	}
+	.bc-when {
+		color: var(--text-subtle);
+		font-size: 0.72rem;
+		font-variant-numeric: tabular-nums;
+		cursor: help;
+	}
+	.bc-state {
+		padding: 0.05em 0.4em;
+		border-radius: 4px;
+		font-size: 0.66rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		cursor: help;
+	}
+	.bc-live {
+		background: color-mix(in srgb, var(--win) 16%, transparent);
+		color: var(--win);
+	}
+	.bc-ended {
+		background: color-mix(in srgb, var(--text) 10%, transparent);
+		color: var(--text-muted);
+	}
+	.bc-actor {
+		color: var(--text);
+		font-weight: 600;
+		font-size: 0.72rem;
+		text-decoration: none;
+	}
+	.bc-actor:hover { text-decoration: underline; }
+	.bc-ends {
+		color: var(--text-subtle);
+		font-size: 0.72rem;
+		cursor: help;
+	}
+	.bc-retire {
+		margin-left: auto;
+		padding: 0.1rem 0.5rem;
+		font-size: 0.72rem;
+	}
+	.bc-body {
+		color: var(--text);
+		overflow-wrap: anywhere;
+	}
+	.bc-link {
+		color: var(--accent);
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		overflow-wrap: anywhere;
+	}
+	/* How a question was answered. The chips carry the option's own label rather
+	   than an index, because that is what the answer is stored as. */
+	.bc-tally {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.25rem;
+	}
+	.bc-tally-label {
+		margin-right: 0.15rem;
+		color: var(--text-subtle);
+		font-size: 0.72rem;
+	}
+	.bc-chip {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.3em;
+		padding: 0.05em 0.4em;
+		border-radius: 3px;
+		background: color-mix(in srgb, var(--accent) 14%, transparent);
+		font-size: 0.7rem;
+	}
+	/* An option nobody has chosen. Still shown, because the options say what was
+	   asked — which is the half a zero cannot. */
+	.bc-chip-empty {
+		background: color-mix(in srgb, var(--text) 7%, transparent);
+	}
+	.bc-chip-key { color: var(--text); font-weight: 600; }
+	.bc-chip-value {
+		color: var(--text-muted);
+		font-variant-numeric: tabular-nums;
 	}
 
 	/* --- challenge entry points ------------------------------------------- */

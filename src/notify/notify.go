@@ -42,6 +42,13 @@ func IsNotify(id string) bool {
 	return id == Channel
 }
 
+// KindAnnounce is the render kind of a broadcast row. It picks the glyph and
+// the stripe colour in the client, and it is the one kind that is *not* in
+// db.NotificationKinds: a broadcast is not a notifications row, so no CHECK
+// constraint stands behind this value. It lives here rather than in db for
+// exactly that reason.
+const KindAnnounce = "announce"
+
 // Connect sends the unread count to one socket that was just tracked. It is
 // called from the WS connection goroutine for every channel, because every
 // socket carries notifications.
@@ -59,7 +66,26 @@ func Connect(s *channel.Socket, staff bool) {
 	if s == nil || s.Acct.ID == 0 {
 		return
 	}
-	s.Enqueue(proto.NotifyCountMessage(db.UnreadNotifications(s.Acct.ID), staffCount(staff)))
+	s.Enqueue(proto.NotifyCountMessage(Unread(s.Acct.ID), staffCount(staff)))
+}
+
+// Unread is one account's badge: its own unread notifications plus the
+// broadcasts it has neither read nor answered.
+//
+// One number, because the reader has one bell. The two halves are stored
+// differently — a row for each message against a watermark over one shared row
+// — but that is a fact about the database, not about what the reader is being
+// told, and nothing above this line has to know which half a mark is for.
+//
+// The broadcast half costs nothing while nothing is being broadcast:
+// db.UnreadBroadcasts sits behind a cached "is anything live" flag, which is
+// the state the site is in almost always. That matters here because this runs
+// on every socket connect of every signed-in account.
+func Unread(acctID int64) int64 {
+	if acctID == 0 {
+		return 0
+	}
+	return db.UnreadNotifications(acctID) + db.UnreadBroadcasts(acctID)
 }
 
 // staffCount is the unread feedback a moderator sees in the same badge, and 0
@@ -112,8 +138,60 @@ func Push(n db.NewNotification, actor string) error {
 	// question instead.
 	follows := func(actorID int64) bool { return db.IsFollowing(n.UserID, actorID) }
 	channel.SendToAccount(n.UserID,
-		proto.NotifyMessage(db.UnreadNotifications(n.UserID), Item(row, follows)))
+		proto.NotifyMessage(Unread(n.UserID), Item(row, follows)))
 	return nil
+}
+
+// Broadcast records one message for every account and delivers it to every
+// signed-in socket on the site.
+//
+// The row is written first, for the same reason a notification's is: a frame
+// that arrived before its row would show a message the panel cannot list.
+//
+// The frame carries no count. One frame reaches every account and their counts
+// all differ — see proto.NotifyBroadcastMessage, which documents why the client
+// adds one itself for this case and only this case. Everybody who is offline
+// picks the message up from the count at their next socket connect.
+func Broadcast(n db.NewBroadcast) (db.Broadcast, error) {
+	row, err := db.CreateBroadcast(n)
+	if err != nil {
+		return db.Broadcast{}, err
+	}
+	// PG-less local dev stores nothing and has nothing to deliver.
+	if row.ID == 0 {
+		return row, nil
+	}
+	channel.SendToEveryAccount(proto.NotifyBroadcastMessage(BroadcastItem(row)))
+	return row, nil
+}
+
+// BroadcastItem converts a broadcast into the shape the client renders. It is
+// the twin of Item, and for the same reason: the panel's list and the frame
+// that arrives live must describe one message identically, so both build it
+// here.
+//
+// The two produce the same shape from different sources, which is what lets the
+// client hold one row renderer. Broadcast is the flag that keeps them apart
+// where it matters — the id spaces are separate, and the writes go to different
+// places.
+func BroadcastItem(b db.Broadcast) proto.NotifyItem {
+	item := proto.NotifyItem{
+		ID:        b.ID,
+		Kind:      KindAnnounce,
+		Body:      b.Body,
+		Link:      b.Link,
+		Created:   b.Created.UnixMilli(),
+		Read:      b.Read,
+		Choices:   b.Choices,
+		Response:  b.Response,
+		Broadcast: true,
+	}
+	// Zero means "does not expire" on the wire, and must stay 0 rather than
+	// become the unix epoch, which the client reads as long past.
+	if !b.Expires.IsZero() {
+		item.Expires = b.Expires.UnixMilli()
+	}
+	return item
 }
 
 // FollowLookup answers whether the reader of a notification already follows the
@@ -140,13 +218,15 @@ type FollowLookup func(actorID int64) bool
 // the compiler ask every caller.
 func Item(n db.Notification, follows FollowLookup) proto.NotifyItem {
 	item := proto.NotifyItem{
-		ID:      n.ID,
-		Kind:    n.Kind,
-		Body:    n.Body,
-		Link:    n.Link,
-		Actor:   n.Actor,
-		Created: n.Created.UnixMilli(),
-		Read:    !n.Unread(),
+		ID:       n.ID,
+		Kind:     n.Kind,
+		Body:     n.Body,
+		Link:     n.Link,
+		Actor:    n.Actor,
+		Created:  n.Created.UnixMilli(),
+		Read:     !n.Unread(),
+		Choices:  n.Choices,
+		Response: n.Response,
 	}
 	// Zero means "does not expire", and must stay 0 rather than become the unix
 	// epoch in milliseconds — which the client would compare against now and
@@ -195,5 +275,5 @@ func SendCount(acctID int64, staff bool) {
 		return
 	}
 	channel.SendToAccount(acctID,
-		proto.NotifyCountMessage(db.UnreadNotifications(acctID), staffCount(staff)))
+		proto.NotifyCountMessage(Unread(acctID), staffCount(staff)))
 }
