@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/dechristopher/lio/db/gen"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/rating"
@@ -37,6 +39,11 @@ const (
 	// keeps an account that got established off a very short run from topping
 	// the board on the strength of a hot streak.
 	leaderboardMinGames = 10
+	// lastPlayedWindow bounds the recency map below. It is long enough that
+	// everybody who plays with any regularity is in it, and short enough that
+	// the map stays proportional to the active player base. Anybody older sorts
+	// last within their roster tier, which is where an absent row lands anyway.
+	lastPlayedWindow = 30 * 24 * time.Hour
 )
 
 // panelCache is one cached community panel. The zero value is an expired cache
@@ -66,9 +73,38 @@ func (c *panelCache[T]) get(load func() ([]T, error)) []T {
 	return c.rows
 }
 
+// lookupCache is panelCache's map-shaped sibling, for a panel input that is
+// read by key rather than rendered in order. Same TTL and the same "a failed
+// refresh keeps the previous answer" rule; separate because building a map from
+// a cached slice on every read would allocate once per digest tick, which is the
+// cost the cache exists to remove.
+//
+// The map it hands back is shared and must be treated as read-only by callers.
+type lookupCache[K comparable, V any] struct {
+	sync.Mutex
+	m       map[K]V
+	fetched time.Time
+}
+
+func (c *lookupCache[K, V]) get(load func() (map[K]V, error)) map[K]V {
+	c.Lock()
+	defer c.Unlock()
+	if time.Since(c.fetched) < communityTTL {
+		return c.m
+	}
+	m, err := load()
+	if err != nil {
+		return c.m
+	}
+	c.m = m
+	c.fetched = time.Now()
+	return c.m
+}
+
 var (
-	newestCache panelCache[message.NewMember]
-	topCache    panelCache[message.RatedMember]
+	newestCache     panelCache[message.NewMember]
+	topCache        panelCache[message.RatedMember]
+	lastPlayedCache lookupCache[int64, time.Time]
 )
 
 // NewestMembers returns the most recently registered accounts, newest first.
@@ -92,6 +128,40 @@ func NewestMembers() []message.NewMember {
 				Title:    title.New(r.TitleCode, r.TitleName),
 				Joined:   r.CreatedAt.Time,
 			})
+		}
+		return out, nil
+	})
+}
+
+// LastPlayed returns when each recently active account last finished a game,
+// keyed by account id. It is the roster's ordering key: within a tier, whoever
+// played most recently reads first (see presence.SortRoster).
+//
+// The returned map is shared with every other caller until the TTL expires —
+// read it, never write it. An account with no entry has not played inside
+// lastPlayedWindow and sorts last within its tier, which is also what an
+// unconfigured Postgres produces for everybody: the roster then falls back to
+// its alphabetical tiebreak rather than failing.
+func LastPlayed() map[int64]time.Time {
+	if Pool == nil {
+		return nil
+	}
+	return lastPlayedCache.get(func() (map[int64]time.Time, error) {
+		ctx, cancel := Ctx()
+		defer cancel()
+
+		since := pgtype.Timestamptz{Time: time.Now().Add(-lastPlayedWindow), Valid: true}
+		rows, err := gen.New(Pool).ListLastPlayed(ctx, since)
+		if err != nil {
+			return nil, err
+		}
+		out := make(map[int64]time.Time, len(rows))
+		for _, r := range rows {
+			// a bot seat is NULL and cannot be ranked
+			if r.UserID == nil || !r.PlayedAt.Valid {
+				continue
+			}
+			out[*r.UserID] = r.PlayedAt.Time
 		}
 		return out, nil
 	})

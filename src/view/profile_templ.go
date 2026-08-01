@@ -402,12 +402,12 @@ func profileIdentity(m ProfileModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if !m.Closed && (canChallenge(viewer(ctx), m.Username, m.Busy) || m.Follow.Control) {
+		if !m.Closed && (canChallenge(viewer(ctx), m.Username, m.Online, m.Busy) || m.Follow.Control) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"hero-actions\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if canChallenge(viewer(ctx), m.Username, m.Busy) {
+			if canChallenge(viewer(ctx), m.Username, m.Online, m.Busy) {
 				templ_7745c5c3_Err = challengeButton(m.Username, "btn btn-ghost challenge-btn").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -440,7 +440,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(m.Lifetime.Games)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 152, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 154, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -453,7 +453,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(m.Lifetime.Played)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 156, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 158, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -471,7 +471,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(m.RenderedAt)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 164, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 166, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -503,7 +503,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(m.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 176, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 178, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -516,7 +516,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(m.H2H)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 176, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 178, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -535,7 +535,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(m.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 183, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 185, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 			if templ_7745c5c3_Err != nil {
@@ -548,7 +548,7 @@ func profileIdentity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(m.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 183, Col: 103}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 185, Col: 103}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -648,7 +648,7 @@ func heroRatings(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Category)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 209, Col: 90}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 211, Col: 90}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 					if templ_7745c5c3_Err != nil {
@@ -739,7 +739,7 @@ func statPlaceholder(p StatPlaceholder) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(p.Copy)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 234, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 236, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -757,7 +757,7 @@ func statPlaceholder(p StatPlaceholder) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("width:" + p.Width())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 237, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 239, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -770,7 +770,7 @@ func statPlaceholder(p StatPlaceholder) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(p.Progress())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 239, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 241, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -852,7 +852,7 @@ func ratingTileBody(r RatingView) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(r.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 259, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 261, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -870,7 +870,7 @@ func ratingTileBody(r RatingView) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(r.Speed)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 261, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 263, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -889,7 +889,7 @@ func ratingTileBody(r RatingView) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(r.Mode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 264, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 266, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -907,7 +907,7 @@ func ratingTileBody(r RatingView) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(r.Rating)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 267, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 269, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -920,7 +920,7 @@ func ratingTileBody(r RatingView) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(pluralGames(r.Games))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 268, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 270, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -1002,7 +1002,7 @@ func profileRatingHistory(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(boolAttr(c.Active))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 290, Col: 41}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 292, Col: 41}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 					if templ_7745c5c3_Err != nil {
@@ -1015,7 +1015,7 @@ func profileRatingHistory(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Category)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 291, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 293, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 					if templ_7745c5c3_Err != nil {
@@ -1028,7 +1028,7 @@ func profileRatingHistory(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(c.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 292, Col: 16}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 294, Col: 16}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 					if templ_7745c5c3_Err != nil {
@@ -1108,7 +1108,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Category)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 309, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 311, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
@@ -1131,7 +1131,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(c.Current)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 318, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 320, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -1144,7 +1144,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(c.Best)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 322, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 324, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -1184,7 +1184,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(c.Change)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 327, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 329, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -1202,7 +1202,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var48 string
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartViewBox())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 333, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 335, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 			if templ_7745c5c3_Err != nil {
@@ -1215,7 +1215,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var49 string
 			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue("Rating history for " + c.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 337, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 339, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 			if templ_7745c5c3_Err != nil {
@@ -1233,7 +1233,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartPlotLeft())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 341, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 343, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 				if templ_7745c5c3_Err != nil {
@@ -1246,7 +1246,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartPlotRight())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 341, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 343, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 				if templ_7745c5c3_Err != nil {
@@ -1259,7 +1259,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var52 string
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(t.Y)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 341, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 343, Col: 86}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 				if templ_7745c5c3_Err != nil {
@@ -1272,7 +1272,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var53 string
 				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(t.Y)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 341, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 343, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 				if templ_7745c5c3_Err != nil {
@@ -1285,7 +1285,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartAxisX())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 342, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 344, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 				if templ_7745c5c3_Err != nil {
@@ -1298,7 +1298,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var55 string
 				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(t.Y)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 342, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 344, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 				if templ_7745c5c3_Err != nil {
@@ -1311,7 +1311,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(t.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 342, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 344, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
@@ -1329,7 +1329,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Area)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 344, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 346, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 			if templ_7745c5c3_Err != nil {
@@ -1347,7 +1347,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Prov)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 348, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 350, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 				if templ_7745c5c3_Err != nil {
@@ -1366,7 +1366,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Line)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 351, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 353, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 				if templ_7745c5c3_Err != nil {
@@ -1385,7 +1385,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var60 string
 				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Peak.X)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 354, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 356, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 				if templ_7745c5c3_Err != nil {
@@ -1398,7 +1398,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var61 string
 				templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Peak.Y)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 354, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 356, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 				if templ_7745c5c3_Err != nil {
@@ -1411,7 +1411,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var62 string
 				templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Peak.X)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 355, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 357, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 				if templ_7745c5c3_Err != nil {
@@ -1424,7 +1424,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var63 string
 				templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Peak.Y)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 355, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 357, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 				if templ_7745c5c3_Err != nil {
@@ -1437,7 +1437,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var64 string
 				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(c.Peak.Rating)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 355, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 357, Col: 127}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 				if templ_7745c5c3_Err != nil {
@@ -1455,7 +1455,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.End.X)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 357, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 359, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 			if templ_7745c5c3_Err != nil {
@@ -1468,7 +1468,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.End.Y)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 357, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 359, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 			if templ_7745c5c3_Err != nil {
@@ -1481,7 +1481,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var67 string
 			templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartEndLabelX(c))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 358, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 360, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 			if templ_7745c5c3_Err != nil {
@@ -1494,7 +1494,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var68 string
 			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.End.Y)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 358, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 360, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 			if templ_7745c5c3_Err != nil {
@@ -1507,7 +1507,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(c.End.Rating)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 358, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 360, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 			if templ_7745c5c3_Err != nil {
@@ -1520,7 +1520,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var70 string
 			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartPlotTop())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 360, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 362, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 			if templ_7745c5c3_Err != nil {
@@ -1533,7 +1533,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(chartPlotBottom())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 360, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 362, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 			if templ_7745c5c3_Err != nil {
@@ -1551,7 +1551,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var72 string
 				templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(c.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 367, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 369, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 				if templ_7745c5c3_Err != nil {
@@ -1569,7 +1569,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 			var templ_7745c5c3_Var73 string
 			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs("Rating history for " + c.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 380, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 382, Col: 47}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 			if templ_7745c5c3_Err != nil {
@@ -1587,7 +1587,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var74 string
 				templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(d.When)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 384, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 386, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 				if templ_7745c5c3_Err != nil {
@@ -1600,7 +1600,7 @@ func ratingChartPanel(c RatingChartView) templ.Component {
 				var templ_7745c5c3_Var75 string
 				templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(d.Rating)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 384, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 386, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 				if templ_7745c5c3_Err != nil {
@@ -1799,7 +1799,7 @@ func profileForm(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var80 string
 				templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(m.Streaks.Current)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 442, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 444, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 				if templ_7745c5c3_Err != nil {
@@ -1824,7 +1824,7 @@ func profileForm(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var81 string
 				templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(m.Streaks.Best)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 448, Col: 70}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 450, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 				if templ_7745c5c3_Err != nil {
@@ -1884,7 +1884,7 @@ func profileForm(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var84 string
 				templ_7745c5c3_Var84, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("--pips:" + fg.PipCount)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 468, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 470, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 				if templ_7745c5c3_Err != nil {
@@ -1897,7 +1897,7 @@ func profileForm(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var85 string
 				templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.ResolveAttributeValue(fg.Result)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 469, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 471, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var85)
 				if templ_7745c5c3_Err != nil {
@@ -1910,7 +1910,7 @@ func profileForm(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var86 string
 				templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.ResolveAttributeValue(fg.Detail)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 470, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 472, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var86)
 				if templ_7745c5c3_Err != nil {
@@ -1923,7 +1923,7 @@ func profileForm(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var87 string
 				templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.ResolveAttributeValue(fg.Class)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 471, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 473, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var87)
 				if templ_7745c5c3_Err != nil {
@@ -1941,7 +1941,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var88 string
 					templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.ResolveAttributeValue(fg.FirstURL)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 473, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 475, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var88)
 					if templ_7745c5c3_Err != nil {
@@ -1986,7 +1986,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var91 templ.SafeURL
 					templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(p.URL))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 484, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 486, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 					if templ_7745c5c3_Err != nil {
@@ -1999,7 +1999,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var92 string
 					templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 485, Col: 25}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 487, Col: 25}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var92)
 					if templ_7745c5c3_Err != nil {
@@ -2012,7 +2012,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var93 string
 					templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Result)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 486, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 488, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var93)
 					if templ_7745c5c3_Err != nil {
@@ -2025,7 +2025,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var94 string
 					templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Detail)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 487, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 489, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var94)
 					if templ_7745c5c3_Err != nil {
@@ -2038,7 +2038,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var95 string
 					templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.Class)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 488, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 490, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var95)
 					if templ_7745c5c3_Err != nil {
@@ -2051,7 +2051,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var96 string
 					templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(p.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 490, Col: 41}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 492, Col: 41}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 					if templ_7745c5c3_Err != nil {
@@ -2096,7 +2096,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var99 templ.SafeURL
 					templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fg.FirstURL))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 506, Col: 41}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 508, Col: 41}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 					if templ_7745c5c3_Err != nil {
@@ -2109,7 +2109,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var100 string
 					templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.ResolveAttributeValue("Open " + fg.Result + " · game 1 of this match")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 507, Col: 64}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 509, Col: 64}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var100)
 					if templ_7745c5c3_Err != nil {
@@ -2122,7 +2122,7 @@ func profileForm(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var101 string
 					templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(fg.Score)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 508, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 510, Col: 18}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 					if templ_7745c5c3_Err != nil {
@@ -2172,7 +2172,7 @@ func profileForm(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var104 string
 			templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(d.Result)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 529, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 531, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 			if templ_7745c5c3_Err != nil {
@@ -2185,7 +2185,7 @@ func profileForm(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var105 string
 			templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(d.Detail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 530, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 532, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
 			if templ_7745c5c3_Err != nil {
@@ -2252,7 +2252,7 @@ func profileEndings(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var107 string
 				templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(e.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 550, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 552, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 				if templ_7745c5c3_Err != nil {
@@ -2265,7 +2265,7 @@ func profileEndings(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var108 string
 				templ_7745c5c3_Var108, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("width:" + e.Width)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 551, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 553, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
 				if templ_7745c5c3_Err != nil {
@@ -2286,7 +2286,7 @@ func profileEndings(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var109 string
 				templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(e.Games)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 554, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 556, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
 				if templ_7745c5c3_Err != nil {
@@ -2348,7 +2348,7 @@ func profileLengths(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var111 string
 			templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(m.Lengths.Median)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 569, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 571, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
 			if templ_7745c5c3_Err != nil {
@@ -2388,7 +2388,7 @@ func profileLengths(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var112 string
 					templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.ResolveAttributeValue(b.Win)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 582, Col: 27}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 584, Col: 27}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var112)
 					if templ_7745c5c3_Err != nil {
@@ -2401,7 +2401,7 @@ func profileLengths(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var113 string
 					templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.ResolveAttributeValue(b.Draw)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 583, Col: 29}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 585, Col: 29}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var113)
 					if templ_7745c5c3_Err != nil {
@@ -2414,7 +2414,7 @@ func profileLengths(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var114 string
 					templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.ResolveAttributeValue(b.Loss)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 584, Col: 29}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 586, Col: 29}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var114)
 					if templ_7745c5c3_Err != nil {
@@ -2454,7 +2454,7 @@ func profileLengths(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var117 string
 				templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(b.Top)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 591, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 593, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 				if templ_7745c5c3_Err != nil {
@@ -2467,7 +2467,7 @@ func profileLengths(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var118 string
 				templ_7745c5c3_Var118, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("height:" + b.Height)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 593, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 595, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var118))
 				if templ_7745c5c3_Err != nil {
@@ -2488,7 +2488,7 @@ func profileLengths(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var119 string
 				templ_7745c5c3_Var119, templ_7745c5c3_Err = templ.JoinStringErrs(b.Count)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 597, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 599, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var119))
 				if templ_7745c5c3_Err != nil {
@@ -2501,7 +2501,7 @@ func profileLengths(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var120 string
 				templ_7745c5c3_Var120, templ_7745c5c3_Err = templ.JoinStringErrs(b.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 598, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 600, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var120))
 				if templ_7745c5c3_Err != nil {
@@ -2566,7 +2566,7 @@ func profileFormations(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var122 string
 			templ_7745c5c3_Var122, templ_7745c5c3_Err = templ.JoinStringErrs(pluralGames(int(m.Formations.Games)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 621, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 623, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var122))
 			if templ_7745c5c3_Err != nil {
@@ -2672,7 +2672,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 		var templ_7745c5c3_Var124 string
 		templ_7745c5c3_Var124, templ_7745c5c3_Err = templ.JoinStringErrs(heading)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 650, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 652, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var124))
 		if templ_7745c5c3_Err != nil {
@@ -2690,7 +2690,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 			var templ_7745c5c3_Var125 string
 			templ_7745c5c3_Var125, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Games + " games")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 653, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 655, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var125)
 			if templ_7745c5c3_Err != nil {
@@ -2703,7 +2703,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 			var templ_7745c5c3_Var126 string
 			templ_7745c5c3_Var126, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 654, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 656, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var126))
 			if templ_7745c5c3_Err != nil {
@@ -2716,7 +2716,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 			var templ_7745c5c3_Var127 string
 			templ_7745c5c3_Var127, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("width:" + f.Width)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 655, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 657, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var127))
 			if templ_7745c5c3_Err != nil {
@@ -2742,7 +2742,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 				var templ_7745c5c3_Var128 string
 				templ_7745c5c3_Var128, templ_7745c5c3_Err = templ.JoinStringErrs(f.Games)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 662, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 664, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var128))
 				if templ_7745c5c3_Err != nil {
@@ -2760,7 +2760,7 @@ func formationColumn(heading string, fs []FormationView) templ.Component {
 				var templ_7745c5c3_Var129 string
 				templ_7745c5c3_Var129, templ_7745c5c3_Err = templ.JoinStringErrs(f.Score)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 664, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 666, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var129))
 				if templ_7745c5c3_Err != nil {
@@ -2814,7 +2814,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 		var templ_7745c5c3_Var131 string
 		templ_7745c5c3_Var131, templ_7745c5c3_Err = templ.JoinStringErrs(heading)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 676, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 678, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var131))
 		if templ_7745c5c3_Err != nil {
@@ -2832,7 +2832,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 			var templ_7745c5c3_Var132 string
 			templ_7745c5c3_Var132, templ_7745c5c3_Err = templ.JoinStringErrs(mu.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 680, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 682, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var132))
 			if templ_7745c5c3_Err != nil {
@@ -2845,7 +2845,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 			var templ_7745c5c3_Var133 string
 			templ_7745c5c3_Var133, templ_7745c5c3_Err = templ.JoinStringErrs(mu.Mine)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 684, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 686, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var133))
 			if templ_7745c5c3_Err != nil {
@@ -2858,7 +2858,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 			var templ_7745c5c3_Var134 string
 			templ_7745c5c3_Var134, templ_7745c5c3_Err = templ.JoinStringErrs(mu.Them)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 684, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 686, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var134))
 			if templ_7745c5c3_Err != nil {
@@ -2871,7 +2871,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 			var templ_7745c5c3_Var135 string
 			templ_7745c5c3_Var135, templ_7745c5c3_Err = templ.JoinStringErrs(mu.Seat)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 684, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 686, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var135))
 			if templ_7745c5c3_Err != nil {
@@ -2906,7 +2906,7 @@ func matchupList(heading string, ms []MatchupView, tint string) templ.Component 
 			var templ_7745c5c3_Var138 string
 			templ_7745c5c3_Var138, templ_7745c5c3_Err = templ.JoinStringErrs(mu.Score)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 685, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 687, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var138))
 			if templ_7745c5c3_Err != nil {
@@ -2961,7 +2961,7 @@ func profileActivity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var140 string
 			templ_7745c5c3_Var140, templ_7745c5c3_Err = templ.JoinStringErrs(m.Activity.Total)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 700, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 702, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var140))
 			if templ_7745c5c3_Err != nil {
@@ -2974,7 +2974,7 @@ func profileActivity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var141 string
 			templ_7745c5c3_Var141, templ_7745c5c3_Err = templ.JoinStringErrs(m.Activity.Days)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 700, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 702, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var141))
 			if templ_7745c5c3_Err != nil {
@@ -2987,7 +2987,7 @@ func profileActivity(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var142 string
 			templ_7745c5c3_Var142, templ_7745c5c3_Err = templ.JoinStringErrs(m.Activity.Busiest)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 700, Col: 109}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 702, Col: 109}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var142))
 			if templ_7745c5c3_Err != nil {
@@ -3022,7 +3022,7 @@ func profileActivity(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var143 string
 				templ_7745c5c3_Var143, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("grid-column:" + mo.Col)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 719, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 721, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var143))
 				if templ_7745c5c3_Err != nil {
@@ -3035,7 +3035,7 @@ func profileActivity(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var144 string
 				templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.JoinStringErrs(mo.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 719, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 721, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var144))
 				if templ_7745c5c3_Err != nil {
@@ -3083,7 +3083,7 @@ func profileActivity(m ProfileModel) templ.Component {
 						var templ_7745c5c3_Var147 string
 						templ_7745c5c3_Var147, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.When)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 730, Col: 28}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 732, Col: 28}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var147)
 						if templ_7745c5c3_Err != nil {
@@ -3096,7 +3096,7 @@ func profileActivity(m ProfileModel) templ.Component {
 						var templ_7745c5c3_Var148 string
 						templ_7745c5c3_Var148, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.Games)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 731, Col: 30}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 733, Col: 30}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var148)
 						if templ_7745c5c3_Err != nil {
@@ -3109,7 +3109,7 @@ func profileActivity(m ProfileModel) templ.Component {
 						var templ_7745c5c3_Var149 string
 						templ_7745c5c3_Var149, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.Score)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 732, Col: 30}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 734, Col: 30}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var149)
 						if templ_7745c5c3_Err != nil {
@@ -3122,7 +3122,7 @@ func profileActivity(m ProfileModel) templ.Component {
 						var templ_7745c5c3_Var150 string
 						templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.ResolveAttributeValue(d.Label)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 733, Col: 30}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 735, Col: 30}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var150)
 						if templ_7745c5c3_Err != nil {
@@ -3196,7 +3196,7 @@ func profileOpponents(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var152 templ.SafeURL
 				templ_7745c5c3_Var152, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(o.URL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 785, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 787, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var152))
 				if templ_7745c5c3_Err != nil {
@@ -3214,7 +3214,7 @@ func profileOpponents(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var153 string
 					templ_7745c5c3_Var153, templ_7745c5c3_Err = templ.JoinStringErrs(o.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 787, Col: 44}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 789, Col: 44}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var153))
 					if templ_7745c5c3_Err != nil {
@@ -3228,7 +3228,7 @@ func profileOpponents(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var154 string
 				templ_7745c5c3_Var154, templ_7745c5c3_Err = templ.JoinStringErrs(o.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 789, Col: 19}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 791, Col: 19}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var154))
 				if templ_7745c5c3_Err != nil {
@@ -3241,7 +3241,7 @@ func profileOpponents(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var155 string
 				templ_7745c5c3_Var155, templ_7745c5c3_Err = templ.JoinStringErrs(o.Games)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 791, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 793, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var155))
 				if templ_7745c5c3_Err != nil {
@@ -3284,7 +3284,7 @@ func profileOpponents(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var158 string
 				templ_7745c5c3_Var158, templ_7745c5c3_Err = templ.JoinStringErrs(o.Score)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 795, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 797, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var158))
 				if templ_7745c5c3_Err != nil {
@@ -3365,7 +3365,7 @@ func profileBotLadder(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var162 string
 			templ_7745c5c3_Var162, templ_7745c5c3_Err = templ.JoinStringErrs(r.Glyph)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 812, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 814, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var162))
 			if templ_7745c5c3_Err != nil {
@@ -3378,7 +3378,7 @@ func profileBotLadder(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var163 string
 			templ_7745c5c3_Var163, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 813, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 815, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var163))
 			if templ_7745c5c3_Err != nil {
@@ -3426,7 +3426,7 @@ func profileBotLadder(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var166 string
 				templ_7745c5c3_Var166, templ_7745c5c3_Err = templ.JoinStringErrs(r.Score)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 818, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 820, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var166))
 				if templ_7745c5c3_Err != nil {
@@ -3493,7 +3493,7 @@ func wdlBar(b WDLBar) templ.Component {
 			var templ_7745c5c3_Var168 string
 			templ_7745c5c3_Var168, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("flex-grow:" + b.Grow(b.Wins))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 837, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 839, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var168))
 			if templ_7745c5c3_Err != nil {
@@ -3512,7 +3512,7 @@ func wdlBar(b WDLBar) templ.Component {
 			var templ_7745c5c3_Var169 string
 			templ_7745c5c3_Var169, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("flex-grow:" + b.Grow(b.Draws))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 840, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 842, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var169))
 			if templ_7745c5c3_Err != nil {
@@ -3531,7 +3531,7 @@ func wdlBar(b WDLBar) templ.Component {
 			var templ_7745c5c3_Var170 string
 			templ_7745c5c3_Var170, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("flex-grow:" + b.Grow(b.Losses))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 843, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 845, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var170))
 			if templ_7745c5c3_Err != nil {
@@ -3612,7 +3612,7 @@ func recordRow(label string, r RecordView) templ.Component {
 		var templ_7745c5c3_Var173 string
 		templ_7745c5c3_Var173, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 863, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 865, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var173))
 		if templ_7745c5c3_Err != nil {
@@ -3655,7 +3655,7 @@ func recordRow(label string, r RecordView) templ.Component {
 		var templ_7745c5c3_Var176 string
 		templ_7745c5c3_Var176, templ_7745c5c3_Err = templ.JoinStringErrs(r.Rate)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 867, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 869, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var176))
 		if templ_7745c5c3_Err != nil {
@@ -3668,7 +3668,7 @@ func recordRow(label string, r RecordView) templ.Component {
 		var templ_7745c5c3_Var177 string
 		templ_7745c5c3_Var177, templ_7745c5c3_Err = templ.JoinStringErrs(r.Wins)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 869, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 871, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var177))
 		if templ_7745c5c3_Err != nil {
@@ -3681,7 +3681,7 @@ func recordRow(label string, r RecordView) templ.Component {
 		var templ_7745c5c3_Var178 string
 		templ_7745c5c3_Var178, templ_7745c5c3_Err = templ.JoinStringErrs(r.Draws)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 871, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 873, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var178))
 		if templ_7745c5c3_Err != nil {
@@ -3694,7 +3694,7 @@ func recordRow(label string, r RecordView) templ.Component {
 		var templ_7745c5c3_Var179 string
 		templ_7745c5c3_Var179, templ_7745c5c3_Err = templ.JoinStringErrs(r.Losses)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 873, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 875, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var179))
 		if templ_7745c5c3_Err != nil {
@@ -3707,7 +3707,7 @@ func recordRow(label string, r RecordView) templ.Component {
 		var templ_7745c5c3_Var180 string
 		templ_7745c5c3_Var180, templ_7745c5c3_Err = templ.JoinStringErrs(r.Games)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 875, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 877, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var180))
 		if templ_7745c5c3_Err != nil {
@@ -3767,7 +3767,7 @@ func profileGames(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var182 templ.SafeURL
 				templ_7745c5c3_Var182, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(g.URL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 891, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 893, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var182))
 				if templ_7745c5c3_Err != nil {
@@ -3802,7 +3802,7 @@ func profileGames(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var185 string
 				templ_7745c5c3_Var185, templ_7745c5c3_Err = templ.JoinStringErrs(g.Result)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 893, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 895, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var185))
 				if templ_7745c5c3_Err != nil {
@@ -3820,7 +3820,7 @@ func profileGames(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var186 string
 					templ_7745c5c3_Var186, templ_7745c5c3_Err = templ.JoinStringErrs(g.Ending)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 895, Col: 45}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 897, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var186))
 					if templ_7745c5c3_Err != nil {
@@ -3843,7 +3843,7 @@ func profileGames(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var187 string
 					templ_7745c5c3_Var187, templ_7745c5c3_Err = templ.JoinStringErrs(g.OppTitle)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 900, Col: 48}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 902, Col: 48}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var187))
 					if templ_7745c5c3_Err != nil {
@@ -3862,7 +3862,7 @@ func profileGames(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var188 string
 					templ_7745c5c3_Var188, templ_7745c5c3_Err = templ.JoinStringErrs(g.OppGlyph)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 903, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 905, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var188))
 					if templ_7745c5c3_Err != nil {
@@ -3876,7 +3876,7 @@ func profileGames(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var189 string
 				templ_7745c5c3_Var189, templ_7745c5c3_Err = templ.JoinStringErrs(g.Opponent)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 905, Col: 20}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 907, Col: 20}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var189))
 				if templ_7745c5c3_Err != nil {
@@ -3894,7 +3894,7 @@ func profileGames(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var190 string
 					templ_7745c5c3_Var190, templ_7745c5c3_Err = templ.JoinStringErrs(g.OppRating)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 907, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 909, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var190))
 					if templ_7745c5c3_Err != nil {
@@ -3912,7 +3912,7 @@ func profileGames(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var191 string
 				templ_7745c5c3_Var191, templ_7745c5c3_Err = templ.JoinStringErrs(g.Variant)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 914, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 916, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var191))
 				if templ_7745c5c3_Err != nil {
@@ -3925,7 +3925,7 @@ func profileGames(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var192 string
 				templ_7745c5c3_Var192, templ_7745c5c3_Err = templ.JoinStringErrs(g.Mode)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 915, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 917, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var192))
 				if templ_7745c5c3_Err != nil {
@@ -3961,7 +3961,7 @@ func profileGames(m ProfileModel) templ.Component {
 					var templ_7745c5c3_Var195 string
 					templ_7745c5c3_Var195, templ_7745c5c3_Err = templ.JoinStringErrs(g.Delta)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 917, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 919, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var195))
 					if templ_7745c5c3_Err != nil {
@@ -3979,7 +3979,7 @@ func profileGames(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var196 string
 				templ_7745c5c3_Var196, templ_7745c5c3_Err = templ.JoinStringErrs(g.When)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 919, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 921, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var196))
 				if templ_7745c5c3_Err != nil {
@@ -4052,7 +4052,7 @@ func modBar(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var198 string
 			templ_7745c5c3_Var198, templ_7745c5c3_Err = templ.JoinStringErrs(openReportsLabel(m.Mod.OpenReports))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 949, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 951, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var198))
 			if templ_7745c5c3_Err != nil {
@@ -4070,7 +4070,7 @@ func modBar(m ProfileModel) templ.Component {
 		var templ_7745c5c3_Var199 string
 		templ_7745c5c3_Var199, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(m.UserID, 10))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 952, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 954, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var199)
 		if templ_7745c5c3_Err != nil {
@@ -4083,7 +4083,7 @@ func modBar(m ProfileModel) templ.Component {
 		var templ_7745c5c3_Var200 string
 		templ_7745c5c3_Var200, templ_7745c5c3_Err = templ.ResolveAttributeValue(m.Mod.Username)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 952, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 954, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var200)
 		if templ_7745c5c3_Err != nil {
@@ -4101,7 +4101,7 @@ func modBar(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var201 string
 			templ_7745c5c3_Var201, templ_7745c5c3_Err = templ.ResolveAttributeValue(t.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 959, Col: 27}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 961, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var201)
 			if templ_7745c5c3_Err != nil {
@@ -4124,7 +4124,7 @@ func modBar(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var202 string
 			templ_7745c5c3_Var202, templ_7745c5c3_Err = templ.JoinStringErrs(t.Code)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 959, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 961, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var202))
 			if templ_7745c5c3_Err != nil {
@@ -4137,7 +4137,7 @@ func modBar(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var203 string
 			templ_7745c5c3_Var203, templ_7745c5c3_Err = templ.JoinStringErrs(t.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 959, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 961, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var203))
 			if templ_7745c5c3_Err != nil {
@@ -4165,7 +4165,7 @@ func modBar(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var204 string
 				templ_7745c5c3_Var204, templ_7745c5c3_Err = templ.ResolveAttributeValue(r)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 976, Col: 25}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 978, Col: 25}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var204)
 				if templ_7745c5c3_Err != nil {
@@ -4188,7 +4188,7 @@ func modBar(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var205 string
 				templ_7745c5c3_Var205, templ_7745c5c3_Err = templ.JoinStringErrs(r)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 976, Col: 68}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 978, Col: 68}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var205))
 				if templ_7745c5c3_Err != nil {
@@ -4216,7 +4216,7 @@ func modBar(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var206 string
 			templ_7745c5c3_Var206, templ_7745c5c3_Err = templ.JoinStringErrs(m.Mod.BanUntil)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1002, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1004, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var206))
 			if templ_7745c5c3_Err != nil {
@@ -4234,7 +4234,7 @@ func modBar(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var207 string
 				templ_7745c5c3_Var207, templ_7745c5c3_Err = templ.JoinStringErrs(m.Mod.BanReason)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1004, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1006, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var207))
 				if templ_7745c5c3_Err != nil {
@@ -4267,7 +4267,7 @@ func modBar(m ProfileModel) templ.Component {
 			var templ_7745c5c3_Var208 string
 			templ_7745c5c3_Var208, templ_7745c5c3_Err = templ.JoinStringErrs(modHistoryLabel(m.Mod))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1038, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1040, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var208))
 			if templ_7745c5c3_Err != nil {
@@ -4299,7 +4299,7 @@ func modBar(m ProfileModel) templ.Component {
 				var templ_7745c5c3_Var209 templ.SafeURL
 				templ_7745c5c3_Var209, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(m.Mod.HistoryURL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1049, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/profile.templ`, Line: 1051, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var209))
 				if templ_7745c5c3_Err != nil {

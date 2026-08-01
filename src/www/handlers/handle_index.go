@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/db"
@@ -55,9 +57,15 @@ func IndexHandler(c fiber.Ctx) error {
 // source).
 
 // onlineShown bounds the named roster on the home page's players panel. The
-// remainder is not hidden — everyone online is still in the headcount, and the
+// remainder is not hidden — everyone active is still in the headcount, and the
 // panel says how many more there are.
-const onlineShown = 8
+//
+// Forty rather than a handful because the roster is a *set*, drawn as wrapping
+// pills: a name costs a fraction of a line rather than a row, so the list can
+// be generous where a ranking could not. It is also what makes the panel read
+// like a room with people in it rather than a top-eight, which is the
+// leaderboard's job one column over.
+const onlineShown = 40
 
 // homeActivity gathers the home page's first paint and resolves the site-wide
 // presence picture from the open sockets, with the room registry's seats
@@ -75,7 +83,8 @@ const onlineShown = 8
 func homeActivity(c fiber.Ctx) ([]message.OpenChallenge, message.SiteStats, message.Community) {
 	_, challenges, stats, seated := room.HomeListing()
 
-	online := presence.Online(seated, onlineShown)
+	lastPlayed := db.LastPlayed()
+	online := presence.Online(seated, onlineShown, lastPlayed)
 	stats.Playing = online.Total
 	stats.TotalGames = int(db.TotalGames())
 
@@ -83,10 +92,11 @@ func homeActivity(c fiber.Ctx) ([]message.OpenChallenge, message.SiteStats, mess
 	if acct := user.GetAccount(c); acct != nil {
 		viewerID = acct.ID
 	}
-	followed := followedOnline(viewerID, online)
+	followed := followedOnline(viewerID, online, lastPlayed)
 	return challenges, stats, message.Community{
 		Online:    rosterFor(online.Members, followed, viewerID),
 		Anon:      online.Anon,
+		More:      online.More,
 		Following: followed,
 		Newest:    arrivalsWithPresence(db.NewestMembers(), online),
 		Top:       db.TopRated(),
@@ -107,7 +117,7 @@ func homeActivity(c fiber.Ctx) ([]message.OpenChallenge, message.SiteStats, mess
 // still belongs in this section.
 //
 // A signed-out visitor follows nobody and costs no query at all.
-func followedOnline(viewerID int64, online presence.Snapshot) []message.OnlineMember {
+func followedOnline(viewerID int64, online presence.Snapshot, lastPlayed map[int64]time.Time) []message.OnlineMember {
 	if viewerID == 0 || len(online.Accounts) == 0 {
 		return nil
 	}
@@ -130,7 +140,7 @@ func followedOnline(viewerID int64, online presence.Snapshot) []message.OnlineMe
 			out = append(out, m)
 		}
 	}
-	sortAvailableFirst(out)
+	presence.SortRoster(out, lastPlayed)
 	return out
 }
 

@@ -272,15 +272,15 @@ func TestRenderOpenChallengeAnonymousCreator(t *testing.T) {
 func TestRenderPlayersCard(t *testing.T) {
 	c := message.Community{
 		Online: []message.OnlineMember{
-			{Username: "zed", Playing: true},
-			{Username: "nova", Title: title.Title{Code: "WFM", Name: "Woman FIDE Master"}},
+			{Username: "zed", Online: true, Playing: true},
+			{Username: "nova", Online: true, Title: title.Title{Code: "WFM", Name: "Woman FIDE Master"}},
 		},
 		Anon:   2,
 		Newest: []message.NewMember{{Username: "pawnstar", Joined: time.Now().Add(-48 * time.Hour)}},
 	}
 	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}, c))
 
-	mustContain(t, out, "Online now")
+	mustContain(t, out, ">Active<")
 	mustContain(t, out, `href="/@/zed"`)  // chips link to the player page
 	mustContain(t, out, `href="/@/nova"`) // ...
 	mustContain(t, out, ">playing<")      // seated marker
@@ -368,10 +368,10 @@ func TestRenderArrivalOnlineGetsRosterTreatment(t *testing.T) {
 func TestRosterChallengeGating(t *testing.T) {
 	c := message.Community{
 		Online: []message.OnlineMember{
-			{Username: "free"}, // browsing: challengeable
-			{Username: "gamer", Playing: true, Busy: true}, // at a board
-			{Username: "seeker", Busy: true},               // waiting in a room of their own
-			{Username: "drewtest"},                         // the viewer themselves
+			{Username: "free", Online: true},                             // browsing: challengeable
+			{Username: "gamer", Online: true, Playing: true, Busy: true}, // at a board
+			{Username: "seeker", Online: true, Busy: true},               // waiting in a room of their own
+			{Username: "drewtest", Online: true},                         // the viewer themselves
 		},
 	}
 
@@ -401,9 +401,9 @@ func TestRosterChallengeGating(t *testing.T) {
 func TestRosterBusyState(t *testing.T) {
 	c := message.Community{
 		Online: []message.OnlineMember{
-			{Username: "free"},
-			{Username: "gamer", Playing: true, Busy: true},
-			{Username: "seeker", Busy: true},
+			{Username: "free", Online: true},
+			{Username: "gamer", Online: true, Playing: true, Busy: true},
+			{Username: "seeker", Online: true, Busy: true},
 		},
 	}
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest", AccountsEnabled: true},
@@ -424,7 +424,7 @@ func TestRosterBusyState(t *testing.T) {
 }
 
 func TestRenderPlayersCardAnonNoteForMember(t *testing.T) {
-	c := message.Community{Online: []message.OnlineMember{{Username: "nova"}}, Anon: 1}
+	c := message.Community{Online: []message.OnlineMember{{Username: "nova", Online: true}}, Anon: 1}
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "nova"},
 		HomeActivity(nil, message.SiteStats{}, c))
 	mustContain(t, out, "1 anonymous visitor")
@@ -2348,4 +2348,104 @@ func TestNotifyBadgeCountsFeedback(t *testing.T) {
 		UnreadNotifications: 2,
 	}, header(""))
 	mustContain(t, out, "6 unread notifications")
+}
+
+// A member who has left keeps their place in the roster and says so three ways:
+// no presence dot, no sword, and a token saying how long ago. This is the whole
+// visible difference the 15-minute window introduced, and it is the same
+// treatment an offline arrival has always had — one component draws all of it.
+func TestRosterDepartedMember(t *testing.T) {
+	c := message.Community{
+		Online: []message.OnlineMember{
+			{Username: "here", Online: true},
+			{Username: "left", Left: time.Now().Add(-4 * time.Minute)},
+		},
+	}
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest", AccountsEnabled: true},
+		HomeActivity(nil, message.SiteStats{}, c))
+
+	// both are listed
+	mustContain(t, out, `href="/@/here"`)
+	mustContain(t, out, `href="/@/left"`)
+	// only the connected one carries the dot
+	if n := strings.Count(out, `class="roster-dot"`); n != 1 {
+		t.Errorf("presence dots = %d, want 1 (only the member who is here)", n)
+	}
+	// ...and only they can be challenged: an invitation has to reach somebody
+	mustContain(t, out, `data-challenge="here"`)
+	mustNotContain(t, out, `data-challenge="left"`)
+	// the departed row says when, in the chip and in its tooltip
+	mustContain(t, out, ">4m<")
+	mustContain(t, out, `title="left 4 minutes ago"`)
+}
+
+// The footnote accounts for everybody the chips above it do not: the anonymous
+// visitors, the members the display cap dropped, and the window that explains
+// why somebody with no dot is listed at all.
+func TestRosterNoteStatesWindowAndOverflow(t *testing.T) {
+	c := message.Community{
+		Online: []message.OnlineMember{{Username: "nova", Online: true}},
+		Anon:   2,
+		More:   12,
+	}
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
+		HomeActivity(nil, message.SiteStats{}, c))
+
+	mustContain(t, out, "2 anonymous visitors")
+	mustContain(t, out, "12 more not shown")
+	mustContain(t, out, "active in the last 15 minutes")
+}
+
+// With no roster there is no window to explain, so the footnote does not claim
+// one. It still counts the anonymous visitors, who are there either way.
+func TestRosterNoteOmitsWindowWithoutChips(t *testing.T) {
+	c := message.Community{
+		Anon:   1,
+		Newest: []message.NewMember{{Username: "pawnstar", Joined: time.Now()}},
+	}
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
+		HomeActivity(nil, message.SiteStats{}, c))
+
+	mustContain(t, out, "1 anonymous visitor")
+	mustNotContain(t, out, "active in the last")
+}
+
+// The chip token and its tooltip must agree about where a minute begins. They
+// once did not: a member gone 30 seconds read "1m" in the chip and "left just
+// now" in its own title attribute.
+func TestDepartedTokenAgreesWithTooltip(t *testing.T) {
+	for _, tc := range []struct {
+		ago         time.Duration
+		token, hint string
+	}{
+		{30 * time.Second, "now", "left just now"},
+		{90 * time.Second, "1m", "left 1 minute ago"},
+		{4 * time.Minute, "4m", "left 4 minutes ago"},
+	} {
+		at := time.Now().Add(-tc.ago)
+		if got := shortSince(at); got != tc.token {
+			t.Errorf("shortSince(%s) = %q, want %q", tc.ago, got, tc.token)
+		}
+		if got := leftPhrase(at); got != tc.hint {
+			t.Errorf("leftPhrase(%s) = %q, want %q", tc.ago, got, tc.hint)
+		}
+	}
+	// an online member carries neither
+	if got := shortSince(time.Time{}); got != "" {
+		t.Errorf("shortSince(zero) = %q, want empty", got)
+	}
+	if got := leftPhrase(time.Time{}); got != "" {
+		t.Errorf("leftPhrase(zero) = %q, want empty", got)
+	}
+}
+
+// A card whose only rows are the viewer's follows still explains the window:
+// those chips carry the same departed state the site-wide roster's do.
+func TestRosterNoteWindowWithFollowingOnly(t *testing.T) {
+	c := message.Community{
+		Following: []message.OnlineMember{{Username: "friend", Online: true}},
+	}
+	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
+		HomeActivity(nil, message.SiteStats{}, c))
+	mustContain(t, out, "active in the last 15 minutes")
 }

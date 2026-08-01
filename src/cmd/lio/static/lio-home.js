@@ -116,10 +116,15 @@
 	};
 
 	// canChallenge (view/notifications.go): a viewer may challenge somebody who
-	// is not busy and is not themselves. The viewer half of the test arrived on
-	// the Self frame.
+	// is here, is not busy and is not themselves. The viewer half of the test
+	// arrived on the Self frame.
+	//
+	// m.o carries the presence half. The rosters cover a 15-minute window, so
+	// most rows are people who are here and some are people who have just gone;
+	// only the first kind can be sent an invitation.
 	const canChallenge = (m) =>
 		self.challenge &&
+		!!m.o &&
 		!m.b &&
 		!!m.n &&
 		m.n.toLowerCase() !== (self.name || '').toLowerCase();
@@ -128,12 +133,14 @@
 	// in the players card. A followed player, a stranger and a new arrival are
 	// the same object; the only difference is which list surfaced them.
 	//
-	// online decides whether the presence dot renders. On the two rosters it is
-	// always true; in Arrivals most rows are people who registered and left, and
-	// a dot on every chip would be a marker that usually says nothing.
+	// online decides whether the presence dot renders, and it is a per-row fact
+	// on every list now that the rosters cover a window rather than an instant:
+	// a roster row may be somebody who has just gone, exactly as an arrival row
+	// is usually somebody who registered and left.
 	//
-	// when / whenTitle are the Arrivals join token and its tooltip, absent on
-	// the rosters.
+	// when / whenTitle are that row's relative time and its tooltip — how long
+	// ago they left, or when an arrival joined. Both are pre-formatted
+	// server-side, so this file never words a relative time itself.
 	const playerChip = (m, online, when, whenTitle) => {
 		const li = make('li', 'roster-item');
 		let cls = 'roster-chip';
@@ -171,22 +178,21 @@
 			a.appendChild(w);
 		}
 		li.appendChild(a);
-		// absent for anybody the dot has turned amber, and for an arrival who is
-		// not here at all: a control that is present but fails is worse than one
-		// that is absent
-		if (online && canChallenge(m)) {
+		// absent for anybody the dot has turned amber and for anybody who is not
+		// here — canChallenge tests both itself, as the templ helper now does. A
+		// control that is present but fails is worse than one that is absent.
+		if (canChallenge(m)) {
 			li.appendChild(challengeButton(m.n));
 		}
 		return li;
 	};
 
-	// everybody in the two rosters is online by definition — that is what being
-	// in them means
-	const rosterChip = (m) => playerChip(m, true, '', '');
-
-	// arrivalChip: Ago and Joined are pre-formatted server-side, so this file
-	// never words a relative time itself.
-	const arrivalChip = (m) => playerChip(m, !!m.o, m.a, m.j);
+	// Roster and arrival rows now carry identical fields under identical keys
+	// (proto.HomePlayer / proto.HomeArrival), so one call reads both. They stay
+	// two names because the two lists are two ideas and the call sites read
+	// better for saying which they are drawing.
+	const rosterChip = (m) => playerChip(m, !!m.o, m.a || '', m.j || '');
+	const arrivalChip = rosterChip;
 
 	// colorDot (view/home.templ): the side a joiner would take
 	const colorDot = (color) => {
@@ -302,23 +308,35 @@
 		show(el('home-challenges-empty'), items.length === 0);
 	};
 
-	// anonNote (view/home.go). The viewer-dependent half is decided here because
-	// the count is broadcast and whether the reader is one of the anonymous
-	// visitors is not.
-	const anonNote = (anon) => {
-		if (!anon || anon <= 0) {
-			return '';
+	// rosterNote (view/home.go) — keep the two wordings in step. The
+	// viewer-dependent half is decided here because the counts are broadcast and
+	// whether the reader is one of the anonymous visitors is not.
+	//
+	// shown is how many chips this client actually drew across both rosters, not
+	// the broadcast count: the window footnote belongs to the chips on screen,
+	// and a viewer whose only roster row was themselves has none.
+	const rosterNote = (anon, more, shown) => {
+		const parts = [];
+		if (anon === 1) {
+			parts.push('1 anonymous visitor');
+		} else if (anon > 1) {
+			parts.push(anon + ' anonymous visitors');
 		}
-		let s = anon === 1 ? '1 anonymous visitor' : anon + ' anonymous visitors';
-		if (!self.name) {
-			s += ' (including you)';
+		if (anon > 0 && !self.name) {
+			parts[0] += ' (including you)';
 		}
-		return s;
+		if (more > 0) {
+			parts.push(more + ' more not shown');
+		}
+		if (shown > 0) {
+			parts.push('active in the last 15 minutes');
+		}
+		return parts.join(' · ');
 	};
 
 	// The broadcast roster still contains the viewer and the people they follow,
 	// because one payload serves everybody. Both come out here: a name in both
-	// the Following section and "Online now" would read as two people, and the
+	// the Following section and the roster below it would read as two people, and
 	// viewer's own chip is the one row in the list with nothing to do.
 	const visibleRoster = (online) => {
 		const skip = new Set(following.map((m) => (m.n || '').toLowerCase()));
@@ -343,7 +361,10 @@
 		fill(el('home-arrivals-list'), arrivals, arrivalChip);
 		show(el('home-arrivals'), arrivals.length > 0);
 
-		const note = anonNote(pl && pl.a);
+		// both rosters count toward the window footnote — see rosterNote in
+		// view/home.go for why a Following-only card still needs the line
+		const note = rosterNote((pl && pl.a) || 0, (pl && pl.m) || 0,
+			roster.length + following.length);
 		text(el('home-anon'), note);
 		show(el('home-anon'), note !== '');
 

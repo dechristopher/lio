@@ -38,6 +38,7 @@ func HomeDigest(challenges []message.OpenChallenge, stats message.SiteStats, c m
 		Players: &proto.HomePlayers{
 			Online:   HomePlayers(c.Online),
 			Anon:     c.Anon,
+			More:     c.More,
 			Arrivals: homeArrivals(c.Newest),
 		},
 	}
@@ -53,17 +54,29 @@ func HomeFollowingSection(members []message.OnlineMember) *proto.HomeFollowing {
 // HomePlayers projects roster chips. Shared by the broadcast roster and the
 // per-socket Following section, because a followed player and a stranger are
 // the same kind of row — the same reason rosterChip is one component.
+//
+// Both relative times are formatted here, on the same rule the arrivals below
+// follow: the client never words one itself, so the streamed chip and the
+// server-rendered one cannot describe the same moment differently.
 func HomePlayers(members []message.OnlineMember) []proto.HomePlayer {
 	out := make([]proto.HomePlayer, 0, len(members))
 	for _, m := range members {
-		// the account id deliberately stops here; see proto_home.go
-		out = append(out, proto.HomePlayer{
+		p := proto.HomePlayer{
+			// the account id deliberately stops here; see proto_home.go
 			Name:      m.Username,
 			Title:     m.Title.Code,
 			TitleName: m.Title.Tooltip(),
+			Online:    m.Online,
 			Playing:   m.Playing,
 			Busy:      m.Busy,
-		})
+		}
+		// only a departed member carries a time, and only they have one: Left is
+		// zero for anybody holding a socket
+		if !m.Online {
+			p.Ago = shortSince(m.Left)
+			p.Left = leftPhrase(m.Left)
+		}
+		out = append(out, p)
 	}
 	return out
 }

@@ -122,13 +122,15 @@ templ profileIdentity(m ProfileModel) {
 						>{ m.Follow.Following }</button>
 					</p>
 				}
-				// A closed account cannot answer, and neither can one already
-				// seated at a board — see canChallenge for the rest of the rule.
-				// Following is not withheld from a busy player: it asks nothing
-				// of them, so there is nothing for them to be too busy for.
-				if !m.Closed && (canChallenge(viewer(ctx), m.Username, m.Busy) || m.Follow.Control) {
+				// A closed account cannot answer, nor can one that is not on
+				// the site, nor one already seated at a board — see
+				// canChallenge for the rest of the rule. Following is
+				// withheld from none of them: it asks nothing of the person,
+				// so there is nothing for them to be too busy or too absent
+				// for.
+				if !m.Closed && (canChallenge(viewer(ctx), m.Username, m.Online, m.Busy) || m.Follow.Control) {
 					<div class="hero-actions">
-						if canChallenge(viewer(ctx), m.Username, m.Busy) {
+						if canChallenge(viewer(ctx), m.Username, m.Online, m.Busy) {
 							@challengeButton(m.Username, "btn btn-ghost challenge-btn")
 						}
 						if m.Follow.Control {

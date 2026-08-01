@@ -222,7 +222,7 @@ func openChallenges(challenges []message.OpenChallenge) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"card\"><div class=\"flex items-center justify-between\"><p class=\"font-display text-lg font-bold text-fg\">Open challenges</p><button type=\"button\" data-open-create-game data-prefill-public class=\"text-xs font-semibold text-accent hover:underline cursor-pointer\">+ New</button></div><p id=\"home-challenges-empty\" class=\"mt-3 text-sm text-fg-subtle\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"card\"><div class=\"flex items-center justify-between\"><p class=\"font-display text-lg font-bold text-fg\">Open challenges</p><button type=\"button\" data-open-create-game data-prefill-public class=\"text-xs font-semibold text-accent hover:underline cursor-pointer\">+ New</button></div><p id=\"home-challenges-empty\" class=\"mt-1 text-sm text-fg-subtle\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -546,7 +546,7 @@ func playersCard(c message.Community) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "><p class=\"roster-label\">Online now</p><ul id=\"home-online-list\" class=\"chip-list\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "><p class=\"roster-label\">Active</p><ul id=\"home-online-list\" class=\"chip-list\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -560,7 +560,7 @@ func playersCard(c message.Community) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if anonNote(c, viewer(ctx).LoggedIn) == "" {
+		if rosterNote(c, viewer(ctx).LoggedIn) == "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " hidden")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -571,9 +571,9 @@ func playersCard(c message.Community) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(anonNote(c, viewer(ctx).LoggedIn))
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(rosterNote(c, viewer(ctx).LoggedIn))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 212, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 215, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -654,10 +654,16 @@ func arrivalChip(m message.NewMember) templ.Component {
 // a single object, which is what they are — a person and what you can do with
 // them.
 //
-// Shared by the "Following" and "Online now" sections so the two cannot drift:
+// Shared by the "Following" and "Active" sections so the two cannot drift:
 // a followed player and a stranger are the same kind of row, and the only
 // difference between the lists is which of them the viewer chose to see first
 // (arch/FOLLOWING.md).
+//
+// The dot used to be unconditional here, because being in one of these lists
+// meant holding a socket. The lists now cover presence.ActiveWindow, so a row
+// may be somebody who has just gone: no dot, no sword, and a token saying how
+// long ago. That is the same treatment an offline arrival has always had, which
+// is why one component still renders all three lists.
 func rosterChip(m message.OnlineMember) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -679,7 +685,8 @@ func rosterChip(m message.OnlineMember) templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = playerChip(m.Username, m.Title, true, m.Playing, m.Busy, "", "").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = playerChip(m.Username, m.Title, m.Online, m.Playing, m.Busy,
+			shortSince(m.Left), leftPhrase(m.Left)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -688,7 +695,7 @@ func rosterChip(m message.OnlineMember) templ.Component {
 }
 
 // playerChip is the one chip renderer, shared by every list in the players card:
-// the Following and "Online now" rosters, and the Arrivals list.
+// the Following and Active rosters, and the Arrivals list.
 //
 // One component rather than two because they are the same object — a person and
 // what you can do with them. A followed player, a stranger and a new arrival
@@ -741,7 +748,7 @@ func playerChip(username string, t title.Title, online, playing, busy bool, when
 		var templ_7745c5c3_Var22 templ.SafeURL
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(profileURL(username)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 281, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 289, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -772,7 +779,7 @@ func playerChip(username string, t title.Title, online, playing, busy bool, when
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(whenTitle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 284, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 292, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -804,7 +811,7 @@ func playerChip(username string, t title.Title, online, playing, busy bool, when
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(username)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 291, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 299, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -833,7 +840,7 @@ func playerChip(username string, t title.Title, online, playing, busy bool, when
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(when)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 303, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 311, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -848,7 +855,7 @@ func playerChip(username string, t title.Title, online, playing, busy bool, when
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if online && canChallenge(viewer(ctx), username, busy) {
+		if canChallenge(viewer(ctx), username, online, busy) {
 			templ_7745c5c3_Err = challengeButton(username, "roster-challenge").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -892,7 +899,7 @@ func leaderboardCard(c message.Community) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(c.Top) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">Top rated</h2><span class=\"text-[11px] uppercase tracking-wide text-fg-subtle\">Any time control</span></div><ol class=\"roster mt-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">Top rated</h2><span class=\"text-[11px] uppercase tracking-wide text-fg-subtle\">Any time control</span></div><ol class=\"roster mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -904,7 +911,7 @@ func leaderboardCard(c message.Community) templ.Component {
 				var templ_7745c5c3_Var28 templ.SafeURL
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(profileURL(m.Username)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 339, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 347, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -917,7 +924,7 @@ func leaderboardCard(c message.Community) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i + 1))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 340, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 348, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -938,7 +945,7 @@ func leaderboardCard(c message.Community) templ.Component {
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(m.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 343, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 351, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -951,7 +958,7 @@ func leaderboardCard(c message.Community) templ.Component {
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(ratingLine(m))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 345, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 353, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
@@ -1139,7 +1146,7 @@ func octadAbout() templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(prefs.KeyHomeAbout)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 433, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 441, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
@@ -1190,7 +1197,7 @@ func homeNews() templ.Component {
 			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">News</h2><a href=\"/news\" class=\"text-xs font-semibold text-accent no-underline hover:underline\">All news →</a></div><ul class=\"mt-3 flex flex-col divide-y divide-line\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<div class=\"card\"><div class=\"flex items-center justify-between\"><h2 class=\"font-display text-lg font-bold text-fg\">News</h2><a href=\"/news\" class=\"text-xs font-semibold text-accent no-underline hover:underline\">All news →</a></div><ul class=\"mt-2 flex flex-col divide-y divide-line\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1200,7 +1207,7 @@ func homeNews() templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</ul><p class=\"prose mt-3 text-sm\">octad.gg is free and <a href=\"https://github.com/dechristopher/lio\">open source</a>.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</ul><p class=\"prose mt-3 text-sm\"><span class=\"text-accent\">octad</span>.gg is free and <a href=\"https://github.com/dechristopher/lio\">open source</a>.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1238,7 +1245,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 487, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 495, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -1251,7 +1258,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(item.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 488, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 496, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -1264,7 +1271,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 490, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 498, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {

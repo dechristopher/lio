@@ -49,3 +49,29 @@ FROM (SELECT DISTINCT ON (r.user_id) u.username,
       ORDER BY r.user_id, r.rating DESC) x
 ORDER BY x.rating DESC
 LIMIT $3;
+
+-- name: ListLastPlayed :many
+-- The last game each account finished, for accounts that have played inside the
+-- given window. It orders the home page's roster: within a tier, whoever played
+-- most recently reads first, which separates a player who just finished a game
+-- from one who signed in and has been reading the about page.
+--
+-- Both seats are unioned because a player is white in some games and black in
+-- others, and the pair of partial indexes on the two user-id columns
+-- (00006_game_user_ids.sql) serves each half. Bot seats are NULL and drop out.
+--
+-- The window keeps the result proportional to the active player base rather
+-- than to the archive: somebody who has not played in a month sorts last within
+-- their tier whether the row is absent or merely old, so fetching it buys
+-- nothing. Cached in db/community.go like the panels above it.
+SELECT user_id, max(played_at)::TIMESTAMPTZ AS played_at
+FROM (SELECT g.white_user_id AS user_id, g.end_ts AS played_at
+      FROM games g
+      WHERE g.white_user_id IS NOT NULL
+        AND g.end_ts > @since
+      UNION ALL
+      SELECT g.black_user_id AS user_id, g.end_ts AS played_at
+      FROM games g
+      WHERE g.black_user_id IS NOT NULL
+        AND g.end_ts > @since) x
+GROUP BY user_id;

@@ -214,8 +214,13 @@ func liveOps() view.LiveOps {
 	live, challenges, stats, seated := room.HomeListing()
 	ops := view.LiveOps{
 		// the console wants the headcount only; no roster is rendered here, so
-		// it asks for no named members
-		Online:         presence.Online(seated, 0).Total,
+		// it asks for no named members and no ordering key.
+		//
+		// Live, not Total: the home page lists everybody active in the last
+		// quarter of an hour, but an operator reading this row is asking how
+		// many connections are open right now, and a window would blunt exactly
+		// the signal they came for.
+		Online:         presence.Online(seated, 0, nil).Live,
 		LiveGames:      stats.LiveGames,
 		OpenChallenges: stats.OpenChallenges,
 	}

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"testing"
+	"time"
 
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/presence"
@@ -26,7 +27,7 @@ func TestArrivalsWithPresenceDoesNotMutateInput(t *testing.T) {
 	}
 	snap := presence.Snapshot{
 		Accounts: map[int64]message.OnlineMember{
-			1: {ID: 1, Username: "here", Playing: true, Busy: true},
+			1: {ID: 1, Username: "here", Online: true, Playing: true, Busy: true},
 		},
 	}
 
@@ -53,7 +54,7 @@ func TestArrivalsWithPresenceDoesNotMutateInput(t *testing.T) {
 func TestArrivalsWithPresenceKeepsRegistrationFields(t *testing.T) {
 	cached := []message.NewMember{{ID: 7, Username: "nova"}}
 	out := arrivalsWithPresence(cached, presence.Snapshot{
-		Accounts: map[int64]message.OnlineMember{7: {ID: 7, Username: "nova"}},
+		Accounts: map[int64]message.OnlineMember{7: {ID: 7, Username: "nova", Online: true}},
 	})
 	if len(out) != 1 || out[0].Username != "nova" || out[0].ID != 7 {
 		t.Fatalf("registration fields lost: %+v", out)
@@ -90,5 +91,26 @@ func TestArrivalsWithPresenceMatchesOnIDNotName(t *testing.T) {
 	got := arrivalsWithPresence(cached, snap)
 	if got[0].Online {
 		t.Errorf("a different account sharing a name must not mark the arrival: %+v", got[0])
+	}
+}
+
+// The presence snapshot covers a 15-minute window, but an arrival's dot means
+// "here now". A member the snapshot holds only because they were here recently
+// must leave the arrival row unmarked — otherwise the one marker on that list
+// would say something other than what every reader takes it to say.
+func TestArrivalsIgnoreDepartedMembers(t *testing.T) {
+	out := arrivalsWithPresence(
+		[]message.NewMember{{ID: 3, Username: "left"}},
+		presence.Snapshot{
+			Accounts: map[int64]message.OnlineMember{
+				3: {ID: 3, Username: "left", Left: time.Now().Add(-5 * time.Minute)},
+			},
+		})
+
+	if len(out) != 1 {
+		t.Fatalf("output length = %d, want 1", len(out))
+	}
+	if out[0].Online {
+		t.Errorf("a departed member lit an arrival's presence dot: %+v", out[0])
 	}
 }

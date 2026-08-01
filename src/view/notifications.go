@@ -25,6 +25,13 @@ func NotifyBadgeLabel(n int64) string {
 // canChallenge reports whether v may send username a direct challenge
 // (arch/NOTIFICATIONS.md Phase 2). It decides whether the sword renders at all.
 //
+// online means the player is holding a socket at this instant — the strict
+// test, never the roster's window. A challenge is an invitation to play now, so
+// it goes only to somebody who is here now; sent to anybody else it creates a
+// room that waits for a person who is not coming, and a notification they read
+// hours later. The roster lists people who have gone, and this is what keeps
+// their chips from offering a control that cannot work.
+//
 // busy means the player is already seated somewhere — playing, or waiting in a
 // challenge of their own. Those are the players who cannot take another game
 // right now, and offering the control anyway would produce an invitation that
@@ -41,9 +48,10 @@ func NotifyBadgeLabel(n int64) string {
 // challenge themselves.
 //
 // None of this is a security boundary. The creation path re-resolves the target
-// and refuses a self-challenge, an unknown name, and a banned account.
-func canChallenge(v Viewer, username string, busy bool) bool {
-	if !v.LoggedIn || !v.AccountsEnabled || busy || v.Seated || username == "" {
+// and refuses a self-challenge, an unknown name, a banned account, and one who
+// is not online.
+func canChallenge(v Viewer, username string, online, busy bool) bool {
+	if !v.LoggedIn || !v.AccountsEnabled || !online || busy || v.Seated || username == "" {
 		return false
 	}
 	return !strings.EqualFold(v.Username, username)

@@ -14,6 +14,7 @@ import (
 	"github.com/dechristopher/lio/notify"
 	"github.com/dechristopher/lio/player"
 	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/str"
@@ -570,6 +571,17 @@ func resolveInvite(payload newRoomPayload) (*db.UserRecord, bool) {
 		return nil, false
 	}
 	if !found || rec.ID == *creator.UserID || rec.Ban.Banned {
+		return nil, false
+	}
+	// The target has to be here. A challenge is an invitation to play now, so
+	// one addressed to somebody who is not on the site creates a room that waits
+	// for a person who is not coming, and a notification they read hours later
+	// pointing at a room the next restart has already cleared.
+	//
+	// This is the enforcement, not view.canChallenge: the button it hides is
+	// cosmetics, and the home roster now lists people who have gone, which makes
+	// the target of a hand-made request far likelier to be one of them.
+	if !presence.AccountOnline(rec.ID) {
 		return nil, false
 	}
 	return &rec, true

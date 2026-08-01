@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"sort"
-	"strings"
-
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/home"
 	"github.com/dechristopher/lio/message"
@@ -36,7 +33,8 @@ import (
 func HomeDigest() (proto.HomePayload, home.Follows) {
 	_, challenges, stats, seated := room.HomeListing()
 
-	online := presence.Online(seated, onlineShown)
+	lastPlayed := db.LastPlayed()
+	online := presence.Online(seated, onlineShown, lastPlayed)
 	stats.Playing = online.Total
 	stats.TotalGames = int(db.TotalGames())
 
@@ -51,6 +49,7 @@ func HomeDigest() (proto.HomePayload, home.Follows) {
 	digest := view.HomeDigest(challenges, stats, message.Community{
 		Online: online.Members,
 		Anon:   online.Anon,
+		More:   online.More,
 		Newest: arrivalsWithPresence(db.NewestMembers(), online),
 	})
 
@@ -91,14 +90,23 @@ func HomeDigest() (proto.HomePayload, home.Follows) {
 			eachFollowed(follows, func(m message.OnlineMember) {
 				out = append(out, m)
 			})
-			sortAvailableFirst(out)
+			presence.SortRoster(out, lastPlayed)
 			return view.HomePlayers(out)
 		},
 		// Count: the header badge, asked of every socket on the site every
 		// tick — so it allocates nothing and sorts nothing.
+		//
+		// It counts only the follows who are here at this instant, not the
+		// window the section below it covers. The badge is a call to look:
+		// lighting it for somebody who left a quarter of an hour ago would make
+		// it a notification that is routinely wrong by the time it is read.
 		Count: func(follows map[int64]struct{}) int {
 			n := 0
-			eachFollowed(follows, func(message.OnlineMember) { n++ })
+			eachFollowed(follows, func(m message.OnlineMember) {
+				if m.Online {
+					n++
+				}
+			})
 			return n
 		},
 	}
@@ -132,26 +140,13 @@ func arrivalsWithPresence(newest []message.NewMember, online presence.Snapshot) 
 		if !here {
 			continue
 		}
-		out[i].Online = true
+		// Only a live socket earns the dot here. The roster below covers a
+		// window and says so; an arrival row is a registration date with a
+		// presence marker hung off it, and a marker that meant "was here
+		// earlier" would be read as "is here".
+		out[i].Online = m.Online
 		out[i].Playing = m.Playing
 		out[i].Busy = m.Busy
 	}
 	return out
-}
-
-// sortAvailableFirst orders a follow section: people who can play right now
-// first, then alphabetically.
-//
-// This section answers "who can I play right now", so the answer leads. Ties
-// break alphabetically so a live region does not reshuffle itself between
-// frames for no reason — the same requirement the polled version had, for the
-// same reason.
-func sortAvailableFirst(members []message.OnlineMember) {
-	sort.Slice(members, func(i, j int) bool {
-		a, b := members[i], members[j]
-		if a.Busy != b.Busy {
-			return !a.Busy
-		}
-		return strings.ToLower(a.Username) < strings.ToLower(b.Username)
-	})
 }

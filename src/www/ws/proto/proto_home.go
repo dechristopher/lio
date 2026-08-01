@@ -51,12 +51,23 @@ type HomeChallenge struct {
 // Anonymous visitors are not representable here, exactly as they are not in
 // message.OnlineMember — they are counted (HomeStats.Playing, HomePlayers.Anon)
 // and never listed.
+// It carries the same fields as HomeArrival below, under the same keys, and
+// that is deliberate: the two are one chip and one client builder. The roster
+// covers a 15-minute window rather than an instant, so a roster row has exactly
+// what an arrival row always had — a presence flag that may be false, and a
+// relative time to show when it is.
 type HomePlayer struct {
 	Name      string `json:"n"`
 	Title     string `json:"t,omitempty"`
 	TitleName string `json:"tn,omitempty"`
-	Playing   bool   `json:"p,omitempty"` // seated in a live game
-	Busy      bool   `json:"b,omitempty"` // seated in any room, so not challengeable
+	// Online is a live socket at this instant. False for a member who was here
+	// inside the window and has gone: no dot, and no challenge button, because
+	// an invitation has to reach somebody who is actually here.
+	Online  bool   `json:"o,omitempty"`
+	Playing bool   `json:"p,omitempty"` // seated in a live game
+	Busy    bool   `json:"b,omitempty"` // seated in any room, so not challengeable
+	Ago     string `json:"a,omitempty"` // chip text for a departed member ("4m")
+	Left    string `json:"j,omitempty"` // its tooltip ("left 4 minutes ago")
 }
 
 // HomeArrival is one recently registered account.
@@ -91,24 +102,27 @@ type HomeChallenges struct {
 }
 
 // HomePlayers is the players card's broadcast half: the capped site-wide
-// roster, the anonymous headcount beside it, and the recent arrivals.
+// roster, the headcounts beside it, and the recent arrivals.
 //
-// Online is capped for display (see onlineShown). The viewer's own Following
-// section is NOT drawn from it — it arrives separately, because a followed
-// player can rank past the cap (see HomeFollowing).
+// Online is capped for display (see onlineShown); More is how many named
+// members the cap left out, so the footnote can account for them rather than
+// letting them vanish. The viewer's own Following section is NOT drawn from
+// this list — it arrives separately, because a followed player can rank past
+// the cap (see HomeFollowing).
 type HomePlayers struct {
 	Online   []HomePlayer  `json:"o"`
 	Anon     int           `json:"a,omitempty"`
+	More     int           `json:"m,omitempty"`
 	Arrivals []HomeArrival `json:"n,omitempty"`
 }
 
-// HomeFollowing is one viewer's followed players who are online right now,
+// HomeFollowing is one viewer's followed players who are active on the site,
 // available ones first. It is addressed to a single socket, never broadcast.
 //
 // It carries whole chips rather than names because these players may not appear
-// in the broadcast roster at all: that list is capped at the eight most
-// prominent accounts online, and the entire point of this section is to surface
-// somebody the viewer cares about who did not make that cut.
+// in the broadcast roster at all: that list is capped, and the entire point of
+// this section is to surface somebody the viewer cares about who did not make
+// that cut.
 type HomeFollowing struct {
 	Items []HomePlayer `json:"i"`
 }

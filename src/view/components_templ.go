@@ -1741,7 +1741,7 @@ func quickGameButtons() templ.Component {
 			templ_7745c5c3_Var68 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<div class=\"mt-3 grid grid-cols-2 gap-2.5\"><form action=\"/new/human/quick\" method=\"POST\" class=\"contents\"><button type=\"submit\" aria-label=\"Quick game versus human\" title=\"Quick game vs human\" class=\"btn btn-ghost flex-col gap-1.5 py-3\"><span class=\"text-accent\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<div class=\"mt-2 grid grid-cols-2 gap-2.5\"><form action=\"/new/human/quick\" method=\"POST\" class=\"contents\"><button type=\"submit\" aria-label=\"Quick game versus human\" title=\"Quick game vs human\" class=\"btn btn-ghost flex-col gap-1.5 py-3\"><span class=\"text-accent\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1788,7 +1788,7 @@ func createGameButton() templ.Component {
 			templ_7745c5c3_Var69 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<button type=\"button\" id=\"createGameButton\" data-open-create-game title=\"Create a custom game\" class=\"btn btn-primary btn-block mt-3\">Create a custom game</button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<button type=\"button\" id=\"createGameButton\" data-open-create-game title=\"Create a custom game\" class=\"btn btn-primary btn-block mt-3 text-xl font-bold\">Custom game</button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -41,10 +41,18 @@ type ProfileModel struct {
 	// at the login refusal instead).
 	Closed bool
 
-	// Busy marks an account already seated in a room — playing, or waiting in a
-	// challenge of its own. It suppresses the Challenge button, which is the
-	// same rule the home roster's sword follows (arch/NOTIFICATIONS.md Phase 2).
-	Busy bool
+	// Online marks an account holding a live socket right now, and Busy one
+	// already seated in a room — playing, or waiting in a challenge of its own.
+	// Between them they decide whether the Challenge button renders, which is
+	// the same rule the home roster's sword follows (arch/NOTIFICATIONS.md
+	// Phase 2).
+	//
+	// Online matters most here. A profile is the one challenge surface a visitor
+	// reaches without any presence context at all — from a game, a leaderboard,
+	// a search — so before this the button was routinely offered against
+	// somebody who had not been seen in weeks.
+	Online bool
+	Busy   bool
 
 	// Ratings, records and games are omitted entirely for a closed account.
 	Ratings  []RatingView

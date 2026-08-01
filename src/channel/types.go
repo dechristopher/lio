@@ -85,6 +85,10 @@ func NewSockMap(channel string) *SockMap {
 
 // Track adds the given socket to the internal sockets map (under its uid and
 // connection id) and signals the crowd broadcaster that the count changed.
+//
+// It also forgets any departure this session recorded (see departed.go). A page
+// navigation is a close followed by an open, so without this every link a
+// visitor followed would leave a stamp saying they had left.
 func (s *SockMap) Track(sock *Socket) {
 	if s == nil || sock == nil {
 		return
@@ -97,24 +101,35 @@ func (s *SockMap) Track(sock *Socket) {
 	}
 	conns[sock.ID] = sock
 	s.mut.Unlock()
+	clearDeparture(sock.UID)
 	s.notify()
 }
 
 // UnTrack removes a single connection (uid + connID) from the internal sockets
 // map and signals the crowd broadcaster that the count changed. The uid is
 // dropped only once its last connection goes away.
+//
+// The departing socket's account is stamped into the departure map on the way
+// out, so a reader can still name this person for a short while (departed.go).
+// It is read from the socket before the delete, because that record is the only
+// thing that knows who this session was.
 func (s *SockMap) UnTrack(uid, connID string) {
 	if s == nil {
 		return
 	}
+	var acct Account
 	s.mut.Lock()
 	if conns := s.sockets[uid]; conns != nil {
+		if sock := conns[connID]; sock != nil {
+			acct = sock.Acct
+		}
 		delete(conns, connID)
 		if len(conns) == 0 {
 			delete(s.sockets, uid)
 		}
 	}
 	s.mut.Unlock()
+	recordDeparture(uid, acct)
 	s.notify()
 }
 

@@ -199,12 +199,16 @@ func MineHandler(c fiber.Ctx) error {
 	// the same pair of reads the home page's roster makes, and it is why the
 	// popover can offer a challenge to exactly the people who could accept one.
 	_, _, _, seated := room.HomeListing()
-	online := presence.Online(seated, 0).Accounts
+	online := presence.Online(seated, 0, nil).Accounts
 
 	rows := make([]memberRow, 0, len(members))
 	for _, m := range members {
 		row := memberRow{Name: m.Username, Title: m.Title.Code, Following: true}
-		if p, here := online[m.ID]; here {
+		// p.Online, not mere membership: the snapshot covers a 15-minute window
+		// for the home page's roster, and this panel offers a challenge button
+		// off this flag. Somebody who left ten minutes ago belongs in the "away"
+		// half of the list below, not in the half being offered a game.
+		if p, here := online[m.ID]; here && p.Online {
 			row.Online, row.Playing, row.Busy = true, p.Playing, p.Busy
 		}
 		rows = append(rows, row)

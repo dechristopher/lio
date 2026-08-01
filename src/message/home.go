@@ -73,8 +73,26 @@ type OnlineMember struct {
 	ID       int64
 	Username string
 	Title    title.Title
+	// Online marks a member holding a live socket at this instant, as opposed to
+	// one who was here inside the roster's window and has since gone. It decides
+	// whether the presence dot renders and whether a challenge may be sent — an
+	// invitation only reaches somebody who is actually here (see
+	// view.canChallenge and resolveInvite).
+	//
+	// It is a field rather than an invariant of the list because the roster now
+	// covers a window rather than an instant, so both kinds of row appear in it.
+	Online bool
+	// Left is when this member's last socket closed, zero for anybody Online.
+	// The roster renders it as a trailing token ("4m") and orders the departed
+	// tier by it — most recently gone first, since that is the person a visitor
+	// has only just missed.
+	Left time.Time
 	// Playing marks a member seated in a live game rather than browsing, so the
 	// roster can say who is actually at a board right now.
+	//
+	// It can be true for a member who is not Online: a seat outlives the
+	// connection holding it, so a player whose socket dropped mid-game reads as
+	// at a board but not here.
 	Playing bool
 	// Busy marks a member seated in any room — a live game, or a challenge of
 	// their own that is still waiting for an opponent. It is what decides
@@ -129,10 +147,12 @@ type RatedMember struct {
 // renders nothing rather than an empty-state placeholder, so a quiet site looks
 // quiet rather than broken.
 type Community struct {
-	// Online lists named members currently on the site, capped for display;
-	// Anon is how many of the total headcount hold no account.
+	// Online lists named members active on the site inside the roster's window,
+	// capped for display; Anon is how many of the total headcount hold no
+	// account, and More is how many named members the cap left out.
 	Online []OnlineMember
 	Anon   int
+	More   int
 	// Following are the viewer's own followed players who are online right now,
 	// available ones first (arch/FOLLOWING.md). Empty for a signed-out visitor
 	// and for anybody whose follows are all elsewhere.

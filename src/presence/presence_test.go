@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dechristopher/lio/channel"
 	"github.com/dechristopher/lio/message"
@@ -18,15 +19,24 @@ var chanSeq int
 // when the test ends, which is what makes Online see exactly this test's
 // visitors. Each uid gets its own connection id, so several tabs of one session
 // can be modelled by calling this twice with the same uid.
-func connect(t *testing.T, accounts map[string]channel.Account) {
+func connect(t *testing.T, accounts map[string]channel.Account) *channel.SockMap {
 	t.Helper()
+	// Departures are process-global and outlive the SockMap that produced them,
+	// so a test that closes a socket would leave its uid "recently active" for
+	// the next one. Clear on both sides of the test: entering, in case something
+	// else left a stamp, and leaving, so this test's own do not escape.
+	channel.ForgetDepartures()
 	chanSeq++
 	name := "presence-test-" + strconv.Itoa(chanSeq)
 	sm := channel.Map.GetSockMap(name)
 	for uid, acct := range accounts {
 		sm.Track(channel.NewSocket(nil, uid, "c1", "", acct))
 	}
-	t.Cleanup(func() { sm.Cleanup() })
+	t.Cleanup(func() {
+		sm.Cleanup()
+		channel.ForgetDepartures()
+	})
+	return sm
 }
 
 // anon is the account a signed-out visitor's socket carries.
@@ -50,7 +60,7 @@ func named(username string) channel.Account {
 
 func TestOnlineCountsConnectedSessions(t *testing.T) {
 	connect(t, map[string]channel.Account{"a": anon, "b": anon})
-	if got := Online(nil, 5).Total; got != 2 {
+	if got := Online(nil, 5, nil).Total; got != 2 {
 		t.Fatalf("Total = %d, want 2", got)
 	}
 }
@@ -62,20 +72,18 @@ func TestSeatWithoutSocketIsNotOnline(t *testing.T) {
 	seated := map[string]message.OnlineMember{
 		"ghost": {Username: "ghost", Playing: true, Busy: true},
 	}
-	if got := Online(seated, 5).Total; got != 0 {
+	if got := Online(seated, 5, nil).Total; got != 0 {
 		t.Fatalf("Total = %d, want 0 (a dropped connection is not presence)", got)
 	}
 }
 
 // Several tabs of one session are one person, not one per socket.
 func TestExtraTabsCountOnce(t *testing.T) {
-	chanSeq++
-	sm := channel.Map.GetSockMap("presence-test-tabs-" + strconv.Itoa(chanSeq))
+	sm := connect(t, nil)
 	sm.Track(channel.NewSocket(nil, "u1", "c1", "", anon))
 	sm.Track(channel.NewSocket(nil, "u1", "c2", "", anon))
-	t.Cleanup(func() { sm.Cleanup() })
 
-	if got := Online(nil, 5).Total; got != 1 {
+	if got := Online(nil, 5, nil).Total; got != 1 {
 		t.Fatalf("Total = %d, want 1", got)
 	}
 }
@@ -86,7 +94,7 @@ func TestSameSessionOnTwoChannelsCountsOnce(t *testing.T) {
 	connect(t, map[string]channel.Account{"u1": named("nova")})
 	connect(t, map[string]channel.Account{"u1": named("nova")})
 
-	snap := Online(nil, 5)
+	snap := Online(nil, 5, nil)
 	if snap.Total != 1 {
 		t.Fatalf("Total = %d, want 1", snap.Total)
 	}
@@ -108,7 +116,7 @@ func TestOnlineNamesMembersAndCountsAnon(t *testing.T) {
 		"u3": {Username: "zed", Playing: true, Busy: true},
 	}
 
-	snap := Online(seated, 5)
+	snap := Online(seated, 5, nil)
 	if snap.Total != 4 {
 		t.Fatalf("Total = %d, want 4", snap.Total)
 	}
@@ -118,12 +126,16 @@ func TestOnlineNamesMembersAndCountsAnon(t *testing.T) {
 	if snap.Anon != 2 {
 		t.Fatalf("Anon = %d, want 2", snap.Anon)
 	}
-	// seated players sort ahead of browsers
-	if snap.Members[0].Username != "zed" || !snap.Members[0].Playing {
-		t.Fatalf("Members[0] = %+v, want the seated player zed", snap.Members[0])
+	// Free players sort ahead of seated ones. This used to be the reverse, on
+	// the reasoning that a game in progress is the more interesting fact; it is
+	// not the fact a visitor is looking for. Somebody at a board cannot be
+	// challenged, so leading with them puts the rows with nothing to offer at
+	// the top of the list (see SortRoster).
+	if snap.Members[0].Username != "nova" || snap.Members[0].Playing {
+		t.Fatalf("Members[0] = %+v, want the free player nova", snap.Members[0])
 	}
-	if snap.Members[1].Username != "nova" {
-		t.Fatalf("Members[1] = %+v, want nova", snap.Members[1])
+	if snap.Members[1].Username != "zed" || !snap.Members[1].Playing {
+		t.Fatalf("Members[1] = %+v, want the seated player zed", snap.Members[1])
 	}
 }
 
@@ -133,7 +145,7 @@ func TestOnlineNamesMembersAndCountsAnon(t *testing.T) {
 func TestConnectedSpectatorIsNamed(t *testing.T) {
 	connect(t, map[string]channel.Account{"watcher": named("nova")})
 
-	snap := Online(nil, 5)
+	snap := Online(nil, 5, nil)
 	if len(snap.Members) != 1 || snap.Members[0].Username != "nova" {
 		t.Fatalf("Members = %+v, want the named spectator nova", snap.Members)
 	}
@@ -151,7 +163,7 @@ func TestWaitingCreatorIsBusyNotPlaying(t *testing.T) {
 		"u1": {Username: "nova", Busy: true},
 	}
 
-	snap := Online(seated, 5)
+	snap := Online(seated, 5, nil)
 	if len(snap.Members) != 1 {
 		t.Fatalf("Members = %d, want 1", len(snap.Members))
 	}
@@ -169,7 +181,7 @@ func TestSameAccountAcrossSessionsCountsOnce(t *testing.T) {
 		"uid-anon":   anon,
 	})
 
-	snap := Online(nil, 5)
+	snap := Online(nil, 5, nil)
 	if len(snap.Members) != 1 {
 		t.Fatalf("Members = %d, want 1 (same account twice)", len(snap.Members))
 	}
@@ -191,7 +203,7 @@ func TestPlayingWinsAcrossAccountSessions(t *testing.T) {
 		"uid-phone": {Username: "nova", Playing: true, Busy: true},
 	}
 
-	snap := Online(seated, 5)
+	snap := Online(seated, 5, nil)
 	if len(snap.Members) != 1 {
 		t.Fatalf("Members = %d, want 1", len(snap.Members))
 	}
@@ -213,7 +225,7 @@ func TestLimitCapsMembersButNotAnonTally(t *testing.T) {
 		"u4": anon,
 	})
 
-	snap := Online(nil, 2)
+	snap := Online(nil, 2, nil)
 	if len(snap.Members) != 2 {
 		t.Fatalf("Members = %d, want 2 (capped)", len(snap.Members))
 	}
@@ -237,7 +249,7 @@ func TestSnapshotAccountsIsUncapped(t *testing.T) {
 		"uid-d": anon,
 	})
 
-	snap := Online(nil, 1)
+	snap := Online(nil, 1, nil)
 	if len(snap.Members) != 1 {
 		t.Fatalf("Members = %d, want 1 (capped)", len(snap.Members))
 	}
@@ -266,7 +278,7 @@ func TestSnapshotAccountsIsUncapped(t *testing.T) {
 func TestAccountsPresentWithoutLimit(t *testing.T) {
 	connect(t, map[string]channel.Account{"uid-a": named("delta")})
 
-	snap := Online(nil, 0)
+	snap := Online(nil, 0, nil)
 	if len(snap.Members) != 0 {
 		t.Fatalf("Members = %d, want 0 at limit 0", len(snap.Members))
 	}
@@ -288,7 +300,7 @@ func TestSeatedRecordFoldsByID(t *testing.T) {
 		"uid-phone": {ID: acct.ID, Username: "echo", Playing: true, Busy: true},
 	}
 
-	snap := Online(seated, 5)
+	snap := Online(seated, 5, nil)
 	if snap.Total != 1 {
 		t.Fatalf("Total = %d, want 1", snap.Total)
 	}
@@ -297,5 +309,231 @@ func TestSeatedRecordFoldsByID(t *testing.T) {
 	}
 	if m := snap.Accounts[acct.ID]; !m.Playing || !m.Busy {
 		t.Fatalf("seated flags lost in the fold: %+v", m)
+	}
+}
+
+// ---- the active window (arch/HOME_ACTIVITY_STREAMING.md) ----
+
+// A closed session keeps its place in the roster, and says it has gone. This is
+// what makes the panel answer "who is around" rather than "who is connected at
+// this exact instant", which empties every time a tab closes.
+func TestDepartedSessionStaysInRoster(t *testing.T) {
+	sm := connect(t, map[string]channel.Account{"uid-gone": named("golf")})
+	sm.UnTrack("uid-gone", "c1")
+
+	snap := Online(nil, 5, nil)
+	if len(snap.Members) != 1 || snap.Members[0].Username != "golf" {
+		t.Fatalf("Members = %+v, want the departed member golf", snap.Members)
+	}
+	if snap.Total != 1 {
+		t.Fatalf("Total = %d, want 1 (the window counts them)", snap.Total)
+	}
+}
+
+// Total covers the window; Live does not. The home page's tile reads the first
+// and the operator console reads the second, so the two must actually differ
+// once somebody has left.
+func TestLiveExcludesDepartedWhileTotalIncludesThem(t *testing.T) {
+	sm := connect(t, map[string]channel.Account{
+		"uid-here": named("hotel"),
+		"uid-gone": named("india"),
+	})
+	sm.UnTrack("uid-gone", "c1")
+
+	snap := Online(nil, 5, nil)
+	if snap.Total != 2 {
+		t.Fatalf("Total = %d, want 2 (both are inside the window)", snap.Total)
+	}
+	if snap.Live != 1 {
+		t.Fatalf("Live = %d, want 1 (only the open socket)", snap.Live)
+	}
+}
+
+// Live counts people, not sockets: one account on two devices is one head, the
+// same fold Total makes. A count that disagreed with the roster beside it about
+// what one person is would be worse than no count.
+func TestLiveCountsPeopleNotSessions(t *testing.T) {
+	connect(t, map[string]channel.Account{
+		"uid-laptop": named("juliet"),
+		"uid-phone":  named("juliet"),
+		"uid-anon":   anon,
+	})
+
+	snap := Online(nil, 5, nil)
+	if snap.Live != 2 {
+		t.Fatalf("Live = %d, want 2 (one account + one anonymous visitor)", snap.Live)
+	}
+}
+
+// Navigating is a close followed by an open. Inside navGrace the closed session
+// still reads as fully here — no lost dot, no lost challenge button, no jump to
+// the bottom of the list on somebody else's screen for the length of a page
+// load.
+func TestDepartureInsideGraceStillReadsOnline(t *testing.T) {
+	sm := connect(t, map[string]channel.Account{"uid-nav": named("kilo")})
+	sm.UnTrack("uid-nav", "c1")
+
+	snap := Online(nil, 5, nil)
+	if len(snap.Members) != 1 {
+		t.Fatalf("Members = %d, want 1", len(snap.Members))
+	}
+	if !snap.Members[0].Online {
+		t.Fatal("a session that closed a moment ago must still read as online")
+	}
+	if !snap.Members[0].Left.IsZero() {
+		t.Fatalf("Left = %v, want zero while the member still reads as online",
+			snap.Members[0].Left)
+	}
+}
+
+// Coming back clears the departure outright, so a visitor who follows a link is
+// never both connected and remembered as gone.
+func TestReconnectClearsDeparture(t *testing.T) {
+	sm := connect(t, map[string]channel.Account{"uid-nav": named("lima")})
+	sm.UnTrack("uid-nav", "c1")
+	sm.Track(channel.NewSocket(nil, "uid-nav", "c2", "", named("lima")))
+
+	if got := len(channel.Departed(ActiveWindow)); got != 0 {
+		t.Fatalf("departures = %d, want 0 after the session came back", got)
+	}
+	snap := Online(nil, 5, nil)
+	if snap.Live != 1 || snap.Total != 1 {
+		t.Fatalf("Live/Total = %d/%d, want 1/1", snap.Live, snap.Total)
+	}
+}
+
+// The fold's window and grace rules, at a fixed instant — the two things that
+// cannot be tested by waiting for real time to pass.
+func TestSessionsFromWindowAndGrace(t *testing.T) {
+	now := time.Now()
+	conn := map[string]channel.Account{"uid-live": {ID: 1, Name: "mike"}}
+	gone := map[string]channel.Departure{
+		"uid-grace": {Account: channel.Account{ID: 2, Name: "november"}, At: now.Add(-5 * time.Second)},
+		"uid-away":  {Account: channel.Account{ID: 3, Name: "oscar"}, At: now.Add(-5 * time.Minute)},
+	}
+
+	got := sessionsFrom(conn, gone, now)
+	if len(got) != 3 {
+		t.Fatalf("sessions = %d, want 3", len(got))
+	}
+	if s := got["uid-live"]; !s.online || !s.live {
+		t.Fatalf("uid-live = %+v, want online and live", s)
+	}
+	if s := got["uid-grace"]; !s.online || s.live {
+		t.Fatalf("uid-grace = %+v, want online (inside the grace) but not live", s)
+	}
+	if s := got["uid-away"]; s.online || s.live {
+		t.Fatalf("uid-away = %+v, want neither online nor live", s)
+	}
+	if s := got["uid-away"]; !s.left.Equal(now.Add(-5 * time.Minute)) {
+		t.Fatalf("uid-away left = %v, want the departure time", s.left)
+	}
+}
+
+// A live socket beats a stale departure stamp for the same uid — another tab
+// closed, the person is still here.
+func TestSessionsFromPrefersTheLiveRecord(t *testing.T) {
+	now := time.Now()
+	conn := map[string]channel.Account{"uid-both": {ID: 1, Name: "papa"}}
+	gone := map[string]channel.Departure{
+		"uid-both": {Account: channel.Account{ID: 1, Name: "papa"}, At: now.Add(-10 * time.Minute)},
+	}
+
+	got := sessionsFrom(conn, gone, now)
+	if s := got["uid-both"]; !s.online || !s.live || !s.left.IsZero() {
+		t.Fatalf("uid-both = %+v, want a live record with no departure", s)
+	}
+}
+
+// ---- ordering ----
+
+// The four tiers, in the order the question "who can I play right now" is asked
+// in: free, waiting, playing, gone.
+func TestSortRosterTiers(t *testing.T) {
+	members := []message.OnlineMember{
+		{ID: 4, Username: "gone", Left: time.Now().Add(-time.Minute)},
+		{ID: 3, Username: "playing", Online: true, Playing: true, Busy: true},
+		{ID: 2, Username: "waiting", Online: true, Busy: true},
+		{ID: 1, Username: "free", Online: true},
+	}
+	SortRoster(members, nil)
+
+	want := []string{"free", "waiting", "playing", "gone"}
+	for i, name := range want {
+		if members[i].Username != name {
+			t.Fatalf("position %d = %q, want %q (order: %+v)", i, members[i].Username, name, members)
+		}
+	}
+}
+
+// Within a tier, whoever played most recently reads first. That is what
+// separates a player who has just finished a game from one who signed in and
+// has been reading.
+func TestSortRosterRecentPlayFirst(t *testing.T) {
+	now := time.Now()
+	members := []message.OnlineMember{
+		{ID: 1, Username: "alpha", Online: true},
+		{ID: 2, Username: "bravo", Online: true},
+		{ID: 3, Username: "charlie", Online: true},
+	}
+	lastPlayed := map[int64]time.Time{
+		1: now.Add(-time.Hour),
+		3: now.Add(-time.Minute),
+	}
+	SortRoster(members, lastPlayed)
+
+	want := []string{"charlie", "alpha", "bravo"}
+	for i, name := range want {
+		if members[i].Username != name {
+			t.Fatalf("position %d = %q, want %q (order: %+v)", i, members[i].Username, name, members)
+		}
+	}
+}
+
+// The departed tier orders by when they left, most recent first — the person a
+// visitor has only just missed reads first. Their last game does not enter into
+// it; when they were here is the more useful fact about somebody who is gone.
+func TestSortRosterDepartedByRecency(t *testing.T) {
+	now := time.Now()
+	members := []message.OnlineMember{
+		{ID: 1, Username: "long-gone", Left: now.Add(-10 * time.Minute)},
+		{ID: 2, Username: "just-left", Left: now.Add(-time.Minute)},
+	}
+	SortRoster(members, map[int64]time.Time{1: now})
+
+	if members[0].Username != "just-left" {
+		t.Fatalf("order = %+v, want the most recent departure first", members)
+	}
+}
+
+// A nil recency map is the unconfigured-archive case. It must order by the
+// tiers and then alphabetically rather than by map iteration order.
+func TestSortRosterWithoutRecencyIsAlphabetical(t *testing.T) {
+	members := []message.OnlineMember{
+		{ID: 1, Username: "zulu", Online: true},
+		{ID: 2, Username: "Alpha", Online: true},
+	}
+	SortRoster(members, nil)
+
+	if members[0].Username != "Alpha" {
+		t.Fatalf("order = %+v, want a case-insensitive alphabetical fallback", members)
+	}
+}
+
+// The cap trims the roster and says how many it dropped, so a busy evening
+// reads as a busy evening rather than as exactly onlineShown people.
+func TestMoreCountsWhatTheCapDropped(t *testing.T) {
+	connect(t, map[string]channel.Account{
+		"u1": named("quebec"),
+		"u2": named("romeo"),
+		"u3": named("sierra"),
+	})
+
+	snap := Online(nil, 1, nil)
+	if len(snap.Members) != 1 {
+		t.Fatalf("Members = %d, want 1 (capped)", len(snap.Members))
+	}
+	if snap.More != 2 {
+		t.Fatalf("More = %d, want 2", snap.More)
 	}
 }

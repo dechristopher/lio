@@ -11,6 +11,7 @@ import (
 	"github.com/dechristopher/lio/auth"
 	"github.com/dechristopher/lio/db"
 	"github.com/dechristopher/lio/pools"
+	"github.com/dechristopher/lio/presence"
 	"github.com/dechristopher/lio/room"
 	"github.com/dechristopher/lio/user"
 	"github.com/dechristopher/lio/view"
@@ -61,9 +62,10 @@ func ProfileHandler(c fiber.Ctx) error {
 		Title:      rec.Title,
 		Joined:     view.JoinedMonth(rec.CreatedAt),
 		Closed:     rec.Ban.Banned,
-		// whether they could take a challenge right now; the button is hidden
-		// rather than shown-and-refused
-		Busy: room.AccountBusy(rec.ID),
+		// whether they could take a challenge right now — here at all, and not
+		// already seated; the button is hidden rather than shown-and-refused
+		Online: presence.AccountOnline(rec.ID),
+		Busy:   room.AccountBusy(rec.ID),
 	}
 
 	// A closed account publishes nothing: no ratings, no record, no games. The
