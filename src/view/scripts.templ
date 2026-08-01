@@ -72,6 +72,19 @@ templ scriptsAbout(meta Meta) {
 	<script src={ asset("lio-about.js") }></script>
 }
 
+// scriptsLearn loads the board renderer + themes and the tutorial client for
+// the /learn course. scriptsBase comes with it for howler: lio-learn.js defines
+// its own move/capture/check sounds from the same files the game uses, rather
+// than pulling in lio-game.js, which is an order of magnitude larger and boots
+// against room markup that does not exist here.
+templ scriptsLearn(meta Meta) {
+	<link rel="stylesheet" href={ asset("octadground.base.css") }/>
+	@themeStyles()
+	@scriptsBase(meta)
+	<script src={ asset("octadground.js") }></script>
+	<script src={ asset("lio-learn.js") }></script>
+}
+
 // scriptsTV loads the board renderer + themes and the self-contained clients for
 // the home page: the live-games TV widget (lio-tv.js), the activity region
 // (lio-home.js) and the "What is Octad?" self-playing demo board

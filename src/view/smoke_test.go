@@ -14,6 +14,7 @@ import (
 
 	"github.com/dechristopher/lio/cache"
 	"github.com/dechristopher/lio/db"
+	"github.com/dechristopher/lio/learn"
 	"github.com/dechristopher/lio/message"
 	"github.com/dechristopher/lio/news"
 	"github.com/dechristopher/lio/prefs"
@@ -918,6 +919,7 @@ func TestNoHTMLComments(t *testing.T) {
 		"about": About(PageMeta("About"), "board"),
 		"news":  News(PageMeta("News"), 1),
 		"db":    DB(PageMeta("Game Database")),
+		"learn": Learn(PageMeta("Learn to play"), &learn.Lessons[0]),
 		"404":   NotFound(PageMeta("404")),
 	}
 	for name, page := range pages {
@@ -2725,4 +2727,81 @@ func TestRenderSentBroadcasts(t *testing.T) {
 	mustContain(t, out, "bc-chip-empty")
 
 	mustContain(t, systemTab(t, TabOverview, true), "Nothing has been broadcast yet.")
+}
+
+// TestRenderLearn covers the tutorial page's server-rendered shell: the whole
+// course in the rail (so the page is navigable and crawlable with no
+// JavaScript), the opening lesson marked current with its first prompt already
+// on screen, the board mount, and the curriculum inlined for lio-learn.js.
+func TestRenderLearn(t *testing.T) {
+	out := renderSmoke(t, Learn(PageMeta("Learn to play"), &learn.Lessons[0]))
+
+	// every lesson is a real link in the rail
+	for _, l := range learn.Lessons {
+		mustContain(t, out, `href="/learn/`+l.Slug+`"`)
+		mustContain(t, out, html.EscapeString(l.Title))
+	}
+	// ...grouped under every chapter
+	for _, c := range learn.Chapters() {
+		mustContain(t, out, html.EscapeString(c.Title))
+	}
+
+	// the opening lesson is current, and its first prompt is already rendered
+	mustContain(t, out, `data-lesson="board"`)
+	mustContain(t, out, "learn-lesson current")
+	mustContain(t, out, html.EscapeString(learn.Lessons[0].Steps[0].Prompt))
+
+	// the board mount and the curriculum payload the client drives from
+	mustContain(t, out, `id="learn-board"`)
+	mustContain(t, out, `id="learn-data"`)
+	mustContain(t, out, `src="/lio-learn.`)
+
+	// a step dot per step of the open lesson
+	if n := strings.Count(out, "learn-dot"); n < len(learn.Lessons[0].Steps) {
+		t.Errorf("step dots = %d, want at least %d", n, len(learn.Lessons[0].Steps))
+	}
+}
+
+// TestRenderLearnDeepLink checks a lesson-specific URL renders opened at that
+// lesson rather than at the start of the course.
+func TestRenderLearnDeepLink(t *testing.T) {
+	target, ok := learn.BySlug("castling")
+	if !ok {
+		t.Fatal("castling lesson missing")
+	}
+	out := renderSmoke(t, Learn(PageMeta("Learn to play"), target))
+	mustContain(t, out, html.EscapeString(target.Steps[0].Prompt))
+	// the rail marks the opened lesson, not the first one
+	mustContain(t, out, `class="learn-lesson current" data-lesson="castling"`)
+	mustNotContain(t, out, `class="learn-lesson current" data-lesson="board"`)
+}
+
+// TestLearnSuccessLinesStayServerSide checks where each step's success line
+// lives. The server is what judges a move and says so in its reply, so a
+// playable step's success line must not be in the page — it would give the
+// answer away and put the verdict somewhere the client could fake to itself.
+// The click-a-square step is the deliberate exception: it makes no move, so
+// there is no request to answer and nothing but the client could ever say it.
+func TestLearnSuccessLinesStayServerSide(t *testing.T) {
+	out := renderSmoke(t, Learn(PageMeta("Learn to play"), &learn.Lessons[0]))
+	var checked, exempt int
+	for _, l := range learn.Lessons {
+		for _, s := range l.Steps {
+			if s.Goal == learn.GoalSelect {
+				// it rides in the JSON payload, where the text is literal
+				mustContain(t, out, s.Success)
+				exempt++
+				continue
+			}
+			// absent in both the JSON payload and the rendered markup
+			mustNotContain(t, out, s.Success)
+			mustNotContain(t, out, html.EscapeString(s.Success))
+			checked++
+		}
+	}
+	// guard the guard: if the curriculum ever stopped having both kinds of
+	// step, this test would silently assert nothing
+	if checked == 0 || exempt == 0 {
+		t.Fatalf("expected both judged and click-only steps, got %d and %d", checked, exempt)
+	}
 }

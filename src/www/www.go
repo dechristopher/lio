@@ -188,6 +188,13 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	r.Get("/about/notation", handlers.AboutNotationHandler)
 	r.Get("/about/misc", handlers.AboutMiscHandler)
 
+	// the hands-on beginner's tutorial. Every lesson is its own URL so it can
+	// be linked and resumed; an unknown slug redirects to the course start.
+	// Registered here, well ahead of the /:id room wildcards, for the same
+	// reason the other named pages are.
+	r.Get("/learn", handlers.LearnHandler)
+	r.Get("/learn/:slug", handlers.LearnLessonHandler)
+
 	// paginated news feed page
 	r.Get("/news", handlers.NewsHandler)
 
@@ -250,6 +257,12 @@ func wireHandlers(r *fiber.App, staticFs fs.FS) {
 	// study-style seam that applies/evaluates one explored position per
 	// request. Rate-limited because a cache-missing eval is real engine CPU.
 	r.Post("/api/analysis", middleware.AnalysisLimiter(), handlers.AnalysisHandler)
+
+	// the /learn tutorial's move endpoint: applies and judges one lesson move.
+	// Rate-limited on the same reasoning as analysis — the graduation game's
+	// replies are real (if small) engine searches — but with a budget sized for
+	// somebody working through a lesson rather than stepping a line.
+	r.Post("/api/learn", middleware.LearnLimiter(), handlers.LearnAPIHandler)
 
 	// room handlers. /:id serves the live room while its actor exists and
 	// falls back to the archived match view once it's gone; /:id/:num is the

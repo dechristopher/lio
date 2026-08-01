@@ -3,6 +3,7 @@
      they are transient and have no lasting SEO value. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://octad.gg/</loc></url>
+  <url><loc>https://octad.gg/learn</loc></url>
   <url><loc>https://octad.gg/about</loc></url>
   <url><loc>https://octad.gg/about/board</loc></url>
   <url><loc>https://octad.gg/about/rules</loc></url>

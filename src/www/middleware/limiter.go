@@ -75,6 +75,30 @@ func AnalysisLimiter() fiber.Handler {
 	})
 }
 
+// learnMax is the per-client budget for the /api/learn tutorial endpoint per
+// window. Most requests are pure rules work (apply a move, judge it) and cost
+// almost nothing; only the graduation game's replies run an engine search, and
+// that one is depth-capped at the weakest persona. The budget is set well above
+// a determined learner's pace — a move every second or two, plus a describe
+// call per step — so the limit only ever catches a script.
+const learnMax = 150
+
+// learnWindow is the rolling window learnMax is measured over.
+const learnWindow = time.Minute
+
+// LearnLimiter rate-limits the /api/learn endpoint per client IP.
+func LearnLimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:          learnMax,
+		Expiration:   learnWindow,
+		KeyGenerator: clientIP,
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).
+				JSON(fiber.Map{"error": "too many requests - slow down"})
+		},
+	})
+}
+
 // feedbackMax is the per-client budget for the /api/feedback endpoint per
 // window. Sending feedback is a deliberate, one-at-a-time act, so this is a
 // pure burst bound — the rolling per-account cap inside the handler is what

@@ -6660,6 +6660,305 @@
 		font-size: 0.65rem;
 		color: var(--text-subtle);
 	}
+
+	/* ---- /learn: the hands-on tutorial ----
+	   Three columns on desktop — lesson rail, board, coach panel — collapsing to
+	   one on narrow screens, where the order is deliberately coach-then-board:
+	   the instruction has to be read before the board means anything, and the
+	   rail (a course index, not a control) drops to the bottom. The board reuses
+	   the room's .gcon/.gwrap/.og-wrap structure so every board and piece theme
+	   applies unchanged. */
+	.learn {
+		margin-inline: auto;
+		margin-bottom: 1rem;
+	}
+	.learn-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 0.85rem;
+	}
+	.learn-sub {
+		margin-top: 0.2rem;
+		max-width: 42rem;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+	}
+
+	/* course-wide progress: a thin bar plus "3 of 9 lessons", filled by
+	   lio-learn.js from this device's finished set */
+	.learn-course-progress {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.learn-cp-bar {
+		width: 8rem;
+		height: 0.35rem;
+		overflow: hidden;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+	}
+	.learn-cp-fill {
+		width: 0;
+		height: 100%;
+		background: var(--accent);
+		border-radius: 999px;
+		transition: width 0.35s var(--ease-snappy);
+	}
+	.learn-cp-text {
+		font-size: 1rem;
+		font-variant-numeric: tabular-nums;
+		color: var(--text-subtle);
+		white-space: nowrap;
+	}
+
+	/* Single column below 900px, ordered coach -> board -> completion -> rail.
+	   The instruction has to be readable with the board in the same glance, so
+	   anything that is not one of those two goes after them. Above 900px the
+	   three columns are placed explicitly, with the completion card taking the
+	   cell under the coach. */
+	.learn-grid {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 1rem;
+	}
+	@media (min-width: 900px) {
+		.learn-grid {
+			grid-template-columns: 14rem minmax(0, 1fr) 19rem;
+			align-items: start;
+		}
+		.learn-rail { grid-column: 1; grid-row: 1 / span 2; }
+		.learn-stage { grid-column: 2; grid-row: 1 / span 2; }
+		.learn-coach { grid-column: 3; grid-row: 1; }
+		.learn-finished { grid-column: 3; grid-row: 2; }
+	}
+
+	/* ---- lesson rail ---- */
+	.learn-rail {
+		order: 4;
+		display: flex;
+		flex-direction: column;
+		gap: 0.9rem;
+	}
+	@media (min-width: 900px) {
+		.learn-rail {
+			order: 0;
+			position: sticky;
+			top: 1rem;
+		}
+	}
+	.learn-chapter-title {
+		margin-bottom: 0.3rem;
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--text-subtle);
+	}
+	.learn-lessons {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+	.learn-lesson {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		padding: 0.4rem 0.5rem;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		color: var(--text);
+		text-decoration: none;
+		transition: background 0.15s, border-color 0.15s;
+	}
+	.learn-lesson:hover {
+		background: var(--surface-2);
+		text-decoration: none;
+	}
+	.learn-lesson.current {
+		background: var(--surface-2);
+		border-color: var(--accent);
+	}
+	.learn-lesson-icon {
+		flex: none;
+		width: 2rem;
+		font-size: 1.75rem;
+		line-height: 0;
+		text-align: center;
+		color: var(--text-muted);
+		padding-bottom: 0.5rem;
+	}
+	.learn-lesson.current .learn-lesson-icon { color: var(--accent); }
+	.learn-lesson-text {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+	}
+	.learn-lesson-title {
+		font-size: 0.82rem;
+		font-weight: 600;
+		line-height: 1.25;
+	}
+	.learn-lesson-blurb {
+		font-size: 0.7rem;
+		line-height: 1.3;
+		color: var(--text-subtle);
+	}
+	/* the finished check occupies its slot always, visible only when the lesson
+	   is done, so marking one complete never reflows the rail */
+	.learn-lesson-check {
+		flex: none;
+		margin-left: auto;
+		font-size: 0.8rem;
+		font-weight: 700;
+		color: var(--win);
+		opacity: 0;
+		transition: opacity 0.2s;
+	}
+	.learn-lesson.done .learn-lesson-check { opacity: 1; }
+
+	/* ---- board ---- */
+	.learn-stage {
+		order: 2;
+		min-width: 0;
+	}
+	@media (min-width: 900px) {
+		.learn-stage { order: 0; }
+	}
+	/* Same sizing formula as the game board's .board-shell, including the vh
+	   term — without it a short, wide window renders a board taller than the
+	   viewport. Only the hard cap differs, because the lesson board sits in a
+	   three-column layout rather than owning the page. */
+	.learn-board-shell {
+		--bs: min(100%, 78vh, 30rem);
+		margin-inline: auto;
+		max-width: 30rem;
+	}
+	/* ---- coach panel ---- */
+	.learn-coach {
+		order: 1;
+		display: flex;
+		flex-direction: column;
+		padding: 0.9rem;
+		background: var(--surface-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-sm);
+	}
+	@media (min-width: 900px) {
+		.learn-coach {
+			order: 0;
+			position: sticky;
+			top: 1rem;
+		}
+	}
+	.learn-coach-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+	.learn-coach-title {
+		font-family: var(--font-display);
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	.learn-dots {
+		display: flex;
+		flex: none;
+		gap: 0.25rem;
+	}
+	.learn-dot {
+		width: 0.45rem;
+		height: 0.45rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border-strong);
+		border-radius: 999px;
+		transition: background 0.2s, border-color 0.2s;
+	}
+	.learn-dot.current { background: var(--accent); border-color: var(--accent); }
+	.learn-dot.done { background: var(--win); border-color: var(--win); }
+
+	.learn-prompt {
+		font-size: 0.85rem;
+		line-height: 1.5;
+		color: var(--text);
+	}
+	/* the instruction, in the board's own accent so the one sentence that says
+	   what to do now is findable without reading the paragraph again. It
+	   collapses when a step has no separate action. */
+	.learn-action {
+		color: var(--accent);
+		font-weight: 600;
+	}
+	.learn-action:empty { display: none; }
+	.learn-badge {
+		display: inline-block;
+		margin-left: 0.35rem;
+		padding: 0.05rem 0.35rem;
+		font-size: 0.65rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+		border-radius: 999px;
+		vertical-align: middle;
+	}
+
+	/* the coach's reaction. It is the last thing in the panel's flow and has no
+	   reserved height, so appearing and clearing never moves the board or the
+	   buttons above it. */
+	.learn-feedback {
+		margin-top: 0.5rem;
+		font-size: 0.8rem;
+		line-height: 1.45;
+		color: var(--text-muted);
+	}
+	.learn-feedback:empty { margin-top: 0; }
+	.learn-feedback.good { color: var(--win); font-weight: 600; }
+	.learn-feedback.bad { color: var(--loss); }
+
+	.learn-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-top: 0.75rem;
+	}
+	.learn-actions .btn {
+		flex: 1 1 auto;
+		padding-inline: 0.6rem;
+		font-size: 0.78rem;
+	}
+
+	/* Its own card now that it is a sibling of the coach panel rather than the
+	   tail of it (see learnFinished in learn.templ). On mobile it sits after the
+	   board; on desktop it fills the cell below the coach. */
+	.learn-finished {
+		order: 3;
+		padding: 0.9rem;
+		background: var(--surface-3);
+		border: 1px solid var(--win);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-sm);
+	}
+	.learn-finished-title {
+		font-family: var(--font-display);
+		font-size: 0.9rem;
+		font-weight: 700;
+		color: var(--win);
+	}
+	.learn-finished-text {
+		margin: 0.25rem 0 0.6rem;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
 }
 
 @keyframes resultFade { from { opacity: 0; } to { opacity: 1; } }

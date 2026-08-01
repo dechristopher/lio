@@ -451,6 +451,11 @@ templ octadAbout() {
 				All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king
 				can castle with <em>any</em> of its starting pieces, and you get to pick your starting position.
 			</p>
+			// The tutorial is the natural next step for somebody who has just
+            // read what this game is, so it leads on its own full-width row
+            // rather than competing as a fourth ghost button in the reading
+            // links below it.
+            <a href="/learn" class="btn btn-primary mt-3 w-full no-underline text-base md:text-sm">Learn to Play →</a>
 			<div class="home-demo mt-3">
 				<div class="gcon">
 					<div class="gwrap">
@@ -459,7 +464,7 @@ templ octadAbout() {
 					</div>
 				</div>
 			</div>
-			<div class="btn-seg mt-3">
+			<div class="btn-seg mt-2">
 				<a href="/about/rules" class="btn btn-ghost no-underline text-base md:text-sm">Rules</a>
 				<a href="/about/board" class="btn btn-ghost no-underline text-base md:text-sm">Board layout</a>
 				<a href="/about" class="btn btn-ghost no-underline text-base md:text-sm">Learn more</a>

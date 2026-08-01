@@ -1165,7 +1165,7 @@ func octadAbout() templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king can castle with <em>any</em> of its starting pieces, and you get to pick your starting position.</p><div class=\"home-demo mt-3\"><div class=\"gcon\"><div class=\"gwrap\"><div id=\"home-demo-board\" class=\"og-wrap\"></div><div id=\"home-demo-overlay\" class=\"end-annotation\" aria-hidden=\"true\"></div></div></div></div><div class=\"btn-seg mt-3\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Learn more</a></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<h2 class=\"font-display text-lg font-bold text-fg\">What is Octad?</h2><p class=\"prose mt-2\">Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side. All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king can castle with <em>any</em> of its starting pieces, and you get to pick your starting position.</p><a href=\"/learn\" class=\"btn btn-primary mt-3 w-full no-underline text-base md:text-sm\">Learn to Play →</a><div class=\"home-demo mt-3\"><div class=\"gcon\"><div class=\"gwrap\"><div id=\"home-demo-board\" class=\"og-wrap\"></div><div id=\"home-demo-overlay\" class=\"end-annotation\" aria-hidden=\"true\"></div></div></div></div><div class=\"btn-seg mt-2\"><a href=\"/about/rules\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Rules</a> <a href=\"/about/board\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Board layout</a> <a href=\"/about\" class=\"btn btn-ghost no-underline text-base md:text-sm\">Learn more</a></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1245,7 +1245,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 495, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 500, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -1258,7 +1258,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(item.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 496, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 501, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -1271,7 +1271,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 498, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 503, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
