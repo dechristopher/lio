@@ -6,6 +6,14 @@ import "github.com/dechristopher/lio/message"
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
+//
+// Below md the two column wrappers are display:contents, so every card is a
+// direct grid item of the one-column stack and `order` can interleave the two
+// columns. Only two cards are ordered: Quick game, then the "What is Octad?"
+// explainer above the live boards — a newcomer on a phone must find out what
+// this game is (and the route into /learn) before scrolling through games they
+// cannot yet read. Everything else keeps document order. At md the wrappers
+// become real flex columns again and the orders reset.
 templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats, community message.Community) {
 	@base(meta) {
 		<body>
@@ -15,8 +23,8 @@ templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteSta
 					<div class="card mt-2 w-[92vw] max-w-[34rem] text-sm text-fg md:max-w-3xl lg:max-w-5xl" role="status">{ meta.Notice }</div>
 				}
 				<main class="mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl">
-					<div class="flex flex-col gap-4 md:col-span-7">
-						<div class="card">
+					<div class="contents md:flex md:flex-col md:gap-4 md:col-span-7">
+						<div class="card -order-2 md:order-none">
 							// below 244px the wide-tracked 2xl heading wraps to two lines;
 							// center it and drop the size a step so it stays on one line
 							<p class="text-2xl font-extrabold uppercase tracking-widest text-accent max-[244px]:text-center max-[244px]:text-xl">Quick game</p>
@@ -31,7 +39,7 @@ templ Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteSta
 						@HomeActivity(challenges, stats, community)
 						@homeFooter(meta)
 					</div>
-					<div class="flex flex-col gap-4 md:col-span-5">
+					<div class="contents md:flex md:flex-col md:gap-4 md:col-span-5">
 						@octadAbout()
 						@leaderboardCard(community)
 						@homeNews()

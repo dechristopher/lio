@@ -430,7 +430,10 @@ templ colorDot(color string) {
 // which is where the rest of this viewer's display choices already are.
 templ octadAbout() {
 	if viewer(ctx).Prefs.ShowHomeAbout() {
-		<div id="homeAbout" class="card home-about">
+		// -order-1 lifts the explainer above the live boards in the home page's
+		// single-column mobile stack (see Index); it sits second, under Quick
+		// game. At md it is the first card of the right column anyway.
+		<div id="homeAbout" class="card home-about -order-1 md:order-none">
 			if viewer(ctx).LoggedIn {
 				// lio-nav.js handles this: it persists the preference and takes
 				// the card out, from the same delegated listener that drives

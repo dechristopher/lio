@@ -14,6 +14,14 @@ import "github.com/dechristopher/lio/message"
 // into a primary (play + live activity) / secondary (explainer + news) grid on
 // tablet and desktop. The header, content and footer share one responsive
 // width so the chrome always lines up with the content.
+//
+// Below md the two column wrappers are display:contents, so every card is a
+// direct grid item of the one-column stack and `order` can interleave the two
+// columns. Only two cards are ordered: Quick game, then the "What is Octad?"
+// explainer above the live boards — a newcomer on a phone must find out what
+// this game is (and the route into /learn) before scrolling through games they
+// cannot yet read. Everything else keeps document order. At md the wrappers
+// become real flex columns again and the orders reset.
 func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStats, community message.Community) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -63,7 +71,7 @@ func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStat
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Notice)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/index.templ`, Line: 15, Col: 120}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/index.templ`, Line: 23, Col: 120}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -74,7 +82,7 @@ func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStat
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"flex flex-col gap-4 md:col-span-7\"><div class=\"card\"><p class=\"text-2xl font-extrabold uppercase tracking-widest text-accent max-[244px]:text-center max-[244px]:text-xl\">Quick game</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"mt-2 pb-8 grid w-[92vw] max-w-[34rem] gap-4 text-left md:max-w-3xl md:grid-cols-12 md:items-start lg:max-w-5xl\"><div class=\"contents md:flex md:flex-col md:gap-4 md:col-span-7\"><div class=\"card -order-2 md:order-none\"><p class=\"text-2xl font-extrabold uppercase tracking-widest text-accent max-[244px]:text-center max-[244px]:text-xl\">Quick game</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -106,7 +114,7 @@ func Index(meta Meta, challenges []message.OpenChallenge, stats message.SiteStat
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><div class=\"flex flex-col gap-4 md:col-span-5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><div class=\"contents md:flex md:flex-col md:gap-4 md:col-span-5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

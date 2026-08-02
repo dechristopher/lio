@@ -1134,7 +1134,7 @@ func octadAbout() templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if viewer(ctx).Prefs.ShowHomeAbout() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div id=\"homeAbout\" class=\"card home-about\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "   <div id=\"homeAbout\" class=\"card home-about -order-1 md:order-none\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1146,7 +1146,7 @@ func octadAbout() templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(prefs.KeyHomeAbout)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 441, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 444, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
@@ -1245,7 +1245,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 500, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 503, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -1258,7 +1258,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(item.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 501, Col: 88}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 504, Col: 88}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -1271,7 +1271,7 @@ func newsItem(item news.Item) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(item.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 503, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 506, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
