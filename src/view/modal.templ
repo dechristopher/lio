@@ -6,9 +6,10 @@ import (
 )
 
 // createGameModal is the custom-game dialog opened from the home page. It is a
-// horizontal two-panel layout: a left "setup" panel (opponent toggle, casual
+// horizontal two-panel layout — a left "setup" panel (opponent toggle, casual
 // switch, rated status, and the open-challenge switch) and a right "time
-// control" panel (the shared time-control cards and the play-as color submit).
+// control" panel (race-to plus the shared time-control cards) — over a
+// full-width action bar holding the play-as color submits.
 // Every game is the blind-deploy variant — surfaced simply as "Octad", kept
 // "deploy" under the hood — so there is no mode toggle: each time-control card
 // carries its variant HTMLName and a small script writes the chosen one into the
@@ -29,6 +30,13 @@ import (
 // asks for a bot difficulty before the form actually posts. Styling lives in
 // app.css (.cg-* / .seg-* / .tc-* / .modal-*); the modal reuses the shared
 // .modal-shade/.modal-close chrome.
+//
+// Below 34rem the dialog turns into a bottom sheet: a fixed-height box whose
+// body scrolls under the pinned action bar, and where the moot controls
+// collapse out of the flow instead of fading in place — the fade rule above
+// buys its no-shift guarantee with vertical space a phone does not have. Both
+// rules live in one block in app.css; read the reasoning there before changing
+// either.
 templ createGameModal() {
 	<div id="modalCreateGame" class="modal-shade">
 		<div class="modal cg-modal card">
@@ -169,22 +177,27 @@ templ createGameModal() {
 								}
 							</div>
 						</div>
-						<div class="cg-field">
-							<span class="cg-label">Play as</span>
-							<div class="submit-row">
-								<button type="submit" class="submit-btn" name="color" value="w" title="Play the white pieces first">
-									<span class="piece-button wk"></span>
-								</button>
-								<button type="submit" class="submit-btn large" name="color" value="r" title="Play either color first">
-									<span class="piece-button random"></span>
-								</button>
-								<button type="submit" class="submit-btn" name="color" value="b" title="Play the black pieces first">
-									<span class="piece-button bk"></span>
-								</button>
-							</div>
-							<span class="cg-gate-hint">Pick a time control, then choose your color to start.</span>
-						</div>
 					</div>
+				</div>
+				// The color submits are the dialog's primary action, so they sit in
+				// their own full-width footer rather than at the foot of the right
+				// panel. On phones the dialog is a sheet whose body scrolls under
+				// this bar, so "start the game" is reachable at any scroll position
+				// — the reason the field was pulled out of the panel (see app.css).
+				<div class="cg-foot">
+					<span class="cg-label">Play as</span>
+					<div class="submit-row">
+						<button type="submit" class="submit-btn" name="color" value="w" title="Play the white pieces first">
+							<span class="piece-button wk"></span>
+						</button>
+						<button type="submit" class="submit-btn large" name="color" value="r" title="Play either color first">
+							<span class="piece-button random"></span>
+						</button>
+						<button type="submit" class="submit-btn" name="color" value="b" title="Play the black pieces first">
+							<span class="piece-button bk"></span>
+						</button>
+					</div>
+					<span class="cg-gate-hint">Pick a time control, then choose your color to start.</span>
 				</div>
 				<input type="hidden" name="time-control" id="cg-variant" value=""/>
 				// the direct-challenge target (arch/NOTIFICATIONS.md Phase 2).

@@ -484,7 +484,15 @@
             if (anonBox) anonBox.checked = false;
         }
     };
-    const open = () => modal.classList.add("open");
+    // Below 34rem the dialog is a sheet whose body scrolls under a pinned
+    // action bar (app.css). The element is reused by every trigger, so a
+    // reopening would otherwise start wherever the last one was left — put it
+    // back at the top, where the settings the dialog is asking about are.
+    const body = modal.querySelector(".cg-body");
+    const open = () => {
+        if (body) body.scrollTop = 0;
+        modal.classList.add("open");
+    };
     const close = () => modal.classList.remove("open");
     // Delegated open: any [data-open-create-game] element opens the modal,
     // including buttons that htmx swaps into the live home-activity region

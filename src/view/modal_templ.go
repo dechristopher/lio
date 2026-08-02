@@ -14,9 +14,10 @@ import (
 )
 
 // createGameModal is the custom-game dialog opened from the home page. It is a
-// horizontal two-panel layout: a left "setup" panel (opponent toggle, casual
+// horizontal two-panel layout — a left "setup" panel (opponent toggle, casual
 // switch, rated status, and the open-challenge switch) and a right "time
-// control" panel (the shared time-control cards and the play-as color submit).
+// control" panel (race-to plus the shared time-control cards) — over a
+// full-width action bar holding the play-as color submits.
 // Every game is the blind-deploy variant — surfaced simply as "Octad", kept
 // "deploy" under the hood — so there is no mode toggle: each time-control card
 // carries its variant HTMLName and a small script writes the chosen one into the
@@ -37,6 +38,13 @@ import (
 // asks for a bot difficulty before the form actually posts. Styling lives in
 // app.css (.cg-* / .seg-* / .tc-* / .modal-*); the modal reuses the shared
 // .modal-shade/.modal-close chrome.
+//
+// Below 34rem the dialog turns into a bottom sheet: a fixed-height box whose
+// body scrolls under the pinned action bar, and where the moot controls
+// collapse out of the flow instead of fading in place — the fade rule above
+// buys its no-shift guarantee with vertical space a phone does not have. Both
+// rules live in one block in app.css; read the reasoning there before changing
+// either.
 func createGameModal() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -136,7 +144,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 156, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 164, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -149,7 +157,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 160, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 168, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -162,7 +170,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 163, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 171, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -175,7 +183,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 165, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 173, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -188,7 +196,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Group.String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 166, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 174, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -199,7 +207,7 @@ func createGameModal() templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div><div class=\"cg-field\"><span class=\"cg-label\">Play as</span><div class=\"submit-row\"><button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"w\" title=\"Play the white pieces first\"><span class=\"piece-button wk\"></span></button> <button type=\"submit\" class=\"submit-btn large\" name=\"color\" value=\"r\" title=\"Play either color first\"><span class=\"piece-button random\"></span></button> <button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"b\" title=\"Play the black pieces first\"><span class=\"piece-button bk\"></span></button></div><span class=\"cg-gate-hint\">Pick a time control, then choose your color to start.</span></div></div></div><input type=\"hidden\" name=\"time-control\" id=\"cg-variant\" value=\"\"><input type=\"hidden\" name=\"invite\" id=\"cg-invite\" value=\"\"></form></div></div><link rel=\"prefetch\" href=\"/res/img/cburnett/wK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/bK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/wbK.svg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div></div></div></div><div class=\"cg-foot\"><span class=\"cg-label\">Play as</span><div class=\"submit-row\"><button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"w\" title=\"Play the white pieces first\"><span class=\"piece-button wk\"></span></button> <button type=\"submit\" class=\"submit-btn large\" name=\"color\" value=\"r\" title=\"Play either color first\"><span class=\"piece-button random\"></span></button> <button type=\"submit\" class=\"submit-btn\" name=\"color\" value=\"b\" title=\"Play the black pieces first\"><span class=\"piece-button bk\"></span></button></div><span class=\"cg-gate-hint\">Pick a time control, then choose your color to start.</span></div><input type=\"hidden\" name=\"time-control\" id=\"cg-variant\" value=\"\"><input type=\"hidden\" name=\"invite\" id=\"cg-invite\" value=\"\"></form></div></div><link rel=\"prefetch\" href=\"/res/img/cburnett/wK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/bK.svg\"><link rel=\"prefetch\" href=\"/res/img/cburnett/wbK.svg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
