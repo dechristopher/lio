@@ -6786,11 +6786,13 @@
 		white-space: nowrap;
 	}
 
-	/* Single column below 900px, ordered coach -> board -> completion -> rail.
-	   The instruction has to be readable with the board in the same glance, so
-	   anything that is not one of those two goes after them. Above 900px the
-	   three columns are placed explicitly, with the completion card taking the
-	   cell under the coach. */
+	/* Single column below 900px, ordered coach -> board -> reaction -> completion
+	   -> rail. The instruction has to be readable with the board in the same
+	   glance, so anything that is not one of those two goes after them — and the
+	   reaction goes after the board specifically so its very variable height
+	   grows downward instead of pushing the board (see .learn-feedback). Above
+	   900px the three columns are placed explicitly, with the reaction and the
+	   completion card stacking in the cell under the coach. */
 	.learn-grid {
 		display: grid;
 		grid-template-columns: 1fr;
@@ -6801,15 +6803,16 @@
 			grid-template-columns: 14rem minmax(0, 1fr) 19rem;
 			align-items: start;
 		}
-		.learn-rail { grid-column: 1; grid-row: 1 / span 2; }
-		.learn-stage { grid-column: 2; grid-row: 1 / span 2; }
+		.learn-rail { grid-column: 1; grid-row: 1 / span 3; }
+		.learn-stage { grid-column: 2; grid-row: 1 / span 3; }
 		.learn-coach { grid-column: 3; grid-row: 1; }
-		.learn-finished { grid-column: 3; grid-row: 2; }
+		.learn-feedback { grid-column: 3; grid-row: 2; }
+		.learn-finished { grid-column: 3; grid-row: 3; }
 	}
 
 	/* ---- lesson rail ---- */
 	.learn-rail {
-		order: 4;
+		order: 5;
 		display: flex;
 		flex-direction: column;
 		gap: 0.9rem;
@@ -6933,11 +6936,22 @@
 		gap: 0.5rem;
 		margin-bottom: 0.5rem;
 	}
+	/* On the single column the coach panel is the top of the page: lio-learn.js
+	   snaps the view to the progress bar, so this lesson title is the first
+	   heading the learner reads and has to carry that weight. On desktop it is a
+	   side-panel heading beside a board that owns the page, and stays small. */
 	.learn-coach-title {
 		font-family: var(--font-display);
-		font-size: 0.95rem;
+		font-size: 1.35rem;
 		font-weight: 700;
+		line-height: 1.15;
 		color: var(--text);
+	}
+	@media (min-width: 900px) {
+		.learn-coach-title {
+			font-size: 0.95rem;
+			line-height: inherit;
+		}
 	}
 	.learn-dots {
 		display: flex;
@@ -6982,18 +6996,33 @@
 		vertical-align: middle;
 	}
 
-	/* the coach's reaction. It is the last thing in the panel's flow and has no
-	   reserved height, so appearing and clearing never moves the board or the
-	   buttons above it. */
+	/* The coach's reaction, a grid sibling of the coach panel rather than a child
+	   of it (see learnFeedback in learn.templ). On mobile it sits under the
+	   board, so the one node on the page whose height swings by six lines grows
+	   into empty space instead of pushing the board down mid-lesson; on desktop
+	   it takes the cell under the coach, above the completion card.
+
+	   It still reserves nothing while empty — :empty drops its own margin — so a
+	   step with nothing said yet reads exactly as it did before. */
 	.learn-feedback {
-		margin-top: 0.5rem;
+		order: 3;
 		font-size: 0.8rem;
 		line-height: 1.45;
+		text-align: center;
 		color: var(--text-muted);
 	}
-	.learn-feedback:empty { margin-top: 0; }
+	/* out of the grid entirely while there is nothing to say: a zero-height grid
+	   item still takes a row, and its row-gap with it, which would leave a band
+	   of dead space under the board on every step that has not been answered yet */
+	.learn-feedback:empty { display: none; }
 	.learn-feedback.good { color: var(--win); font-weight: 600; }
 	.learn-feedback.bad { color: var(--loss); }
+	@media (min-width: 900px) {
+		.learn-feedback {
+			order: 0;
+			text-align: left;
+		}
+	}
 
 	.learn-actions {
 		display: flex;
@@ -7011,7 +7040,7 @@
 	   tail of it (see learnFinished in learn.templ). On mobile it sits after the
 	   board; on desktop it fills the cell below the coach. */
 	.learn-finished {
-		order: 3;
+		order: 4;
 		padding: 0.9rem;
 		background: var(--surface-3);
 		border: 1px solid var(--win);

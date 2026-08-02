@@ -88,6 +88,10 @@ func Learn(meta Meta, lesson *learn.Lesson) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = learnFeedback().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			templ_7745c5c3_Err = learnFinished().Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -167,7 +171,7 @@ func learnRail(current *learn.Lesson) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(chapter.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 68, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 69, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -194,7 +198,7 @@ func learnRail(current *learn.Lesson) templ.Component {
 				var templ_7745c5c3_Var6 templ.SafeURL
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/learn/" + l.Slug))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 73, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 74, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -220,7 +224,7 @@ func learnRail(current *learn.Lesson) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(l.Slug)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 75, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 76, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -233,7 +237,7 @@ func learnRail(current *learn.Lesson) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(l.Icon)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 77, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 78, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -246,7 +250,7 @@ func learnRail(current *learn.Lesson) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(l.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 79, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 80, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -259,7 +263,7 @@ func learnRail(current *learn.Lesson) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(l.Blurb)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 80, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 81, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -347,7 +351,7 @@ func learnCoach(lesson *learn.Lesson) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(lesson.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 145, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 146, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -388,7 +392,7 @@ func learnCoach(lesson *learn.Lesson) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(learnFirstPrompt(lesson))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 156, Col: 29}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 157, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -401,13 +405,62 @@ func learnCoach(lesson *learn.Lesson) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(learnFirstAction(lesson))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 157, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/learn.templ`, Line: 158, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</strong></p><p id=\"learn-feedback\" class=\"learn-feedback\" role=\"status\"></p><div id=\"learn-actions\" class=\"learn-actions\"><button id=\"learn-back\" type=\"button\" class=\"btn btn-ghost\" title=\"Previous step\">← Back</button><button id=\"learn-show\" type=\"button\" class=\"btn btn-ghost\">Show me</button> <button id=\"learn-reset\" type=\"button\" class=\"btn btn-ghost\">Reset</button> <button id=\"learn-next\" type=\"button\" class=\"btn btn-primary hidden\">Next →</button></div></aside>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</strong></p><div id=\"learn-actions\" class=\"learn-actions\"><button id=\"learn-back\" type=\"button\" class=\"btn btn-ghost\" title=\"Previous step\">← Back</button><button id=\"learn-show\" type=\"button\" class=\"btn btn-ghost\">Show me</button> <button id=\"learn-reset\" type=\"button\" class=\"btn btn-ghost\">Reset</button> <button id=\"learn-next\" type=\"button\" class=\"btn btn-primary hidden\">Next →</button></div></aside>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// learnFeedback is the coach's reaction to the last move: success, nudge, or
+// failure. Empty and collapsed until there is something to say.
+//
+// It is a sibling of the coach panel rather than a child of it, and — like
+// learnFinished below — that is load-bearing on mobile. The single-column order
+// puts the coach above the board, so anything that grows inside the panel
+// pushes the board down the screen. This line grows by anywhere from one to six
+// lines depending on which lesson fires it (the curriculum's longest is 229
+// characters), which made the board jump by up to 111px mid-lesson, under the
+// hands of somebody who was aiming at a square. After the board it grows
+// downward into space that is otherwise empty, and it lands where the learner
+// is already looking after making a move.
+//
+// Reserving the space instead was the obvious alternative and is worse: the
+// tallest reaction is more than half the height of the whole panel, so the
+// reserved band would be a permanent hole under every prompt.
+//
+// role="status" travels with it, so the reaction is still announced. It used to
+// sit inside the panel's aria-live region as well, which was one announcement
+// wrapped in another.
+func learnFeedback() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var19 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var19 == nil {
+			templ_7745c5c3_Var19 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p id=\"learn-feedback\" class=\"learn-feedback\" role=\"status\"></p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -440,12 +493,12 @@ func learnFinished() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var19 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var19 == nil {
-			templ_7745c5c3_Var19 = templ.NopComponent
+		templ_7745c5c3_Var20 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var20 == nil {
+			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div id=\"learn-finished\" class=\"learn-finished hidden\"><h3 class=\"learn-finished-title\">You have finished the course</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div id=\"learn-finished\" class=\"learn-finished hidden\"><h3 class=\"learn-finished-title\">You have finished the course</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -453,7 +506,7 @@ func learnFinished() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -481,12 +534,12 @@ func learnFinishedBody() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var20 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var20 == nil {
-			templ_7745c5c3_Var20 = templ.NopComponent
+		templ_7745c5c3_Var21 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var21 == nil {
+			templ_7745c5c3_Var21 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<p class=\"learn-finished-text\">That is every rule of Octad. Time to play somebody.</p><form method=\"POST\" action=\"/new/computer\" class=\"contents\"><input type=\"hidden\" name=\"bot\" value=\"knight\"> <button type=\"submit\" class=\"btn btn-primary w-full\">Play the computer</button></form><a href=\"/\" class=\"btn btn-ghost mt-2 w-full no-underline\">Find a human opponent</a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"learn-finished-text\">That is every rule of Octad. Time to play somebody.</p><form method=\"POST\" action=\"/new/computer\" class=\"contents\"><input type=\"hidden\" name=\"bot\" value=\"knight\"> <button type=\"submit\" class=\"btn btn-primary w-full\">Play the computer</button></form><a href=\"/\" class=\"btn btn-ghost mt-2 w-full no-underline\">Find a human opponent</a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -519,12 +572,12 @@ func learnFinishedModal() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var21 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var21 == nil {
-			templ_7745c5c3_Var21 = templ.NopComponent
+		templ_7745c5c3_Var22 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var22 == nil {
+			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div id=\"learn-done-modal\" class=\"modal-shade\"><div class=\"modal card learn-done\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div id=\"learn-done-modal\" class=\"modal-shade\"><div class=\"modal card learn-done\"><button type=\"button\" class=\"modal-close\" aria-label=\"Close\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -532,7 +585,7 @@ func learnFinishedModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</button> <span class=\"learn-done-mark\" aria-hidden=\"true\">✓</span><h2>You have finished the course</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</button> <span class=\"learn-done-mark\" aria-hidden=\"true\">✓</span><h2>You have finished the course</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -540,7 +593,7 @@ func learnFinishedModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -38,6 +38,9 @@
 	// how long a mistake stays on the board before the step restarts: long
 	// enough to see what the move did, short enough not to feel like a penalty
 	const mistakeResetDelay = 1500;
+	// breathing room left above the course progress bar when the view snaps to
+	// it, so the anchor never sits flush against the top edge of the screen
+	const snapOffset = 8;
 
 	// ---- sound ----
 	// the same three cues the game board gives, defined here rather than pulling
@@ -80,6 +83,7 @@
 		promo: document.getElementById('learn-promo'),
 		cpFill: document.getElementById('learn-cp-fill'),
 		cpText: document.getElementById('learn-cp-text'),
+		progress: document.querySelector('.learn-course-progress'),
 		rail: document.querySelector('.learn-rail'),
 		coach: document.querySelector('.learn-coach'),
 	};
@@ -102,6 +106,11 @@
 	// bumped on every step entry; a deferred auto-reset checks it so a lesson
 	// switch during the pause cannot reset the step the learner has moved on to
 	let stepToken = 0;
+	// false until the opening step is on screen. The view snaps to the stage on
+	// every step entry, and the first one is not an interaction — an arrival that
+	// scrolled itself past the page heading would read as a broken link, and it
+	// would fight the browser's own scroll restoration on a reload.
+	let booted = false;
 
 	function lessonBySlug(slug) {
 		return course.lessons.find((l) => l.slug === slug) || null;
@@ -227,6 +236,7 @@
 		if (tone) {
 			el.feedback.classList.add(tone);
 		}
+		revealFeedback();
 	}
 
 	// The prompt is two nodes: the teaching, then the instruction accented so it
@@ -481,12 +491,79 @@
 		if (lesson.kind === 'deploy') {
 			enterDeploy();
 		}
+
+		// after the panel above the board has been rebuilt, not before: the snap
+		// measures where the progress bar is, and the prompt that just changed is
+		// what moves it
+		if (booted) {
+			snapToStage();
+		}
 	}
 
 	// refreshBounds drops octadground's cached board rect via its own resize
 	// path, so the next drag measures against the board's current position.
 	function refreshBounds() {
 		window.dispatchEvent(new Event('resize'));
+	}
+
+	// snapToStage pins the view to the one framing that shows a lesson whole:
+	// the course progress bar at the top of the screen, the coach's instruction
+	// under it, the board under that.
+	//
+	// It exists because the single-column layout is taller than a phone. The
+	// coach panel changes height on nearly every interaction — a longer prompt,
+	// a feedback line appearing, the actions row swapping Next in — so without
+	// this the board drifts up and down the screen as the lesson runs, and a
+	// learner who has scrolled to reach it is left reading an instruction that is
+	// now off the top. Re-anchoring after every interaction means the lesson
+	// always occupies the same place, whatever the panel above it just did.
+	//
+	// Only on the single column (the 899px test mirrors the CSS breakpoint):
+	// the three-column desktop layout already shows the rail, the instruction and
+	// the board at once, so there is nothing to snap to and a forced scroll would
+	// only take the page away from wherever the reader put it. Reduced-motion
+	// preferences get the same jump without the animation.
+	//
+	// A snap that would not move the page is skipped outright. Every interaction
+	// calls this, most of them when the view is already anchored, and a
+	// zero-distance smooth scroll still cancels any scroll the learner is in the
+	// middle of.
+	function snapToStage() {
+		if (!el.progress || !window.matchMedia('(max-width: 899px)').matches) {
+			return;
+		}
+		const top = Math.max(
+			0,
+			window.scrollY + el.progress.getBoundingClientRect().top - snapOffset,
+		);
+		if (Math.abs(top - window.scrollY) < 2) {
+			return;
+		}
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		window.scrollTo({top: top, behavior: reduced ? 'auto' : 'smooth'});
+	}
+
+	// revealFeedback is the one concession the reaction's move under the board
+	// needs: on a short screen the board can reach the bottom of the viewport by
+	// itself, and a line printed beneath it would be said where nobody can read
+	// it.
+	//
+	// It scrolls by the least it can — enough to put the last line on screen, and
+	// never upward — so the board stays as still as the screen allows rather than
+	// being re-framed around the reaction. On a phone with room under the board
+	// (390px and up, where the snap leaves ~230px against a longest reaction of
+	// 93px) the test simply never passes and nothing moves at all.
+	function revealFeedback() {
+		if (!el.feedback || !el.feedback.textContent ||
+			!window.matchMedia('(max-width: 899px)').matches) {
+			return;
+		}
+		const over = el.feedback.getBoundingClientRect().bottom + snapOffset - window.innerHeight;
+		if (over <= 0) {
+			return;
+		}
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		window.scrollTo({top: window.scrollY + over, behavior: reduced ? 'auto' : 'smooth'});
 	}
 
 	function advance() {
@@ -1053,6 +1130,34 @@
 		el.deployConfirm.addEventListener('click', commitDeploy);
 	}
 
+	// Every control in the coach card re-anchors the view, not only the ones that
+	// open a step. Delegated rather than bound per button so a control added to
+	// the card later behaves like the four already there without being wired up
+	// again. openStep snaps too; the second call is the no-op snapToStage skips.
+	if (el.coach) {
+		el.coach.addEventListener('click', (e) => {
+			if (e.target.closest('button')) {
+				snapToStage();
+			}
+		});
+	}
+
+	// The board re-anchors as well, so a learner who has scrolled away and
+	// reached for the pieces is brought back to the whole lesson.
+	//
+	// On pointerup, never pointerdown: a snap between grabbing a piece and
+	// dropping it would slide the board out from under the finger holding it.
+	// Deferred past this event, because octadground resolves the drop in its own
+	// pointerup handler and measures against a board rect it has cached — moving
+	// the page first is the stale-rect bug the ResizeObserver above exists to
+	// avoid. Scrolling is one of the things octadground invalidates that rect on,
+	// so the drag after the snap measures correctly.
+	if (el.gcon) {
+		el.gcon.addEventListener('pointerup', () => {
+			setTimeout(snapToStage, 0);
+		});
+	}
+
 	// the completion modal dismisses like every other dialog on the site: its
 	// ×, a click on the shade, or Escape
 	if (el.doneModal) {
@@ -1102,4 +1207,5 @@
 	// ---- boot ----
 	renderProgress();
 	openStep(0);
+	booted = true;
 })();

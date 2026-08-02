@@ -41,6 +41,7 @@ templ Learn(meta Meta, lesson *learn.Lesson) {
 							@learnBoard()
 						</div>
 						@learnCoach(lesson)
+						@learnFeedback()
 						@learnFinished()
 					</div>
 				</main>
@@ -156,11 +157,6 @@ templ learnCoach(lesson *learn.Lesson) {
 			{ learnFirstPrompt(lesson) }
 			<strong id="learn-action" class="learn-action">{ learnFirstAction(lesson) }</strong>
 		</p>
-		// the coach's reaction to the last move: success, nudge, or failure.
-		// Empty and collapsed until there is something to say, and it reserves
-		// no space, so nothing on the page moves when it appears — it is the
-		// last thing in the panel's flow.
-		<p id="learn-feedback" class="learn-feedback" role="status"></p>
 		<div id="learn-actions" class="learn-actions">
 			// Back walks the course in reverse: the previous step, or the
 			// previous lesson's last step at a lesson boundary. Disabled rather
@@ -173,6 +169,30 @@ templ learnCoach(lesson *learn.Lesson) {
 			<button id="learn-next" type="button" class="btn btn-primary hidden">Next →</button>
 		</div>
 	</aside>
+}
+
+// learnFeedback is the coach's reaction to the last move: success, nudge, or
+// failure. Empty and collapsed until there is something to say.
+//
+// It is a sibling of the coach panel rather than a child of it, and — like
+// learnFinished below — that is load-bearing on mobile. The single-column order
+// puts the coach above the board, so anything that grows inside the panel
+// pushes the board down the screen. This line grows by anywhere from one to six
+// lines depending on which lesson fires it (the curriculum's longest is 229
+// characters), which made the board jump by up to 111px mid-lesson, under the
+// hands of somebody who was aiming at a square. After the board it grows
+// downward into space that is otherwise empty, and it lands where the learner
+// is already looking after making a move.
+//
+// Reserving the space instead was the obvious alternative and is worse: the
+// tallest reaction is more than half the height of the whole panel, so the
+// reserved band would be a permanent hole under every prompt.
+//
+// role="status" travels with it, so the reaction is still announced. It used to
+// sit inside the panel's aria-live region as well, which was one announcement
+// wrapped in another.
+templ learnFeedback() {
+	<p id="learn-feedback" class="learn-feedback" role="status"></p>
 }
 
 // learnFinished is the hand-off to a real game, revealed by lio-learn.js once
