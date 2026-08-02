@@ -138,6 +138,15 @@
 			}
 			return;
 		}
+		// the reconnect bar: this socket is the home page's only one, so it is
+		// where a viewer browsing the lobby learns their game just started or
+		// ended (arch/ONE_GAME_AT_A_TIME.md)
+		if (msg.t === 'lg') {
+			if (window.lioLiveGame) {
+				window.lioLiveGame.apply(msg.d || {});
+			}
+			return;
+		}
 		if (msg.t === 'si') {
 			if (msg.d && msg.d.v && window.lioUpdateNotice) {
 				window.lioUpdateNotice(msg.d.v);

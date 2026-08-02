@@ -164,6 +164,38 @@ func EachSocket(fn func(channelName string, s *Socket)) {
 	})
 }
 
+// SendToUID queues a message for every connection held by one session, wherever
+// on the site those connections are.
+//
+// The session twin of SendToAccount, and needed because the rule it serves is
+// enforced on the session: an anonymous visitor holds no account, so
+// SendToAccount can reach nobody for most of the site's traffic
+// (arch/ONE_GAME_AT_A_TIME.md).
+//
+// One session usually holds exactly one socket — every page holds one — but not
+// always: two tabs of the same browser are two connections under one uid, and
+// both are showing the same chrome, so both have to be told.
+//
+// Returns the number of connections the message was queued for.
+func SendToUID(uid string, d []byte) int {
+	if uid == "" {
+		return 0
+	}
+	sent := 0
+	Map.Range(func(_, v interface{}) bool {
+		sm, ok := v.(*SockMap)
+		if !ok {
+			return true
+		}
+		for _, s := range sm.SocketsFor(uid) {
+			s.Enqueue(d)
+			sent++
+		}
+		return true
+	})
+	return sent
+}
+
 func SendToAccount(acctID int64, d []byte) int {
 	if acctID == 0 {
 		return 0

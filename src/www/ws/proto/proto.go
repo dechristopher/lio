@@ -59,6 +59,10 @@ const (
 	// notification count on connect, and each new message as it arrives
 	// (arch/NOTIFICATIONS.md). Addressed to one account, not to a channel.
 	NotifyTag PayloadTag = "nt"
+	// LiveGameTag is the message type tag for the LiveGamePayload: the game this
+	// session is committed to, driving the reconnect bar
+	// (arch/ONE_GAME_AT_A_TIME.md). Addressed to one session, not to a channel.
+	LiveGameTag PayloadTag = "lg"
 )
 
 // Message represents our websocket protocol messages container

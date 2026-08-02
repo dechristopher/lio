@@ -924,6 +924,12 @@
       let msg;
       try { msg = JSON.parse(evt.data); } catch (e) { return; }
       if (msg.t === "nt" && msg.d) apply(msg.d);
+      // the reconnect bar (arch/ONE_GAME_AT_A_TIME.md). On a page that is
+      // neither a room nor the home page, this socket is the only one, so it is
+      // the only way the bar ever learns a game ended.
+      if (msg.t === "lg" && window.lioLiveGame) {
+        window.lioLiveGame.apply(msg.d || {});
+      }
       // the following badge's count. This socket is the only one on a page
       // that is neither a room nor the home page, so for a reader on their
       // profile or the about page it is the only way the badge ever moves.

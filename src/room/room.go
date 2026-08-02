@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dechristopher/octad/v2"
@@ -128,11 +129,22 @@ type Instance struct {
 	// resetForNextGameLocked, and guarded by stateMu like every other seat state.
 	nextGame player.Agreement
 
-	// busySeats is the set of account ids this room currently contributes to the
-	// package-wide busy index (busy.go), so the room can reconcile exactly what
+	// busySeats is the set of seats this room currently contributes to the
+	// package-wide seat index (busy.go), so the room can reconcile exactly what
 	// it added and never remove somebody else's seat. Guarded by stateMu, like
 	// the players map it is derived from.
-	busySeats []int64
+	busySeats []seat
+
+	// inInterlude mirrors "nextGameDeadline is set" — a race-to match paused
+	// between games, about to start the next one by itself. It exists so
+	// Instance.Engaged can answer without taking stateMu: that predicate is read
+	// by the one-game gate, which is called from Join while Join holds *another*
+	// room's stateMu, and two rooms gating each other would deadlock on a lock
+	// order this avoids having.
+	//
+	// Every write of nextGameDeadline goes through setNextGameDeadlineLocked so
+	// the two cannot disagree.
+	inInterlude atomic.Bool
 
 	// draw records in-game draw-offer agreement between the two seats: a side is
 	// marked when it offers (or accepts) a draw, and the game is drawn by
@@ -508,6 +520,13 @@ func (r *Instance) routine() {
 		// snapshot the room at every state boundary (restart persistence); a
 		// non-persistable state (waiting) is skipped inside Persist
 		markDirty(r)
+		// and tell this room's players what their reconnect bar should now say
+		// (arch/ONE_GAME_AT_A_TIME.md). A state boundary is exactly where a game
+		// becomes live and where it stops being live, which is the only thing
+		// the bar tracks. Off the routine: the fan-out walks the socket
+		// directory and resolves labels under other rooms' locks, and the room's
+		// own progress must not wait on either.
+		go publishLiveGame(r.heldSeats())
 		switch r.State() {
 		case StateWaitingForPlayers:
 			r.handleWaitingForPlayers()
@@ -554,9 +573,17 @@ func (r *Instance) cleanup() {
 	}
 	// delete room instance from rooms map
 	rooms.Delete(r.ID)
-	// release both seats from the busy index: these players are free to be
-	// challenged again the moment their room is gone
+	// release both seats from the seat index: these players are free to be
+	// challenged again — and free to start another game — the moment their room
+	// is gone
+	freed := r.heldSeats()
 	r.clearBusySeats()
+	// and clear their reconnect bars. Published *after* the release, so the
+	// frame is computed against an index this room has already left: doing it
+	// the other way round would send a bar still pointing at the room being
+	// torn down. A player who holds a seat elsewhere gets that game instead,
+	// because the frame is always recomputed rather than asserted.
+	go publishLiveGame(freed)
 	// drop the room's persisted snapshot; routed through the persister loop so
 	// it serializes after any in-flight snapshot write of this room
 	forgetSnapshot(r.ID)
@@ -738,6 +765,24 @@ func (r *Instance) Join(seat player.Identity, joinToken string) bool {
 		return false
 	}
 
+	// One game at a time (arch/ONE_GAME_AT_A_TIME.md). This is the authoritative
+	// gate — the handler's matching check only picks a friendlier destination.
+	//
+	// Deliberately *before* stateMu is taken. Engaged resolves other rooms, and
+	// doing that under this room's lock would put two lock orders in play: two
+	// people each seated in the other's room, joining simultaneously, would
+	// deadlock. Engaged is built to need no room's stateMu for exactly this
+	// reason, but taking it here as well would reintroduce the cycle through
+	// the map lookup. The window this opens is one request wide and converges —
+	// it is a rule about fairness, not a security boundary.
+	acctID := int64(0)
+	if seat.UserID != nil {
+		acctID = *seat.UserID
+	}
+	if Engaged(seat.UID, acctID) {
+		return false
+	}
+
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 
@@ -876,6 +921,18 @@ func (r *Instance) NewJoinToken() string {
 // such that they may cancel the challenge before games start
 func (r *Instance) CancelToken() string {
 	return r.cancelToken
+}
+
+// setNextGameDeadlineLocked writes the race-to interlude deadline and mirrors
+// it into the lock-free flag Instance.Engaged reads. Every write of
+// nextGameDeadline goes through here so the two can never disagree — a stale
+// flag would hold a player out of a new game after their match ended, or
+// release them into a second one mid-interlude.
+//
+// The caller must hold stateMu (nextGameDeadline is guarded by it).
+func (r *Instance) setNextGameDeadlineLocked(at time.Time) {
+	r.nextGameDeadline = at
+	r.inInterlude.Store(!at.IsZero())
 }
 
 // State returns the current room state
@@ -1199,9 +1256,19 @@ func (r *Instance) RequestRematch(meta channel.SocketContext) {
 
 	// only seated players may request a rematch
 	r.stateMu.Lock()
-	_, color := r.players.Lookup(meta.UID)
+	p, color := r.players.Lookup(meta.UID)
+	acctID := seatAccountID(p)
 	r.stateMu.Unlock()
 	if color == octad.NoColor {
+		return
+	}
+
+	// A finished game released this player (Engaged is false in StateGameOver),
+	// so they may have started another in the thirty seconds the rematch window
+	// runs for. Agreeing here would put them at two live boards
+	// (arch/ONE_GAME_AT_A_TIME.md). Checked outside stateMu, which the predicate
+	// requires of every caller.
+	if EngagedElsewhere(meta.UID, acctID, r.ID) {
 		return
 	}
 
@@ -1245,9 +1312,17 @@ func (r *Instance) RequestNextGame(meta channel.SocketContext) {
 
 	// only seated players may ask for the next game
 	r.stateMu.Lock()
-	_, color := r.players.Lookup(meta.UID)
+	p, color := r.players.Lookup(meta.UID)
+	acctID := seatAccountID(p)
 	r.stateMu.Unlock()
 	if color == octad.NoColor {
+		return
+	}
+
+	// as for a rematch, but excluding this room: an interlude marks its own
+	// players Engaged (the next game starts by itself), so a plain check would
+	// refuse everybody the game they are waiting for
+	if EngagedElsewhere(meta.UID, acctID, r.ID) {
 		return
 	}
 
@@ -1784,7 +1859,7 @@ func (r *Instance) tryGameOver(meta channel.SocketContext, abandoned bool) (bool
 	// game in" countdown. handleMatchInterlude consumes this same deadline as
 	// its timer, keeping the countdown and the actual advance in lockstep.
 	if decided, _ := r.matchDecidedLocked(); r.params.RaceTo > 0 && !decided && !abandoned {
-		r.nextGameDeadline = time.Now().Add(matchInterludeWindow)
+		r.setNextGameDeadlineLocked(time.Now().Add(matchInterludeWindow))
 	}
 
 	stateMsg := r.currentGameStateMessageLocked(true, false)

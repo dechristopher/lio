@@ -174,6 +174,19 @@ type Viewer struct {
 	// an anonymous viewer — and a component test that arranges nothing — reads
 	// exactly what a player who has never changed anything reads.
 	Prefs prefs.Snapshot
+	// LiveGame is the game this viewer is committed to right now, nil when they
+	// are free (arch/ONE_GAME_AT_A_TIME.md). It drives the reconnect bar the
+	// header renders above every page, and the disabled create-game controls on
+	// the home page.
+	//
+	// Populated for anonymous viewers too, unlike every other field here that
+	// needs an account: the rule is enforced on the session, which is the only
+	// identity an anonymous player has, so an anonymous player refused a second
+	// game has to be shown the first one just as much as a member does.
+	//
+	// It is nil on the page of the game it would point at — a bar offering to
+	// reconnect to the board already on screen is noise. See viewerFrom.
+	LiveGame *room.SeatRef
 }
 
 // viewerKey keys the Viewer in the render context.
@@ -184,6 +197,20 @@ func viewerFrom(c fiber.Ctx) Viewer {
 	v := Viewer{AccountsEnabled: auth.Enabled()}
 	if uc := user.GetContext(c); uc != nil {
 		v.UID = uc.ID
+		acctID := int64(0)
+		if uc.Account != nil {
+			acctID = uc.Account.ID
+		}
+		// The game this viewer left running, for the reconnect bar. Two map
+		// lookups behind a read lock, resolved against the room registry —
+		// deliberately not a registry walk, because this runs on every render of
+		// every page (arch/ONE_GAME_AT_A_TIME.md).
+		//
+		// Outside the account branch below: the rule is enforced on the session,
+		// so an anonymous player gets the bar too.
+		if ref, ok := room.EngagedSeat(uc.ID, acctID); ok && !onRoomPage(c, ref.RoomID) {
+			v.LiveGame = &ref
+		}
 		if uc.Account != nil {
 			v.LoggedIn = true
 			v.Username = uc.Account.Username
@@ -219,6 +246,34 @@ func viewerFrom(c fiber.Ctx) Viewer {
 		}
 	}
 	return v
+}
+
+// createBlockedTitle is the tooltip on a create-game control: what it does
+// normally, or why it cannot be pressed while the viewer already has a game
+// running (arch/ONE_GAME_AT_A_TIME.md). The disabled state is visible without
+// it; this says the reason out loud for anyone who hovers.
+func createBlockedTitle(ctx context.Context, action string) string {
+	if viewer(ctx).LiveGame != nil {
+		return "Finish the game you're already in first"
+	}
+	return action
+}
+
+// onRoomPage reports whether this request is already looking at the given room:
+// its live page (`/<id>`) or one of its archived games (`/<id>/<n>`). The
+// reconnect bar suppresses itself there, since it would offer a trip to the
+// board already on screen.
+//
+// It compares the first path segment rather than retaining anything from the
+// request. Strings taken off the fiber ctx are backed by pooled fasthttp buffers
+// that are recycled the moment the handler returns, and the Viewer outlives the
+// render it is built for (see www/ws/ws.go, which documents what that costs).
+func onRoomPage(c fiber.Ctx, roomID string) bool {
+	path := strings.TrimPrefix(c.Path(), "/")
+	if i := strings.IndexByte(path, '/'); i >= 0 {
+		path = path[:i]
+	}
+	return path == roomID
 }
 
 // viewer returns the rendering request's Viewer; the zero Viewer outside a

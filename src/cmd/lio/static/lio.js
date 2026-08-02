@@ -425,6 +425,17 @@ window.handlers.set("nt", (message) => {
 	}
 });
 
+// The reconnect bar's state (arch/ONE_GAME_AT_A_TIME.md). Rides every socket for
+// the same reason notifications do — the bar is in the header on every page — so
+// a player watching somebody else's game still learns when their own ends. The
+// bar belongs to lio-nav.js, which loads on every page for every viewer,
+// including anonymous ones.
+window.handlers.set("lg", (message) => {
+	if (window.lioLiveGame) {
+		window.lioLiveGame.apply(message.d || {});
+	}
+});
+
 // How many followed players are online, for the header's following badge. Rides
 // every socket for the same reason notifications do: the header is on every
 // page, so a player sitting at a board must still learn that somebody they

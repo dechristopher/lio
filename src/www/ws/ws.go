@@ -264,6 +264,16 @@ func connHandler(ctx fiber.Ctx) func(*websocket.Conn) {
 		// why nothing polls for notifications. A no-op for an anonymous socket.
 		notify.Connect(socket, acctStaff)
 
+		// the reconnect bar, for the same reason and on the same terms
+		// (arch/ONE_GAME_AT_A_TIME.md): every page renders it server-side on
+		// load, and this is what makes it correct again after a bfcache restore
+		// or a socket that dropped and came back. Unlike the badge it is not a
+		// no-op for an anonymous socket — the rule is enforced on the session.
+		//
+		// Off the connection goroutine: it resolves the seated room's label
+		// under that room's lock, and a socket handshake must not wait on it.
+		go room.PushLiveGame(uid, acctInfo.ID)
+
 		// the global home channel pushes a one-shot snapshot on connect — the
 		// current featured games and the whole activity digest — so a new viewer
 		// immediately sees both, then receives deltas via the normal broadcast

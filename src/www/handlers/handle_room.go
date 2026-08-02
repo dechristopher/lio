@@ -39,6 +39,37 @@ func identityOf(c fiber.Ctx) player.Identity {
 	return id
 }
 
+// accountID is the seat identity's account id, or 0 for an anonymous session —
+// the shape the room package's seat index takes.
+func accountID(id player.Identity) int64 {
+	if id.UserID == nil {
+		return 0
+	}
+	return *id.UserID
+}
+
+// supersedeSeeks cancels every unaccepted challenge this session is sitting on,
+// so creating a new game replaces the old seek instead of being refused by it
+// (arch/ONE_GAME_AT_A_TIME.md). Keyed on the session rather than the account:
+// superseding from one device must not cancel a challenge somebody is still
+// watching on another.
+//
+// Best effort by nature. Cancel refuses during the shutdown drain and for a room
+// that has already left the waiting state — a joiner who arrived a moment ago —
+// and both of those are the right outcome: that room is no longer a seek, and
+// the creation gate above has already decided this player is free.
+func supersedeSeeks(uid string) {
+	for _, id := range room.Seeks(uid) {
+		r, err := room.Get(id)
+		if err != nil || r == nil {
+			continue
+		}
+		if r.Cancel() {
+			util.Info(str.CRoom, "[%s] seek superseded by a new game from uid %s", id, uid)
+		}
+	}
+}
+
 type newRoomPayload struct {
 	c             fiber.Ctx
 	variant       variant.Variant
@@ -210,10 +241,19 @@ func RoomJoinHandler(c fiber.Ctx) error {
 		return redirect(c, "/?notice=maintenance")
 	}
 
+	joiner := identityOf(c)
+
+	// one game at a time (arch/ONE_GAME_AT_A_TIME.md). room.Join enforces this
+	// authoritatively too; this only picks the friendlier destination, which is
+	// the home page beside the reconnect bar rather than the generic
+	// join-failed path that would leave them guessing.
+	if room.Engaged(joiner.UID, accountID(joiner)) {
+		return redirect(c, "/?notice=already-playing")
+	}
+
 	// a rated room needs a logged-in opponent; send anonymous joiners back to
 	// the room page (which prompts them to log in) rather than through the
 	// generic join-failed path. room.Join enforces this authoritatively too.
-	joiner := identityOf(c)
 	if roomInstance.IsRated() && joiner.UserID == nil {
 		return redirect(c, "/"+roomInstance.ID+"#loginToPlay")
 	}
@@ -454,6 +494,30 @@ func newRoom(payload newRoomPayload) error {
 	if settings.Current().Maintenance {
 		return redirect(payload.c, "/?notice=maintenance")
 	}
+
+	// one game at a time (arch/ONE_GAME_AT_A_TIME.md). Every creation path on
+	// the site funnels through here — both quick-game buttons, the create modal,
+	// the bot rematch fallback and the /learn graduation game — so this is the
+	// only place creation has to be gated.
+	//
+	// The refusal lands on the home page, where the reconnect bar is already
+	// rendering the game being talked about: the explanation and the way back
+	// arrive together.
+	if room.Engaged(creator.UID, accountID(creator)) {
+		return redirect(payload.c, "/?notice=already-playing")
+	}
+
+	// A seek of this session's own is superseded rather than blocking, and is
+	// cancelled *before* anything is created: cancelling after would mean a
+	// failed cancel leaves this player in two rooms, which is the exact
+	// invariant being introduced. Failing the other way round leaves them with
+	// neither, which is a clean state the notice above can explain.
+	//
+	// Nothing waits on the teardown. Cancel hands the room a control message and
+	// its routine releases the seat when it exits, so the old room can still be
+	// in the index below — harmless, because a waiting room is Busy but never
+	// Engaged, so it was never what the gate was reading.
+	supersedeSeeks(creator.UID)
 
 	// A direct challenge is addressed to one account. Resolve it before anything
 	// is created, so a bad target refuses instead of leaving an orphan room

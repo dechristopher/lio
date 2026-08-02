@@ -39,6 +39,13 @@ func IndexHandler(c fiber.Ctx) error {
 		// answer, not a fault, and the generic room-gone copy would read as one.
 		meta.Notice = "Your challenge was declined. Create another game below, " +
 			"or challenge somebody else from the players list."
+	case "already-playing":
+		// refused by the one-game rule (arch/ONE_GAME_AT_A_TIME.md). The
+		// reconnect bar is rendering directly above this, naming the game and
+		// offering the way back, so the notice only has to say what did not
+		// happen — it deliberately does not repeat the game's details.
+		meta.Notice = "You're already in a game. Finish it, or go back to it " +
+			"using the bar above."
 	case "challenge-failed":
 		// the invite could not be resolved — an unknown or banned account, or a
 		// tampered form. Deliberately vague about which: a message that

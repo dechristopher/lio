@@ -51,7 +51,48 @@ templ maintenanceNotice(width string) {
 	}
 }
 
+// liveGameBar is the way back to a game the viewer walked away from
+// (arch/ONE_GAME_AT_A_TIME.md). It renders above every page, for the same reason
+// the two notices below it do: a bar that has to be remembered on each new page
+// is a bar that will be missing from one.
+//
+// It carries exactly one control, and that control goes to the room. It does not
+// offer to resign from here. Resigning is irreversible and, in a rated room, a
+// rating change, and this markup renders on the home page, a profile and /learn
+// alike — one mis-tap from a game somebody is winning. The room's own Resign
+// button sits beside the board with the position in front of the player, which
+// is where a forfeit should be decided.
+//
+// A seat held by *another* session of the same account cannot be played from
+// here: seats are keyed by uid, so opening that room would seat this viewer as a
+// spectator of their own game. Until seat adoption exists the bar says so
+// plainly rather than offering a control that silently fails.
+//
+// The id is the hook lio-nav.js re-renders and clears it through, so the bar
+// follows a game starting and ending without a reload.
+templ liveGameBar(width string) {
+	<div id="liveGameBar" class={ "live-game-bar " + width, templ.KV("hidden", viewer(ctx).LiveGame == nil) } role="status">
+		if ref := viewer(ctx).LiveGame; ref != nil {
+			<span class="lgb-dot" aria-hidden="true"></span>
+			<span class="lgb-text">
+				if ref.OwnSession {
+					<span class="lgb-label">Game in progress</span>
+				} else {
+					<span class="lgb-label">Playing on another device</span>
+				}
+				<span class="lgb-detail">{ ref.Label }</span>
+			</span>
+			if ref.OwnSession {
+				<a href={ templ.SafeURL("/" + ref.RoomID) } class="btn btn-primary lgb-btn no-underline">Reconnect</a>
+			} else {
+				<a href={ templ.SafeURL("/" + ref.RoomID) } class="btn btn-ghost lgb-btn no-underline">Watch</a>
+			}
+		}
+	</div>
+}
+
 templ header(width string) {
+	@liveGameBar(width)
 	@maintenanceNotice(width)
 	@siteNotice(width)
 	<header class={ "flex items-center justify-between gap-4 max-[400px]:gap-2 pt-1 pb-3 " + width }>
@@ -679,10 +720,16 @@ templ homeFooter(meta Meta) {
 // Each is a POST form (not a GET link): creating a room is a state change, so a
 // GET would be CSRF-able. The form is display:contents so its submit button is
 // the grid item directly, preserving the two-column layout.
+// While the viewer already has a game running these are disabled in place —
+// faded, not removed (arch/ONE_GAME_AT_A_TIME.md). The creation path refuses
+// them anyway; leaving live controls that bounce the visitor back to this same
+// page with a notice would be a worse way to learn the rule than a control that
+// visibly cannot be pressed, and removing them entirely would reflow the card
+// out from under whoever was reading it. The reconnect bar above says why.
 templ quickGameButtons() {
-	<div class="mt-2 grid grid-cols-2 gap-2.5">
+	<div class={ "mt-2 grid grid-cols-2 gap-2.5", templ.KV("opacity-50", viewer(ctx).LiveGame != nil) }>
 		<form action="/new/human/quick" method="POST" class="contents">
-			<button type="submit" aria-label="Quick game versus human" title="Quick game vs human" class="btn btn-ghost flex-col gap-1.5 py-3">
+			<button type="submit" data-new-game aria-label="Quick game versus human" title={ createBlockedTitle(ctx, "Quick game vs human") } class="btn btn-ghost flex-col gap-1.5 py-3" disabled?={ viewer(ctx).LiveGame != nil }>
 				<span class="text-accent">
 					@iconUsers("h-7 w-7")
 				</span>
@@ -690,7 +737,7 @@ templ quickGameButtons() {
 			</button>
 		</form>
 		<form action="/new/computer" method="POST" class="contents" data-bot-difficulty="quick">
-			<button type="submit" aria-label="Quick game versus the computer" title="Quick game vs the computer" class="btn btn-ghost flex-col gap-1.5 py-3">
+			<button type="submit" data-new-game aria-label="Quick game versus the computer" title={ createBlockedTitle(ctx, "Quick game vs the computer") } class="btn btn-ghost flex-col gap-1.5 py-3" disabled?={ viewer(ctx).LiveGame != nil }>
 				<span class="text-accent">
 					@iconCpu("h-7 w-7")
 				</span>
@@ -703,7 +750,7 @@ templ quickGameButtons() {
 // createGameButton renders the button that opens the custom-game modal. The id
 // is wired to the modal open/close script in createGameModal.
 templ createGameButton() {
-	<button type="button" id="createGameButton" data-open-create-game title="Create a custom game" class="btn btn-primary btn-block mt-3 text-xl font-bold">Custom game</button>
+	<button type="button" id="createGameButton" data-new-game data-open-create-game title={ createBlockedTitle(ctx, "Create a custom game") } class={ "btn btn-primary btn-block mt-3 text-xl font-bold", templ.KV("opacity-50", viewer(ctx).LiveGame != nil) } disabled?={ viewer(ctx).LiveGame != nil }>Custom game</button>
 }
 
 // board renders the octadground board mount and its promotion / result-overlay

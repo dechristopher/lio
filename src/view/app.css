@@ -6331,6 +6331,82 @@
 		color: var(--text-muted);
 	}
 
+	/* --- live game bar (every page, while the viewer has a game running) --- */
+
+	/* The loudest thing on the page, and meant to be: it is the only route back
+	   to a game whose clock is running. Accent-bordered rather than --warn, so
+	   it does not read as a fault — the player has not done anything wrong, they
+	   have just navigated away.
+
+	   It sits above the maintenance and admin banners for the same reason
+	   maintenance sits above the notice: the most personally urgent fact first.
+
+	   Animated in rather than simply appearing. It arrives mid-session on a page
+	   the viewer is already reading (lio-nav.js reveals it when their game
+	   starts), which necessarily pushes the page down; sliding makes that read as
+	   an event rather than a reflow. Reserving permanent space for a bar that is
+	   absent almost always would be a worse trade. The site-wide
+	   prefers-reduced-motion rule flattens the animation to nothing. */
+	.live-game-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		margin: 0 auto 0.5rem;
+		padding: 0.5rem 0.6rem 0.5rem 0.75rem;
+		border: 2px solid var(--accent);
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+		animation: lgbIn 0.25s var(--ease-snappy);
+	}
+	@keyframes lgbIn {
+		from { opacity: 0; transform: translateY(-0.4rem); }
+		to { opacity: 1; transform: none; }
+	}
+	/* the same live dot the presence chips use, so "this is happening now" is
+	   said in the vocabulary the rest of the site already uses */
+	.lgb-dot {
+		flex: none;
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 999px;
+		background: var(--accent);
+		animation: lgbPulse 2s ease-in-out infinite;
+	}
+	@keyframes lgbPulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.35; }
+	}
+	.lgb-text {
+		display: flex;
+		min-width: 0;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.15rem 0.45rem;
+		line-height: 1.3;
+	}
+	.lgb-label {
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--text);
+	}
+	/* the time control and opponent. Truncates rather than wrapping the button
+	   off the row on a narrow phone. */
+	.lgb-detail {
+		min-width: 0;
+		overflow: hidden;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.lgb-btn {
+		flex: none;
+		margin-left: auto;
+		padding: 0.35rem 0.9rem;
+		font-size: 0.8rem;
+		font-weight: 700;
+	}
+
 	/* --- site notice banner (every page) --------------------------------- */
 
 	/* Sits above the header on every page, so it is deliberately quiet: full

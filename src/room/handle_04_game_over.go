@@ -295,7 +295,7 @@ func (r *Instance) resetForNextGameLocked(resetScore bool) error {
 	r.humanMoved = false
 	// the finished game's published countdowns are void with it
 	r.rematchDeadline = time.Time{}
-	r.nextGameDeadline = time.Time{}
+	r.setNextGameDeadlineLocked(time.Time{})
 
 	if resetScore {
 		r.players.ResetScores()

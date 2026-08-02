@@ -285,9 +285,13 @@ func Rehydrate(data []byte) (*Instance, error) {
 		joinToken:   p.JoinToken,
 		cancelToken: p.CancelToken,
 
-		rematchDeadline:  p.RematchDeadline,
-		nextGameDeadline: p.NextGameDeadline,
+		rematchDeadline: p.RematchDeadline,
 	}
+	// through the setter, so the lock-free interlude flag Instance.Engaged reads
+	// is restored with the deadline it mirrors. Nothing is concurrent yet (the
+	// routine has not started), but the invariant is that every write goes
+	// through one place.
+	r.setNextGameDeadlineLocked(p.NextGameDeadline)
 
 	if p.DrawWhite {
 		r.draw.Agree(octad.White)
@@ -320,7 +324,7 @@ func Rehydrate(data []byte) (*Instance, error) {
 			// restart is refreshed to a full interlude so returning players are
 			// not instantly held to the missing-player forfeit grace
 			if r.nextGameDeadline.Before(time.Now()) {
-				r.nextGameDeadline = time.Now().Add(matchInterludeWindow)
+				r.setNextGameDeadlineLocked(time.Now().Add(matchInterludeWindow))
 			}
 		} else if !players.HasBot() && !p.RematchDeadline.IsZero() {
 			// human rematch window: re-enter with the remaining window, floored

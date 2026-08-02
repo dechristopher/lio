@@ -320,6 +320,106 @@
     });
 })();
 
+// ---- live game bar ----
+//
+// The way back to a game the viewer walked away from
+// (arch/ONE_GAME_AT_A_TIME.md). The bar is rendered server-side on page load;
+// this only keeps it honest afterwards, when a game starts or ends on a page the
+// viewer is not looking at.
+//
+// It lives here rather than in lio-notify.js — which owns the bell and has the
+// same "rides every socket" shape — because that file only loads for a logged-in
+// viewer, and this rule is enforced on the *session*. An anonymous player is
+// held to one game too, so their bar has to work.
+//
+// The frame arrives on whichever socket the page already holds (lio.js in a
+// room, lio-tv.js on the home page, lio-notify.js everywhere else for a member);
+// each forwards the "lg" tag here. A page with no socket at all — an anonymous
+// viewer reading /about — keeps whatever the server rendered, which is correct
+// until they navigate.
+
+(function () {
+    const bar = document.getElementById("liveGameBar");
+    // Rendered by the shared header, so normally present. This file is not
+    // co-located with that markup, though, so bail rather than throw on a page
+    // that ever omits it.
+    if (!bar) { return; }
+
+    // The create-game controls fade and disable alongside the bar, matching what
+    // the server renders for a viewer who already has a game. Nothing is
+    // removed: the card must not reflow out from under somebody reading it.
+    function syncCreateControls(blocked) {
+        document.querySelectorAll("[data-new-game]").forEach(function (el) {
+            el.disabled = blocked;
+            el.classList.toggle("opacity-50", blocked);
+            if (blocked) {
+                el.title = "Finish the game you're already in first";
+            }
+        });
+        document.querySelectorAll("[data-new-game][type=submit]").forEach(function (el) {
+            const grid = el.closest("form") && el.closest("form").parentElement;
+            if (grid) { grid.classList.toggle("opacity-50", blocked); }
+        });
+    }
+
+    // The room this page is already showing, or "" anywhere else. Room URLs are
+    // "/<id>" and "/<id>/<n>", so the first path segment is the id.
+    //
+    // The bar suppresses itself here, and the check has to exist on both sides.
+    // The server omits the bar when rendering the page of the game it would
+    // point at — but this page then opens a socket, the connect frame describes
+    // that same game, and applying it would put a "Reconnect" bar above the
+    // board it points at. It looked like the server-side suppression had simply
+    // failed.
+    function currentRoom() {
+        const seg = location.pathname.replace(/^\//, "").split("/")[0];
+        return seg || "";
+    }
+
+    // apply replaces the bar wholesale. The frame is the entire state rather
+    // than a delta, so a client that missed one is corrected by the next instead
+    // of drifting.
+    function apply(d) {
+        let roomId = d && d.id;
+        if (roomId && roomId === currentRoom()) { roomId = ""; }
+        bar.textContent = "";
+        bar.classList.toggle("hidden", !roomId);
+        syncCreateControls(!!roomId);
+        if (!roomId) { return; }
+
+        const dot = document.createElement("span");
+        dot.className = "lgb-dot";
+        dot.setAttribute("aria-hidden", "true");
+
+        const label = document.createElement("span");
+        label.className = "lgb-label";
+        // Seats are keyed by session, so a game held by another session of this
+        // account can only be watched from here — say so rather than offering a
+        // control that silently seats them as a spectator of their own game.
+        label.textContent = d.o ? "Game in progress" : "Playing on another device";
+
+        const detail = document.createElement("span");
+        detail.className = "lgb-detail";
+        detail.textContent = d.l || "";
+
+        const text = document.createElement("span");
+        text.className = "lgb-text";
+        text.appendChild(label);
+        text.appendChild(detail);
+
+        const link = document.createElement("a");
+        link.className = "lgb-btn no-underline " + (d.o ? "btn btn-primary" : "btn btn-ghost");
+        link.href = "/" + roomId;
+        link.textContent = d.o ? "Reconnect" : "Watch";
+
+        bar.appendChild(dot);
+        bar.appendChild(text);
+        bar.appendChild(link);
+    }
+
+    window.lioLiveGame = { apply: apply };
+})();
+
 // ---- footer navigation ----
 
 (function () {
