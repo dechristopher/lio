@@ -16,7 +16,7 @@ type Charset int
 
 const (
 	// Version of lio
-	Version = "v1.12.0"
+	Version = "v1.12.1"
 
 	Hex Charset = iota
 	Base58
