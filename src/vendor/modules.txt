@@ -46,7 +46,7 @@ github.com/go-webauthn/webauthn/webauthn
 ## explicit; go 1.25.0
 github.com/go-webauthn/x/encoding/asn1
 github.com/go-webauthn/x/revoke
-# github.com/gofiber/contrib/v3/websocket v1.2.1
+# github.com/gofiber/contrib/v3/websocket v1.2.2
 ## explicit; go 1.25.0
 github.com/gofiber/contrib/v3/websocket
 # github.com/gofiber/fiber/v3 v3.4.0
@@ -68,16 +68,17 @@ github.com/gofiber/fiber/v3/middleware/logger
 github.com/gofiber/fiber/v3/middleware/recover
 github.com/gofiber/fiber/v3/middleware/requestid
 github.com/gofiber/fiber/v3/middleware/static
-# github.com/gofiber/schema v1.8.0
+# github.com/gofiber/schema v1.8.3
 ## explicit; go 1.25.0
 github.com/gofiber/schema
-# github.com/gofiber/utils/v2 v2.1.1
+# github.com/gofiber/utils/v2 v2.2.0
 ## explicit; go 1.25.0
 github.com/gofiber/utils/v2
 github.com/gofiber/utils/v2/bytes
 github.com/gofiber/utils/v2/internal/caseconv
 github.com/gofiber/utils/v2/internal/unsafeconv
 github.com/gofiber/utils/v2/strings
+github.com/gofiber/utils/v2/swar
 # github.com/golang-jwt/jwt/v5 v5.3.1
 ## explicit; go 1.21
 github.com/golang-jwt/jwt/v5
