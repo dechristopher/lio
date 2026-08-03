@@ -3658,6 +3658,157 @@
 	.conn-reconnecting .conn-label { color: var(--warn); }
 	.conn-offline .conn-label { color: var(--loss); }
 
+	/* ---- username hover card (arch/PLAYER_CARD.md) ----
+	   Built at runtime by lio-card.js, so every class here is a plain component
+	   class (Tailwind tree-shakes JS-concatenated names). It is one fixed-
+	   position element reused for every name on the page; lio-card.js pins it to
+	   whichever link it currently describes. */
+	.pcard {
+		position: fixed;
+		z-index: 120;
+		width: 15.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
+		padding: 0.7rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		background: var(--surface-3);
+		box-shadow: var(--shadow-lg);
+		/* the card follows the pointer between names; it must never be the thing
+		   the pointer is trying to reach past */
+		pointer-events: auto;
+	}
+	.pcard[hidden] { display: none; }
+
+	.pcard-head {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
+	}
+	.pcard-name {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		min-width: 0;
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.95rem;
+		color: var(--text);
+		text-decoration: none;
+	}
+	.pcard-name:hover { color: var(--accent); }
+	.pcard-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	/* the site-wide accent title badge; this only tightens it for the card */
+	.pcard-title { font-size: 0.65rem; flex: none; }
+
+	.pcard-status {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.75rem;
+		color: var(--text-subtle);
+	}
+	/* presence dot: the same three-state vocabulary the roster chips use —
+	   accent while at a board, green while merely here, neutral when away. */
+	.pcard-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 999px;
+		background: var(--text-subtle);
+		flex: none;
+	}
+	.pcard-dot.online { background: var(--win); }
+	.pcard-dot.playing { background: var(--accent); }
+
+	/* rating tiles: value over label, so the numbers line up as a row of
+	   figures rather than reading as a sentence of pairs */
+	.pcard-ratings {
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: minmax(0, 1fr);
+		gap: 0.3rem;
+	}
+	.pcard-rating {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.05rem;
+		padding: 0.3rem 0.15rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		min-width: 0;
+	}
+	.pcard-rating-value {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.85rem;
+		color: var(--text);
+		line-height: 1.1;
+	}
+	.pcard-rating-label {
+		font-size: 0.6rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-subtle);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		max-width: 100%;
+	}
+
+	/* record: a win/draw/loss bar over its own three counts. The bar carries the
+	   proportion and the numbers carry the exact figures — at this width a
+	   labelled bar would fit neither. */
+	.pcard-record { display: flex; flex-direction: column; gap: 0.3rem; }
+	.pcard-bar {
+		display: flex;
+		height: 0.35rem;
+		border-radius: 999px;
+		overflow: hidden;
+		background: var(--surface-2);
+	}
+	.pcard-bar-win { background: var(--win); }
+	.pcard-bar-draw { background: var(--draw); }
+	.pcard-bar-loss { background: var(--loss); }
+	.pcard-legend {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.4rem;
+		font-size: 0.7rem;
+		color: var(--text-subtle);
+	}
+	.pcard-counts { font-variant-numeric: tabular-nums; }
+	.pcard-win { color: var(--win); }
+	.pcard-draw { color: var(--draw); }
+	.pcard-loss { color: var(--loss); }
+
+	/* the live game. .tv-card sizes itself off its container, so a width is all
+	   the board needs. The card is assembled invisibly and revealed once the
+	   board is in (see reveal() in lio-card.js), so nothing here has to reserve
+	   height against a board that arrives late. */
+	.pcard-game { width: 100%; }
+	.pcard-game[hidden] { display: none; }
+	.pcard-mini {
+		/* flat inside the card: the grid's raised, hoverable card is a link to
+		   a room, and this one is already inside a surface that lifts */
+		border: none;
+		padding: 0;
+		background: transparent;
+	}
+	.pcard-mini:hover { transform: none; box-shadow: none; border-color: transparent; }
+
+	.pcard-foot {
+		font-size: 0.7rem;
+		color: var(--text-subtle);
+		border-top: 1px solid var(--border);
+		padding-top: 0.45rem;
+	}
+	.pcard-foot[hidden] { display: none; }
+
 	/* ---- preferences popover: board-theme swatches + piece-set pills ---- */
 	.swatch-btn {
 		display: grid;

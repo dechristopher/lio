@@ -130,12 +130,15 @@ type Event struct {
 }
 
 // hubMsg multiplexes the inbound request kinds onto the hub's single inbound
-// channel: a room lifecycle event, a new viewer asking for a snapshot, or the
-// one-shot injection of the digest source.
+// channel: a room lifecycle event, a new viewer asking for a snapshot, a hover
+// card's room watch or live-game lookup (watch.go), or the one-shot injection
+// of the digest source.
 type hubMsg struct {
 	ev      *Event
 	sock    *channel.Socket
 	sources *sources
+	watch   *watchReq
+	query   *gameQuery
 }
 
 // hub owns the live-game registry, the featured slots, and the activity digest.
@@ -146,12 +149,14 @@ type hub struct {
 	games    map[string]*proto.TVGame // every live room, keyed by room id
 	featured []string                 // ordered featured room ids, len <= Cap
 	digest   digestState              // the activity region; see digest.go
+	watch    watchState               // per-connection room watches; see watch.go
 }
 
 var theHub = &hub{
 	in:       make(chan hubMsg, inBuffer),
 	games:    make(map[string]*proto.TVGame),
 	featured: make([]string, 0, Cap),
+	watch:    newWatchState(),
 }
 
 // Up starts the hub goroutine and pre-creates the home channel's SockMap so it
@@ -212,6 +217,10 @@ func (h *hub) run() {
 				snap := h.snapshot()
 				m.sock.Enqueue(snap.Marshal())
 				h.connectDigest(m.sock)
+			case m.watch != nil:
+				h.applyWatch(m.watch)
+			case m.query != nil:
+				m.query.reply <- h.liveGameFor(m.query.username)
 			case m.ev != nil:
 				// every room event moves the digest as well as the grid: a game
 				// starting changes the live count, a room closing may free an
@@ -220,6 +229,9 @@ func (h *hub) run() {
 				for _, p := range h.handle(*m.ev) {
 					h.broadcast(p)
 				}
+				// after handle, so the frame reflects the game as it now
+				// stands — including its absence, once a room has closed
+				h.pushWatch(m.ev.RoomID)
 			}
 		case <-tick.C:
 			h.tick()

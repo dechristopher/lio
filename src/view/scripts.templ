@@ -96,11 +96,18 @@ templ scriptsLearn(meta Meta) {
 // /socket/home connection and hands it the activity frames
 // (arch/HOME_ACTIVITY_STREAMING.md). Load order does not matter — the first
 // frame cannot arrive before the socket opens, by which point both have parsed.
+//
+// lio-tv.js is the one script here that must be `defer`, and only for ordering:
+// it renders its cards with lio-miniboard.js, which is loaded (deferred) from
+// the document head for the username hover card on every page. Page scripts sit
+// after </body> and run during parsing, so without this the grid would evaluate
+// before the component it draws with had been defined. Deferred scripts run in
+// document order, which puts the head's copy first.
 templ scriptsTV(meta Meta) {
 	<link rel="stylesheet" href={ asset("octadground.base.css") }/>
 	@themeStyles()
 	<script src={ asset("octadground.js") }></script>
-	<script src={ asset("lio-tv.js") }></script>
+	<script defer src={ asset("lio-tv.js") }></script>
 	<script src={ asset("lio-home.js") }></script>
 	// the demo board only exists while the explainer does, and a member who put
 	// that card away should not pay for the script that drives it. It

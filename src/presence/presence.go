@@ -148,6 +148,36 @@ func AccountOnline(id int64) bool {
 	return ok
 }
 
+// LastSeen returns when an account's most recent session closed its last
+// socket, for a reader who is not here now — the hover card's "active 5m ago"
+// (arch/PLAYER_CARD.md).
+//
+// It answers only from the departure stamps, so its reach is bounded by how long
+// the channel layer remembers one. Beyond that the answer is genuinely unknown
+// to this process and the caller says something durable instead (when the
+// account joined); that is the honest shape, because nothing writes a last-seen
+// column and inferring one from the last archived game would report a date the
+// player was *playing*, not the last time they were here.
+//
+// An account holding a live socket normally has no stamp at all — Track clears
+// it on the way back in — but one lingers for a session that closed a second
+// tab. Callers ask this only of somebody Online reports as absent.
+func LastSeen(id int64) (time.Time, bool) {
+	if id == 0 {
+		return time.Time{}, false
+	}
+	var latest time.Time
+	for _, d := range channel.Departed(ActiveWindow) {
+		if d.Account.ID != id {
+			continue
+		}
+		if d.At.After(latest) {
+			latest = d.At
+		}
+	}
+	return latest, !latest.IsZero()
+}
+
 // Snapshot is the site-wide picture, produced by a single walk so its parts can
 // never disagree.
 //

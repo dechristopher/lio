@@ -471,6 +471,13 @@ func scriptsLearn(meta Meta) templ.Component {
 // /socket/home connection and hands it the activity frames
 // (arch/HOME_ACTIVITY_STREAMING.md). Load order does not matter — the first
 // frame cannot arrive before the socket opens, by which point both have parsed.
+//
+// lio-tv.js is the one script here that must be `defer`, and only for ordering:
+// it renders its cards with lio-miniboard.js, which is loaded (deferred) from
+// the document head for the username hover card on every page. Page scripts sit
+// after </body> and run during parsing, so without this the grid would evaluate
+// before the component it draws with had been defined. Deferred scripts run in
+// document order, which puts the head's copy first.
 func scriptsTV(meta Meta) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -499,7 +506,7 @@ func scriptsTV(meta Meta) templ.Component {
 		var templ_7745c5c3_Var23 templ.SafeURL
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(asset("octadground.base.css"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 100, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 107, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -520,20 +527,20 @@ func scriptsTV(meta Meta) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("octadground.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 102, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 109, Col: 38}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\"></script><script src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\"></script><script defer src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-tv.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 103, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 110, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 		if templ_7745c5c3_Err != nil {
@@ -546,7 +553,7 @@ func scriptsTV(meta Meta) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-home.js"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 104, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 111, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
@@ -564,7 +571,7 @@ func scriptsTV(meta Meta) templ.Component {
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(asset("lio-home-demo.js"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 109, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/scripts.templ`, Line: 116, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 			if templ_7745c5c3_Err != nil {

@@ -25,6 +25,18 @@ templ head(meta Meta) {
 		// the old JS-readable uid cookie: lio.js myUid() reads it for turn/
 		// seat checks, with the WS identity echo as the dynamic authority
 		<meta name="lio-uid" content={ viewer(ctx).UID }/>
+		// Where the board renderer and its stylesheets live, for the one caller
+		// that cannot know in advance whether it will need them: the username
+		// hover card (arch/PLAYER_CARD.md) can open a live mini board over any
+		// name on any page, and these three assets are ~62KB that a page with no
+		// board on it must not pay for. lio-miniboard.js fetches them on the
+		// first card that actually has a game to show; the pages that ship
+		// octadground with their own tags (room, home, /about, /learn) never
+		// reach that path. They are meta tags rather than a constant in the
+		// script because the URLs are content-hashed (see the assets package).
+		<meta name="lio-og-js" content={ asset("octadground.js") }/>
+		<meta name="lio-og-css" content={ asset("octadground.base.css") }/>
+		<meta name="lio-themes-css" content={ asset("themes.css") }/>
 		<script>
 			// Resolve and apply the color theme, board theme, and piece set
 			// before first paint to avoid a flash of the wrong appearance:
@@ -145,6 +157,20 @@ templ head(meta Meta) {
 		// account/auth wiring (login/register forms, profile popover actions);
 		// on every page because the header's account controls are
 		<script defer src={ asset("lio-auth.js") }></script>
+		// The username hover card (arch/PLAYER_CARD.md). On every page because
+		// usernames are: a room's clocks and match timeline, the home roster and
+		// leaderboard, profile game rows, /staff, the moderation trails. It
+		// binds one delegated pointer listener and builds nothing until a name
+		// is actually hovered, so the cost to a page nobody hovers on is the
+		// (cached) request alone.
+		//
+		// lio-miniboard.js is the live board inside it, shared with the home
+		// page's live-games grid. Ordered before the card, which calls into it,
+		// and before lio-tv.js, which is loaded per-page and consumes it too.
+		// Both are inert on load — no DOM is touched until a caller asks — so
+		// they meet the same bar as the chrome above.
+		<script defer src={ asset("lio-miniboard.js") }></script>
+		<script defer src={ asset("lio-card.js") }></script>
 		// Plausible analytics (self-hosted), prod only. The instance host comes
 		// from PLAUSIBLE_DOMAIN (kept out of VCS; unset disables analytics), and
 		// the CSP allows it in script-src and connect-src

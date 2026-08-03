@@ -121,6 +121,12 @@ const connect = (prefix) => {
 			disableBoard();
 		}
 
+		// the hover card's stream goes with the socket; it re-arms its standing
+		// watch when connected() hands it the next one
+		if (window.lioCard) {
+			window.lioCard.wire(null);
+		}
+
 		// the server rejected the upgrade for lack of identity cookies (an iOS
 		// Safari hazard): reconnecting would just repeat the rejection with the
 		// same cookie-less upgrade, so re-authenticate with a reload instead.
@@ -179,6 +185,11 @@ const connected = () => {
 			window.onSocketReconnect();
 		}
 		sendBoardUpdateRequest();
+	}
+	// hand the hover card this socket to watch rooms over; it holds none of its
+	// own (arch/PLAYER_CARD.md)
+	if (window.lioCard) {
+		window.lioCard.wire((obj) => send(JSON.stringify(obj)));
 	}
 	schedulePing(500);
 };
@@ -448,5 +459,16 @@ window.handlers.set("fo", (message) => {
 	window.__lioFollowOnline = message.d.o;
 	if (window.lioFollowBadge) {
 		window.lioFollowBadge.apply(message.d.o);
+	}
+});
+
+// A room the username hover card asked to watch (arch/PLAYER_CARD.md). Rides
+// this socket for the same reason the two above do: the card can open over any
+// name on any page, and every page holds exactly one connection. It is
+// addressed to this connection alone — never broadcast — so nothing else on the
+// page has any interest in it.
+window.handlers.set("wg", (message) => {
+	if (window.lioCard) {
+		window.lioCard.live(message.d || {});
 	}
 });

@@ -16,7 +16,10 @@ var (
 		proto.MoveTag:   handlers.HandleMove,
 		proto.RoomTag:   handlers.HandleRoom,
 		proto.DeployTag: handlers.HandleDeploy,
-		proto.OFENTag:   Unimplemented,
+		// accepted on every channel, unlike the three above: the hover card
+		// rides whatever socket its page already holds (arch/PLAYER_CARD.md)
+		proto.WatchTag: handlers.HandleWatch,
+		proto.OFENTag:  Unimplemented,
 	}
 )
 

@@ -12,6 +12,7 @@ func newTestHub() *hub {
 	return &hub{
 		games:    make(map[string]*proto.TVGame),
 		featured: make([]string, 0, Cap),
+		watch:    newWatchState(),
 	}
 }
 

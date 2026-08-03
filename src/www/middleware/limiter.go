@@ -122,6 +122,30 @@ func FeedbackLimiter() fiber.Handler {
 	})
 }
 
+// cardMax is the per-client budget for the /api/card hover-card endpoint per
+// window. It is set high because a pointer, not a decision, is what issues
+// these: someone reading down the home page's roster or a game's move list
+// crosses a lot of names, and the client's own dwell delay and per-name cache
+// are what actually keep the number small. This bound is here for a script
+// walking the user list, which the cache in front of it does nothing about.
+const cardMax = 240
+
+// cardWindow is the rolling window cardMax is measured over.
+const cardWindow = time.Minute
+
+// CardLimiter bounds hover-card lookups per client IP (arch/PLAYER_CARD.md).
+func CardLimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:          cardMax,
+		Expiration:   cardWindow,
+		KeyGenerator: clientIP,
+		LimitReached: func(c fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).
+				JSON(fiber.Map{"error": "too many requests - slow down"})
+		},
+	})
+}
+
 // ClientIP exposes the resolved client address to handlers outside this
 // package (the login rate limiter keys off it).
 func ClientIP(c fiber.Ctx) string {

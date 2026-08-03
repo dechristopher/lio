@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/dechristopher/lio/www/handlers/api/account"
+	"github.com/dechristopher/lio/www/handlers/api/card"
 	"github.com/dechristopher/lio/www/handlers/api/feedback"
 	"github.com/dechristopher/lio/www/handlers/api/follow"
 	"github.com/dechristopher/lio/www/handlers/api/me"
@@ -50,6 +51,13 @@ func Wire(a fiber.Router) {
 	// groups. Every handler inside is scoped to the session's own rows, so the
 	// group needs no role check.
 	me.Wire(a.Group("/me", middleware.AuthAPILimiter()))
+
+	// the username hover card (arch/PLAYER_CARD.md), reachable by anybody: it
+	// publishes a subset of the public profile page and nothing else. Its own
+	// limiter because it is the one endpoint here a *pointer* can trigger — the
+	// budget has to cover a reader running down a roster of names, which no
+	// deliberate action does.
+	card.Wire(a.Group("/card", middleware.CardLimiter()))
 
 	// statistics API group
 	stat := a.Group("/stat")

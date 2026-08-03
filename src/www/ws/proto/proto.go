@@ -63,6 +63,12 @@ const (
 	// session is committed to, driving the reconnect bar
 	// (arch/ONE_GAME_AT_A_TIME.md). Addressed to one session, not to a channel.
 	LiveGameTag PayloadTag = "lg"
+	// WatchTag is the message type tag for the watch protocol: inbound, the room
+	// a connection wants followed; outbound, that room's live game state
+	// (arch/PLAYER_CARD.md). It drives the username hover card's mini board.
+	// Addressed to one connection, and accepted on every channel — the card
+	// rides whatever socket its page already holds.
+	WatchTag PayloadTag = "wg"
 )
 
 // Message represents our websocket protocol messages container

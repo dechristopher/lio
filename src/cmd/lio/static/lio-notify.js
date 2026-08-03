@@ -919,7 +919,23 @@
     if (sock || stopped) return;
     window.lioSocketOwner = "me";
     sock = new WebSocket(location.origin.replace(/^http/, "ws") + "/socket/me");
-    sock.onopen = function () { attempts = 0; };
+    sock.onopen = function () {
+      attempts = 0;
+      // On every page that is neither a room nor the home page, this is the
+      // only socket — so it is the one the username hover card watches rooms
+      // over (arch/PLAYER_CARD.md). The card holds no connection of its own.
+      if (window.lioCard) {
+        window.lioCard.wire(function (obj) {
+          try {
+            if (sock && sock.readyState === WebSocket.OPEN) {
+              sock.send(JSON.stringify(obj));
+              return true;
+            }
+          } catch (e) { /* ignore */ }
+          return false;
+        });
+      }
+    };
     sock.onmessage = function (evt) {
       let msg;
       try { msg = JSON.parse(evt.data); } catch (e) { return; }
@@ -942,9 +958,14 @@
       if (msg.t === "si" && msg.d && msg.d.v && window.lioUpdateNotice) {
         window.lioUpdateNotice(msg.d.v);
       }
+      // a room the hover card asked to watch, addressed to this connection
+      if (msg.t === "wg" && window.lioCard) {
+        window.lioCard.live(msg.d || {});
+      }
     };
     sock.onclose = function () {
       sock = null;
+      if (window.lioCard) window.lioCard.wire(null);
       if (stopped) return;
       attempts++;
       const ceil = Math.min(reconnectCapMs, reconnectBaseMs * Math.pow(2, attempts));
