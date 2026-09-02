@@ -28,22 +28,24 @@ github.com/dustin/go-humanize
 # github.com/fasthttp/websocket v1.5.12
 ## explicit; go 1.21
 github.com/fasthttp/websocket
-# github.com/fxamacker/cbor/v2 v2.9.2
+# github.com/fxamacker/cbor/v2 v2.9.3
 ## explicit; go 1.20
 github.com/fxamacker/cbor/v2
 # github.com/go-viper/mapstructure/v2 v2.5.0
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
 github.com/go-viper/mapstructure/v2/internal/errors
-# github.com/go-webauthn/webauthn v0.17.4
+# github.com/go-webauthn/webauthn v0.18.0
 ## explicit; go 1.25.0
 github.com/go-webauthn/webauthn/metadata
 github.com/go-webauthn/webauthn/protocol
 github.com/go-webauthn/webauthn/protocol/webauthncbor
 github.com/go-webauthn/webauthn/protocol/webauthncose
 github.com/go-webauthn/webauthn/webauthn
-# github.com/go-webauthn/x v0.2.6
+# github.com/go-webauthn/x v0.3.0
 ## explicit; go 1.25.0
+github.com/go-webauthn/x/crypto/secp256k1
+github.com/go-webauthn/x/crypto/secp256k1/ecdsa
 github.com/go-webauthn/x/encoding/asn1
 github.com/go-webauthn/x/revoke
 # github.com/gofiber/contrib/v3/websocket v1.2.2
@@ -267,10 +269,10 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# go.yaml.in/yaml/v3 v3.0.4
+# go.yaml.in/yaml/v3 v3.0.5
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.54.0
+# golang.org/x/crypto v0.55.0
 ## explicit; go 1.25.0
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
@@ -304,7 +306,7 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.40.0
+# golang.org/x/text v0.41.0
 ## explicit; go 1.25.0
 golang.org/x/text/cases
 golang.org/x/text/encoding
