@@ -15,7 +15,7 @@ import (
 // Release the URI with ReleaseURI after the URI is no longer needed.
 // This allows reducing GC load.
 func AcquireURI() *URI {
-	return uriPool.Get().(*URI)
+	return uriPool.Get().(*URI) //nolint:forcetypeassert
 }
 
 // ReleaseURI releases the URI acquired via AcquireURI.
@@ -268,7 +268,7 @@ func (u *URI) SetHostBytes(host []byte) {
 	lowercaseBytes(u.host)
 }
 
-var ErrorInvalidURI = errors.New("invalid uri")
+var ErrorInvalidURI = errors.New("fasthttp: invalid uri")
 
 // Parse initializes URI from the given host and uri.
 //
@@ -446,7 +446,7 @@ func parseHost(host []byte) ([]byte, error) {
 			return append(host1, append(host2, host3...)...), nil
 		}
 	} else {
-		if bytes.ContainsAny(host, "[]") {
+		if bytes.IndexByte(host, '[') >= 0 || bytes.IndexByte(host, ']') >= 0 {
 			return nil, fmt.Errorf("invalid host %q", host)
 		}
 
@@ -482,7 +482,7 @@ const (
 type EscapeError string
 
 func (e EscapeError) Error() string {
-	return "invalid URL escape " + strconv.Quote(string(e))
+	return "invalid url escape " + strconv.Quote(string(e))
 }
 
 type InvalidHostError string
@@ -641,8 +641,13 @@ func normalizePath(dst, src []byte) []byte {
 	}
 	dst = dst[:bSize]
 
-	// remove /./ parts
+	// No '.' means no "/./", "/../" or "/.." to remove.
 	b = dst
+	if bytes.IndexByte(b, '.') < 0 {
+		return b
+	}
+
+	// remove /./ parts
 	for {
 		n := bytes.Index(b, strSlashDotSlash)
 		if n < 0 {

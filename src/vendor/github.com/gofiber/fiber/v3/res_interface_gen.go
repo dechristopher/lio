@@ -15,6 +15,8 @@ type Res interface {
 	App() *App
 	// Append the specified value to the HTTP response header field.
 	// If the header is not already set, it creates the header with the specified value.
+	// Empty values are skipped: a sender must not generate empty list elements
+	// (RFC 9110 Section 5.6.1.2).
 	Append(field string, values ...string)
 	// Attachment sets the HTTP response Content-Disposition header field to attachment.
 	Attachment(filename ...string)
@@ -25,6 +27,11 @@ type Res interface {
 	// a cancellation signal, and other values across API boundaries.
 	RequestCtx() *fasthttp.RequestCtx
 	// Cookie sets a cookie by passing a cookie struct.
+	//
+	// The argument is treated as read-only: the normalization this method applies
+	// (default Path, SessionOnly, and the Secure implied by SameSite=None or
+	// Partitioned) happens on a local copy, so a caller may reuse the same *Cookie
+	// template across requests.
 	Cookie(cookie *Cookie)
 	// Download transfers the file from path as an attachment.
 	// Typically, browsers will prompt the user for download.
@@ -79,6 +86,12 @@ type Res interface {
 	// JSONP sends a JSON response with JSONP support.
 	// This method is identical to JSON, except that it opts-in to JSONP callback support.
 	// By default, the callback name is simply callback.
+	//
+	// The callback name is reduced to a JavaScript member expression: everything
+	// outside [A-Za-z0-9_$.[]] is dropped. Callers routinely take the name straight
+	// from the query string, which is what JSONP is for, and the name lands
+	// verbatim in a same-origin text/javascript body — so an unfiltered one would
+	// let a request supply arbitrary script for the app's own origin.
 	JSONP(data any, callback ...string) error
 	// XML converts any interface or string to XML.
 	// This method also sets the content header to application/xml; charset=utf-8.
@@ -147,6 +160,8 @@ type Res interface {
 	Type(extension string, charset ...string) Ctx
 	// Vary adds the given header field to the Vary response header.
 	// This will append the header, if not already listed; otherwise, leaves it listed in the current location.
+	// Per RFC 9110 Section 12.5.5 the wildcard "*" only has meaning as the sole member of the field:
+	// once "*" is added (or already present), the header is collapsed to a single "*".
 	Vary(fields ...string)
 	// Write appends p into response body.
 	Write(p []byte) (int, error)

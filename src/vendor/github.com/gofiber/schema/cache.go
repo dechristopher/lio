@@ -19,6 +19,15 @@ import (
 
 const maxParserIndex = 1000
 
+// maxDirectKeyLen bounds the stack buffer used to case-fold keys probed
+// against the direct-path map; longer keys take the generic path.
+const maxDirectKeyLen = 64
+
+// maxDirectPaths caps the nested entries precomputed per struct type: deep
+// fan-out nesting multiplies dotted chains, and without a cap build time and
+// retained memory grow exponentially. Excess keys use the generic parser.
+const maxDirectPaths = 512
+
 var (
 	errInvalidPath   = errors.New("schema: invalid path")
 	errIndexTooLarge = errors.New("schema: index exceeds parser limit")
@@ -88,6 +97,39 @@ func (c *cache) parsePath(p string, t reflect.Type) ([]pathPart, error) {
 // parsed-path cache lives on that structInfo, keyed by the plain path
 // string, which hashes much cheaper than a composite key.
 func (c *cache) parsePathInfo(p string, rootInfo *structInfo) ([]pathPart, error) {
+	// Fast path: probe the precomputed direct-path map with the raw key
+	// (keys are usually already lowercase); on a miss, case-fold the key
+	// word-at-a-time (SWAR) into a stack buffer and probe once more.
+	if len(rootInfo.direct) > 0 {
+		if parts, ok := rootInfo.direct[p]; ok {
+			return parts, nil
+		}
+		if n := len(p); n <= maxDirectKeyLen {
+			var buf [maxDirectKeyLen]byte
+			changed := false
+			i := 0
+			for ; i+swar.WordLen <= n; i += swar.WordLen {
+				w := swar.Load8(p, i)
+				lw := swar.ToLowerWord(w)
+				changed = changed || lw != w
+				swar.Store8(buf[:], i, lw)
+			}
+			for ; i < n; i++ {
+				ch := p[i]
+				if ch >= 'A' && ch <= 'Z' {
+					ch += 'a' - 'A'
+					changed = true
+				}
+				buf[i] = ch
+			}
+			if changed {
+				if parts, ok := rootInfo.direct[string(buf[:n])]; ok {
+					return parts, nil
+				}
+			}
+		}
+	}
+
 	if cached, ok := rootInfo.paths.Load(p); ok {
 		return cached.([]pathPart), nil
 	}
@@ -298,11 +340,69 @@ func (c *cache) create(t reflect.Type, parentAlias string) *structInfo {
 		}
 	}
 	info.requiredFields = c.buildRequiredFields(info)
+	info.direct = c.buildDirectPaths(info)
 	// The setDefaults walk also allocates nil anonymous embedded pointers,
 	// so it can only be skipped when neither defaults nor such pointers
 	// exist anywhere in the tree.
 	info.needsDefaultsWalk = c.needsDefaultsWalk(t, tag, map[reflect.Type]bool{})
 	return info
+}
+
+// buildDirectPaths precomputes, keyed by lowercase path, the parsed paths for
+// every key resolvable without runtime state: flat aliases plus dotted chains
+// through non-pointer nested struct fields.
+func (c *cache) buildDirectPaths(info *structInfo) map[string][]pathPart {
+	direct := make(map[string][]pathPart, len(info.fieldsByName))
+	// Flat aliases first (linear in field count) so the cap below can never
+	// crowd them out; iterate fields in declaration order, honoring
+	// fieldsByName's first-wins rule.
+	for _, f := range info.fields {
+		if !directEligible(info, f) {
+			continue
+		}
+		direct[f.aliasLower] = []pathPart{{
+			hops:  []pathHop{{index: f.index, ensure: info.anonymousPtrFields}},
+			field: f,
+			index: -1,
+		}}
+	}
+	for _, f := range info.fields {
+		if len(direct) >= maxDirectPaths {
+			break
+		}
+		if !directEligible(info, f) || f.typ.Kind() != reflect.Struct {
+			continue
+		}
+		// Non-pointer struct nesting cannot recurse (the type would be
+		// illegal), so the child's info is always buildable here.
+		hop := pathHop{index: f.index, ensure: info.anonymousPtrFields}
+		for childKey, childParts := range c.get(f.typ).direct {
+			if len(direct) >= maxDirectPaths {
+				break
+			}
+			cp := childParts[0]
+			hops := make([]pathHop, 0, len(cp.hops)+1)
+			hops = append(hops, hop)
+			hops = append(hops, cp.hops...)
+			direct[f.aliasLower+"."+childKey] = []pathPart{{
+				hops:  hops,
+				field: cp.field,
+				index: -1,
+			}}
+		}
+	}
+	return direct
+}
+
+// directEligible reports whether f can serve as a direct-path terminal: it is
+// its alias's first-wins winner, the alias has no dot, and a bare alias is a
+// valid path (slice-of-structs fields require a following slice index).
+func directEligible(info *structInfo, f *fieldInfo) bool {
+	if info.fieldsByName[f.aliasLower] != f || strings.IndexByte(f.aliasLower, '.') >= 0 {
+		return false
+	}
+	needsIndex := f.isSliceOfStructs && !f.isMultipart && (!f.unmarshalerInfo.IsValid || f.unmarshalerInfo.IsSliceElement)
+	return !needsIndex
 }
 
 // needsDefaultsWalk reports whether the setDefaults walk can have any effect
@@ -390,8 +490,18 @@ func (c *cache) createField(field reflect.StructField, parentAlias, tag string) 
 		elemU = isTextUnmarshaler(reflect.Zero(ft))
 	}
 
+	// Non-pointer builtin scalars without unmarshalers or custom converters
+	// can skip decode's dispatch entirely; converter registration resets the
+	// cache, so this build-time decision stays valid.
+	fastKind := reflect.Invalid
+	if k := field.Type.Kind(); k != reflect.Ptr && !m.IsValid &&
+		getBuiltinConverter(k) != nil && c.converter(field.Type) == nil {
+		fastKind = k
+	}
+
 	return &fieldInfo{
 		typ:              field.Type,
+		fastKind:         fastKind,
 		name:             field.Name,
 		alias:            alias,
 		aliasLower:       utilstrings.ToLower(alias),
@@ -423,6 +533,9 @@ type structInfo struct {
 	fieldsByName       map[string]*fieldInfo
 	anonymousPtrFields []int
 	requiredFields     map[string][]fieldWithPrefix
+	// direct maps lowercase statically-resolvable keys to their precomputed
+	// parsed paths; built once and immutable, see buildDirectPaths.
+	direct map[string][]pathPart
 	// paths caches parsed paths rooted at this struct type
 	// (map[string][]pathPart); keys are cloned so they never alias reused
 	// request buffers.
@@ -478,6 +591,9 @@ func containsAlias(infos []*structInfo, alias string) bool {
 
 type fieldInfo struct {
 	typ reflect.Type
+	// fastKind is the field's builtin scalar kind when decode can set it
+	// directly (no pointer, unmarshaler, or custom converter); else Invalid.
+	fastKind reflect.Kind
 	// index is the field index chain relative to the struct type whose
 	// structInfo holds this fieldInfo; promoted fields carry the full chain
 	// through the embedded structs (a copy is made per promotion level).

@@ -22,7 +22,7 @@ var errNoCertOrKeyProvided = errors.New("cert or key has not provided")
 // ErrAlreadyServing is deprecated.
 //
 // Deprecated: ErrAlreadyServing is never returned from Serve. See issue #633.
-var ErrAlreadyServing = errors.New("Server is already serving connections")
+var ErrAlreadyServing = errors.New("fasthttp: server is already serving connections")
 
 // ServeConn serves HTTP requests from the given connection
 // using the given handler.
@@ -39,7 +39,7 @@ func ServeConn(c net.Conn, handler RequestHandler) error {
 	if v == nil {
 		v = &Server{}
 	}
-	s := v.(*Server)
+	s := v.(*Server) //nolint:forcetypeassert
 	s.Handler = handler
 	err := s.ServeConn(c)
 	s.Handler = nil
@@ -836,7 +836,7 @@ func (ctx *RequestCtx) RemoveUserValueBytes(key []byte) {
 	ctx.Request.RemoveUserValueBytes(key)
 }
 
-type connTLSer interface {
+type tlsConn interface {
 	Handshake() error
 	ConnectionState() tls.ConnectionState
 }
@@ -845,7 +845,7 @@ type connTLSer interface {
 //
 // tls.Conn is an encrypted connection (aka SSL, HTTPS).
 func (ctx *RequestCtx) IsTLS() bool {
-	// cast to (connTLSer) instead of (*tls.Conn), since it catches
+	// cast to (tlsConn) instead of (*tls.Conn), since it catches
 	// cases with overridden tls.Conn such as:
 	//
 	// type customConn struct {
@@ -856,11 +856,11 @@ func (ctx *RequestCtx) IsTLS() bool {
 
 	// perIPConn wraps the net.Conn in the Conn field
 	if pic, ok := ctx.c.(*perIPConn); ok {
-		_, ok := pic.Conn.(connTLSer)
+		_, ok := pic.Conn.(tlsConn)
 		return ok
 	}
 
-	_, ok := ctx.c.(connTLSer)
+	_, ok := ctx.c.(tlsConn)
 	return ok
 }
 
@@ -871,11 +871,11 @@ func (ctx *RequestCtx) IsTLS() bool {
 // The returned state may be used for verifying TLS version, client certificates,
 // etc.
 func (ctx *RequestCtx) TLSConnectionState() *tls.ConnectionState {
-	tlsConn, ok := ctx.c.(connTLSer)
+	tc, ok := ctx.c.(tlsConn)
 	if !ok {
 		return nil
 	}
-	state := tlsConn.ConnectionState()
+	state := tc.ConnectionState()
 	return &state
 }
 
@@ -1156,7 +1156,7 @@ func (ctx *RequestCtx) FormFile(key string) (*multipart.FileHeader, error) {
 
 // ErrMissingFile may be returned from FormFile when the is no uploaded file
 // associated with the given multipart form key.
-var ErrMissingFile = errors.New("there is no uploaded file associated with the given key")
+var ErrMissingFile = errors.New("fasthttp: there is no uploaded file associated with the given key")
 
 // SaveMultipartFile saves multipart file fh under the given filename path.
 //
@@ -1190,6 +1190,7 @@ func SaveMultipartFile(fh *multipart.FileHeader, path string) (err error) {
 		if f, err = fh.Open(); err != nil {
 			return err
 		}
+		defer os.Remove(ff.Name())
 	}
 
 	defer func() {
@@ -1722,7 +1723,7 @@ func (s *Server) NextProto(key string, nph ServeHandler) {
 }
 
 func (s *Server) getNextProto(c net.Conn) (string, error) {
-	if tlsConn, ok := c.(connTLSer); ok {
+	if tc, ok := c.(tlsConn); ok {
 		if s.ReadTimeout > 0 {
 			if err := c.SetReadDeadline(time.Now().Add(s.ReadTimeout)); err != nil {
 				return "", err
@@ -1735,9 +1736,9 @@ func (s *Server) getNextProto(c net.Conn) (string, error) {
 			}
 		}
 
-		err := tlsConn.Handshake()
+		err := tc.Handshake()
 		if err == nil {
-			return tlsConn.ConnectionState().NegotiatedProtocol, nil
+			return tc.ConnectionState().NegotiatedProtocol, nil
 		}
 	}
 	return "", nil
@@ -1909,7 +1910,7 @@ func loadX509KeyPair(certFile, keyFile string) (tls.Certificate, error) {
 
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("cannot load TLS key pair from certFile=%q and keyFile=%q: %w", certFile, keyFile, err)
+		return tls.Certificate{}, fmt.Errorf("cannot load tls key pair from cert file=%q and key file=%q: %w", certFile, keyFile, err)
 	}
 	return cert, nil
 }
@@ -1935,7 +1936,7 @@ func x509KeyPair(certData, keyData []byte) (tls.Certificate, error) {
 
 	cert, err := tls.X509KeyPair(certData, keyData)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("cannot load TLS key pair from the provided certData(%d) and keyData(%d): %w",
+		return tls.Certificate{}, fmt.Errorf("cannot load tls key pair from the provided cert data(%d) and key data(%d): %w",
 			len(certData), len(keyData), err)
 	}
 	return cert, nil
@@ -2097,7 +2098,7 @@ func (s *Server) ShutdownWithContext(ctx context.Context) (err error) {
 	}
 }
 
-type connKeepAliveer interface {
+type keepAliveConn interface {
 	SetKeepAlive(keepalive bool) error
 	SetKeepAlivePeriod(d time.Duration) error
 	io.Closer
@@ -2119,7 +2120,7 @@ func acceptConn(s *Server, ln net.Listener, lastPerIPErrorTime *time.Time) (net.
 			return nil, io.EOF
 		}
 
-		if tc, ok := c.(connKeepAliveer); ok && s.TCPKeepalive {
+		if tc, ok := c.(keepAliveConn); ok && s.TCPKeepalive {
 			if err := tc.SetKeepAlive(s.TCPKeepalive); err != nil {
 				_ = tc.Close()
 				return nil, err
@@ -2175,11 +2176,12 @@ func (s *Server) logger() Logger {
 var (
 	// ErrPerIPConnLimit may be returned from ServeConn if the number of connections
 	// per ip exceeds Server.MaxConnsPerIP.
-	ErrPerIPConnLimit = errors.New("too many connections per ip")
+	ErrPerIPConnLimit = errors.New("fasthttp: too many connections per ip")
 
 	// ErrConcurrencyLimit may be returned from ServeConn if the number
 	// of concurrently served connections exceeds Server.Concurrency.
-	ErrConcurrencyLimit = errors.New("cannot serve the connection because Server.Concurrency concurrent connections are served")
+	ErrConcurrencyLimit = errors.New("fasthttp: cannot serve the connection because server.concurrency " +
+		"concurrent connections are served")
 )
 
 // ServeConn serves HTTP requests from the given connection.
@@ -2329,6 +2331,8 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 		return handler(c)
 	}
 
+	connTime := time.Now()
+
 	s.idleConnsMu.Lock()
 	if s.idleConns == nil {
 		s.idleConns = make(map[net.Conn]*atomic.Int64)
@@ -2339,20 +2343,19 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 		if v == nil {
 			v = &atomic.Int64{}
 		}
-		idleConnTime = v.(*atomic.Int64)
+		idleConnTime = v.(*atomic.Int64) //nolint:forcetypeassert
 		s.idleConns[c] = idleConnTime
 	}
 
 	// Count the connection as Idle after 5 seconds.
 	// Same as net/http.Server:
 	// https://github.com/golang/go/blob/85d7bab91d9a3ed1f76842e4328973ea75efef54/src/net/http/server.go#L2834-L2836
-	idleConnTime.Store(time.Now().Add(time.Second * 5).Unix())
+	idleConnTime.Store(connTime.Add(time.Second * 5).Unix())
 	s.idleConnsMu.Unlock()
 
 	serverName := s.getServerName()
 	connRequestNum := uint64(0)
 	connID := nextConnID()
-	connTime := time.Now()
 	maxRequestBodySize := s.MaxRequestBodySize
 	if maxRequestBodySize <= 0 {
 		maxRequestBodySize = DefaultMaxRequestBodySize
@@ -2722,7 +2725,7 @@ func (s *Server) serveConnCounted(c net.Conn, countConcurrency bool) error {
 			ctx.Request.bodyStream = nil
 		}
 
-		idleConnTime.Store(time.Now().Unix())
+		idleConnTime.Store(ctx.time.Unix())
 		s.setState(c, StateIdle)
 		ctx.Request.Reset()
 		ctx.Response.Reset()
@@ -2786,7 +2789,7 @@ func (s *Server) acquireHijackConn(r io.Reader, c net.Conn) *hijackConn {
 		}
 		return hjc
 	}
-	hjc := v.(*hijackConn)
+	hjc := v.(*hijackConn) //nolint:forcetypeassert
 	hjc.Conn = c
 	hjc.r = r
 	return hjc
@@ -2888,7 +2891,7 @@ func acquireReader(ctx *RequestCtx) *bufio.Reader {
 		}
 		return bufio.NewReaderSize(ctx.c, n)
 	}
-	r := v.(*bufio.Reader)
+	r := v.(*bufio.Reader) //nolint:forcetypeassert
 	r.Reset(ctx.c)
 	return r
 }
@@ -2906,7 +2909,7 @@ func acquireWriter(ctx *RequestCtx) *bufio.Writer {
 		}
 		return bufio.NewWriterSize(ctx.c, n)
 	}
-	w := v.(*bufio.Writer)
+	w := v.(*bufio.Writer) //nolint:forcetypeassert
 	w.Reset(ctx.c)
 	return w
 }
@@ -2925,7 +2928,7 @@ func (s *Server) acquireCtx(c net.Conn) (ctx *RequestCtx) {
 		ctx.Response.keepBodyBuffer = keepBodyBuffer
 		ctx.s = s
 	} else {
-		ctx = v.(*RequestCtx)
+		ctx = v.(*RequestCtx) //nolint:forcetypeassert
 	}
 	if s.FormValueFunc != nil {
 		ctx.formValueFunc = s.FormValueFunc
@@ -3089,7 +3092,7 @@ func (s *Server) writeFastError(w io.Writer, statusCode int, msg string) {
 	date := ""
 	if !s.NoDefaultDate {
 		serverDateOnce.Do(updateServerDate)
-		date = fmt.Sprintf("Date: %s\r\n", serverDate.Load())
+		date = fmt.Sprintf("Date: %s\r\n", *serverDate.Load())
 	}
 
 	fmt.Fprintf(w, "Connection: close\r\n"+

@@ -21,6 +21,13 @@ var errNotStruct = errors.New("schema: interface must be a struct")
 // would otherwise panic on the first map assignment.
 var errNilDst = errors.New("schema: dst map must not be nil")
 
+// maxScratchValueLen bounds values stored in encode's shared scratch array,
+// capping how much data a surviving dst entry can keep reachable after the
+// caller deletes neighboring keys. Only strings allocated by this package's
+// own formatters are eligible at all (see encField.scratchSafe), so the cap
+// bounds real bytes, not just headers.
+const maxScratchValueLen = 64
+
 // Encoder encodes values from a struct into url.Values.
 type Encoder struct {
 	cache  *cache
@@ -55,6 +62,10 @@ type encField struct {
 	// recurseStructPtr marks pointer-to-struct fields without a custom
 	// encoder: non-nil values are encoded by recursing into the element.
 	recurseStructPtr bool
+	// scratchSafe marks fields whose encoder output is allocated by this
+	// package (numeric/bool/float formatters), so it can never alias a large
+	// caller-owned buffer and may be batched in encode's shared scratch.
+	scratchSafe bool
 	isStruct         bool
 	// nilAsNull marks pointer fields whose element has no immediate
 	// encoder (structs recursed via recurseStructPtr, or unsupported
@@ -146,7 +157,8 @@ func (e *Encoder) structInfo(t reflect.Type) []encField {
 			recurseStructPtr: ft.Kind() == reflect.Ptr &&
 				ft.Elem().Kind() == reflect.Struct &&
 				!e.hasCustomEncoder(ft),
-			enc: typeEncoder(ft, e.regenc),
+			enc:         typeEncoder(ft, e.regenc),
+			scratchSafe: scratchSafeEncoder(ft, e.regenc),
 		}
 		if f.enc == nil {
 			switch ft.Kind() {
@@ -214,6 +226,30 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 	var errs MultiError
 
 	fields := e.structInfo(v.Type())
+	// When dst starts empty (fresh url.Values), single short package-allocated
+	// values of distinct keys share one backing array instead of allocating a
+	// 1-element slice each; the three-index slice caps entries so later
+	// appends cannot overwrite a neighbor. Caller-derived strings (string
+	// fields, custom encoders) and long values get their own independently
+	// collectible slice so a surviving entry cannot keep a deleted neighbor's
+	// allocation alive; a non-empty dst keeps the single-map-op append pattern.
+	useScratch := len(dst) == 0
+	var scratch []string
+	appendValue := func(name, s string, scratchSafe bool) {
+		if !useScratch || !scratchSafe || len(s) > maxScratchValueLen {
+			dst[name] = append(dst[name], s)
+			return
+		}
+		if old := dst[name]; old != nil {
+			dst[name] = append(old, s)
+			return
+		}
+		if scratch == nil {
+			scratch = make([]string, 0, len(fields))
+		}
+		scratch = append(scratch, s)
+		dst[name] = scratch[len(scratch)-1 : len(scratch) : len(scratch)]
+	}
 	for i := range fields {
 		f := &fields[i]
 		fieldValue := v.Field(f.idx)
@@ -231,7 +267,7 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 			if f.omitEmpty && isZero(fieldValue) {
 				continue
 			}
-			dst[f.name] = append(dst[f.name], f.enc(fieldValue))
+			appendValue(f.name, f.enc(fieldValue), f.scratchSafe)
 			continue
 		}
 
@@ -239,7 +275,8 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 			if f.omitEmpty {
 				continue
 			}
-			dst[f.name] = append(dst[f.name], "null")
+			// The "null" literal is static data; always scratch-safe.
+			appendValue(f.name, "null", true)
 			continue
 		}
 
@@ -310,6 +347,27 @@ func setError(m MultiError, key string, err error) MultiError {
 func (e *Encoder) hasCustomEncoder(t reflect.Type) bool {
 	_, exists := e.regenc[t]
 	return exists
+}
+
+// scratchSafeEncoder reports whether typeEncoder(t, reg)'s output strings are
+// always allocated by this package's own formatters: string fields return the
+// caller's string and custom encoders may return anything — either could be a
+// small substring aliasing a large buffer, so neither may enter the scratch.
+func scratchSafeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) bool {
+	if _, ok := reg[t]; ok {
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return true
+	case reflect.Ptr:
+		return scratchSafeEncoder(t.Elem(), reg)
+	default:
+		return false
+	}
 }
 
 func typeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) encoderFunc {
