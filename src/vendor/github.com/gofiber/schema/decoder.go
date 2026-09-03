@@ -488,6 +488,29 @@ func (d *Decoder) decode(v reflect.Value, path string, parts []pathPart, values 
 		return nil
 	}
 
+	// Fast path: plain builtin scalar fields skip the converter/unmarshaler
+	// dispatch below; fastKind was validated at cache-build time.
+	if k := parts[0].field.fastKind; k != reflect.Invalid && len(parts) == 1 && !parts[0].elem {
+		val := ""
+		if len(values) > 0 {
+			val = values[len(values)-1]
+		}
+		if val == "" {
+			if d.zeroEmpty {
+				v.SetZero()
+			}
+			return nil
+		}
+		if _, ok := setBuiltinKind(v, k, val); !ok {
+			return ConversionError{
+				Key:   path,
+				Type:  parts[0].field.typ,
+				Index: -1,
+			}
+		}
+		return nil
+	}
+
 	// Check multipart files
 	if parts[0].field.isMultipart && handleMultipartField(v, files) {
 		return nil
@@ -733,6 +756,25 @@ func (d *Decoder) decodeBuiltinSlice(v reflect.Value, t reflect.Type, path strin
 		n++
 	}
 
+	// Exact builtin slice types decode without per-element reflect calls;
+	// named slice or element types fall through to the generic path.
+	switch t {
+	case typSliceString:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeString)
+	case typSliceInt:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeInt)
+	case typSliceInt64:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeInt64)
+	case typSliceUint:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeUint)
+	case typSliceUint64:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeUint64)
+	case typSliceFloat64:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeFloat64)
+	case typSliceBool:
+		return decodeNativeSlice(d.zeroEmpty, v, path, values, elemT, n, split, parseNativeBool)
+	}
+
 	sl := reflect.MakeSlice(t, n, n)
 	i := 0
 	for key, value := range values {
@@ -773,6 +815,66 @@ func (d *Decoder) decodeBuiltinSlice(v reflect.Value, t reflect.Type, path strin
 		sl = sl.Slice(0, i)
 	}
 	v.Set(sl)
+	return nil
+}
+
+// Exact (unnamed) builtin slice types eligible for the native decode path.
+var (
+	typSliceString  = reflect.TypeOf([]string(nil))
+	typSliceInt     = reflect.TypeOf([]int(nil))
+	typSliceInt64   = reflect.TypeOf([]int64(nil))
+	typSliceUint    = reflect.TypeOf([]uint(nil))
+	typSliceUint64  = reflect.TypeOf([]uint64(nil))
+	typSliceFloat64 = reflect.TypeOf([]float64(nil))
+	typSliceBool    = reflect.TypeOf([]bool(nil))
+)
+
+// decodeNativeSlice mirrors the generic decodeBuiltinSlice loop for a field
+// typed exactly []T, parsing into a native slice assigned only if every value
+// parsed (all-or-nothing). n is the precomputed element upper bound.
+func decodeNativeSlice[T any](zeroEmpty bool, v reflect.Value, path string, values []string, elemT reflect.Type, n int, split bool, parse func(string) (T, bool)) error {
+	out := make([]T, 0, n)
+	var zero T
+	for key, value := range values {
+		switch {
+		case value == "":
+			if zeroEmpty {
+				out = append(out, zero)
+			}
+		case split && strings.IndexByte(value, ',') != -1:
+			for item := range strings.SplitSeq(value, ",") {
+				if item == "" {
+					if zeroEmpty {
+						out = append(out, zero)
+					}
+					continue
+				}
+				ev, ok := parse(item)
+				if !ok {
+					return ConversionError{
+						Key:   path,
+						Type:  elemT,
+						Index: key,
+					}
+				}
+				out = append(out, ev)
+			}
+		default:
+			ev, ok := parse(value)
+			if !ok {
+				return ConversionError{
+					Key:   path,
+					Type:  elemT,
+					Index: key,
+				}
+			}
+			out = append(out, ev)
+		}
+	}
+	// v's type is exactly []T here (the dispatch switch guarantees it), so
+	// assign through the typed pointer: no reflect.ValueOf escape, no Set
+	// assignability checks, and a loud panic if the invariant is ever broken.
+	*v.Addr().Interface().(*[]T) = out
 	return nil
 }
 

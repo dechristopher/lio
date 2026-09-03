@@ -3,10 +3,9 @@
 github.com/a-h/templ
 github.com/a-h/templ/runtime
 github.com/a-h/templ/safehtml
-# github.com/andybalholm/brotli v1.2.2
+# github.com/andybalholm/brotli v1.2.3
 ## explicit; go 1.22
 github.com/andybalholm/brotli
-github.com/andybalholm/brotli/flate
 github.com/andybalholm/brotli/matchfinder
 # github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 ## explicit
@@ -28,7 +27,7 @@ github.com/dustin/go-humanize
 # github.com/fasthttp/websocket v1.5.12
 ## explicit; go 1.21
 github.com/fasthttp/websocket
-# github.com/fxamacker/cbor/v2 v2.9.2
+# github.com/fxamacker/cbor/v2 v2.9.3
 ## explicit; go 1.20
 github.com/fxamacker/cbor/v2
 # github.com/go-viper/mapstructure/v2 v2.5.0
@@ -46,18 +45,21 @@ github.com/go-webauthn/webauthn/webauthn
 ## explicit; go 1.25.0
 github.com/go-webauthn/x/encoding/asn1
 github.com/go-webauthn/x/revoke
-# github.com/gofiber/contrib/v3/websocket v1.2.2
+# github.com/gofiber/contrib/v3/websocket v1.2.4
 ## explicit; go 1.25.0
 github.com/gofiber/contrib/v3/websocket
-# github.com/gofiber/fiber/v3 v3.4.0
+# github.com/gofiber/fiber/v3 v3.5.0
 ## explicit; go 1.25.0
 github.com/gofiber/fiber/v3
 github.com/gofiber/fiber/v3/binder
 github.com/gofiber/fiber/v3/internal/contextvalue
+github.com/gofiber/fiber/v3/internal/fieldname
 github.com/gofiber/fiber/v3/internal/logtemplate
+github.com/gofiber/fiber/v3/internal/mediatype
 github.com/gofiber/fiber/v3/internal/memory
 github.com/gofiber/fiber/v3/internal/nilerror
 github.com/gofiber/fiber/v3/internal/schemehost
+github.com/gofiber/fiber/v3/internal/urlnorm
 github.com/gofiber/fiber/v3/log
 github.com/gofiber/fiber/v3/middleware/compress
 github.com/gofiber/fiber/v3/middleware/cors
@@ -68,15 +70,16 @@ github.com/gofiber/fiber/v3/middleware/logger
 github.com/gofiber/fiber/v3/middleware/recover
 github.com/gofiber/fiber/v3/middleware/requestid
 github.com/gofiber/fiber/v3/middleware/static
-# github.com/gofiber/schema v1.8.3
+# github.com/gofiber/schema v1.8.5
 ## explicit; go 1.25.0
 github.com/gofiber/schema
-# github.com/gofiber/utils/v2 v2.2.0
+# github.com/gofiber/utils/v2 v2.4.3
 ## explicit; go 1.25.0
 github.com/gofiber/utils/v2
 github.com/gofiber/utils/v2/bytes
 github.com/gofiber/utils/v2/internal/caseconv
 github.com/gofiber/utils/v2/internal/unsafeconv
+github.com/gofiber/utils/v2/simd
 github.com/gofiber/utils/v2/strings
 github.com/gofiber/utils/v2/swar
 # github.com/golang-jwt/jwt/v5 v5.3.1
@@ -119,8 +122,8 @@ github.com/jackc/puddle/v2/internal/genstack
 # github.com/joho/godotenv v1.5.1
 ## explicit; go 1.12
 github.com/joho/godotenv
-# github.com/klauspost/compress v1.19.1
-## explicit; go 1.24
+# github.com/klauspost/compress v1.20.0
+## explicit; go 1.25
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/fse
@@ -129,6 +132,7 @@ github.com/klauspost/compress/huff0
 github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/le
 github.com/klauspost/compress/internal/race
+github.com/klauspost/compress/internal/regmask
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/s2
 github.com/klauspost/compress/zlib
@@ -148,7 +152,7 @@ github.com/looplab/fsm
 # github.com/mattn/go-colorable v0.1.15
 ## explicit; go 1.18
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.23
+# github.com/mattn/go-isatty v0.0.24
 ## explicit; go 1.20
 github.com/mattn/go-isatty
 # github.com/mfridman/interpolate v0.0.2
@@ -242,7 +246,7 @@ github.com/tinylib/msgp/msgp/setof
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fasthttp v1.72.0
+# github.com/valyala/fasthttp v1.73.0
 ## explicit; go 1.25.0
 github.com/valyala/fasthttp
 github.com/valyala/fasthttp/fasthttpadaptor
@@ -267,10 +271,10 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# go.yaml.in/yaml/v3 v3.0.4
+# go.yaml.in/yaml/v3 v3.0.5
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.54.0
+# golang.org/x/crypto v0.55.0
 ## explicit; go 1.25.0
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
@@ -285,7 +289,7 @@ golang.org/x/image/font/opentype
 golang.org/x/image/font/sfnt
 golang.org/x/image/math/fixed
 golang.org/x/image/vector
-# golang.org/x/net v0.57.0
+# golang.org/x/net v0.58.0
 ## explicit; go 1.25.0
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -304,7 +308,7 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.40.0
+# golang.org/x/text v0.41.0
 ## explicit; go 1.25.0
 golang.org/x/text/cases
 golang.org/x/text/encoding
