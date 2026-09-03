@@ -44,6 +44,22 @@ const (
 // reslice pins the length so the constant-index reads are bounds-check free,
 // and the compiler fuses them into a single 8-byte load on little-endian
 // targets (verified for both the string and []byte instantiations).
+//
+// The reslice itself is still checked, against the backing array's
+// capacity, which a loop condition written in terms of len does not imply.
+// A loop that loads several words per iteration should therefore pin the
+// whole group once and index into it with constants rather than call Load8
+// at a variable offset each time:
+//
+//	for ; i+4*WordLen <= n; i += 4 * WordLen {
+//		w := b[i : i+4*WordLen : i+4*WordLen]
+//		acc := Load8(w, 0) | Load8(w, WordLen) | Load8(w, 2*WordLen) | Load8(w, 3*WordLen)
+//		// ...
+//	}
+//
+// That moves four checks and their empty-slice pointer clamps down to one
+// per group; on []byte the three-index form pins the capacity too and
+// removes the rest. It is worth 20-60% on the word loops in package simd.
 func Load8[S ~string | ~[]byte](s S, i int) uint64 {
 	w := s[i : i+8]
 	return uint64(w[0]) |
@@ -94,11 +110,17 @@ func ToUpperWord(w uint64) uint64 {
 	return w &^ (MatchRangeMask(w, 'a', 'z') >> 2) // clear bit 5 on matched lanes
 }
 
-// ZeroLanes returns a mask whose lowest set lane is the lowest zero-byte
-// lane of x; higher lanes may carry false positives (borrows propagate
-// strictly upward from true zero lanes), and the mask is zero iff x has no
-// zero byte. It is two ops cheaper than MatchByteMask, which makes it the
-// right primitive for first-match scans, typically as
+// ZeroLanes returns a mask flagging the zero-byte lanes of x. Three
+// properties are part of the contract: the mask is zero iff x has no zero
+// byte; the lowest set lane is always the lowest true zero lane; and every
+// true zero lane has its high bit set — a 0x00 lane leaves the subtraction
+// as 0xFF or 0xFE regardless of borrow-in, and &^ x keeps its high bit —
+// so combining masks (OR for multi-needle scans, AND for pair scans, as
+// simd.Memchr2 and simd.MemchrPair's fallbacks do) never loses a true
+// match. Lanes above the first true zero may carry false positives
+// (borrows propagate strictly upward), so anything beyond the lowest set
+// lane must be re-verified. It is two ops cheaper than MatchByteMask,
+// which makes it the right primitive for first-match scans, typically as
 // ZeroLanes(w ^ Broadcast(c)) with the broadcast hoisted out of the word
 // loop. Use MatchByteMask when every lane must be exact.
 func ZeroLanes(x uint64) uint64 {
