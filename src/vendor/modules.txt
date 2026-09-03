@@ -3,10 +3,9 @@
 github.com/a-h/templ
 github.com/a-h/templ/runtime
 github.com/a-h/templ/safehtml
-# github.com/andybalholm/brotli v1.2.2
+# github.com/andybalholm/brotli v1.2.3
 ## explicit; go 1.22
 github.com/andybalholm/brotli
-github.com/andybalholm/brotli/flate
 github.com/andybalholm/brotli/matchfinder
 # github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 ## explicit
@@ -119,7 +118,7 @@ github.com/jackc/puddle/v2/internal/genstack
 # github.com/joho/godotenv v1.5.1
 ## explicit; go 1.12
 github.com/joho/godotenv
-# github.com/klauspost/compress v1.19.1
+# github.com/klauspost/compress v1.19.2
 ## explicit; go 1.24
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -148,7 +147,7 @@ github.com/looplab/fsm
 # github.com/mattn/go-colorable v0.1.15
 ## explicit; go 1.18
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.23
+# github.com/mattn/go-isatty v0.0.24
 ## explicit; go 1.20
 github.com/mattn/go-isatty
 # github.com/mfridman/interpolate v0.0.2
@@ -185,8 +184,8 @@ github.com/pquerna/otp
 github.com/pquerna/otp/hotp
 github.com/pquerna/otp/internal
 github.com/pquerna/otp/totp
-# github.com/pressly/goose/v3 v3.27.3
-## explicit; go 1.25.7
+# github.com/pressly/goose/v3 v3.28.0
+## explicit; go 1.26.0
 github.com/pressly/goose/v3
 github.com/pressly/goose/v3/database
 github.com/pressly/goose/v3/database/dialect
@@ -267,10 +266,10 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
-# go.yaml.in/yaml/v3 v3.0.4
+# go.yaml.in/yaml/v3 v3.0.5
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.54.0
+# golang.org/x/crypto v0.55.0
 ## explicit; go 1.25.0
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
@@ -285,7 +284,7 @@ golang.org/x/image/font/opentype
 golang.org/x/image/font/sfnt
 golang.org/x/image/math/fixed
 golang.org/x/image/vector
-# golang.org/x/net v0.57.0
+# golang.org/x/net v0.58.0
 ## explicit; go 1.25.0
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -304,7 +303,7 @@ golang.org/x/sync/semaphore
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.40.0
+# golang.org/x/text v0.41.0
 ## explicit; go 1.25.0
 golang.org/x/text/cases
 golang.org/x/text/encoding
