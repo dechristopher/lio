@@ -55,7 +55,7 @@ func AppendHTMLEscapeBytes(dst, s []byte) []byte {
 // and returns the extended dst.
 func AppendIPv4(dst []byte, ip net.IP) []byte {
 	ip = ip.To4()
-	if ip == nil {
+	if len(ip) != net.IPv4len {
 		return append(dst, "non-v4 ip passed to AppendIPv4"...)
 	}
 
@@ -85,15 +85,15 @@ func ParseIPv4(dst net.IP, ipStr []byte) (net.IP, error) {
 	b := ipStr
 	for i := range 3 {
 		n := bytes.IndexByte(b, '.')
-		if n < 0 {
-			return dst, fmt.Errorf("cannot find dot in ipStr %q", ipStr)
+		if uint(n) >= uint(len(b)) {
+			return dst, fmt.Errorf("cannot find dot in ip string %q", ipStr)
 		}
 		octet, parsed, err := parseIPv4Octet(b[:n])
 		if err != nil {
 			if errors.Is(err, errIPv4PartTooLarge) {
-				return dst, fmt.Errorf("cannot parse ipStr %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
+				return dst, fmt.Errorf("cannot parse ip string %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
 			}
-			return dst, fmt.Errorf("cannot parse ipStr %q: %w", ipStr, err)
+			return dst, fmt.Errorf("cannot parse ip string %q: %w", ipStr, err)
 		}
 		dst[i] = octet
 		b = b[n+1:]
@@ -101,9 +101,9 @@ func ParseIPv4(dst net.IP, ipStr []byte) (net.IP, error) {
 	octet, parsed, err := parseIPv4Octet(b)
 	if err != nil {
 		if errors.Is(err, errIPv4PartTooLarge) {
-			return dst, fmt.Errorf("cannot parse ipStr %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
+			return dst, fmt.Errorf("cannot parse ip string %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
 		}
-		return dst, fmt.Errorf("cannot parse ipStr %q: %w", ipStr, err)
+		return dst, fmt.Errorf("cannot parse ip string %q: %w", ipStr, err)
 	}
 	dst[3] = octet
 
@@ -269,8 +269,8 @@ func ParseUint(buf []byte) (int, error) {
 var (
 	errEmptyInt               = errors.New("empty integer")
 	errIPv4PartTooLarge       = errors.New("ip part cannot exceed 255")
-	errUnexpectedFirstChar    = errors.New("unexpected first char found. Expecting 0-9")
-	errUnexpectedTrailingChar = errors.New("unexpected trailing char found. Expecting 0-9")
+	errUnexpectedFirstChar    = errors.New("unexpected first char found: expecting 0-9")
+	errUnexpectedTrailingChar = errors.New("unexpected trailing char found: expecting 0-9")
 	errTooLongInt             = errors.New("too long int")
 )
 
@@ -386,7 +386,7 @@ func writeHexInt(w *bufio.Writer, n int) error {
 	if v == nil {
 		v = make([]byte, maxHexIntChars+1)
 	}
-	buf := v.([]byte)
+	buf := v.([]byte) //nolint:forcetypeassert
 	i := len(buf) - 1
 	for {
 		buf[i] = lowerhex[n&0xf]

@@ -42,7 +42,7 @@ const (
 // The returned object may be returned back to the pool with ReleaseCookie.
 // This allows reducing GC load.
 func AcquireCookie() *Cookie {
-	return cookiePool.Get().(*Cookie)
+	return cookiePool.Get().(*Cookie) //nolint:forcetypeassert
 }
 
 // ReleaseCookie returns the Cookie object acquired with AcquireCookie back
@@ -376,8 +376,8 @@ func (c *Cookie) WriteTo(w io.Writer) (int64, error) {
 }
 
 var (
-	ErrNoCookies          = errors.New("no cookies found")
-	ErrInvalidCookieValue = errors.New("invalid cookie value")
+	ErrNoCookies          = errors.New("fasthttp: no cookies found")
+	ErrInvalidCookieValue = errors.New("fasthttp: invalid cookie value")
 )
 
 // Parse parses Set-Cookie header.
@@ -428,11 +428,17 @@ func (c *Cookie) ParseBytes(src []byte) error {
 
 			case 'd': // "domain"
 				if caseInsensitiveCompare(strCookieDomain, k) {
+					if !validCookieValue(v) {
+						return ErrInvalidCookieValue
+					}
 					c.domain = initHeaderValueBytes(c.domain, v)
 				}
 
 			case 'p': // "path"
 				if caseInsensitiveCompare(strCookiePath, k) {
+					if !validCookiePathValue(v) {
+						return ErrInvalidCookieValue
+					}
 					c.path = initHeaderValueBytes(c.path, v)
 				}
 
@@ -656,7 +662,32 @@ func decodeCookieArg(dst, src []byte, skipQuotes bool) []byte {
 }
 
 func validCookieValue(value []byte) bool {
-	return !bytes.ContainsAny(value, "\";\\")
+	for _, c := range value {
+		if c == '"' || c == ';' || c == '\\' {
+			return false
+		}
+	}
+	return true
+}
+
+// validCookiePathValue reports whether value is acceptable as a cookie Path.
+//
+// Unlike validCookieValue it permits '"' and '\', which are legal path
+// characters accepted by SetPath and net/http's Cookie.String. It rejects the
+// ';' attribute separator and every byte outside 0x20-0x7e, matching
+// net/http's validCookiePathByte. CR and LF are tolerated here because
+// initHeaderValueBytes strips them afterwards, the same as for the primary
+// cookie value.
+func validCookiePathValue(value []byte) bool {
+	for _, b := range value {
+		if b == '\r' || b == '\n' {
+			continue
+		}
+		if b < 0x20 || b >= 0x7f || b == ';' {
+			return false
+		}
+	}
+	return true
 }
 
 func trimCookieArgNoCopy(src []byte, skipQuotes bool) []byte {

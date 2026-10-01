@@ -4,6 +4,7 @@ import (
 	"mime/multipart"
 	"sync"
 
+	"github.com/gofiber/fiber/v3/internal/mediatype"
 	"github.com/gofiber/utils/v2"
 	"github.com/valyala/fasthttp"
 )
@@ -40,8 +41,16 @@ func (*FormBinding) Name() string {
 
 // Bind parses the request body and returns the result.
 func (b *FormBinding) Bind(req *fasthttp.Request, out any) error {
-	// Handle multipart form
-	if FilterFlags(utils.UnsafeString(req.Header.ContentType())) == MIMEMultipartForm {
+	// Callers reaching the binder directly skip Fiber's normalization, and
+	// comparing case-insensitively is not enough: PostArgs and MultipartForm match
+	// the media type and "boundary=" case-sensitively. Guarded — the fold writes.
+	if mediatype.IsForm(req.Header.ContentType()) {
+		mediatype.NormalizeRequestContentType(&req.Header)
+	}
+
+	// Handle multipart form. Media types are case-insensitive
+	// (RFC 9110 Section 8.3.1), so compare accordingly.
+	if utils.EqualFold(FilterFlags(utils.UnsafeString(req.Header.ContentType())), MIMEMultipartForm) {
 		return b.bindMultipart(req, out)
 	}
 
