@@ -7,12 +7,10 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"os"
 	pathpkg "path"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -137,22 +135,46 @@ func (r *DefaultRes) App() *App {
 
 // Append the specified value to the HTTP response header field.
 // If the header is not already set, it creates the header with the specified value.
+// Empty values are skipped: a sender must not generate empty list elements
+// (RFC 9110 Section 5.6.1.2).
 func (r *DefaultRes) Append(field string, values ...string) {
 	if len(values) == 0 {
 		return
 	}
-	h := r.c.app.toString(r.c.fasthttp.Response.Header.Peek(field))
+	// Consider all existing field lines combined (RFC 9110 Section 5.2) so
+	// the dedup check sees members added on later lines via Header.Add.
+	existing, multiLine := peekJoinedResponseHeader(&r.c.fasthttp.Response.Header, field)
+	updated := appendUniqueValues(utils.UnsafeString(existing), values)
+	if updated == "" {
+		return
+	}
+	if multiLine {
+		// Set only rewrites the first field line; drop the extras that are
+		// now folded into the combined value.
+		r.c.fasthttp.Response.Header.Del(field)
+	}
+	r.Set(field, updated)
+}
+
+// appendUniqueValues returns h extended with the non-empty values that are
+// not already listed in it, or "" when nothing was added (h only ever grows,
+// so a changed result is never empty).
+func appendUniqueValues(h string, values []string) string {
 	originalH := h
 	for _, value := range values {
+		if value == "" {
+			continue
+		}
 		if h == "" {
 			h = value
 		} else if !headerContainsValue(h, value) {
 			h += ", " + value
 		}
 	}
-	if originalH != h {
-		r.Set(field, h)
+	if originalH == h {
+		return ""
 	}
+	return h
 }
 
 // headerContainsValue checks if a header value already contains the given value
@@ -203,6 +225,51 @@ func fallbackFilenameIfInvalid(filename string) string {
 	return filename
 }
 
+// isExtValueAttrChar reports whether c is an attr-char per RFC 8187 §3.2:
+// ALPHA / DIGIT / "!" / "#" / "$" / "&" / "+" / "-" / "." / "^" / "_" /
+// "`" / "|" / "~". Every other byte of an ext-value must be pct-encoded.
+func isExtValueAttrChar(c byte) bool {
+	switch {
+	case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		return true
+	}
+	switch c {
+	case '!', '#', '$', '&', '+', '-', '.', '^', '_', '`', '|', '~':
+		return true
+	default:
+		return false
+	}
+}
+
+// encodeExtValue percent-encodes s as the value-chars of an RFC 8187
+// ext-value. URL path/query escaping is not sufficient here: it leaves
+// bytes such as ':', '=', and '@' bare, which the ext-value grammar forbids.
+func encodeExtValue(s string) string {
+	const hex = "0123456789ABCDEF"
+	b := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if isExtValueAttrChar(c) {
+			b = append(b, c)
+		} else {
+			b = append(b, '%', hex[c>>4], hex[c&0x0F])
+		}
+	}
+	return string(b)
+}
+
+// contentDispositionAttachment builds an RFC 6266 Content-Disposition value
+// for a sanitized filename: the filename parameter is a quoted-string with
+// RFC 9110 §5.6.4 escaping, and non-ASCII names additionally carry an
+// RFC 8187 filename* ext-value for interoperability.
+func contentDispositionAttachment(app *App, fname string) string {
+	disp := `attachment; filename="` + app.quoteRawString(fname) + `"`
+	if !utils.IsASCII(fname) {
+		disp += `; filename*=UTF-8''` + encodeExtValue(fname)
+	}
+	return disp
+}
+
 // Attachment sets the HTTP response Content-Disposition header field to attachment.
 func (r *DefaultRes) Attachment(filename ...string) {
 	if len(filename) > 0 {
@@ -210,18 +277,7 @@ func (r *DefaultRes) Attachment(filename ...string) {
 		fname = sanitizeFilename(fname)
 		fname = fallbackFilenameIfInvalid(fname)
 		r.Type(filepath.Ext(fname))
-		app := r.c.app
-		var quoted string
-		if app.isASCII(fname) {
-			quoted = app.quoteString(fname)
-		} else {
-			quoted = app.quoteRawString(fname)
-		}
-		disp := `attachment; filename="` + quoted + `"`
-		if !app.isASCII(fname) {
-			disp += `; filename*=UTF-8''` + url.PathEscape(fname)
-		}
-		r.setCanonical(HeaderContentDisposition, disp)
+		r.setCanonical(HeaderContentDisposition, contentDispositionAttachment(r.c.app, fname))
 		return
 	}
 	r.setCanonical(HeaderContentDisposition, "attachment")
@@ -250,50 +306,57 @@ func (r *DefaultRes) RequestCtx() *fasthttp.RequestCtx {
 }
 
 // Cookie sets a cookie by passing a cookie struct.
+//
+// The argument is treated as read-only: the normalization this method applies
+// (default Path, SessionOnly, and the Secure implied by SameSite=None or
+// Partitioned) happens on a local copy, so a caller may reuse the same *Cookie
+// template across requests.
 func (r *DefaultRes) Cookie(cookie *Cookie) {
-	if cookie.Path == "" {
-		cookie.Path = "/"
+	c := *cookie
+
+	if c.Path == "" {
+		c.Path = "/"
 	}
 
-	if cookie.SessionOnly {
-		cookie.MaxAge = 0
-		cookie.Expires = time.Time{}
+	if c.SessionOnly {
+		c.MaxAge = 0
+		c.Expires = time.Time{}
 	}
 
 	var sameSite http.SameSite
 
 	switch {
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteStrictMode):
+	case utils.EqualFold(c.SameSite, CookieSameSiteStrictMode):
 		sameSite = http.SameSiteStrictMode
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteNoneMode):
+	case utils.EqualFold(c.SameSite, CookieSameSiteNoneMode):
 		sameSite = http.SameSiteNoneMode
 		// SameSite=None requires Secure=true per RFC and browser requirements
-		cookie.Secure = true
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteDisabled):
+		c.Secure = true
+	case utils.EqualFold(c.SameSite, CookieSameSiteDisabled):
 		sameSite = 0
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteLaxMode):
+	case utils.EqualFold(c.SameSite, CookieSameSiteLaxMode):
 		sameSite = http.SameSiteLaxMode
 	default:
 		sameSite = http.SameSiteLaxMode
 	}
 
 	// Partitioned requires Secure=true per CHIPS spec
-	if cookie.Partitioned {
-		cookie.Secure = true
+	if c.Partitioned {
+		c.Secure = true
 	}
 
 	// create/validate cookie using net/http
 	hc := &http.Cookie{ //nolint:gosec // G124: http.Cookie missing or has insecure Secure, HttpOnly, or SameSite attribute
-		Name:        cookie.Name,
-		Value:       cookie.Value,
-		Path:        cookie.Path,
-		Domain:      cookie.Domain,
-		Expires:     cookie.Expires,
-		MaxAge:      cookie.MaxAge,
-		Secure:      cookie.Secure,
-		HttpOnly:    cookie.HTTPOnly,
+		Name:        c.Name,
+		Value:       c.Value,
+		Path:        c.Path,
+		Domain:      c.Domain,
+		Expires:     c.Expires,
+		MaxAge:      c.MaxAge,
+		Secure:      c.Secure,
+		HttpOnly:    c.HTTPOnly,
 		SameSite:    sameSite,
-		Partitioned: cookie.Partitioned,
+		Partitioned: c.Partitioned,
 	}
 
 	if err := hc.Valid(); err != nil {
@@ -308,7 +371,7 @@ func (r *DefaultRes) Cookie(cookie *Cookie) {
 	fcookie.SetPath(hc.Path)
 	fcookie.SetDomain(hc.Domain)
 
-	if !cookie.SessionOnly {
+	if !c.SessionOnly {
 		fcookie.SetMaxAge(hc.MaxAge)
 		fcookie.SetExpire(hc.Expires)
 	}
@@ -347,18 +410,7 @@ func (r *DefaultRes) Download(file string, filename ...string) error {
 	}
 	fname = sanitizeFilename(fname)
 	fname = fallbackFilenameIfInvalid(fname)
-	app := r.c.app
-	var quoted string
-	if app.isASCII(fname) {
-		quoted = app.quoteString(fname)
-	} else {
-		quoted = app.quoteRawString(fname)
-	}
-	disp := `attachment; filename="` + quoted + `"`
-	if !app.isASCII(fname) {
-		disp += `; filename*=UTF-8''` + url.PathEscape(fname)
-	}
-	r.setCanonical(HeaderContentDisposition, disp)
+	r.setCanonical(HeaderContentDisposition, contentDispositionAttachment(r.c.app, fname))
 	return r.SendFile(file)
 }
 
@@ -368,6 +420,10 @@ func (r *DefaultRes) Download(file string, filename ...string) error {
 func (r *DefaultRes) Response() *fasthttp.Response {
 	return &r.c.fasthttp.Response
 }
+
+// formatDefaultMediaType is the sentinel MediaType marking a Format handler as
+// the fallback. It is not a media type and is never emitted as a Content-Type.
+const formatDefaultMediaType = "default"
 
 // Format performs content-negotiation on the Accept HTTP header.
 // It uses Accepts to select a proper format and calls the matching
@@ -388,8 +444,21 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 
 	r.Vary(HeaderAccept)
 
-	if r.c.DefaultReq.Get(HeaderAccept) == "" {
-		r.c.fasthttp.Response.Header.SetContentType(handlers[0].MediaType)
+	// Absent means the combined Accept view (RFC 9110 Section 5.2) is empty:
+	// no field line, or a single empty one. Checked on the raw lines to skip
+	// the join allocation that multi-line headers would pay.
+	accepts := r.c.fasthttp.Request.Header.PeekAll(HeaderAccept)
+	if len(accepts) == 0 || (len(accepts) == 1 && len(accepts[0]) == 0) {
+		// Without an Accept header the client accepts any media type
+		// (RFC 9110 Section 12.5.1), so pick the first non-default handler and
+		// use its media type. The literal "default" is not a media type and
+		// must not be emitted as a Content-Type value.
+		for _, h := range handlers {
+			if h.MediaType != formatDefaultMediaType {
+				r.c.fasthttp.Response.Header.SetContentType(h.MediaType)
+				return h.Handler(r.c)
+			}
+		}
 		return handlers[0].Handler(r.c)
 	}
 
@@ -400,7 +469,7 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 	types := make([]string, 0, 8)
 	var defaultHandler Handler
 	for _, h := range handlers {
-		if h.MediaType == "default" {
+		if h.MediaType == formatDefaultMediaType {
 			defaultHandler = h.Handler
 			continue
 		}
@@ -432,6 +501,10 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 // For more flexible content negotiation, use Format.
 // If the header is not specified or there is no proper format, text/plain is used.
 func (r *DefaultRes) AutoFormat(body any) error {
+	// The response is selected based on the Accept header, so let caches know
+	// (RFC 9110 Section 12.5.5).
+	r.Vary(HeaderAccept)
+
 	// Get accepted content type
 	accept := r.c.DefaultReq.Accepts("html", "json", "txt", "xml", "msgpack", "cbor") //nolint:staticcheck // It is fine to ignore the static check
 
@@ -557,15 +630,23 @@ func (r *DefaultRes) CBOR(data any, ctype ...string) error {
 // JSONP sends a JSON response with JSONP support.
 // This method is identical to JSON, except that it opts-in to JSONP callback support.
 // By default, the callback name is simply callback.
+//
+// The callback name is reduced to a JavaScript member expression: everything
+// outside [A-Za-z0-9_$.[]] is dropped. Callers routinely take the name straight
+// from the query string, which is what JSONP is for, and the name lands
+// verbatim in a same-origin text/javascript body — so an unfiltered one would
+// let a request supply arbitrary script for the app's own origin.
 func (r *DefaultRes) JSONP(data any, callback ...string) error {
 	raw, err := r.c.app.config.JSONEncoder(data)
 	if err != nil {
 		return err
 	}
 
-	cb := "callback"
+	cb := defaultJSONPCallback
 	if len(callback) > 0 {
-		cb = callback[0]
+		if sanitized := sanitizeJSONPCallback(callback[0]); sanitized != "" {
+			cb = sanitized
+		}
 	}
 
 	// Build JSONP response: callback(data);
@@ -582,6 +663,146 @@ func (r *DefaultRes) JSONP(data any, callback ...string) error {
 	r.c.fasthttp.Response.SetBody(buf.Bytes())
 	bytebufferpool.Put(buf)
 	return nil
+}
+
+const defaultJSONPCallback = "callback"
+
+// isJSONPCallbackByte reports whether b may appear in a JSONP callback name. The
+// set spells a JavaScript member expression and admits nothing that could open a
+// string, comment or statement.
+func isJSONPCallbackByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') ||
+		(b >= '0' && b <= '9') ||
+		b == '_' || b == '$' || b == '.' || b == '[' || b == ']'
+}
+
+// sanitizeJSONPCallback drops every byte isJSONPCallbackByte rejects, as Express
+// and Django do, then requires a member expression, returning "" otherwise.
+// Filtering is enough for safety, not correctness: "1.2.3" and "a[" only throw.
+func sanitizeJSONPCallback(cb string) string {
+	i := 0
+	for ; i < len(cb); i++ {
+		if !isJSONPCallbackByte(cb[i]) {
+			break
+		}
+	}
+
+	if i != len(cb) {
+		out := make([]byte, i, len(cb))
+		copy(out, cb[:i])
+		for ; i < len(cb); i++ {
+			if isJSONPCallbackByte(cb[i]) {
+				out = append(out, cb[i])
+			}
+		}
+		cb = utils.UnsafeString(out)
+	}
+
+	if !isJSONPMemberExpression(cb) {
+		return ""
+	}
+	return cb
+}
+
+// isJSONPMemberExpression reports whether cb is a dotted chain of identifiers
+// with optional bracket indexing — the shape a JSONP body may legally call.
+func isJSONPMemberExpression(cb string) bool {
+	if cb == "" {
+		return false
+	}
+	// "let" is a keyword only where a "[" follows it, and only at the head: an
+	// expression statement may not begin "let [", so the body "let[a](…);" is
+	// read as a destructuring declaration and is a syntax error. "let(…)",
+	// "let.a(…)" and an inner "cb[let[a]]" are all calls and stay allowed.
+	if strings.HasPrefix(cb, "let[") {
+		return false
+	}
+
+	depth := 0
+	atStart := true     // expecting the first byte of an identifier
+	inIndex := false    // that first byte follows '[', so a number may stand there
+	afterClose := false // a ']' just closed an index
+	numeric := false    // the open index began with a digit, so it is a number
+	isRef := true       // the open token is read as a name, not written as a property
+	start := 0          // first byte of the open token
+	for i := 0; i < len(cb); i++ {
+		switch c := cb[i]; c {
+		case '.':
+			if atStart || numeric || (isRef && isJSReservedWord(cb[start:i])) {
+				return false
+			}
+			atStart, inIndex, afterClose, isRef = true, false, false, false
+		case '[':
+			if atStart || numeric || (isRef && isJSReservedWord(cb[start:i])) {
+				return false
+			}
+			depth++
+			atStart, inIndex, afterClose, isRef = true, true, false, true
+			start = i + 1
+		case ']':
+			if atStart || depth == 0 {
+				return false
+			}
+			if isRef && !numeric && isJSReservedWord(cb[start:i]) {
+				return false
+			}
+			depth--
+			afterClose, numeric, isRef = true, false, false
+		default:
+			// Only '.', '[' or another ']' may follow a closing bracket, so "cb[0]x"
+			// is no member expression. Without this the machine would accept it and
+			// emit a body that does not parse.
+			if afterClose {
+				return false
+			}
+			if atStart {
+				// An identifier may not start with a digit. A bracket index may, and
+				// then it is that number alone: "cb[0]" parses, "cb[0x]" does not.
+				// Only a token opened by '[' counts — "cb[a.0]" is a property named
+				// after a dot, where a digit is as illegal as it is at the top level.
+				if c >= '0' && c <= '9' {
+					if !inIndex {
+						return false
+					}
+					numeric = true
+				}
+				atStart, inIndex = false, false
+			} else if numeric && (c < '0' || c > '9') {
+				return false
+			}
+		}
+	}
+	if isRef && !numeric && isJSReservedWord(cb[start:]) {
+		return false
+	}
+	return depth == 0 && !atStart
+}
+
+// isJSReservedWord reports whether tok is a word JavaScript will not read as a
+// name. Only the positions that are read matter — the head of the expression and
+// the head inside each index — since "a.for" and "a[b.class]" name properties,
+// which any word may do. Emitting "for({…})" instead just ships a syntax error to
+// the browser, so those spellings fall back to the default callback.
+func isJSReservedWord(tok string) bool {
+	// Only the words a classic script rejects wherever they stand. A JSONP body
+	// is loaded by a script tag, so it is parsed under the script goal in sloppy
+	// mode, and several words that look reserved are ordinary identifiers there.
+	//
+	// Absent on purpose: "this", "true", "false" and "null" are keywords, but
+	// each is a complete expression, so "this.cb" and "cb[true]" parse. "await"
+	// is reserved only in a module or an async function, and "yield" only in
+	// strict mode or a generator, so both name a callback here. "let" is
+	// contextual in a third way and handled where it is read.
+	switch tok {
+	case "break", "case", "catch", "class", "const", "continue",
+		"debugger", "default", "delete", "do", "else", "enum", "export",
+		"extends", "finally", "for", "function", "if", "import", "in",
+		"instanceof", "new", "return", "super", "switch",
+		"throw", "try", "typeof", "var", "void", "while", "with":
+		return true
+	default:
+		return false
+	}
 }
 
 // XML converts any interface or string to XML.
@@ -611,7 +832,9 @@ func (r *DefaultRes) Links(link ...string) {
 			bb.WriteByte('>')
 		} else {
 			bb.WriteString(`; rel="`)
-			bb.WriteString(link[i])
+			// The rel value sits inside a quoted-string, so quotes and
+			// backslashes must be escaped (RFC 9110 Section 5.6.4).
+			bb.WriteString(r.c.app.quoteRawString(link[i]))
 			bb.WriteString(`",`)
 		}
 	}
@@ -766,6 +989,14 @@ func (r *DefaultRes) SendEarlyHints(hints []string) error {
 	for _, h := range hints {
 		r.c.fasthttp.Response.Header.Add("Link", h)
 	}
+	// A server MUST NOT send a 1xx response to an HTTP/1.0 (or earlier)
+	// client (RFC 9110 Section 15.2), and fasthttp can only write interim
+	// responses on real HTTP/1.1 connections, so send the 103 exclusively
+	// for HTTP/1.1 requests. The Link headers above still go out on the
+	// final response; only the interim 103 is skipped.
+	if !r.c.fasthttp.Request.Header.IsHTTP11() {
+		return nil
+	}
 	return r.c.fasthttp.EarlyHints()
 }
 
@@ -826,7 +1057,7 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 
 		maxAge := cfg.MaxAge
 		if maxAge > 0 {
-			sf.cacheControlValue = "public, max-age=" + strconv.Itoa(maxAge)
+			sf.cacheControlValue = "public, max-age=" + utils.FormatInt(int64(maxAge))
 		}
 
 		// set vars
@@ -920,7 +1151,7 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 	// Apply cache control header
 	if status != StatusNotFound && status != StatusForbidden {
 		if cfg.ByteRange && hasSendFileSize && response.StatusCode() == StatusRequestedRangeNotSatisfiable && len(response.Header.Peek(HeaderContentRange)) == 0 {
-			response.Header.Set(HeaderContentRange, "bytes */"+strconv.FormatInt(sendFileSize, 10))
+			response.Header.Set(HeaderContentRange, "bytes */"+utils.FormatInt(sendFileSize))
 		}
 
 		if cacheControlValue != "" {
@@ -1070,8 +1301,34 @@ func shouldIncludeCharset(mimeType string) bool {
 
 // Vary adds the given header field to the Vary response header.
 // This will append the header, if not already listed; otherwise, leaves it listed in the current location.
+// Per RFC 9110 Section 12.5.5 the wildcard "*" only has meaning as the sole member of the field:
+// once "*" is added (or already present), the header is collapsed to a single "*".
 func (r *DefaultRes) Vary(fields ...string) {
-	r.Append(HeaderVary, fields...)
+	if len(fields) == 0 {
+		return
+	}
+	// Peek without copying: the value is only inspected before any write.
+	// All field lines are combined (RFC 9110 Section 5.2) so a wildcard on a
+	// later line added via Header.Add is still honored.
+	existing, multiLine := peekJoinedResponseHeader(&r.c.fasthttp.Response.Header, HeaderVary)
+	existingStr := utils.UnsafeString(existing)
+	if slices.Contains(fields, "*") || headerContainsValue(existingStr, "*") {
+		if multiLine {
+			// setCanonical only rewrites the first field line.
+			r.c.fasthttp.Response.Header.Del(HeaderVary)
+		}
+		r.setCanonical(HeaderVary, "*")
+		return
+	}
+	updated := appendUniqueValues(existingStr, fields)
+	if updated == "" {
+		return
+	}
+	if multiLine {
+		// Set only rewrites the first field line; fold the extras into one.
+		r.c.fasthttp.Response.Header.Del(HeaderVary)
+	}
+	r.Set(HeaderVary, updated)
 }
 
 // Write appends p into response body.

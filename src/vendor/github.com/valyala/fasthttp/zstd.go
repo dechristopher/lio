@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
 
 	"github.com/klauspost/compress/zstd"
@@ -30,7 +31,7 @@ func acquireZstdReader(r io.Reader) (*zstd.Decoder, error) {
 	if v == nil {
 		return zstd.NewReader(r)
 	}
-	zr := v.(*zstd.Decoder)
+	zr := v.(*zstd.Decoder) //nolint:forcetypeassert
 	if err := zr.Reset(r); err != nil {
 		return nil, err
 	}
@@ -50,7 +51,7 @@ func acquireStacklessZstdWriter(w io.Writer, compressLevel int) stackless.Writer
 			return acquireRealZstdWriter(w, compressLevel)
 		})
 	}
-	sw := v.(stackless.Writer)
+	sw := v.(stackless.Writer) //nolint:forcetypeassert
 	sw.Reset(w)
 	return sw
 }
@@ -73,7 +74,7 @@ func acquireRealZstdWriter(w io.Writer, level int) *zstd.Encoder {
 		}
 		return zw
 	}
-	zw := v.(*zstd.Encoder)
+	zw := v.(*zstd.Encoder) //nolint:forcetypeassert
 	zw.Reset(w)
 	return zw
 }
@@ -125,7 +126,7 @@ func stacklessWriteZstd(ctx any) {
 }
 
 func nonblockingWriteZstd(ctxv any) {
-	ctx := ctxv.(*compressCtx)
+	ctx := ctxv.(*compressCtx) //nolint:forcetypeassert
 	zw := acquireRealZstdWriter(ctx.w, ctx.level)
 	zw.Write(ctx.p) //nolint:errcheck
 	releaseRealZstdWriter(zw, ctx.level)
@@ -143,6 +144,20 @@ func WriteUnzstd(w io.Writer, p []byte) (int, error) {
 }
 
 func writeUnzstd(w io.Writer, p []byte, maxBodySize int) (int, error) {
+	estimatedDecompressedSize := estimateUnzstdSize(p)
+	if maxBodySize > 0 {
+		estimatedDecompressedSize = min(estimatedDecompressedSize, maxBodySize)
+	}
+
+	switch dst := w.(type) {
+	case *byteSliceWriter:
+		dst.b = slices.Grow(dst.b, estimatedDecompressedSize)
+	case *bytebufferpool.ByteBuffer:
+		dst.B = slices.Grow(dst.B, estimatedDecompressedSize)
+	case *bytes.Buffer:
+		dst.Grow(estimatedDecompressedSize)
+	}
+
 	r := &byteSliceReader{b: p}
 	zr, err := acquireZstdReader(r)
 	if err != nil {
@@ -155,6 +170,37 @@ func writeUnzstd(w io.Writer, p []byte, maxBodySize int) (int, error) {
 		return 0, fmt.Errorf("too much data unzstd: %d", n)
 	}
 	return nn, err
+}
+
+func estimateUnzstdSize(p []byte) int {
+	// Somewhat reasonable and conservative expectation of compression factor of 2
+	sizeHint := 2 * len(p)
+
+	// We look for the first non-skippable header
+	var header zstd.Header
+	for {
+		if err := header.Decode(p); err != nil {
+			break
+		}
+		if !header.Skippable {
+			break
+		}
+		skippedBytes := header.HeaderSize + int(header.SkippableSize)
+		if skippedBytes <= 0 || skippedBytes > len(p) {
+			break
+		}
+		p = p[skippedBytes:]
+	}
+
+	if header.HasFCS {
+		// Let's have some limit just in case the input is malicious
+		// and wants us to allocate bazillion bytes.
+		// In a non-malicious case it's still better to start growing from 4 MB than from 0.
+
+		// gosec complains about integer overflow but the uint64 argument to int() is not larger than 4_000_000, so we silence it.
+		sizeHint = int(min(header.FrameContentSize, 4_000_000)) // #nosec G115
+	}
+	return sizeHint
 }
 
 // AppendUnzstdBytes appends unzstd src to dst and returns the resulting dst.

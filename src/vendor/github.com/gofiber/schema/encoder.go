@@ -21,6 +21,13 @@ var errNotStruct = errors.New("schema: interface must be a struct")
 // would otherwise panic on the first map assignment.
 var errNilDst = errors.New("schema: dst map must not be nil")
 
+// maxScratchValueLen bounds values stored in encode's shared scratch array,
+// capping how much data a surviving dst entry can keep reachable after the
+// caller deletes neighboring keys. Only strings allocated by this package's
+// own formatters are eligible at all (see encField.scratchSafe), so the cap
+// bounds real bytes, not just headers.
+const maxScratchValueLen = 64
+
 // Encoder encodes values from a struct into url.Values.
 type Encoder struct {
 	cache  *cache
@@ -43,6 +50,12 @@ type Encoder struct {
 type encPlan struct {
 	fields []encField
 	gen    uint64
+	// freshKeys reports that encoding a value of this type into an empty map
+	// writes every key exactly once: no two fields share a name, and no field
+	// is recursed into — a nested struct's keys land in the same map, without
+	// a prefix, so they could collide with these. encode can then assign each
+	// key outright instead of reading it back to append.
+	freshKeys bool
 }
 
 // encField is the precomputed encoding plan for one struct field.
@@ -55,7 +68,16 @@ type encField struct {
 	// recurseStructPtr marks pointer-to-struct fields without a custom
 	// encoder: non-nil values are encoded by recursing into the element.
 	recurseStructPtr bool
-	isStruct         bool
+	// scratchSafe marks fields whose encoder output is allocated by this
+	// package (numeric/bool/float formatters), so it can never alias a large
+	// caller-owned buffer and may be batched in encode's shared scratch.
+	scratchSafe bool
+	// hasIsZero marks a struct-typed field whose type decides omitempty for
+	// itself through an IsZero method. Settling that here keeps the check off
+	// reflect.Value.Interface, which copies the struct to the heap every time
+	// it is asked — whether or not the method is there.
+	hasIsZero bool
+	isStruct  bool
 	// nilAsNull marks pointer fields whose element has no immediate
 	// encoder (structs recursed via recurseStructPtr, or unsupported
 	// types): nil values encode as "null", matching the closure behavior
@@ -120,18 +142,18 @@ func (e *Encoder) SetAliasTag(tag string) {
 // on first use. The build reads the tag and registered encoders under the
 // configuration lock; the generation re-checks around the cache store keep a
 // build racing a reconfiguration from inserting a stale plan.
-func (e *Encoder) structInfo(t reflect.Type) []encField {
+func (e *Encoder) structInfo(t reflect.Type) (fields []encField, freshKeys bool) { //nolint:nonamedreturns // the bool is only readable named
 	gen := e.encGen.Load()
 	if cached, ok := e.encCache.Load(t); ok {
 		// Ignore plans built under an older configuration; fall through and
 		// rebuild (the fresh plan overwrites the stale entry).
 		if p := cached.(*encPlan); p.gen == gen {
-			return p.fields
+			return p.fields, p.freshKeys
 		}
 	}
 	e.cache.l.RLock()
 	tag := e.cache.tag
-	fields := make([]encField, 0, t.NumField())
+	fields = make([]encField, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 		name, opts := fieldAlias(sf, tag)
@@ -146,7 +168,9 @@ func (e *Encoder) structInfo(t reflect.Type) []encField {
 			recurseStructPtr: ft.Kind() == reflect.Ptr &&
 				ft.Elem().Kind() == reflect.Struct &&
 				!e.hasCustomEncoder(ft),
-			enc: typeEncoder(ft, e.regenc),
+			enc:         typeEncoder(ft, e.regenc),
+			scratchSafe: scratchSafeEncoder(ft, e.regenc),
+			hasIsZero:   ft.Kind() == reflect.Struct && ft.Implements(zeroerType),
 		}
 		if f.enc == nil {
 			switch ft.Kind() {
@@ -164,14 +188,65 @@ func (e *Encoder) structInfo(t reflect.Type) []encField {
 		fields = append(fields, f)
 	}
 	e.cache.l.RUnlock()
+	freshKeys = writesEachKeyOnce(fields)
 	// Don't cache a plan whose inputs (tag, registered encoders) changed
 	// while it was being built; the next call rebuilds it fresh. Even if a
 	// stale plan slips in after the clear, its generation tag keeps it from
 	// ever being served.
 	if e.encGen.Load() == gen {
-		e.encCache.Store(t, &encPlan{fields: fields, gen: gen})
+		e.encCache.Store(t, &encPlan{fields: fields, gen: gen, freshKeys: freshKeys})
 	}
-	return fields
+	return fields, freshKeys
+}
+
+// writesEachKeyOnce reports whether the plan's fields write distinct keys and
+// none recurses into a nested struct, whose keys land in the same map and
+// could repeat one of these.
+func writesEachKeyOnce(fields []encField) bool {
+	names := make(map[string]struct{}, len(fields))
+	for i := range fields {
+		f := &fields[i]
+		if f.isStruct || f.recurseStructPtr {
+			return false
+		}
+		if _, dup := names[f.name]; dup {
+			return false
+		}
+		names[f.name] = struct{}{}
+	}
+	return true
+}
+
+// zeroer is the optional method a type can provide to decide, for omitempty,
+// whether a value of it counts as empty.
+type zeroer interface{ IsZero() bool }
+
+var zeroerType = reflect.TypeFor[zeroer]()
+
+// isZeroValue applies omitempty to one of this field's values: isZero with
+// the struct case answered from the plan, so neither outcome goes through
+// reflect.Value.Interface. An addressable struct becomes an interface through
+// its address, without a copy, and a type known to lack IsZero skips the
+// conversion altogether.
+func (f *encField) isZeroValue(v reflect.Value) bool {
+	if v.Kind() != reflect.Struct || !v.CanInterface() {
+		return isZero(v)
+	}
+	if f.hasIsZero {
+		if v.CanAddr() {
+			// A value receiver's IsZero is in the pointer's method set too.
+			iz, _ := reflect.TypeAssert[zeroer](v.Addr())
+			return iz.IsZero()
+		}
+		iz, _ := reflect.TypeAssert[zeroer](v)
+		return iz.IsZero()
+	}
+	for i := 0; i < v.NumField(); i++ {
+		if !isZero(v.Field(i)) {
+			return false
+		}
+	}
+	return true
 }
 
 func isZero(v reflect.Value) bool {
@@ -213,7 +288,40 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 
 	var errs MultiError
 
-	fields := e.structInfo(v.Type())
+	fields, freshKeys := e.structInfo(v.Type())
+	// When dst starts empty (fresh url.Values), single short package-allocated
+	// values of distinct keys share one backing array instead of allocating a
+	// 1-element slice each; the three-index slice caps entries so later
+	// appends cannot overwrite a neighbor. Caller-derived strings (string
+	// fields, custom encoders) and long values get their own independently
+	// collectible slice so a surviving entry cannot keep a deleted neighbor's
+	// allocation alive; a non-empty dst keeps the single-map-op append pattern.
+	useScratch := len(dst) == 0
+	// An empty dst plus a plan that writes every key once means each key is
+	// new, so the read append needs — a second hash of the key — is skipped.
+	fresh := useScratch && freshKeys
+	var scratch []string
+	appendValue := func(name, s string, scratchSafe bool) {
+		if !useScratch || !scratchSafe || len(s) > maxScratchValueLen {
+			if fresh {
+				dst[name] = []string{s}
+				return
+			}
+			dst[name] = append(dst[name], s)
+			return
+		}
+		if !fresh {
+			if old := dst[name]; old != nil {
+				dst[name] = append(old, s)
+				return
+			}
+		}
+		if scratch == nil {
+			scratch = make([]string, 0, len(fields))
+		}
+		scratch = append(scratch, s)
+		dst[name] = scratch[len(scratch)-1 : len(scratch) : len(scratch)]
+	}
 	for i := range fields {
 		f := &fields[i]
 		fieldValue := v.Field(f.idx)
@@ -228,10 +336,10 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 
 		// Encode non-slice types and custom implementations immediately.
 		if f.enc != nil {
-			if f.omitEmpty && isZero(fieldValue) {
+			if f.omitEmpty && f.isZeroValue(fieldValue) {
 				continue
 			}
-			dst[f.name] = append(dst[f.name], f.enc(fieldValue))
+			appendValue(f.name, f.enc(fieldValue), f.scratchSafe)
 			continue
 		}
 
@@ -239,7 +347,8 @@ func (e *Encoder) encode(v reflect.Value, dst map[string][]string) error {
 			if f.omitEmpty {
 				continue
 			}
-			dst[f.name] = append(dst[f.name], "null")
+			// The "null" literal is static data; always scratch-safe.
+			appendValue(f.name, "null", true)
 			continue
 		}
 
@@ -312,6 +421,27 @@ func (e *Encoder) hasCustomEncoder(t reflect.Type) bool {
 	return exists
 }
 
+// scratchSafeEncoder reports whether typeEncoder(t, reg)'s output strings are
+// always allocated by this package's own formatters: string fields return the
+// caller's string and custom encoders may return anything — either could be a
+// small substring aliasing a large buffer, so neither may enter the scratch.
+func scratchSafeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) bool {
+	if _, ok := reg[t]; ok {
+		return false
+	}
+	switch t.Kind() {
+	case reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return true
+	case reflect.Ptr:
+		return scratchSafeEncoder(t.Elem(), reg)
+	default:
+		return false
+	}
+}
+
 func typeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) encoderFunc {
 	if f, ok := reg[t]; ok {
 		return f
@@ -320,9 +450,21 @@ func typeEncoder(t reflect.Type, reg map[reflect.Type]encoderFunc) encoderFunc {
 	switch t.Kind() {
 	case reflect.Bool:
 		return encodeBool
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int8:
+		return encodeInt8
+	case reflect.Int16:
+		return encodeInt16
+	case reflect.Int32:
+		return encodeInt32
+	case reflect.Int, reflect.Int64:
 		return encodeInt
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint8:
+		return encodeUint8
+	case reflect.Uint16:
+		return encodeUint16
+	case reflect.Uint32:
+		return encodeUint32
+	case reflect.Uint, reflect.Uint64:
 		return encodeUint
 	case reflect.Float32:
 		return encodeFloat32
@@ -353,16 +495,44 @@ func encodeBool(v reflect.Value) string {
 	return strconv.FormatBool(v.Bool())
 }
 
+// Integers go through the width-specific utils helpers: the 8-bit ones are
+// table lookups, allocating nothing, and the 32-bit ones skip a digit group
+// the 64-bit formatter has to consider.
+
 func encodeInt(v reflect.Value) string {
 	return utils.FormatInt(v.Int())
+}
+
+func encodeInt8(v reflect.Value) string {
+	return utils.FormatInt8(int8(v.Int()))
+}
+
+func encodeInt16(v reflect.Value) string {
+	return utils.FormatInt16(int16(v.Int()))
+}
+
+func encodeInt32(v reflect.Value) string {
+	return utils.FormatInt32(int32(v.Int()))
 }
 
 func encodeUint(v reflect.Value) string {
 	return utils.FormatUint(v.Uint())
 }
 
+func encodeUint8(v reflect.Value) string {
+	return utils.FormatUint8(uint8(v.Uint()))
+}
+
+func encodeUint16(v reflect.Value) string {
+	return utils.FormatUint16(uint16(v.Uint()))
+}
+
+func encodeUint32(v reflect.Value) string {
+	return utils.FormatUint32(uint32(v.Uint()))
+}
+
 func encodeFloat(v reflect.Value, bits int) string {
-	return strconv.FormatFloat(v.Float(), 'f', 6, bits)
+	return formatFloatFixed(v.Float(), bits)
 }
 
 func encodeFloat32(v reflect.Value) string {

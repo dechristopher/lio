@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -55,7 +56,7 @@ func AppendHTMLEscapeBytes(dst, s []byte) []byte {
 // and returns the extended dst.
 func AppendIPv4(dst []byte, ip net.IP) []byte {
 	ip = ip.To4()
-	if ip == nil {
+	if len(ip) != net.IPv4len {
 		return append(dst, "non-v4 ip passed to AppendIPv4"...)
 	}
 
@@ -85,15 +86,15 @@ func ParseIPv4(dst net.IP, ipStr []byte) (net.IP, error) {
 	b := ipStr
 	for i := range 3 {
 		n := bytes.IndexByte(b, '.')
-		if n < 0 {
-			return dst, fmt.Errorf("cannot find dot in ipStr %q", ipStr)
+		if uint(n) >= uint(len(b)) {
+			return dst, fmt.Errorf("cannot find dot in ip string %q", ipStr)
 		}
 		octet, parsed, err := parseIPv4Octet(b[:n])
 		if err != nil {
 			if errors.Is(err, errIPv4PartTooLarge) {
-				return dst, fmt.Errorf("cannot parse ipStr %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
+				return dst, fmt.Errorf("cannot parse ip string %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
 			}
-			return dst, fmt.Errorf("cannot parse ipStr %q: %w", ipStr, err)
+			return dst, fmt.Errorf("cannot parse ip string %q: %w", ipStr, err)
 		}
 		dst[i] = octet
 		b = b[n+1:]
@@ -101,9 +102,9 @@ func ParseIPv4(dst net.IP, ipStr []byte) (net.IP, error) {
 	octet, parsed, err := parseIPv4Octet(b)
 	if err != nil {
 		if errors.Is(err, errIPv4PartTooLarge) {
-			return dst, fmt.Errorf("cannot parse ipStr %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
+			return dst, fmt.Errorf("cannot parse ip string %q: ip part cannot exceed 255: parsed %d", ipStr, parsed)
 		}
-		return dst, fmt.Errorf("cannot parse ipStr %q: %w", ipStr, err)
+		return dst, fmt.Errorf("cannot parse ip string %q: %w", ipStr, err)
 	}
 	dst[3] = octet
 
@@ -258,6 +259,10 @@ func AppendUint(dst []byte, n int) []byte {
 }
 
 // ParseUint parses uint from buf.
+//
+// A value too large for an int is an error rather than a wrapped result, so
+// ParseUint accepts exactly the unsigned decimal strings whose value fits in an
+// int on the current platform.
 func ParseUint(buf []byte) (int, error) {
 	v, n, err := parseUintBuf(buf)
 	if n != len(buf) {
@@ -269,19 +274,30 @@ func ParseUint(buf []byte) (int, error) {
 var (
 	errEmptyInt               = errors.New("empty integer")
 	errIPv4PartTooLarge       = errors.New("ip part cannot exceed 255")
-	errUnexpectedFirstChar    = errors.New("unexpected first char found. Expecting 0-9")
-	errUnexpectedTrailingChar = errors.New("unexpected trailing char found. Expecting 0-9")
+	errUnexpectedFirstChar    = errors.New("unexpected first char found: expecting 0-9")
+	errUnexpectedTrailingChar = errors.New("unexpected trailing char found: expecting 0-9")
 	errTooLongInt             = errors.New("too long int")
 )
 
+const (
+	// maxIntDiv10 is the largest accumulator that can still take another digit.
+	// Anything above it overflows an int when multiplied by 10.
+	maxIntDiv10 = math.MaxInt / 10
+
+	// maxSafeIntDigits is how many leading decimal digits can never overflow an
+	// int, whatever the word size: 10**18-1 fits a 64-bit int and 10**9-1 fits a
+	// 32-bit one. Go defines strconv.IntSize as 32 or 64 and nothing else.
+	// TestMaxSafeIntDigits checks both halves of that claim on the build's own
+	// int size.
+	maxSafeIntDigits = 9 * (strconv.IntSize / 32)
+)
+
 func parseUintBuf(b []byte) (int, int, error) {
-	n := len(b)
-	if n == 0 {
+	if len(b) == 0 {
 		return -1, 0, errEmptyInt
 	}
 	v := 0
-	for i := range n {
-		c := b[i]
+	for i, c := range b {
 		k := c - '0'
 		if k > 9 {
 			if i == 0 {
@@ -290,13 +306,20 @@ func parseUintBuf(b []byte) (int, int, error) {
 			return v, i, nil
 		}
 		vNew := 10*v + int(k)
-		// Test for overflow.
-		if vNew < v {
+		// Test for overflow before trusting the result. Comparing the product
+		// against the accumulator afterwards is not enough: 10*v wraps modulo
+		// the int size and can land back above v, in which case the overflow
+		// goes unnoticed and a wrong value is returned instead of an error.
+		// Once v is known to be no larger than maxIntDiv10 the product cannot
+		// exceed math.MaxInt+2, so the sign test settles the only case left.
+		// Below maxSafeIntDigits neither can happen, which keeps the whole test
+		// out of the common path.
+		if i >= maxSafeIntDigits && (v > maxIntDiv10 || vNew < 0) {
 			return -1, i, errTooLongInt
 		}
 		v = vNew
 	}
-	return v, n, nil
+	return v, len(b), nil
 }
 
 func parseIPv4Octet(b []byte) (byte, int, error) {
@@ -386,7 +409,7 @@ func writeHexInt(w *bufio.Writer, n int) error {
 	if v == nil {
 		v = make([]byte, maxHexIntChars+1)
 	}
-	buf := v.([]byte)
+	buf := v.([]byte) //nolint:forcetypeassert
 	i := len(buf) - 1
 	for {
 		buf[i] = lowerhex[n&0xf]

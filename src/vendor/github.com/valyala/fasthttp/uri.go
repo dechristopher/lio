@@ -15,7 +15,7 @@ import (
 // Release the URI with ReleaseURI after the URI is no longer needed.
 // This allows reducing GC load.
 func AcquireURI() *URI {
-	return uriPool.Get().(*URI)
+	return uriPool.Get().(*URI) //nolint:forcetypeassert
 }
 
 // ReleaseURI releases the URI acquired via AcquireURI.
@@ -268,7 +268,7 @@ func (u *URI) SetHostBytes(host []byte) {
 	lowercaseBytes(u.host)
 }
 
-var ErrorInvalidURI = errors.New("invalid uri")
+var ErrorInvalidURI = errors.New("fasthttp: invalid uri")
 
 // Parse initializes URI from the given host and uri.
 //
@@ -404,6 +404,24 @@ func isValidScheme(scheme []byte) bool {
 	return true
 }
 
+// isAuthorityDelimiter reports whether the "//" at index n in uri introduces an
+// authority. Per RFC 3986 that is only the case for a network-path reference,
+// which starts with "//", or when the "//" is preceded by a scheme and a colon.
+// Anywhere else the "//" belongs to a path or to a query, so "a//b" is a
+// relative path and not scheme "a" with host "b".
+func isAuthorityDelimiter(uri []byte, n int) bool {
+	if n == 0 {
+		return true
+	}
+	scheme := uri[:n]
+	if scheme[len(scheme)-1] != ':' {
+		return false
+	}
+	// splitHostURI also accepts the empty scheme in "://host".
+	scheme = scheme[:len(scheme)-1]
+	return len(scheme) == 0 || isValidScheme(scheme)
+}
+
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
 //
@@ -446,7 +464,7 @@ func parseHost(host []byte) ([]byte, error) {
 			return append(host1, append(host2, host3...)...), nil
 		}
 	} else {
-		if bytes.ContainsAny(host, "[]") {
+		if bytes.IndexByte(host, '[') >= 0 || bytes.IndexByte(host, ']') >= 0 {
 			return nil, fmt.Errorf("invalid host %q", host)
 		}
 
@@ -482,7 +500,7 @@ const (
 type EscapeError string
 
 func (e EscapeError) Error() string {
-	return "invalid URL escape " + strconv.Quote(string(e))
+	return "invalid url escape " + strconv.Quote(string(e))
 }
 
 type InvalidHostError string
@@ -641,8 +659,13 @@ func normalizePath(dst, src []byte) []byte {
 	}
 	dst = dst[:bSize]
 
-	// remove /./ parts
+	// No '.' means no "/./", "/../" or "/.." to remove.
 	b = dst
+	if bytes.IndexByte(b, '.') < 0 {
+		return b
+	}
+
+	// remove /./ parts
 	for {
 		n := bytes.Index(b, strSlashDotSlash)
 		if n < 0 {
@@ -731,13 +754,19 @@ func (u *URI) RequestURI() []byte {
 	var dst []byte
 	if u.DisablePathNormalizing {
 		dst = u.requestURI[:0]
-		dst = append(dst, u.PathOriginal()...)
+		path := u.PathOriginal()
+		if len(path) == 0 {
+			path = strSlash
+		}
+		dst = append(dst, path...)
 	} else {
 		dst = appendQuotedPath(u.requestURI[:0], u.Path())
 	}
-	if u.parsedQueryArgs && u.queryArgs.Len() > 0 {
-		dst = append(dst, '?')
-		dst = u.queryArgs.AppendBytes(dst)
+	if u.parsedQueryArgs {
+		if u.queryArgs.Len() > 0 {
+			dst = append(dst, '?')
+			dst = u.queryArgs.AppendBytes(dst)
+		}
 	} else if len(u.queryString) > 0 {
 		dst = append(dst, '?')
 		dst = append(dst, u.queryString...)
@@ -802,7 +831,7 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 	}
 
 	n := bytes.Index(newURI, strSlashSlash)
-	if n >= 0 {
+	if n >= 0 && isAuthorityDelimiter(newURI, n) {
 		// absolute uri
 		var b [32]byte
 		schemeOriginal := b[:0]

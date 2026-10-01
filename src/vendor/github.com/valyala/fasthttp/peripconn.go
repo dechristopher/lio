@@ -31,8 +31,12 @@ func (cc *perIPConnCounter) Unregister(ip uint32) {
 		// developer safeguard
 		panic("BUG: perIPConnCounter.Register() wasn't called")
 	}
-	n := max(cc.m[ip]-1, 0)
-	cc.m[ip] = n
+	// Drop the entry, otherwise the map keeps a key per distinct client IP forever.
+	if n := cc.m[ip] - 1; n > 0 {
+		cc.m[ip] = n
+	} else {
+		delete(cc.m, ip)
+	}
 }
 
 type perIPConn struct {
@@ -63,7 +67,7 @@ func acquirePerIPConn(conn net.Conn, ip uint32, counter *perIPConnCounter) net.C
 				ip:               ip,
 			}
 		}
-		c := v.(*perIPTLSConn)
+		c := v.(*perIPTLSConn) //nolint:forcetypeassert
 		c.Conn = tlsConn
 		c.ip = ip
 		return c
@@ -77,7 +81,7 @@ func acquirePerIPConn(conn net.Conn, ip uint32, counter *perIPConnCounter) net.C
 			ip:               ip,
 		}
 	}
-	c := v.(*perIPConn)
+	c := v.(*perIPConn) //nolint:forcetypeassert
 	c.Conn = conn
 	c.ip = ip
 	return c
