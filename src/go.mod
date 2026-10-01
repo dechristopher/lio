@@ -1,6 +1,6 @@
 module github.com/dechristopher/lio
 
-go 1.25.7
+go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.1020
@@ -23,8 +23,8 @@ require (
 	github.com/valyala/fastjson v1.6.10
 	golang.org/x/crypto v0.54.0
 	golang.org/x/image v0.44.0
-	golang.org/x/sync v0.22.0
-	golang.org/x/text v0.40.0
+	golang.org/x/sync v0.23.0
+	golang.org/x/text v0.42.0
 )
 
 require (
