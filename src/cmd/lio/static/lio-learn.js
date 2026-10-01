@@ -622,7 +622,7 @@
 			})
 			.catch(() => {
 				busy = false;
-				say('Could not reach the server — check your connection and try again.', 'bad');
+				say("Can't reach the server. Check your connection and try again.", 'bad');
 				return null;
 			});
 	}
@@ -742,14 +742,14 @@
 		}
 
 		if (res.failed) {
-			restartAfterMistake(res.say || 'Not this time — here it is again.');
+			restartAfterMistake(res.say || 'Not this time. Here it is again.');
 			return;
 		}
 		// the wrong piece off the very first move: the lesson is about one piece
 		// and they picked another, so put it back rather than letting them drift
 		// further from a position the coaching still describes
 		if (played === 1 && !onPath && wrongPieceMoved(res)) {
-			restartAfterMistake(step.hint || 'Not that piece — try the one the arrow points at.');
+			restartAfterMistake(step.hint || 'Not that piece. Try the one the arrow points at.');
 			return;
 		}
 

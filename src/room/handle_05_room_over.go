@@ -22,7 +22,7 @@ func (r *Instance) handleRoomOver() {
 	switch {
 	case r.abandoned && !gameFinished:
 		// the room expired before any game finished
-		status = "Match expired. Leaving room.."
+		status = "Match expired. Leaving the room…"
 	case !r.abandoned:
 		// a finished game closed without a rematch: a human-vs-human window that
 		// lapsed, or a finished bot game the player left (after the reconnect grace).

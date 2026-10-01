@@ -90,7 +90,7 @@ func createGameModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>Computer</span></label></div></div><label class=\"cg-toggle cg-casual\"><input type=\"checkbox\" class=\"cg-toggle-box cg-casual-box\" name=\"casual\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Casual mode</span> <span class=\"cg-toggle-hint\">Unrated game & unlimited time<br>Think as long as you like</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span>Computer</span></label></div></div><label class=\"cg-toggle cg-casual\"><input type=\"checkbox\" class=\"cg-toggle-box cg-casual-box\" name=\"casual\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Casual mode</span> <span class=\"cg-toggle-hint\">No clock and no rating. Take as long as you like.</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -108,13 +108,13 @@ func createGameModal() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "RATED</span> <span class=\"cg-rated-copy\"><span class=\"cg-rated-line\" data-state=\"on\">Counts toward your rating</span> <span class=\"cg-rated-line\" data-state=\"open\">Open game — anyone can join, unrated</span> <span class=\"cg-rated-line\" data-state=\"off\">Just for fun — unrated</span></span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "RATED</span> <span class=\"cg-rated-copy\"><span class=\"cg-rated-line\" data-state=\"on\">Counts toward your rating</span> <span class=\"cg-rated-line\" data-state=\"open\">Guests can join, so it's unrated</span> <span class=\"cg-rated-line\" data-state=\"off\">Just for fun, no rating</span></span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if viewer(ctx).LoggedIn {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<label class=\"cg-toggle cg-allow-anon\"><input type=\"checkbox\" class=\"cg-toggle-box cg-allow-anon-box\" name=\"allow_anon\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Allow anonymous players</span> <span class=\"cg-toggle-hint\">On = anyone can join (unrated)<br>Off = logged-in players only (rated)</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<label class=\"cg-toggle cg-allow-anon\"><input type=\"checkbox\" class=\"cg-toggle-box cg-allow-anon-box\" name=\"allow_anon\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Allow guests</span> <span class=\"cg-toggle-hint\">Players without an account can join. The game is then unrated.</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -127,12 +127,12 @@ func createGameModal() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "RATED</span> <span class=\"cg-rated-copy\"><a href=\"#\" onclick=\"document.getElementById('modalAccount').classList.add('open');return false;\">Log in</a> to play rated games</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "RATED</span> <span class=\"cg-rated-copy\"><span><button type=\"button\" class=\"cg-rated-link\" data-open-register>Sign up</button> to play rated games</span></span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<label class=\"cg-toggle cg-public\"><input type=\"checkbox\" class=\"cg-toggle-box cg-public-box\" name=\"public\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">Open challenge</span> <span class=\"cg-toggle-hint\">On = anyone can join the game<br>Off = only your link works</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label></div><div class=\"cg-panel cg-panel-hero\"><div class=\"cg-field cg-race\"><span class=\"cg-label\">Race to</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Race to (match length)\"><input id=\"race-0\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"0\" checked> <label class=\"seg-btn\" for=\"race-0\"><span>Off</span></label> <input id=\"race-3\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"3\"> <label class=\"seg-btn\" for=\"race-3\"><span>3</span></label> <input id=\"race-5\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"5\"> <label class=\"seg-btn\" for=\"race-5\"><span>5</span></label> <input id=\"race-7\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"7\"> <label class=\"seg-btn\" for=\"race-7\"><span>7</span></label></div><span class=\"cg-hint\"><strong>Race:</strong> games run back-to-back until a player reaches the target score — draws count ½. Human opponents only.</span></div><div class=\"cg-field cg-tc\"><span class=\"cg-label\">Time control</span><div class=\"tc-select\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<label class=\"cg-toggle cg-public\"><input type=\"checkbox\" class=\"cg-toggle-box cg-public-box\" name=\"public\" value=\"true\"> <span class=\"cg-toggle-text\"><span class=\"cg-toggle-title\">List on home page</span> <span class=\"cg-toggle-hint\">Players on the home page can find and join it. Off: only people with your link.</span></span> <span class=\"cg-switch\" aria-hidden=\"true\"></span></label></div><div class=\"cg-panel cg-panel-hero\"><div class=\"cg-field cg-race\"><span class=\"cg-label\">Race to</span><div class=\"seg\" role=\"radiogroup\" aria-label=\"Race to (match length)\"><input id=\"race-0\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"0\" checked> <label class=\"seg-btn\" for=\"race-0\"><span>Off</span></label> <input id=\"race-3\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"3\"> <label class=\"seg-btn\" for=\"race-3\"><span>3</span></label> <input id=\"race-5\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"5\"> <label class=\"seg-btn\" for=\"race-5\"><span>5</span></label> <input id=\"race-7\" class=\"seg-input\" type=\"radio\" name=\"race-to\" value=\"7\"> <label class=\"seg-btn\" for=\"race-7\"><span>7</span></label></div><span class=\"cg-hint\">Play games back to back until one player reaches the score. A win is 1 point, a draw ½. Against people only.</span></div><div class=\"cg-field cg-tc\"><span class=\"cg-label\">Time control</span><div class=\"tc-select\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -144,7 +144,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 164, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 167, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -157,7 +157,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 168, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 171, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -170,7 +170,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(ctrl.Deploy.HTMLName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 171, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 174, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -183,7 +183,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 173, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 176, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -196,7 +196,7 @@ func createGameModal() templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(ctrl.Group.String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 174, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/modal.templ`, Line: 177, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -253,7 +253,7 @@ func ratedPausedBadge() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "UNRATED</span> <span class=\"cg-rated-copy\"><span class=\"cg-rated-line\" data-state=\"on\">Rated games are temporarily disabled</span></span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "UNRATED</span> <span class=\"cg-rated-copy\"><span class=\"cg-rated-line\" data-state=\"on\">Rated games are paused for now</span></span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

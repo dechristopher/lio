@@ -304,7 +304,7 @@ func missSay(step Step, _ *octad.Game) string {
 	if step.Hint != "" {
 		return step.Hint
 	}
-	return "Not this time — reset and try again."
+	return "Not this time. Reset and try again."
 }
 
 // judge reports whether the move just played satisfied the step's goal. It is

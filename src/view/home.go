@@ -140,9 +140,9 @@ func hasPlayers(c message.Community) bool {
 func rosterNote(c message.Community, loggedIn bool) string {
 	parts := make([]string, 0, 3)
 	if c.Anon == 1 {
-		parts = append(parts, "1 anonymous visitor")
+		parts = append(parts, "1 guest")
 	} else if c.Anon > 1 {
-		parts = append(parts, strconv.Itoa(c.Anon)+" anonymous visitors")
+		parts = append(parts, strconv.Itoa(c.Anon)+" guests")
 	}
 	if c.Anon > 0 && !loggedIn {
 		parts[0] += " (including you)"

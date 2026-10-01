@@ -386,7 +386,7 @@ func (r *Instance) handleMatchInterlude() {
 			// handleRoomOver path is silent once a game has finished).
 			util.DebugFlag("room", str.CRoom, "[%s] player left mid-match, room over", r.ID)
 			payload := proto.GameOverPayload{
-				Status:   "PLAYER LEFT THE MATCH - MATCH OVER",
+				Status:   "A player left. The match is over.",
 				RoomOver: true,
 			}
 			channel.Broadcast(payload.Marshal(), channel.SocketContext{

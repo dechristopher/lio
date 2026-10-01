@@ -81,7 +81,7 @@ func BroadcastHandler(c fiber.Ctx) error {
 
 	var req broadcastRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	reason, ok := reasonOf(c, req.Reason)
 	if !ok {
@@ -91,11 +91,11 @@ func BroadcastHandler(c fiber.Ctx) error {
 	body := strings.TrimSpace(req.Body)
 	if len(body) < minBroadcastBody {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "write a little more than that"})
+			JSON(errBody{Error: "Write a little more than that."})
 	}
 	if len(body) > maxBroadcastBody {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that message is too long"})
+			JSON(errBody{Error: "That message is too long."})
 	}
 
 	// A path on this site, never a full URL. The row is rendered as a link in
@@ -104,12 +104,12 @@ func BroadcastHandler(c fiber.Ctx) error {
 	link := strings.TrimSpace(req.Link)
 	if link != "" && !strings.HasPrefix(link, "/") {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "the link must be a path on this site, starting with /"})
+			JSON(errBody{Error: "The link must be a path on this site, starting with /."})
 	}
 	if strings.HasPrefix(link, "//") {
 		// "//evil.example" is a path to a browser and another origin to a person.
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that link leaves the site"})
+			JSON(errBody{Error: "That link leaves the site."})
 	}
 
 	choices, err := cleanChoices(req.Choices)
@@ -121,7 +121,7 @@ func BroadcastHandler(c fiber.Ctx) error {
 	if req.ExpiresDays > 0 {
 		if req.ExpiresDays > maxBroadcastDays {
 			return c.Status(fiber.StatusUnprocessableEntity).
-				JSON(errBody{Error: "pick a shorter run, or leave it open"})
+				JSON(errBody{Error: "Pick a shorter run, or leave it open."})
 		}
 		expires = time.Now().Add(time.Duration(req.ExpiresDays) * 24 * time.Hour)
 	}
@@ -136,7 +136,7 @@ func BroadcastHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CNotif, "broadcast failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not send that broadcast"})
+			JSON(errBody{Error: "Couldn't send that broadcast. Try again."})
 	}
 
 	detail := map[string]any{"body": body}
@@ -164,7 +164,7 @@ func RetireBroadcastHandler(c fiber.Ctx) error {
 
 	var req retireRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	reason, ok := reasonOf(c, req.Reason)
 	if !ok {
@@ -175,13 +175,13 @@ func RetireBroadcastHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CNotif, "broadcast retire failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not retire that broadcast"})
+			JSON(errBody{Error: "Couldn't retire that broadcast. Try again."})
 	}
 	if !retired {
 		// Already ended, or never existed. Both mean the same thing to the
 		// operator: it is not showing.
 		return c.Status(fiber.StatusConflict).
-			JSON(errBody{Error: "that broadcast is not running"})
+			JSON(errBody{Error: "That broadcast isn't running."})
 	}
 
 	if err := db.LogModAction(*sess.UserID, nil, "broadcast",
@@ -231,9 +231,9 @@ func cleanChoices(in []string) ([]string, error) {
 // The three ways a set of options is refused, as values rather than formatted
 // strings: each is shown to the operator as-is.
 var (
-	errChoiceTooLong   = broadcastError("an option should be a word or two, not a sentence")
-	errChoiceDuplicate = broadcastError("two options read the same, so the answers could not be told apart")
-	errTooManyChoices  = broadcastError("that is too many options for a notification row")
+	errChoiceTooLong   = broadcastError("An option should be a word or two, not a sentence.")
+	errChoiceDuplicate = broadcastError("Two options read the same, so the answers couldn't be told apart.")
+	errTooManyChoices  = broadcastError("That's too many options for a notification row.")
 )
 
 // broadcastError is a plain string error, so the message the operator reads is

@@ -1,6 +1,7 @@
 package view
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -142,6 +143,7 @@ func newRatingChart(r RatingView, pts []db.RatingPoint, now time.Time) RatingCha
 
 	if len(pts) < minCurvePoints {
 		c.Placeholder = StatPlaceholder{
+			// own-page wording; chartPlaceholder swaps it for a visitor
 			Copy: "Your rating in this time control appears here once it has moved. " +
 				"Play another rated game to start the curve.",
 			Have: int64(len(pts)), Need: minCurvePoints, Unit: "rated days",
@@ -360,4 +362,15 @@ func parseDisplayRating(s string) (rating int, provisional bool, ok bool) {
 		return 0, false, false
 	}
 	return n, provisional, true
+}
+
+// chartPlaceholder is a chart's empty state worded for its reader: the
+// builder writes it to the owner ("play another rated game"), which a visitor
+// cannot act on, so anyone else is told what will appear instead. The meter
+// is the same for both.
+func chartPlaceholder(ctx context.Context, m ProfileModel, p StatPlaceholder) StatPlaceholder {
+	if !ownProfile(ctx, m) {
+		p.Copy = m.Username + "'s rating in this time control appears here once it has moved."
+	}
+	return p
 }

@@ -231,14 +231,14 @@ func reportQueue(m ModerationModel) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" title=\"The reported account — open their page to act\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" title=\"The reported account. Open their page to act.\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(r.Target)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/moderation.templ`, Line: 48, Col: 138}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/moderation.templ`, Line: 48, Col: 136}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -381,7 +381,7 @@ func reportQueue(m ModerationModel) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" data-effect=\"Closes the report. It does not sanction the account — do that from their page.\">Resolve</button></div></li>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" data-effect=\"Closes the report. It does not sanction the account. Do that from their page.\">Resolve</button></div></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -623,7 +623,7 @@ func reportModal() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</button><h2>Report a player</h2><div class=\"mt-3 text-left\"><p class=\"text-sm text-fg-muted\">Reporting <span id=\"reportTarget\" class=\"font-semibold text-fg\"></span>. A moderator will review this — you will not hear back directly.</p><form id=\"reportForm\" class=\"mt-3 flex flex-col gap-3\" novalidate><label class=\"auth-label\">Reason <select id=\"reportCategory\" class=\"auth-input\" name=\"category\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</button><h2>Report a player</h2><div class=\"mt-3 text-left\"><p class=\"text-sm text-fg-muted\">Reporting <span id=\"reportTarget\" class=\"font-semibold text-fg\"></span>. A moderator will review it. You won't hear back directly.</p><form id=\"reportForm\" class=\"mt-3 flex flex-col gap-3\" novalidate><label class=\"auth-label\">Reason <select id=\"reportCategory\" class=\"auth-input\" name=\"category\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

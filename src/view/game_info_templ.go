@@ -20,7 +20,7 @@ import (
 // that grows unreadable once race-to and rated stack onto it.
 //
 // The rows are Time (clock notation + pace, with the plain-language decode as a
-// footnote), the color this viewer plays, the pre-game format, the scoring, and
+// footnote), the color this viewer plays, the setup, the scoring, and
 // — only for a race-to room — the match length. PlayerColor is the viewer's
 // color for the creator and the open-seat color for the joiner (set in
 // HandlePreGame), so "You play …" reads correctly for both. When BlindColor is
@@ -112,7 +112,7 @@ func gameSummary(payload message.RoomTemplatePayload) templ.Component {
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</dd></div><div class=\"spec-row\"><dt class=\"spec-label\">Format</dt><dd class=\"spec-value\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</dd></div><div class=\"spec-row\"><dt class=\"spec-label\">Setup</dt><dd class=\"spec-value\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

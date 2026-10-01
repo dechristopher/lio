@@ -45,7 +45,7 @@ templ reportQueue(m ModerationModel) {
 					<li class="report-row">
 						<div class="report-head">
 							<span class={ "report-cat " + r.Class } title={ r.Help }>{ r.Category }</span>
-							<a class="audit-target" href={ templ.SafeURL("/@/" + r.Target) } title="The reported account — open their page to act">{ r.Target }</a>
+							<a class="audit-target" href={ templ.SafeURL("/@/" + r.Target) } title="The reported account. Open their page to act.">{ r.Target }</a>
 							<span class="report-by" title="Who filed this report">
 								reported by
 								<a class="audit-actor" href={ templ.SafeURL("/@/" + r.Reporter) }>{ r.Reporter }</a>
@@ -65,7 +65,7 @@ templ reportQueue(m ModerationModel) {
 								class="btn btn-primary"
 								data-resolve-report={ r.ID }
 								data-confirm={ "Resolve the report against " + r.Target }
-								data-effect="Closes the report. It does not sanction the account — do that from their page."
+								data-effect="Closes the report. It does not sanction the account. Do that from their page."
 							>Resolve</button>
 						</div>
 					</li>
@@ -117,7 +117,7 @@ templ reportModal() {
 			<div class="mt-3 text-left">
 				<p class="text-sm text-fg-muted">
 					Reporting <span id="reportTarget" class="font-semibold text-fg"></span>.
-					A moderator will review this — you will not hear back directly.
+					A moderator will review it. You won't hear back directly.
 				</p>
 				<form id="reportForm" class="mt-3 flex flex-col gap-3" novalidate>
 					<label class="auth-label">

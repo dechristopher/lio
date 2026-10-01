@@ -202,7 +202,7 @@ templ iconRefresh() {
 templ heroRatings(m ProfileModel) {
 	<div class="hero-ratings">
 		if len(m.Ratings) == 0 {
-			<p class="hero-ratings-empty">No rating yet! Finish a rated game to earn your first.</p>
+			<p class="hero-ratings-empty">{ profileCopy(ctx, m, "No rating yet. Finish a rated game to get your first.", "{name} has no rating yet.") }</p>
 		} else {
 			<ul class="hero-rating-list">
 				for _, r := range m.Ratings {
@@ -279,7 +279,9 @@ templ profileRatingHistory(m ProfileModel) {
 		<h2 class="stat-title">Rating history</h2>
 		if len(m.Charts) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Your rating over time is charted here, with one curve per time control showing your peak and recent form.",
+				Copy: profileCopy(ctx, m,
+					"Your rating over time shows here, one curve per time control, with your peak and recent form.",
+					"{name}'s rating over time shows here, one curve per time control, with their peak and recent form."),
 			})
 		} else {
 			if len(m.Charts) > 1 {
@@ -296,7 +298,7 @@ templ profileRatingHistory(m ProfileModel) {
 				</div>
 			}
 			for _, c := range m.Charts {
-				@ratingChartPanel(c)
+				@ratingChartPanel(m, c)
 			}
 		}
 	</div>
@@ -305,14 +307,14 @@ templ profileRatingHistory(m ProfileModel) {
 // ratingChartPanel is one category's curve: the summary figures, the plot, and
 // a visually-hidden table of the same numbers so the values are never locked
 // behind a hover.
-templ ratingChartPanel(c RatingChartView) {
+templ ratingChartPanel(m ProfileModel, c RatingChartView) {
 	<figure
 		class={ "chart-panel", templ.KV("is-active", c.Active) }
 		data-chart-panel={ c.Category }
 		role="tabpanel"
 	>
 		if !c.Ready {
-			@statPlaceholder(c.Placeholder)
+			@statPlaceholder(chartPlaceholder(ctx, m, c.Placeholder))
 		} else {
 			<div class="chart-figures">
 				<div class="chart-figure">
@@ -367,7 +369,7 @@ templ ratingChartPanel(c RatingChartView) {
 			if c.Prov != "" {
 				<figcaption class="chart-caption">
 					{ c.Label }
-					<span class="chart-caption-note">— dashed while provisional</span>
+					<span class="chart-caption-note">Dashed while provisional</span>
 				</figcaption>
 			}
 			// The same numbers as a table, for screen readers and anyone who
@@ -400,7 +402,9 @@ templ profileRecords(m ProfileModel) {
 		<h2 class="stat-title">Record</h2>
 		if m.Total.Empty {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Wins, draws and losses appear here: overall, split by time control, and against each bot.",
+				Copy: profileCopy(ctx, m,
+					"Your wins, draws, and losses appear here: overall, by time control, and against each bot.",
+					"{name}'s wins, draws, and losses appear here: overall, by time control, and against each bot."),
 			})
 		} else {
 		<div class="mt-3">
@@ -454,7 +458,9 @@ templ profileForm(m ProfileModel) {
 		</div>
 		if len(m.Form) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Your last games show here as a run of results, oldest to newest, grouped into the matches they belong to.",
+				Copy: profileCopy(ctx, m,
+					"Your recent results show here, oldest to newest, grouped by match.",
+					"{name}'s recent results show here, oldest to newest, grouped by match."),
 			})
 		} else {
 			// Matches are the wrapping unit, so a narrow viewport reflows whole
@@ -543,7 +549,9 @@ templ profileEndings(m ProfileModel) {
 		<h2 class="stat-title">How games end</h2>
 		if len(m.Endings) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Checkmate, resignation, flagging.. how your games finish, and how they tend to go for you.",
+				Copy: profileCopy(ctx, m,
+					"Checkmate, resignation, time, or a draw: how your games end, and how each tends to go for you.",
+					"Checkmate, resignation, time, or a draw: how {name}'s games end, and how each tends to go for them."),
 			})
 		} else {
 			<ul class="mt-3 flex flex-col gap-2">
@@ -573,7 +581,9 @@ templ profileLengths(m ProfileModel) {
 		</div>
 		if len(m.Lengths.Buckets) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "How long your games run, in plies: whether you win short and sharp or grind out endgames.",
+				Copy: profileCopy(ctx, m,
+					"How long your games run, in moves: whether you win quickly or grind out long endgames.",
+					"How long {name}'s games run, in moves: whether they win quickly or grind out long endgames."),
 			})
 		} else {
 			<div class="length-chart">
@@ -611,7 +621,7 @@ templ profileLengths(m ProfileModel) {
 	</div>
 }
 
-// profileFormations is the octad-specific section: what the account deploys,
+// profileFormations is the octad-specific section: what the account sets up,
 // what it faces, and which specific clashes it wins. The deploy is blind — made
 // without seeing the opponent's — so this is the only feedback a player gets on
 // a decision they make every game with no information.
@@ -625,12 +635,14 @@ templ profileFormations(m ProfileModel) {
 		</div>
 		if len(m.Formations.Mine) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Every game opens with a blind deploy. Once you have played a few, this names the formations you choose, the ones you face, and how each one scores for you.",
+				Copy: profileCopy(ctx, m,
+					"Every game starts with a secret setup. After a few games, this shows the formations you choose, the ones you face, and how each one scores for you.",
+					"Every game starts with a secret setup. After a few games, this shows the formations {name} chooses, the ones they face, and how each one scores for them."),
 			})
 		} else {
 			<div class="formation-cols mt-3">
-				@formationColumn("You deploy", m.Formations.Mine)
-				@formationColumn("You face", m.Formations.Theirs)
+				@formationColumn("Played", m.Formations.Mine)
+				@formationColumn("Faced", m.Formations.Theirs)
 			</div>
 			if len(m.Formations.Best) > 0 {
 				<div class="matchup-cols">
@@ -704,7 +716,7 @@ templ profileActivity(m ProfileModel) {
 		</div>
 		if !m.Activity.Show {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "A year of play, one square per day. The more you play in a day, the brighter its square.",
+				Copy: "A year of play, one square per day. The more games in a day, the brighter its square.",
 			})
 		} else {
 			// Both ramps ship on every cell and the mode swaps which one the
@@ -761,7 +773,7 @@ templ profileActivity(m ProfileModel) {
 					<span class="heatmap-key r4"></span>
 					Winning
 				</p>
-				<div class="heatmap-modes" role="group" aria-label="Heatmap colouring">
+				<div class="heatmap-modes" role="group" aria-label="Heatmap coloring">
 					<button type="button" class="heatmap-mode is-active" data-heatmap-mode="volume">Games</button>
 					<button type="button" class="heatmap-mode" data-heatmap-mode="rate">Win rate</button>
 				</div>
@@ -778,7 +790,9 @@ templ profileOpponents(m ProfileModel) {
 		<h2 class="stat-title">Most played</h2>
 		if len(m.Opponents) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "The opponents you meet most appear here, with your record against each.",
+				Copy: profileCopy(ctx, m,
+					"The opponents you meet most appear here, with your record against each.",
+					"The opponents {name} meets most appear here, with their record against each."),
 			})
 		} else {
 			<ul class="mt-3 flex flex-col gap-1.5">
@@ -884,7 +898,7 @@ templ profileGames(m ProfileModel) {
 		<h2 class="stat-title">Recent games</h2>
 		if len(m.Games) == 0 {
 			@statPlaceholder(StatPlaceholder{
-				Copy: "Finished games land here, newest first, each linking to a full replay in the archive.",
+				Copy: "Finished games show here, newest first, each linking to a replay.",
 			})
 		} else {
 			<ul class="mt-3 flex flex-col gap-1">
@@ -956,9 +970,9 @@ templ modBar(m ProfileModel) {
 				<label class="auth-label">
 					Title
 					<select class="auth-input" name="title">
-						<option value="">— none —</option>
+						<option value="">None</option>
 						for _, t := range m.Mod.Titles {
-							<option value={ t.ID } selected?={ t.ID == m.Mod.CurrentTitleID }>{ t.Code } — { t.Name }</option>
+							<option value={ t.ID } selected?={ t.ID == m.Mod.CurrentTitleID }>{ t.Code }: { t.Name }</option>
 						}
 					</select>
 				</label>
@@ -983,7 +997,7 @@ templ modBar(m ProfileModel) {
 							type="button"
 							class="btn btn-ghost"
 							data-mod-action="role"
-							data-effect="Changes what this account is allowed to do, and signs it out so the new role takes effect immediately."
+							data-effect="Changes what this account is allowed to do, and logs it out so the new role takes effect immediately."
 						>Set role</button>
 				</div>
 			}
@@ -1028,7 +1042,7 @@ templ modBar(m ProfileModel) {
 							type="button"
 							class="btn btn-danger"
 							data-mod-action="ban"
-							data-effect="Ends any game in progress as a forfeit, signs them out everywhere, and blocks login. It does not stop anonymous play."
+							data-effect="Ends any game in progress as a forfeit, logs them out everywhere, and blocks logging in. It does not stop them playing as a guest."
 						>Ban account</button>
 				</div>
 			}

@@ -34,20 +34,20 @@ func PrefHandler(c fiber.Ctx) error {
 	var req prefRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	// An unknown key is the client's mistake, not a storage failure: naming it
 	// back is useful to whoever is writing the caller, and reveals nothing.
 	if !prefs.Valid(req.Key) {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "unknown preference"})
+			JSON(errBody{Error: "That preference doesn't exist."})
 	}
 
 	if err := prefs.SetFlag(acct.ID, req.Key, req.On); err != nil {
 		util.Error(str.CDB, "pref write failed key=%s error=%s", req.Key, err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not save that preference"})
+			JSON(errBody{Error: "Couldn't save that preference. Try again."})
 	}
 
 	return c.JSON(fiber.Map{"key": req.Key, "on": req.On})

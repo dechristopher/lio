@@ -95,7 +95,7 @@ func LoginTOTPHandler(c fiber.Ctx) error {
 		Code    string `json:"code"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	p, ok := auth.ResolvePending(req.Pending)
 	if !ok {
@@ -103,14 +103,14 @@ func LoginTOTPHandler(c fiber.Ctx) error {
 	}
 	enc, confirmed, err := db.GetTOTP(p.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "login failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !confirmed || enc == nil {
 		return badCode(c)
 	}
 	secret, err := auth.DecryptTOTPSecret(enc)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "login failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !auth.ConsumeTOTP(p.UserID, secret, strings.TrimSpace(req.Code)) {
 		return badCode(c)
@@ -129,7 +129,7 @@ func LoginRecoveryHandler(c fiber.Ctx) error {
 		Code    string `json:"code"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	p, ok := auth.ResolvePending(req.Pending)
 	if !ok {
@@ -137,7 +137,7 @@ func LoginRecoveryHandler(c fiber.Ctx) error {
 	}
 	used, err := db.UseRecoveryCode(p.UserID, auth.HashRecoveryCode(req.Code))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "login failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !used {
 		return badCode(c)
@@ -157,7 +157,7 @@ func LoginWebAuthnBeginHandler(c fiber.Ctx) error {
 	}
 	options, err := auth.BeginWebAuthnLogin(pending, p.UserID, p.Username)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "could not start passkey login"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Couldn't start passkey login. Try again."})
 	}
 	return c.JSON(options)
 }
@@ -174,7 +174,7 @@ func LoginWebAuthnFinishHandler(c fiber.Ctx) error {
 	}
 	credID, signCount, err := auth.FinishWebAuthnLogin(pending, p.UserID, p.Username, c.Body())
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "passkey verification failed"})
+		return c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "Passkey verification failed. Try again."})
 	}
 	// clone-detection state; best-effort, never blocks a valid login
 	_ = db.UpdateWebAuthnSignCount(p.UserID, credID, signCount)
@@ -194,21 +194,21 @@ func TOTPBeginHandler(c fiber.Ctx) error {
 		Password string `json:"password"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !checkPassword(*sess.UserID, req.Password) {
 		return wrongPassword(c)
 	}
 	secret, otpauth, qr, err := auth.EnrollTOTP(sess.Username)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not start setup"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't start setup. Try again."})
 	}
 	enc, err := auth.EncryptTOTPSecret(secret)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not start setup"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't start setup. Try again."})
 	}
 	if err := db.SetTOTPSecret(*sess.UserID, enc); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not start setup"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't start setup. Try again."})
 	}
 	return c.JSON(totpEnrollBody{Secret: secret, Otpauth: otpauth, QR: qr})
 }
@@ -224,24 +224,24 @@ func TOTPConfirmHandler(c fiber.Ctx) error {
 		Code string `json:"code"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	enc, _, err := db.GetTOTP(*sess.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not confirm"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't confirm. Try again."})
 	}
 	if enc == nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "start setup first"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Start setup first."})
 	}
 	secret, err := auth.DecryptTOTPSecret(enc)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not confirm"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't confirm. Try again."})
 	}
 	if !auth.VerifyTOTP(secret, strings.TrimSpace(req.Code)) {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(errBody{Error: "that code didn't match — try the current one"})
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(errBody{Error: "That code didn't match. Enter the code your app shows now."})
 	}
 	if err := db.ConfirmTOTP(*sess.UserID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not confirm"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't confirm. Try again."})
 	}
 	return c.JSON(recoveryCodesBody{RecoveryCodes: maybeIssueRecoveryCodes(*sess.UserID)})
 }
@@ -257,13 +257,13 @@ func TOTPDisableHandler(c fiber.Ctx) error {
 		Password string `json:"password"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !checkPassword(*sess.UserID, req.Password) {
 		return wrongPassword(c)
 	}
 	if err := db.ClearTOTP(*sess.UserID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not disable"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't turn it off. Try again."})
 	}
 	cleanupRecoveryIfNoMFA(*sess.UserID)
 	return c.SendStatus(fiber.StatusNoContent)
@@ -281,17 +281,17 @@ func RecoveryRegenerateHandler(c fiber.Ctx) error {
 		Password string `json:"password"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !checkPassword(*sess.UserID, req.Password) {
 		return wrongPassword(c)
 	}
 	if !mfaEnabled(*sess.UserID) {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "enable a second factor first"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Turn on a second factor first."})
 	}
 	plain, hashes := auth.GenerateRecoveryCodes()
 	if err := db.ReplaceRecoveryCodes(*sess.UserID, hashes); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not regenerate"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't make new codes. Try again."})
 	}
 	return c.JSON(recoveryCodesBody{RecoveryCodes: plain})
 }
@@ -308,14 +308,14 @@ func WebAuthnRegisterBeginHandler(c fiber.Ctx) error {
 		Password string `json:"password"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !checkPassword(*sess.UserID, req.Password) {
 		return wrongPassword(c)
 	}
 	options, err := auth.BeginWebAuthnRegistration(regKey(sess), *sess.UserID, sess.Username)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not start passkey setup"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't start passkey setup. Try again."})
 	}
 	return c.JSON(options)
 }
@@ -330,10 +330,10 @@ func WebAuthnRegisterFinishHandler(c fiber.Ctx) error {
 	rec, err := auth.FinishWebAuthnRegistration(
 		regKey(sess), *sess.UserID, sess.Username, sanitizeNickname(c.Query("nickname")), c.Body())
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "passkey registration failed"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Couldn't add the passkey. Try again."})
 	}
 	if err := db.InsertWebAuthnCredential(*sess.UserID, rec); err != nil {
-		return c.Status(fiber.StatusConflict).JSON(errBody{Error: "that passkey is already registered"})
+		return c.Status(fiber.StatusConflict).JSON(errBody{Error: "That passkey is already added."})
 	}
 	return c.JSON(recoveryCodesBody{RecoveryCodes: maybeIssueRecoveryCodes(*sess.UserID)})
 }
@@ -349,10 +349,10 @@ func WebAuthnRenameHandler(c fiber.Ctx) error {
 		Nickname string `json:"nickname"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if err := db.RenameWebAuthnCredential(req.ID, *sess.UserID, sanitizeNickname(req.Nickname)); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "rename failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't rename it. Try again."})
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -368,10 +368,10 @@ func WebAuthnDeleteHandler(c fiber.Ctx) error {
 		ID int64 `json:"id"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if err := db.DeleteWebAuthnCredential(req.ID, *sess.UserID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "delete failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't delete it. Try again."})
 	}
 	cleanupRecoveryIfNoMFA(*sess.UserID)
 	return c.SendStatus(fiber.StatusNoContent)
@@ -388,15 +388,15 @@ func MFAStatusHandler(c fiber.Ctx) error {
 	}
 	_, totp, err := db.GetTOTP(*sess.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not load security"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't load your security settings. Try again."})
 	}
 	creds, err := db.ListWebAuthnCredentials(*sess.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not load security"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't load your security settings. Try again."})
 	}
 	remaining, err := db.CountUnusedRecoveryCodes(*sess.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not load security"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't load your security settings. Try again."})
 	}
 	views := make([]passkeyView, 0, len(creds))
 	for _, cr := range creds {
@@ -496,13 +496,13 @@ func sanitizeNickname(s string) string {
 // --- small response helpers -------------------------------------------------
 
 func expiredLogin(c fiber.Ctx) error {
-	return c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "login timed out — start over"})
+	return c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "Login timed out. Start again."})
 }
 
 func badCode(c fiber.Ctx) error {
-	return c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "that code didn't work"})
+	return c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "That code didn't work. Try again."})
 }
 
 func wrongPassword(c fiber.Ctx) error {
-	return c.Status(fiber.StatusForbidden).JSON(errBody{Error: "current password is incorrect"})
+	return c.Status(fiber.StatusForbidden).JSON(errBody{Error: "That isn't your current password."})
 }

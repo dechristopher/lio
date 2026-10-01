@@ -7,7 +7,9 @@
 //
 // Like lio-nav.js: no DOM mutation at init, no globals other scripts wait on.
 // It only defines functions and attaches listeners, so running after first
-// paint cannot shift anything on the page.
+// paint cannot shift anything on the page. The one exception is the
+// /#vs-computer hash at the bottom, which opens the picker (an overlay) on
+// request.
 
 (function () {
     const shade = document.getElementById("modalBotDifficulty");
@@ -95,4 +97,18 @@
     if (closeBtn) closeBtn.addEventListener("click", close);
     shade.addEventListener("click", (e) => { if (e.target === shade) close(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+
+    // /#vs-computer is where a cancelled challenge's "Play the computer
+    // instead" lands (RoomCancelHandler). Submitting the quick vs-Computer
+    // form goes through the interceptor above, so the picker opens exactly
+    // as if that button had been pressed. This is the one thing the file
+    // does at init that shows on screen, and it does it only on request: the
+    // picker is an overlay, so it cannot move the page under it. The hash is
+    // removed first, so a reload does not open the picker again.
+    if (location.hash === "#vs-computer") {
+        history.replaceState(null, "", location.pathname + location.search);
+        const quick = document.querySelector('form[data-bot-difficulty="quick"]');
+        const btn = quick && quick.querySelector("button[type=submit]");
+        if (btn && !btn.disabled) quick.requestSubmit(btn);
+    }
 })();

@@ -61,7 +61,7 @@ func ReadFeedbackHandler(c fiber.Ctx) error {
 	var req readRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	// The already-read case (ok=false) is not a conflict worth refusing over the
@@ -70,7 +70,7 @@ func ReadFeedbackHandler(c fiber.Ctx) error {
 	// holds either way. Only a real failure is worth reporting.
 	if _, err := db.MarkFeedbackRead(req.ID, *sess.UserID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not mark that read"})
+			JSON(errBody{Error: "Couldn't mark that read. Try again."})
 	}
 	// The backlog is shared, so every moderator's badge just changed — including
 	// this one's other tabs.
@@ -86,7 +86,7 @@ func ReadAllFeedbackHandler(c fiber.Ctx) error {
 	}
 	if _, err := db.MarkAllFeedbackRead(*sess.UserID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not clear the inbox"})
+			JSON(errBody{Error: "Couldn't clear the inbox. Try again."})
 	}
 	notify.SendStaffCount()
 	return c.SendStatus(fiber.StatusNoContent)

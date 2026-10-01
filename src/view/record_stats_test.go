@@ -91,16 +91,17 @@ func TestLengthsBucketing(t *testing.T) {
 	if len(v.Buckets) != len(lengthBuckets) {
 		t.Fatalf("got %d buckets, want %d", len(v.Buckets), len(lengthBuckets))
 	}
-	// boundaries are inclusive: 10 belongs to 1-10, 11 starts the next bucket
+	// boundaries are inclusive: ply 10 (move 5) belongs to 1-5, ply 11 (move
+	// 6) starts the next bucket
 	if v.Buckets[0].Games != 3 {
-		t.Errorf("bucket 1-10 = %d games, want 3", v.Buckets[0].Games)
+		t.Errorf("bucket 1-5 = %d games, want 3", v.Buckets[0].Games)
 	}
 	if v.Buckets[1].Games != 6 {
-		t.Errorf("bucket 11-20 = %d games, want 6", v.Buckets[1].Games)
+		t.Errorf("bucket 6-10 = %d games, want 6", v.Buckets[1].Games)
 	}
-	// the tail is open-ended, so a 55-ply game lands in 41+
+	// the tail is open-ended, so a 55-ply game lands in 21+
 	if v.Buckets[4].Games != 1 {
-		t.Errorf("bucket 41+ = %d games, want 1", v.Buckets[4].Games)
+		t.Errorf("bucket 21+ = %d games, want 1", v.Buckets[4].Games)
 	}
 	if v.Buckets[1].Height != "100%" {
 		t.Errorf("fullest bucket height = %q, want 100%%", v.Buckets[1].Height)
@@ -108,9 +109,9 @@ func TestLengthsBucketing(t *testing.T) {
 	if v.Games != 10 {
 		t.Errorf("total = %d, want 10", v.Games)
 	}
-	// 10 games; the 6th shortest is an 11-ply game
-	if v.Median != "11 plies" {
-		t.Errorf("Median = %q, want 11 plies", v.Median)
+	// 10 games; the 6th shortest is an 11-ply game, which is White's 6th move
+	if v.Median != "6 moves" {
+		t.Errorf("Median = %q, want 6 moves", v.Median)
 	}
 	// an empty histogram claims nothing
 	if n := len(NewLengths(nil).Buckets); n != 0 {

@@ -178,7 +178,7 @@ templ messagePlayer() {
 				Message
 				<textarea id="msgBody" class="auth-input" rows="3" maxlength="500" placeholder="What do you want them to know?"></textarea>
 			</label>
-			@answerOptions("msgChoices", "Leave empty unless they must answer")
+			@answerOptions("msgChoices", "Leave empty unless they must answer.")
 			<p id="msgError" class="auth-error hidden" role="alert"></p>
 			<p id="msgOk" class="auth-ok hidden" role="status"></p>
 			<button type="button" id="msgSend" class="btn btn-primary justify-center py-1.5" disabled>Send</button>
@@ -209,7 +209,7 @@ templ answerOptions(id string, help string) {
 			type="text"
 			autocomplete="off"
 			maxlength="120"
-			placeholder="OK — or Yes, No"
+			placeholder="OK, or Yes, No"
 			aria-describedby={ id + "Help" }
 		/>
 	</label>
@@ -239,7 +239,7 @@ templ broadcastComposer() {
 		// rather than pointing at where it happens to sit.
 		<p class="mt-2 text-sm text-fg-subtle">
 			Goes to the notification bell of every account, one row for the whole site.
-			Signed-out visitors do not have a bell — the site notice is what reaches them.
+			Logged-out visitors have no bell. The site notice is what reaches them.
 		</p>
 		<form id="broadcastForm" class="msg-compose mt-3" novalidate>
 			<label class="auth-label">
@@ -248,7 +248,7 @@ templ broadcastComposer() {
 			</label>
 			<label class="auth-label">
 				Link
-				<input name="link" class="auth-input" type="text" autocomplete="off" maxlength="200" placeholder="/news — optional, a path on this site"/>
+				<input name="link" class="auth-input" type="text" autocomplete="off" maxlength="200" placeholder="/news (optional, a path on this site)"/>
 			</label>
 			@answerOptions("bcChoices", "An offer with options can be tallied below.")
 			<div class="flex flex-wrap items-end gap-2">
@@ -383,7 +383,7 @@ templ liveOps(m SystemModel) {
 			<ul class="mt-3 flex flex-col gap-1">
 				for _, r := range m.Live.Rooms {
 					<li class="live-room">
-						<a class="live-room-id" href={ templ.SafeURL(r.URL) } title="Open the room — you join as a spectator">{ r.RoomID }</a>
+						<a class="live-room-id" href={ templ.SafeURL(r.URL) } title="Open the room. You join as a spectator.">{ r.RoomID }</a>
 						<span class="live-room-kind">{ r.Kind }</span>
 						<span class="live-room-variant">{ r.Variant }</span>
 						if r.VsBot {
@@ -396,7 +396,7 @@ templ liveOps(m SystemModel) {
 								class="btn btn-ghost live-room-close"
 								data-close-room={ r.RoomID }
 								data-confirm={ "Close room " + r.RoomID }
-								data-effect="Ends the room for both players. A game in progress is abandoned, not resolved — use this to clear something stuck, not to decide a game."
+								data-effect="Ends the room for both players. A game in progress is abandoned, not resolved. Use this to clear something stuck, not to decide a game."
 							>Close</button>
 						}
 					</li>
@@ -502,7 +502,7 @@ templ SystemStatsBody(s SystemStats) {
 		@statSections("Go runtime", s.Runtime.Sections)
 		for _, b := range s.Backends {
 			if len(b.Sections) > 0 {
-				@statSections(b.Name+" — "+b.Detail, b.Sections)
+				@statSections(b.Name+" · "+b.Detail, b.Sections)
 			}
 		}
 	</div>
@@ -541,7 +541,7 @@ templ activeNotices(m SystemModel) {
 		<p class="text-xs font-semibold uppercase tracking-wider text-fg-muted">Active notices</p>
 		if len(m.Active) == 0 {
 			<p class="mt-3 text-sm text-fg-subtle">
-				Nothing active — the site is running on its defaults.
+				Nothing active. The site is running on its defaults.
 			</p>
 		} else {
 			<ul class="mt-3 flex flex-col gap-1.5">
@@ -585,7 +585,7 @@ templ siteControls(m SystemModel) {
 			<div class="flex flex-col gap-2">
 				<label class="auth-label">
 					Site notice
-					<input class="auth-input" name="noticeText" type="text" maxlength="300" value={ m.Settings.NoticeText } placeholder="Shown on every page & not dismissable"/>
+					<input class="auth-input" name="noticeText" type="text" maxlength="300" value={ m.Settings.NoticeText } placeholder="Shown on every page. Can't be dismissed."/>
 				</label>
 				<div class="flex flex-wrap items-end gap-2">
 					<label class="auth-label">
@@ -605,7 +605,7 @@ templ siteControls(m SystemModel) {
 				</div>
 			</div>
 			<div class="mt-2 flex flex-col gap-2 border-t border-line pt-3">
-				@settingToggle("registrationOpen", "New account registration", "Existing accounts keep signing in either way.", m.Settings.RegistrationOpen)
+				@settingToggle("registrationOpen", "New account registration", "Existing accounts keep logging in either way.", m.Settings.RegistrationOpen)
 				@settingToggle("ratedEnabled", "Rated games", "Games already in progress keep the rating they started with.", m.Settings.RatedEnabled)
 				@settingToggle("maintenance", "Maintenance mode", "Stops new games starting. Games in progress play out normally.", m.Settings.Maintenance)
 			</div>

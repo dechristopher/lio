@@ -58,7 +58,7 @@ func UpdateSettingsHandler(c fiber.Ctx) error {
 	var req settingsRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	reason := ""
@@ -82,7 +82,7 @@ func UpdateSettingsHandler(c fiber.Ctx) error {
 		text := strings.TrimSpace(*req.NoticeText)
 		if len(text) > maxNoticeLength {
 			return c.Status(fiber.StatusUnprocessableEntity).
-				JSON(errBody{Error: "that notice is too long"})
+				JSON(errBody{Error: "That notice is too long."})
 		}
 		// an empty banner is the absence of one, so clear the override rather
 		// than storing "" — see db.ClearSetting
@@ -138,7 +138,7 @@ func UpdateSettingsHandler(c fiber.Ctx) error {
 
 	if len(changed) == 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "nothing to change"})
+			JSON(errBody{Error: "Nothing to change."})
 	}
 
 	settings.Invalidate()
@@ -163,5 +163,5 @@ func writeOrClear(key, value string, clear bool, actorID int64) error {
 // settingsError reports a failed write without leaking Postgres detail.
 func settingsError(c fiber.Ctx) error {
 	return c.Status(fiber.StatusInternalServerError).
-		JSON(errBody{Error: "could not apply that change"})
+		JSON(errBody{Error: "Couldn't apply that change. Try again."})
 }

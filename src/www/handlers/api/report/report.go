@@ -56,43 +56,43 @@ type request struct {
 func Handler(c fiber.Ctx) error {
 	if !auth.Enabled() {
 		return c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "reports are unavailable in this environment"})
+			JSON(errBody{Error: "Reports are unavailable right now."})
 	}
 	acct := user.GetAccount(c)
 	if acct == nil {
 		// Reporting requires an account so the queue has someone to come back
 		// to, and so a single anonymous visitor cannot file endlessly.
 		return c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "log in to report a player"})
+			JSON(errBody{Error: "Log in to report a player."})
 	}
 
 	var req request
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	if !db.ValidCategory(req.Category) {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "pick a reason for the report"})
+			JSON(errBody{Error: "Pick a reason for the report."})
 	}
 	note := strings.TrimSpace(req.Note)
 	if len(note) > maxNote {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that note is too long"})
+			JSON(errBody{Error: "That note is too long."})
 	}
 
 	target, found, err := db.GetUserByUsername(strings.TrimSpace(req.Username))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not file that report"})
+			JSON(errBody{Error: "Couldn't send that report. Try again."})
 	}
 	if !found {
 		return c.Status(fiber.StatusNotFound).
-			JSON(errBody{Error: "no such account"})
+			JSON(errBody{Error: "That account doesn't exist."})
 	}
 	if target.ID == acct.ID {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "you cannot report yourself"})
+			JSON(errBody{Error: "You can't report yourself."})
 	}
 
 	gameID := parseGameID(req.GameID)
@@ -103,10 +103,10 @@ func Handler(c fiber.Ctx) error {
 	case err == db.ErrAlreadyReported:
 		return c.Status(fiber.StatusOK).
 			JSON(fiber.Map{"already": true,
-				"message": "You have already reported this player. A moderator will review it."})
+				"message": "You've already reported this player. A moderator will review it."})
 	default:
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not file that report"})
+			JSON(errBody{Error: "Couldn't send that report. Try again."})
 	}
 }
 

@@ -58,7 +58,7 @@ templ profilePopover(username string, t title.Title) {
 						<input class="auth-input" name="confirm" type="password" autocomplete="new-password" required disabled/>
 					</label>
 					<p class="auth-error hidden" data-auth-error role="alert"></p>
-					<p class="auth-ok hidden" data-auth-ok role="status">Password changed. Other sessions were signed out.</p>
+					<p class="auth-ok hidden" data-auth-ok role="status">Password changed. Your other sessions were logged out.</p>
 					<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm" disabled>Update password</button>
 				</form>
 			</details>
@@ -106,7 +106,7 @@ templ staffLinks() {
 }
 
 // securityModal is the MFA management dialog (arch/ACCOUNTS_AUTH_RATINGS.md
-// Phase 4), opened from the profile popover's "Account Security" button.
+// Phase 4), opened from the profile popover's "Account security" button.
 // Its body is rendered client-side by lio-auth.js from GET /api/auth/mfa/status
 // and swapped through the enroll ceremonies (authenticator-app QR, passkey add,
 // one-time recovery codes) — a modal, not the popover, so the QR and code lists
@@ -115,7 +115,7 @@ templ securityModal() {
 	<div id="modalSecurity" class="modal-shade">
 		<div class="modal modal-wide card">
 			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
-			<h2>Account Security</h2>
+			<h2>Account security</h2>
 			<div id="securityModalBody" class="mt-1 text-left">
 				<p class="auth-hint">Loading…</p>
 			</div>
@@ -140,7 +140,7 @@ templ editProfileModal(username string) {
 					<h3 class="text-xs font-semibold uppercase tracking-wide text-fg-muted">Username</h3>
 					<form id="usernameForm" class="mt-2 flex flex-col gap-2" novalidate>
 						<input class="auth-input" name="username" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" value={ username } minlength="3" maxlength="20"/>
-						<p class="auth-hint" data-username-hint>You can change your username once, and only to change its capitalization.</p>
+						<p class="auth-hint" data-username-hint>You can change your username once, and only its capitalization.</p>
 						<p class="auth-error hidden" data-auth-error role="alert"></p>
 						<p class="auth-ok hidden" data-auth-ok role="status">Username updated.</p>
 						<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm" data-username-submit>Save username</button>
@@ -153,7 +153,7 @@ templ editProfileModal(username string) {
 							<span class="font-normal text-fg-subtle">(optional)</span>
 							<input class="auth-input" name="email" type="email" autocomplete="email" placeholder="you@example.com" maxlength="254"/>
 						</label>
-						<p class="auth-hint">Used only for account recovery. There is no email delivery yet — set it now so recovery works once it lands, or leave it blank to remove it.</p>
+						<p class="auth-hint">For password reset, which is coming soon. Leave it blank to remove it.</p>
 						<p class="auth-error hidden" data-auth-error role="alert"></p>
 						<p class="auth-ok hidden" data-auth-ok role="status">Email saved.</p>
 						<button type="submit" class="btn btn-primary w-full justify-center py-1.5 text-sm">Save email</button>

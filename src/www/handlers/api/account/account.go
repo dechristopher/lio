@@ -40,7 +40,7 @@ type credentials struct {
 // without Postgres, so accounts are always enabled there).
 func unavailable(c fiber.Ctx) error {
 	return c.Status(fiber.StatusServiceUnavailable).
-		JSON(errBody{Error: "accounts are unavailable"})
+		JSON(errBody{Error: "Accounts are unavailable right now."})
 }
 
 // parseEmail normalizes and lightly validates an optional email, shared by
@@ -54,7 +54,7 @@ func parseEmail(raw string) (*string, error) {
 	}
 	if len(e) > 254 || strings.Count(e, "@") != 1 ||
 		strings.HasPrefix(e, "@") || strings.HasSuffix(e, "@") {
-		return nil, errors.New("that email address doesn't look right")
+		return nil, errors.New("That email address doesn't look right.")
 	}
 	return &e, nil
 }
@@ -88,13 +88,13 @@ func RegisterHandler(c fiber.Ctx) error {
 	// so this is never a lockout (arch/ADMIN_MODERATION.md Phase 3).
 	if !settings.Current().RegistrationOpen {
 		return c.Status(fiber.StatusForbidden).
-			JSON(errBody{Error: "new account registration is temporarily closed"})
+			JSON(errBody{Error: "Sign-ups are closed for now. Existing accounts can still log in."})
 	}
 
 	var req credentials
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	username := strings.TrimSpace(req.Username)
@@ -115,17 +115,17 @@ func RegisterHandler(c fiber.Ctx) error {
 	phc, err := auth.HashPassword(req.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "registration failed"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	id, err := db.CreateUser(username, email, phc)
 	if err == db.ErrUsernameTaken {
 		return c.Status(fiber.StatusConflict).
-			JSON(errBody{Error: "that username is taken"})
+			JSON(errBody{Error: "That username is taken."})
 	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "registration failed"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	// a just-registered account holds no title and the default player role
@@ -133,7 +133,7 @@ func RegisterHandler(c fiber.Ctx) error {
 	acct := auth.AccountInfo{UserID: id, Username: username, Role: role.Player}
 	if err := auth.Login(c, auth.FromRequest(c), acct); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "registration succeeded but login failed - try logging in"})
+			JSON(errBody{Error: "Your account is ready, but we couldn't log you in. Log in to continue."})
 	}
 	return c.Status(fiber.StatusOK).JSON(okBody{Username: username})
 }
@@ -150,24 +150,24 @@ func LoginHandler(c fiber.Ctx) error {
 	var req credentials
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	username := strings.TrimSpace(req.Username)
 
 	if !auth.AllowLogin(middleware.ClientIP(c) + "|" + strings.ToLower(username)) {
 		return c.Status(fiber.StatusTooManyRequests).
-			JSON(errBody{Error: "too many attempts - wait a few minutes"})
+			JSON(errBody{Error: "Too many attempts. Wait a few minutes, then try again."})
 	}
 
 	failed := func() error {
 		return c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "invalid username or password"})
+			JSON(errBody{Error: "Wrong username or password."})
 	}
 
 	rec, found, err := db.GetUserByUsername(username)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "login failed"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if !found {
 		auth.VerifyDummy(req.Password)
@@ -216,7 +216,7 @@ func loginError(c fiber.Ctx, err error) error {
 			JSON(errBody{Error: banMessage(banned.Ban)})
 	}
 	return c.Status(fiber.StatusInternalServerError).
-		JSON(errBody{Error: "login failed"})
+		JSON(errBody{Error: "Something went wrong. Try again."})
 }
 
 // banMessage phrases a sanction for its own account holder: how long, and why
@@ -272,10 +272,10 @@ func UsernameAvailableHandler(c fiber.Ctx) error {
 	taken, err := db.UsernameTaken(u)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "availability check failed"})
+			JSON(errBody{Error: "Couldn't check that username. Try again."})
 	}
 	if taken {
-		return c.JSON(availBody{Available: false, Reason: "that username is taken"})
+		return c.JSON(availBody{Available: false, Reason: "That username is taken."})
 	}
 	return c.JSON(availBody{Available: true})
 }

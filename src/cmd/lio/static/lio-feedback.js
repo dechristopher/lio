@@ -103,14 +103,14 @@
 
         if (res.ok) {
           form.classList.add("hidden");
-          setOk("Thanks — this goes straight to us.");
+          setOk("Thanks. This goes straight to us.");
           setTimeout(close, 2600);
           return;
         }
         const err = await res.json().catch(() => null);
-        setError((err && err.error) || "Could not send that.");
+        setError((err && err.error) || "Couldn't send that. Try again.");
       } catch (e) {
-        setError("Network error — nothing was sent.");
+        setError("Can't reach the server. Nothing was sent.");
       }
       submitting = false;
       submitBtn.disabled = false;

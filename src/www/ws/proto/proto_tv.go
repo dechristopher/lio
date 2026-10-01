@@ -6,7 +6,7 @@ package proto
 // stranger can read ("Anonymous", a persona, or an account), never the room
 // view's viewer-relative "You".
 type TVSeat struct {
-	Name      string `json:"n,omitempty"`   // account username / bot persona name / "Anonymous"
+	Name      string `json:"n,omitempty"`   // account username / bot persona name / "Guest"
 	Title     string `json:"t,omitempty"`   // account title badge code ("GM"); "" = untitled
 	TitleName string `json:"tn,omitempty"`  // that badge's tooltip ("Grandmaster")
 	Bot       bool   `json:"bot,omitempty"` // the engine holds this seat

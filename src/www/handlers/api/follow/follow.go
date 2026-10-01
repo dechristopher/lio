@@ -118,17 +118,17 @@ type listResponse struct {
 func ListHandler(c fiber.Ctx) error {
 	if !auth.Enabled() {
 		return c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "following is unavailable in this environment"})
+			JSON(errBody{Error: "Following is unavailable right now."})
 	}
 
 	target, found, err := db.GetUserByUsername(strings.TrimSpace(c.Params("username")))
 	if err != nil {
 		util.Error(str.CDB, "follow list lookup failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not read that list"})
+			JSON(errBody{Error: "Couldn't load that list. Try again."})
 	}
 	if !found {
-		return c.Status(fiber.StatusNotFound).JSON(errBody{Error: "no such account"})
+		return c.Status(fiber.StatusNotFound).JSON(errBody{Error: "That account doesn't exist."})
 	}
 	// A closed account publishes nothing, the graph included. Its own edges are
 	// untouched underneath — a ban is not a delete — but this page makes no
@@ -150,7 +150,7 @@ func ListHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CDB, "follow list failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not read that list"})
+			JSON(errBody{Error: "Couldn't load that list. Try again."})
 	}
 
 	more := len(members) > pageSize
@@ -179,19 +179,19 @@ func ListHandler(c fiber.Ctx) error {
 func MineHandler(c fiber.Ctx) error {
 	if !auth.Enabled() {
 		return c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "following is unavailable in this environment"})
+			JSON(errBody{Error: "Following is unavailable right now."})
 	}
 	acct := user.GetAccount(c)
 	if acct == nil {
 		return c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "log in to see who you follow"})
+			JSON(errBody{Error: "Log in to see who you follow."})
 	}
 
 	members, err := db.ListFollowing(acct.ID, mineLimit, 0)
 	if err != nil {
 		util.Error(str.CDB, "following list failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not read your list"})
+			JSON(errBody{Error: "Couldn't load your list. Try again."})
 	}
 
 	// The presence snapshot, with the room registry's seats overlaid, so a row
@@ -340,28 +340,28 @@ func pageParam(c fiber.Ctx) int {
 func Handler(c fiber.Ctx) error {
 	if !auth.Enabled() {
 		return c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "following is unavailable in this environment"})
+			JSON(errBody{Error: "Following is unavailable right now."})
 	}
 	acct := user.GetAccount(c)
 	if acct == nil {
 		// Following requires an account: the edge has to start somewhere, and an
 		// anonymous session is not a somewhere that survives a browser restart.
 		return c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "log in to follow players"})
+			JSON(errBody{Error: "Log in to follow players."})
 	}
 
 	target, found, err := db.GetUserByUsername(strings.TrimSpace(c.Params("username")))
 	if err != nil {
 		util.Error(str.CDB, "follow lookup failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not reach that account"})
+			JSON(errBody{Error: "Couldn't reach that account. Try again."})
 	}
 	if !found {
-		return c.Status(fiber.StatusNotFound).JSON(errBody{Error: "no such account"})
+		return c.Status(fiber.StatusNotFound).JSON(errBody{Error: "That account doesn't exist."})
 	}
 	if target.ID == acct.ID {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "you cannot follow yourself"})
+			JSON(errBody{Error: "You can't follow yourself."})
 	}
 
 	// A closed account publishes nothing, so there is nothing to follow. Unfollow
@@ -369,7 +369,7 @@ func Handler(c fiber.Ctx) error {
 	// later banned must be able to undo that, and refusing would strand the row.
 	if target.Ban.Banned && c.Method() == fiber.MethodPost {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that account is closed"})
+			JSON(errBody{Error: "That account is closed."})
 	}
 
 	// One account's own social graph, and it changes on this request. It must
@@ -386,11 +386,11 @@ func Handler(c fiber.Ctx) error {
 	switch {
 	case errors.Is(err, db.ErrFollowLimit):
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "you are following as many players as one account can"})
+			JSON(errBody{Error: "You're following as many players as one account can."})
 	case err != nil:
 		util.Error(str.CDB, "follow write failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not save that"})
+			JSON(errBody{Error: "Couldn't save that. Try again."})
 	}
 
 	if created {

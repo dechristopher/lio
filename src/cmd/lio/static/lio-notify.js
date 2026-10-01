@@ -369,10 +369,10 @@
         item.anError = "";
         if (data && typeof data.unread === "number") unread = data.unread;
       } else {
-        item.anError = (data && data.error) || "Could not record that.";
+        item.anError = (data && data.error) || "Couldn't save your answer. Try again.";
       }
     } catch (e) {
-      item.anError = "Network error — that did not save.";
+      item.anError = "Can't reach the server. That didn't save.";
     }
     answerBusy.delete(k);
     // An answered question stops needing the reader, so its card goes with it.
@@ -481,10 +481,10 @@
         item.fw = data ? !!data.following : !following;
         item.fwError = "";
       } else {
-        item.fwError = (data && data.error) || "Could not save that.";
+        item.fwError = (data && data.error) || "Couldn't save that. Try again.";
       }
     } catch (e) {
-      item.fwError = "Network error — that did not save.";
+      item.fwError = "Can't reach the server. That didn't save.";
     }
     followBusy.delete(k);
     syncFollow(k);

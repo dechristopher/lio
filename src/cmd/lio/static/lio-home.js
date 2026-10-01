@@ -209,11 +209,11 @@
 		});
 	};
 
-	// challengerName (view/home.templ): who is waiting, or "Anonymous"
+	// challengerName (view/home.templ): who is waiting, or "Guest"
 	const challengerName = (c, into) => {
 		if (!c.n) {
 			const anon = make('span', 'truncate text-sm font-semibold text-fg-muted');
-			anon.textContent = 'Anonymous';
+			anon.textContent = 'Guest';
 			into.appendChild(anon);
 			return;
 		}
@@ -318,9 +318,9 @@
 	const rosterNote = (anon, more, shown) => {
 		const parts = [];
 		if (anon === 1) {
-			parts.push('1 anonymous visitor');
+			parts.push('1 guest');
 		} else if (anon > 1) {
-			parts.push(anon + ' anonymous visitors');
+			parts.push(anon + ' guests');
 		}
 		if (anon > 0 && !self.name) {
 			parts[0] += ' (including you)';

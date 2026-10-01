@@ -48,7 +48,7 @@ func AuthAPILimiter() fiber.Handler {
 		KeyGenerator: clientIP,
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).
-				JSON(fiber.Map{"error": "too many requests - slow down"})
+				JSON(fiber.Map{"error": "Too many requests. Wait a moment, then try again."})
 		},
 	})
 }
@@ -70,7 +70,7 @@ func AnalysisLimiter() fiber.Handler {
 		KeyGenerator: clientIP,
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).
-				JSON(fiber.Map{"error": "too many requests - slow down"})
+				JSON(fiber.Map{"error": "Too many requests. Wait a moment, then try again."})
 		},
 	})
 }
@@ -94,7 +94,7 @@ func LearnLimiter() fiber.Handler {
 		KeyGenerator: clientIP,
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).
-				JSON(fiber.Map{"error": "too many requests - slow down"})
+				JSON(fiber.Map{"error": "Too many requests. Wait a moment, then try again."})
 		},
 	})
 }
@@ -117,7 +117,7 @@ func FeedbackLimiter() fiber.Handler {
 		KeyGenerator: clientIP,
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).
-				JSON(fiber.Map{"error": "too many requests - slow down"})
+				JSON(fiber.Map{"error": "Too many requests. Wait a moment, then try again."})
 		},
 	})
 }
@@ -141,7 +141,7 @@ func CardLimiter() fiber.Handler {
 		KeyGenerator: clientIP,
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(fiber.StatusTooManyRequests).
-				JSON(fiber.Map{"error": "too many requests - slow down"})
+				JSON(fiber.Map{"error": "Too many requests. Wait a moment, then try again."})
 		},
 	})
 }

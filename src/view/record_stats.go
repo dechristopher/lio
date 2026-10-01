@@ -151,16 +151,18 @@ func endingLabel(reason string) string {
 // lengthBuckets is how ply counts are grouped for the distribution. Octad games
 // are short — a 4x4 board with four pieces a side — so the interesting spread is
 // under 40 plies and the tail is a single "longer" bucket rather than a run of
-// near-empty columns.
+// near-empty columns. Max is in plies (what the archive counts); Label is in
+// moves (what a player counts), a move being a ply rounded up to a pair, so the
+// 11th ply is White's 6th move.
 var lengthBuckets = []struct {
 	Label string
 	Max   int // inclusive; the final entry is the open-ended tail
 }{
-	{"1-10", 10},
-	{"11-20", 20},
-	{"21-30", 30},
-	{"31-40", 40},
-	{"41+", 0},
+	{"1-5", 10},
+	{"6-10", 20},
+	{"11-15", 30},
+	{"16-20", 40},
+	{"21+", 0},
 }
 
 // LengthBarView is one column of the game-length histogram.
@@ -234,7 +236,8 @@ func NewLengths(rows []db.LengthRecord) LengthsView {
 		}
 		v.Buckets = append(v.Buckets, bar)
 	}
-	v.Median = strconv.Itoa(medianPlies(rows, v.Games)) + " plies"
+	// in moves, like the bucket labels: the median ply rounded up to a pair
+	v.Median = plural(int64((medianPlies(rows, v.Games)+1)/2), "move", "moves")
 	return v
 }
 
@@ -468,7 +471,7 @@ func ReasonPhrase(reason string) string {
 	case "stalemate":
 		return "by stalemate"
 	case "insufficient":
-		return "for insufficient material"
+		return "by insufficient material"
 	case "agreement":
 		return "by agreement"
 	case "repetition":
@@ -476,7 +479,7 @@ func ReasonPhrase(reason string) string {
 	case "moverule":
 		return "by the 25-move rule"
 	case "abandoned":
-		return "when their opponent left"
+		return "by abandonment"
 	}
 	return ""
 }

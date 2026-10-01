@@ -41,8 +41,8 @@ templ HomeActivity(challenges []message.OpenChallenge, stats message.SiteStats, 
 templ siteStats(stats message.SiteStats) {
 	<div class="grid grid-cols-3 gap-2.5">
 		@statTile(stats.Playing, "Online", "home-stat-playing")
-		@statTile(stats.LiveGames, "Live", "home-stat-live")
-		@statTile(stats.TotalGames, "Games", "home-stat-total")
+		@statTile(stats.LiveGames, "Live games", "home-stat-live")
+		@statTile(stats.TotalGames, "Games played", "home-stat-total")
 	</div>
 }
 
@@ -52,7 +52,8 @@ templ siteStats(stats message.SiteStats) {
 templ statTile(n int, label string, id string) {
 	<div class="card flex flex-col items-center gap-0.5 py-3">
 		<span id={ id } class="font-display text-2xl font-bold leading-none text-accent">{ strconv.Itoa(n) }</span>
-		<span class="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{ label }</span>
+		// text-center: on a phone the two-word labels wrap to two lines
+		<span class="text-center text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{ label }</span>
 	</div>
 }
 
@@ -73,7 +74,7 @@ templ openChallenges(challenges []message.OpenChallenge) {
 			if len(challenges) > 0 {
 				hidden
 			}
-		>No open challenges right now — <button type="button" data-open-create-game data-prefill-public class="font-semibold text-accent hover:underline cursor-pointer">create one</button> to get a game going</p>
+		>No open challenges. <button type="button" data-open-create-game data-prefill-public class="font-semibold text-accent hover:underline cursor-pointer">Create one</button>.</p>
 		<ul
 			id="home-challenges-list"
 			class="mt-3 flex flex-col gap-2"
@@ -130,7 +131,7 @@ templ challengeRow(c message.OpenChallenge) {
 // title badge, username and (for a rated seek) rating; an anonymous creator gets
 // a muted "Anonymous". Putting the person on the primary line and demoting the
 // time control to the sub-line is deliberate — a challenge is an invitation from
-// somebody, and the visible difference between a name and "Anonymous" is the
+// somebody, and the visible difference between a name and "Guest" is the
 // most honest argument the page makes for holding an account.
 templ challengerName(c message.OpenChallenge) {
 	if c.CreatorName != "" {
@@ -140,7 +141,7 @@ templ challengerName(c message.OpenChallenge) {
 			<span class="rating-chip flex-none">{ c.CreatorRating }</span>
 		}
 	} else {
-		<span class="truncate text-sm font-semibold text-fg-muted">Anonymous</span>
+		<span class="truncate text-sm font-semibold text-fg-muted">Guest</span>
 	}
 }
 
@@ -219,7 +220,7 @@ templ playersCard(c message.Community) {
 				hidden
 			}
 		>
-			<p class="roster-label">Arrivals</p>
+			<p class="roster-label">Just joined</p>
 			<ul id="home-arrivals-list" class="chip-list">
 				for _, m := range c.Newest {
 					@arrivalChip(m)
@@ -339,7 +340,7 @@ templ leaderboardCard(c message.Community) {
 		<div class="card">
 			<div class="flex items-center justify-between">
 				<h2 class="font-display text-lg font-bold text-fg">Top rated</h2>
-				<span class="text-[11px] uppercase tracking-wide text-fg-subtle">Any time control</span>
+				<span class="text-[11px] uppercase tracking-wide text-fg-subtle">Best rating</span>
 			</div>
 			<ol class="roster mt-1">
 				for i, m := range c.Top {
@@ -375,23 +376,13 @@ templ homeWelcome() {
 				@iconClose()
 			</button>
 			<h2 class="font-display text-lg font-bold text-fg">Play as someone</h2>
+			// "a username and a password" is the whole form: the email field is
+			// optional (accountModal), and saying so is the shortest answer to
+			// "how much work is this".
 			<p class="prose mt-1 text-sm">
-				You can play right now without an account. Signing up gets you the rest of it.
+				You can play now without an account. Sign up to keep a rating, a record of your
+				games, and a name other players can challenge. You only need a username and a password.
 			</p>
-			<ul class="home-cta-list">
-				<li>
-					@iconTrophy("h-3.5 w-3.5")
-					<span><strong>A rating</strong> that moves with every rated game you play</span>
-				</li>
-				<li>
-					@iconChart("h-3.5 w-3.5")
-					<span><strong>A profile</strong> with your record, your openings and your history</span>
-				</li>
-				<li>
-					@iconUsers("h-3.5 w-3.5")
-					<span><strong>A name</strong> other players can see, find and challenge</span>
-				</li>
-			</ul>
 			<button type="button" id="homeCtaCreate" data-open-register class="btn btn-primary mt-3 w-full justify-center py-2">Create a free account</button>
 		</div>
 	}
@@ -443,22 +434,30 @@ templ octadAbout() {
 					class="home-cta-x"
 					data-pref-off={ prefs.KeyHomeAbout }
 					aria-label="Hide this card"
-					title="Hide — bring it back from preferences"
+					title="Hide. You can show it again from Preferences."
 				>
 					@iconClose()
 				</button>
 			}
 			<h2 class="font-display text-lg font-bold text-fg">What is Octad?</h2>
-			<p class="prose mt-2">
-				Octad is a 4×4 chess variant: every game starts with a knight, king and two pawns per side.
-				All the chess you know (check, checkmate, promotion, en passant) but with a twist: the king
-				can castle with <em>any</em> of its starting pieces, and you get to pick your starting position.
-			</p>
+			// The familiar part is one sentence. The two rules that a chess
+			// player does not know yet are a list, so they are easy to find.
+			<div class="prose mt-2">
+				<p>
+					Octad is chess on a 4×4 board. Each side has a king, a knight, and two pawns. The
+					usual rules apply, including promotion and en passant.
+				</p>
+				<p class="mt-2">Two things are new:</p>
+				<ul class="home-about-new">
+					<li>You set up your pieces in secret before the game.</li>
+					<li>Your king can castle with <em>any</em> of its starting pieces.</li>
+				</ul>
+			</div>
 			// The tutorial is the natural next step for somebody who has just
             // read what this game is, so it leads on its own full-width row
             // rather than competing as a fourth ghost button in the reading
             // links below it.
-            <a href="/learn" class="btn btn-primary mt-3 w-full no-underline text-base md:text-sm">Learn to Play →</a>
+            <a href="/learn" class="btn btn-primary mt-3 w-full no-underline text-base md:text-sm">Learn to play →</a>
 			<div class="home-demo mt-3">
 				<div class="gcon">
 					<div class="gwrap">
@@ -470,7 +469,7 @@ templ octadAbout() {
 			<div class="btn-seg mt-2">
 				<a href="/about/rules" class="btn btn-ghost no-underline text-base md:text-sm">Rules</a>
 				<a href="/about/board" class="btn btn-ghost no-underline text-base md:text-sm">Board layout</a>
-				<a href="/about" class="btn btn-ghost no-underline text-base md:text-sm">Learn more</a>
+				<a href="/about" class="btn btn-ghost no-underline text-base md:text-sm">About</a>
 			</div>
 		</div>
 	}

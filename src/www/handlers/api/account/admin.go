@@ -37,7 +37,7 @@ func authed(c fiber.Ctx) (*auth.Session, bool) {
 	sess := auth.CurrentSession(c)
 	if sess == nil || !sess.LoggedIn() {
 		_ = c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "not logged in"})
+			JSON(errBody{Error: "You're not logged in."})
 		return nil, false
 	}
 	return sess, true
@@ -56,7 +56,7 @@ func PasswordHandler(c fiber.Ctx) error {
 		New     string `json:"new"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if err := auth.ValidatePassword(req.New); err != nil {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(errBody{Error: err.Error()})
@@ -64,19 +64,19 @@ func PasswordHandler(c fiber.Ctx) error {
 
 	user, found, err := db.GetUserByID(*sess.UserID)
 	if err != nil || !found {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "password change failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't change your password. Try again."})
 	}
 	okPw, _, err := auth.VerifyPassword(user.PasswordHash, req.Current)
 	if err != nil || !okPw {
-		return c.Status(fiber.StatusForbidden).JSON(errBody{Error: "current password is incorrect"})
+		return c.Status(fiber.StatusForbidden).JSON(errBody{Error: "That isn't your current password."})
 	}
 
 	phc, err := auth.HashPassword(req.New)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "password change failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't change your password. Try again."})
 	}
 	if err := db.UpdatePasswordHash(user.ID, phc); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "password change failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't change your password. Try again."})
 	}
 	// revoke every session but this one
 	if err := db.DeleteSessionsForUserExcept(user.ID, sess.ID); err != nil {
@@ -97,7 +97,7 @@ func SessionsHandler(c fiber.Ctx) error {
 	}
 	rows, err := db.ListSessionsForUser(*sess.UserID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "could not load sessions"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't load your sessions. Try again."})
 	}
 	// most-recently-seen first (the query already orders this way; keep it
 	// explicit so the current session floats up predictably)
@@ -128,13 +128,13 @@ func RevokeSessionHandler(c fiber.Ctx) error {
 		ID int64 `json:"id"`
 	}
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	if req.ID == sess.ID {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "use log out to end the current session"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Use Log out to end this session."})
 	}
 	if err := db.DeleteSessionByID(req.ID, *sess.UserID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "revoke failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't revoke that session. Try again."})
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -147,7 +147,7 @@ func LogoutAllHandler(c fiber.Ctx) error {
 		return nil
 	}
 	if err := auth.LogoutAll(c, *sess.UserID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "logout failed"})
+		return c.Status(fiber.StatusInternalServerError).JSON(errBody{Error: "Couldn't log you out. Try again."})
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }

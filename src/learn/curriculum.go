@@ -34,10 +34,10 @@ var Lessons = []Lesson{
 				OFEN: standardStart,
 				Prompt: "Octad is played on sixteen squares. Every square has a name: " +
 					"its column letter (a to d) then its row number (1 to 4).",
-				Action: "Click a1 — White's bottom-left corner.",
+				Action: "Click a1, White's bottom-left corner.",
 				Hint:   "Bottom-left corner, from White's side of the board.",
-				Success: "That's a1. Columns go left to right, rows go bottom to top. " +
-					"This is reversed if playing as Black.",
+				Success: "That's a1. Columns go left to right, and rows go bottom to top. " +
+					"From Black's side, it's the other way around.",
 				Goal:     GoalSelect,
 				Targets:  []string{"a1"},
 				Solution: []string{"a1"},
@@ -47,7 +47,7 @@ var Lessons = []Lesson{
 				Prompt:   "Now put the two together.",
 				Action:   "Find c3: third column across, third row up.",
 				Hint:     "Count three columns from the left, then three rows up.",
-				Success:  "Exactly. Letter first, number second — always.",
+				Success:  "Exactly. Letter first, then number, every time.",
 				Goal:     GoalSelect,
 				Targets:  []string{"c3"},
 				Solution: []string{"c3"},
@@ -56,7 +56,7 @@ var Lessons = []Lesson{
 				OFEN: standardStart,
 				Prompt: "Each player starts with four pieces on their back row: a knight, " +
 					"a king, and two pawns.",
-				Action:   "Black's knight is in the far corner — click it.",
+				Action:   "Black's knight is in the far corner. Click it.",
 				Hint:     "The far corner from White's view is d4.",
 				Success:  "That's d4. You can read any square on the board now.",
 				Goal:     GoalSelect,
@@ -69,7 +69,7 @@ var Lessons = []Lesson{
 		Slug:    "pieces",
 		Title:   "The pieces",
 		Chapter: "Getting started",
-		Blurb:   "King, knight, and pawn & how each one moves",
+		Blurb:   "King, knight, and pawn, and how each one moves",
 		Icon:    "♞",
 		Kind:    KindDrill,
 		Steps: []Step{
@@ -91,9 +91,9 @@ var Lessons = []Lesson{
 				OFEN: "kn2/4/4/NKPP w - - 0 1",
 				Prompt: "The knight jumps in an L: two squares one way, then one square " +
 					"across. It is the only piece that can hop over others.",
-				Action:   "Land it on d2 — it takes two jumps.",
+				Action:   "Land it on d2. It takes two jumps.",
 				Hint:     "Go by way of b3.",
-				Success:  "Good. The knight always lands on a different colour square than it left.",
+				Success:  "Good. The knight always lands on a different color square than it left.",
 				Goal:     GoalReach,
 				Targets:  []string{"d2"},
 				Solo:     true,
@@ -101,7 +101,7 @@ var Lessons = []Lesson{
 			},
 			{
 				OFEN: standardStart,
-				Prompt: "Pawns march straight forward, one square at a time — or two on " +
+				Prompt: "Pawns move straight forward, one square at a time, or two on " +
 					"their very first move.",
 				Action:  "Push your c-pawn two squares, to c3.",
 				Hint:    "Only a pawn that has not moved yet may go two squares.",
@@ -127,7 +127,7 @@ var Lessons = []Lesson{
 				Setup: []string{"c1c2", "b4b3"},
 				Prompt: "Pieces capture by moving onto an enemy piece and taking its place. " +
 					"Pawns are the exception: they move straight but capture diagonally.",
-				Action:  "Black's pawn on b3 is on your pawn's diagonal — take it.",
+				Action:  "Black's pawn on b3 is on your pawn's diagonal. Take it.",
 				Hint:    "Your pawn on c2 captures diagonally forward, to b3 or d3.",
 				Success: "A pawn up. On a board this small, one pawn often decides the game.",
 				Goal:    GoalCapture,
@@ -167,11 +167,11 @@ var Lessons = []Lesson{
 			{
 				OFEN: standardStart,
 				Prompt: "Here is where Octad parts company with chess. Castling lets your king " +
-					"trade places with a teammate — and in Octad that teammate can be any of " +
+					"trade places with a teammate. In Octad that teammate can be any of " +
 					"your back-row pieces, not just a rook. Your king is on b1 and your knight " +
 					"is right beside it on a1.",
 				Action:   "Swap them: that is the near castle.",
-				Hint:     "Move the king onto your own knight — pieces that stand side by side simply swap.",
+				Hint:     "Move the king onto your own knight. Pieces that stand side by side simply swap.",
 				Success:  "That is the near castle, written O. Neither piece had moved yet, which is the one condition.",
 				Goal:     GoalCastle,
 				Castle:   "near",
@@ -193,11 +193,11 @@ var Lessons = []Lesson{
 				// and far castles remain — and the far one now has a clear path
 				Setup: []string{"c1c2", "b4b3"},
 				Prompt: "The far partner is your d1 pawn, and a partner further away does not " +
-					"swap — the two cross. The king slides toward the partner and stops one " +
+					"swap: the two cross. The king slides toward the partner and stops one " +
 					"square short, and the partner hops to the square just past it. Every " +
 					"square between them must be empty, which it now is.",
 				Action: "Drag your king onto the d1 pawn to castle far.",
-				Hint: "Always castle by moving your king onto the partner itself — here, the d1 " +
+				Hint: "Always castle by moving your king onto the partner itself: here, the d1 " +
 					"pawn. The king stops on c1 and the pawn crosses over to b1. Dropping the " +
 					"king on the empty c1 is just an ordinary king move, and gives up all " +
 					"three castles.",
@@ -225,7 +225,7 @@ var Lessons = []Lesson{
 					"ever appears is to march a pawn all the way to the far row, where it " +
 					"promotes into whichever piece you choose. Your pawn is one square away.",
 				Action: "Push it to c4 and choose your new piece.",
-				Hint:   "Push c3 to c4, then pick a piece when you are asked — the queen is usually the one you want.",
+				Hint:   "Push c3 to c4, then pick a piece when you are asked. The queen is usually the one you want.",
 				// {piece} names whatever they actually chose (see successLine):
 				// underpromoting to a knight is a real decision and the coach
 				// should not congratulate them on a queen they did not take
@@ -247,8 +247,8 @@ var Lessons = []Lesson{
 		Steps: []Step{
 			{
 				OFEN: "3k/4/4/K1q1 w - - 0 1",
-				Prompt: "A king under attack is in check, and you must answer it immediately — " +
-					"you may never leave your own king attacked. Black's queen has yours in " +
+				Prompt: "A king under attack is in check, and you must answer it immediately. " +
+					"You may never leave your own king attacked. Black's queen has yours in " +
 					"check along the bottom row. Notice the board offers you exactly one " +
 					"escape square: every other one is attacked.",
 				Action:  "Play it.",
@@ -262,13 +262,13 @@ var Lessons = []Lesson{
 				// exactly one move mates here; the old position for this step
 				// had four, which let a guess pass for understanding
 				OFEN: "3k/4/1KQ1/4 w - - 0 1",
-				Prompt: "Checkmate wins the game: when the king is in check and there is no legal " +
-					"way out with no escape square, no way to block, and no way to capture the " +
+				Prompt: "Checkmate wins the game: the king is in check and has no way out. It " +
+					"has no square to escape to, no way to block, and no way to capture the " +
 					"attacker. Black's king is boxed into the corner, and your king already " +
 					"covers the square your queen wants.",
 				Action: "Find mate in one.",
 				Hint: "Look for the one square where your queen attacks the king and both " +
-					"squares it could run to — and where your own king defends it, so the " +
+					"squares it could run to, and where your own king defends it, so the " +
 					"queen cannot simply be taken.",
 				Success: "Checkmate. That's game over.",
 				Goal:    GoalMate,
@@ -278,7 +278,7 @@ var Lessons = []Lesson{
 			},
 			{
 				OFEN: "3k/PP1p/4/1K2 w - - 0 1",
-				Prompt: "Promotion is not only how you get a queen — often it is the mating move " +
+				Prompt: "Promotion is not only how you get a queen. Often it is the mating move " +
 					"itself. Black's king is cornered, Black's own pawn is one square from " +
 					"promoting too, and one of your pawns can end it first.",
 				Action: "Promote, and finish the game.",
@@ -295,13 +295,13 @@ var Lessons = []Lesson{
 				OFEN: "r3/k1P1/2P1/NK2 w NCF - 0 1",
 				Prompt: "One last idea, and it is pure Octad: a castle can be the mating move. " +
 					"Neither your king nor your knight has moved, so the near castle is still " +
-					"available — and it does not just tuck the king away, it throws the knight " +
+					"available. It does more than tuck the king away: it throws the knight " +
 					"across the board.",
 				Action: "Castle to deliver mate.",
-				Hint: "Castle the way you always do — move the king onto the partner itself. " +
+				Hint: "Castle the way you always do: move the king onto the partner itself. " +
 					"Work out which square the knight lands on, and what it attacks from there.",
 				Success: "Checkmate by castling. The knight lands giving check while your king " +
-					"covers the squares Black would run to — one move doing two jobs.",
+					"covers the squares Black would run to. One move doing two jobs.",
 				Goal:   GoalMate,
 				Castle: "near",
 				Moves:  1,
@@ -327,9 +327,9 @@ var Lessons = []Lesson{
 					"on the spot. Black has only a king, on c4.",
 				Action: "Take away its last squares without checking it.",
 				Hint: "Your king already covers b3. Bring the queen to the one square that " +
-					"takes away every other square around the black king — while still not " +
+					"takes away every other square around the black king, while still not " +
 					"attacking the king itself.",
-				Success: "Drawn — and with a queen on the board! Watch for this when you are winning: " +
+				Success: "Drawn, and with a queen on the board! Watch for this when you are winning: " +
 					"check the king or leave it a square, never neither.",
 				Goal:  GoalStalemate,
 				Moves: 1,
@@ -347,7 +347,7 @@ var Lessons = []Lesson{
 				Action: "Promote to a queen and watch what happens.",
 				Hint: "Push the pawn to the last row and take the strongest piece. Then count " +
 					"the squares the black king has left.",
-				Success: "Drawn — the new queen covers every square the king could use, and " +
+				Success: "Drawn. The new queen covers every square the king could use, and " +
 					"leaves it none. Taking a rook instead would have kept the win. That is " +
 					"why strong players sometimes promote to something smaller.",
 				Goal:  GoalStalemate,
@@ -363,17 +363,17 @@ var Lessons = []Lesson{
 		Slug:    "deploy",
 		Title:   "Choose your setup",
 		Chapter: "Playing for real",
-		Blurb:   "Arrange your own pieces before the game starts",
+		Blurb:   "Set up your pieces before the game starts",
 		Icon:    "⇄",
 		Kind:    KindDeploy,
 		Steps: []Step{
 			{
 				OFEN: standardStart,
-				Prompt: "One more twist, and it happens before the first move. In Octad games " +
-					"both players privately arrange their four pieces along their own back " +
-					"row, then the setups are revealed together. Every rule adapts, castling " +
+				Prompt: "One more twist, and it happens before the first move. In every game on " +
+					"this site, both players set up their four pieces along their own back " +
+					"row in secret, then the setups are revealed together. Every rule adapts, castling " +
 					"included, since near, center, and far follow wherever your king ends up.",
-				Action: "Drag your pieces into any order you like, then commit.",
+				Action: "Swap your pieces into any order you like, then confirm.",
 				Hint: "There is no wrong answer. A king in a corner is harder to reach; a king " +
 					"in the middle castles both ways immediately.",
 				Success: "That is your setup, and Black's is revealed beside it. Neither of you " +
@@ -393,7 +393,7 @@ var Lessons = []Lesson{
 			{
 				OFEN: standardStart,
 				Prompt: "That is everything. You play White against Pawn, the gentlest bot on " +
-					"the site — it knows the rules and not much else. There is no clock, and " +
+					"the site. It knows the rules and not much else. There is no clock, and " +
 					"you can reset whenever you like.",
 				Action: "Win a game!",
 				Hint: "Push a pawn, protect your king, and take anything Black leaves hanging. " +

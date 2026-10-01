@@ -82,7 +82,7 @@ func SearchUsersHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CDB, "user search failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not search players"})
+			JSON(errBody{Error: "Couldn't search players. Try again."})
 	}
 	players := make([]userMatch, 0, len(rows))
 	for _, r := range rows {
@@ -111,17 +111,17 @@ func NotifyUserHandler(c fiber.Ctx) error {
 
 	var req notifyRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	body := strings.TrimSpace(req.Body)
 	if len(body) < minNotifyBody {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "write a little more than that"})
+			JSON(errBody{Error: "Write a little more than that."})
 	}
 	if len(body) > maxNotifyBody {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that message is too long"})
+			JSON(errBody{Error: "That message is too long."})
 	}
 
 	choices, err := cleanChoices(req.Choices)
@@ -133,10 +133,10 @@ func NotifyUserHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CDB, "notify target lookup failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not send that message"})
+			JSON(errBody{Error: "Couldn't send that message. Try again."})
 	}
 	if !found {
-		return c.Status(fiber.StatusNotFound).JSON(errBody{Error: "no such player"})
+		return c.Status(fiber.StatusNotFound).JSON(errBody{Error: "That player doesn't exist."})
 	}
 
 	if err := notify.Push(db.NewNotification{
@@ -147,7 +147,7 @@ func NotifyUserHandler(c fiber.Ctx) error {
 	}, ""); err != nil {
 		util.Error(str.CNotif, "operator notify failed target=%d error=%s", rec.ID, err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not send that message"})
+			JSON(errBody{Error: "Couldn't send that message. Try again."})
 	}
 
 	// Audited like every other per-account action. The message itself is the

@@ -203,7 +203,7 @@
 			showError(pwForm);
 			if (okEl) { okEl.classList.add('hidden'); }
 			if (pwForm.new.value !== pwForm.confirm.value) {
-				showError(pwForm, 'New passwords do not match.');
+				showError(pwForm, "The new passwords don't match.");
 				return;
 			}
 			try {
@@ -217,9 +217,9 @@
 					if (okEl) { okEl.classList.remove('hidden'); }
 					return;
 				}
-				showError(pwForm, data.error || 'Could not change password.');
+				showError(pwForm, data.error || "Couldn't change your password. Try again.");
 			} catch (err) {
-				showError(pwForm, 'Network error — try again.');
+				showError(pwForm, "Can't reach the server. Check your connection and try again.");
 			}
 		});
 	}
@@ -234,10 +234,10 @@
 				const res = await fetch('/api/auth/sessions');
 				sessionsBody.innerHTML = res.ok
 					? await res.text()
-					: '<p class="auth-hint">Could not load sessions.</p>';
+					: "<p class=\"auth-hint\">Couldn't load your sessions. Try again.</p>";
 				sessionsBody.dataset.loaded = 'true';
 			} catch (err) {
-				sessionsBody.innerHTML = '<p class="auth-hint">Could not load sessions.</p>';
+				sessionsBody.innerHTML = "<p class=\"auth-hint\">Couldn't load your sessions. Try again.</p>";
 			}
 		};
 		sessionsDetails.addEventListener('toggle', () => {
@@ -283,7 +283,12 @@
 		activateTab('login');
 	};
 
+	// the modal title follows the tab (view/components.templ accountModal)
+	const authTitle = modal.querySelector('[data-auth-title]');
 	const activateTab = (which) => {
+		if (authTitle) {
+			authTitle.textContent = which === 'register' ? 'Create your account' : 'Welcome back';
+		}
 		tabs.forEach((t) => t.classList.toggle('is-active', t.dataset.authTab === which));
 		Object.keys(forms).forEach((k) => {
 			const form = forms[k];
@@ -381,9 +386,9 @@
 					code: mfaCodeForm.code.value.trim(),
 				});
 				if (status === 200) { window.location.reload(); return; }
-				showError(mfaStep, data.error || 'That did not work — try again.');
+				showError(mfaStep, data.error || "That didn't work. Try again.");
 			} catch (err) {
-				showError(mfaStep, 'Network error — try again.');
+				showError(mfaStep, "Can't reach the server. Check your connection and try again.");
 			}
 		});
 	}
@@ -395,15 +400,15 @@
 			try {
 				const begin = await post('/api/auth/login/webauthn/begin?pending=' + encodeURIComponent(pendingToken), null);
 				if (begin.status !== 200 || !begin.data.publicKey) {
-					showError(mfaStep, begin.data.error || 'Could not start passkey verification.');
+					showError(mfaStep, begin.data.error || "Couldn't start passkey verification. Try again.");
 					return;
 				}
 				const assertion = await navigator.credentials.get({ publicKey: prepAssertion(begin.data.publicKey) });
 				const fin = await post('/api/auth/login/webauthn/finish?pending=' + encodeURIComponent(pendingToken), credentialToJSON(assertion));
 				if (fin.status === 200) { window.location.reload(); return; }
-				showError(mfaStep, fin.data.error || 'Passkey verification failed.');
+				showError(mfaStep, fin.data.error || 'Passkey verification failed. Try again.');
 			} catch (err) {
-				showError(mfaStep, 'Passkey verification was cancelled.');
+				showError(mfaStep, 'Passkey verification was canceled.');
 			} finally {
 				mfaPasskeyBtn.disabled = false;
 			}
@@ -424,9 +429,9 @@
 				const { status, data } = await post('/api/auth/login', body);
 				if (status === 200 && data.mfa) { enterMFA(data); return; }
 				if (status === 200) { window.location.reload(); return; }
-				showError(form, data.error || 'Login failed — try again.');
+				showError(form, data.error || 'Something went wrong. Try again.');
 			} catch (err) {
-				showError(form, 'Network error — try again.');
+				showError(form, "Can't reach the server. Check your connection and try again.");
 			}
 		});
 	}
@@ -439,7 +444,8 @@
 
 		form.username.addEventListener('input', () => {
 			if (!availEl) { return; }
-			availEl.textContent = '';
+			// back to the rules until there is a name long enough to check
+			availEl.textContent = availEl.dataset.default || '';
 			availEl.classList.remove('text-win', 'text-loss');
 			clearTimeout(availTimer);
 			const u = form.username.value.trim();
@@ -454,7 +460,7 @@
 						availEl.textContent = u + ' is available';
 						availEl.classList.add('text-win');
 					} else {
-						availEl.textContent = data.reason || 'unavailable';
+						availEl.textContent = data.reason || 'Not available';
 						availEl.classList.add('text-loss');
 					}
 				} catch (err) { /* probe is best-effort */ }
@@ -475,9 +481,9 @@
 					window.location.reload();
 					return;
 				}
-				showError(form, data.error || 'Registration failed — try again.');
+				showError(form, data.error || 'Something went wrong. Try again.');
 			} catch (err) {
-				showError(form, 'Network error — try again.');
+				showError(form, "Can't reach the server. Check your connection and try again.");
 			}
 		});
 	}
@@ -495,6 +501,16 @@
 			activateTab('register');
 			modal.classList.add('open');
 			const first = forms.register && forms.register.querySelector('input');
+			if (first) { first.focus(); }
+		});
+	});
+	// [data-open-login] is the same, on the login tab: the "Have an account?
+	// Log in" link that sits under a sign-up button (view/room_pregame.templ).
+	document.querySelectorAll('[data-open-login]').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			resetAuthModal();
+			modal.classList.add('open');
+			const first = forms.login && forms.login.querySelector('input');
 			if (first) { first.focus(); }
 		});
 	});
@@ -548,7 +564,7 @@
 					if (submit) { submit.disabled = !avail; }
 					if (hint) {
 						hint.textContent = avail
-							? 'You can change your username once, and only to change its capitalization.'
+							? 'You can change your username once, and only its capitalization.'
 							: 'You have already used your one username change.';
 					}
 				}
@@ -595,10 +611,10 @@
 						setTimeout(() => window.location.reload(), 700);
 						return;
 					}
-					showError(usernameForm, data.error || 'Could not change username.');
+					showError(usernameForm, data.error || "Couldn't change your username. Try again.");
 					if (submit) { submit.disabled = false; }
 				} catch (err) {
-					showError(usernameForm, 'Network error — try again.');
+					showError(usernameForm, "Can't reach the server. Check your connection and try again.");
 					if (submit) { submit.disabled = false; }
 				}
 			});
@@ -618,9 +634,9 @@
 						if (okEl) { okEl.classList.remove('hidden'); }
 						return;
 					}
-					showError(emailForm, data.error || 'Could not save email.');
+					showError(emailForm, data.error || "Couldn't save your email. Try again.");
 				} catch (err) {
-					showError(emailForm, 'Network error — try again.');
+					showError(emailForm, "Can't reach the server. Check your connection and try again.");
 				}
 			});
 		}
@@ -664,7 +680,7 @@
 				if (!res.ok) { throw new Error('status'); }
 				renderStatus(await res.json());
 			} catch (err) {
-				body.innerHTML = '<p class="auth-hint">Could not load security settings.</p>';
+				body.innerHTML = "<p class=\"auth-hint\">Couldn't load your security settings. Try again.</p>";
 			}
 		};
 
@@ -688,6 +704,7 @@
 			if (!pkRows) { pkRows = '<p class="auth-hint" style="margin-top:.4rem">No passkeys yet.</p>'; }
 
 			body.innerHTML = `
+				<p class="auth-hint mb-3">Add a second step when you log in, so a stolen password isn't enough to get into your account.</p>
 				<div class="mfa-section">
 					<div class="mfa-head">
 						<div>
@@ -705,12 +722,12 @@
 					<div class="mfa-head">
 						<div>
 							<div class="mfa-title">Passkeys</div>
-							<div class="mfa-desc">Sign in with a fingerprint, face, or security key.</div>
+							<div class="mfa-desc">Log in with a fingerprint, face, or security key.</div>
 						</div>
 						<span class="${pkOn ? 'mfa-on' : 'mfa-off'}">${pkOn ? 'On' : 'Off'}</span>
 					</div>
 					<div class="pk-list">${pkRows}</div>
-					<button type="button" class="btn btn-ghost w-full justify-center py-1.5 text-sm mt-2.5" data-act="passkey-add" ${pkSupported ? '' : 'disabled title="This browser does not support passkeys"'}>
+					<button type="button" class="btn btn-ghost w-full justify-center py-1.5 text-sm mt-2.5" data-act="passkey-add" ${pkSupported ? '' : 'disabled title="This browser doesn\'t support passkeys"'}>
 						Add a passkey
 					</button>
 				</div>
@@ -772,7 +789,7 @@
 				try {
 					await opts.onSubmit(form);
 				} catch (err) {
-					showError(form, 'Something went wrong — try again.');
+					showError(form, 'Something went wrong. Try again.');
 				} finally {
 					setBusy(submitBtn, false);
 				}
@@ -788,7 +805,7 @@
 			submit: 'Continue',
 			onSubmit: async (form) => {
 				const { status, data } = await post('/api/auth/totp/begin', { password: form.password.value });
-				if (status !== 200) { showError(form, data.error || 'Could not start setup.'); return; }
+				if (status !== 200) { showError(form, data.error || "Couldn't start setup. Try again."); return; }
 				totpEnrollView(data);
 			},
 		});
@@ -819,9 +836,9 @@
 				setBusy(submitBtn, true);
 				try {
 					const { status, data } = await post('/api/auth/totp/confirm', { code: form.code.value.trim() });
-					if (status !== 200) { showError(form, data.error || 'That code did not match.'); return; }
+					if (status !== 200) { showError(form, data.error || "That code didn't match. Try again."); return; }
 					if (data.recoveryCodes && data.recoveryCodes.length) {
-						recoveryCodesView(data.recoveryCodes, 'Two-factor is on — save your recovery codes');
+						recoveryCodesView(data.recoveryCodes, 'Two-factor is on. Save your recovery codes.');
 					} else {
 						loadStatus();
 					}
@@ -836,12 +853,12 @@
 		// --- TOTP disable ---
 		const totpDisableGate = () => passwordGate({
 			title: 'Turn off authenticator app',
-			desc: 'Confirm your password to disable two-factor codes.',
+			desc: 'Confirm your password to turn off two-factor codes.',
 			submit: 'Turn off',
 			onSubmit: async (form) => {
 				const { status, data } = await post('/api/auth/totp/disable', { password: form.password.value });
 				if (status === 204) { loadStatus(); return; }
-				showError(form, data.error || 'Could not disable.');
+				showError(form, data.error || "Couldn't turn it off. Try again.");
 			},
 		});
 
@@ -857,20 +874,20 @@
 					const nickname = form.nickname ? form.nickname.value.trim() : '';
 					const begin = await post('/api/auth/webauthn/register/begin', { password: form.password.value });
 					if (begin.status !== 200 || !begin.data.publicKey) {
-						showError(form, begin.data.error || 'Could not start passkey setup.');
+						showError(form, begin.data.error || "Couldn't start passkey setup. Try again.");
 						return;
 					}
 					let cred;
 					try {
 						cred = await navigator.credentials.create({ publicKey: prepCreation(begin.data.publicKey) });
 					} catch (err) {
-						showError(form, 'Passkey setup was cancelled.');
+						showError(form, 'Passkey setup was canceled.');
 						return;
 					}
 					const fin = await post('/api/auth/webauthn/register/finish?nickname=' + encodeURIComponent(nickname), credentialToJSON(cred));
-					if (fin.status !== 200) { showError(form, fin.data.error || 'Could not save the passkey.'); return; }
+					if (fin.status !== 200) { showError(form, fin.data.error || "Couldn't add the passkey. Try again."); return; }
 					if (fin.data.recoveryCodes && fin.data.recoveryCodes.length) {
-						recoveryCodesView(fin.data.recoveryCodes, 'Passkey added — save your recovery codes');
+						recoveryCodesView(fin.data.recoveryCodes, 'Passkey added. Save your recovery codes.');
 					} else {
 						loadStatus();
 					}
@@ -892,7 +909,7 @@
 			submit: 'Generate',
 			onSubmit: async (form) => {
 				const { status, data } = await post('/api/auth/recovery/regenerate', { password: form.password.value });
-				if (status !== 200) { showError(form, data.error || 'Could not generate codes.'); return; }
+				if (status !== 200) { showError(form, data.error || "Couldn't make new codes. Try again."); return; }
 				recoveryCodesView(data.recoveryCodes || [], 'Save your recovery codes');
 			},
 		});

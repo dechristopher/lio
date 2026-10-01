@@ -93,13 +93,13 @@ type declineRequest struct {
 func account(c fiber.Ctx) (*user.Account, bool) {
 	if !auth.Enabled() {
 		_ = c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "accounts are unavailable in this environment"})
+			JSON(errBody{Error: "Accounts are unavailable right now."})
 		return nil, false
 	}
 	acct := user.GetAccount(c)
 	if acct == nil {
 		_ = c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "log in first"})
+			JSON(errBody{Error: "Log in first."})
 		return nil, false
 	}
 	return acct, true
@@ -119,7 +119,7 @@ func ListHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CNotif, "notification list failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not load notifications"})
+			JSON(errBody{Error: "Couldn't load your notifications. Try again."})
 	}
 
 	// notify.Item is the single mapping from a stored row to the wire shape,
@@ -209,14 +209,14 @@ func ReadHandler(c fiber.Ctx) error {
 	var req readRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	if req.Broadcast {
 		if err := db.SeeBroadcast(acct.ID, req.ID); err != nil {
 			util.Error(str.CNotif, "broadcast read failed error=%s", err.Error())
 			return c.Status(fiber.StatusInternalServerError).
-				JSON(errBody{Error: "could not mark that read"})
+				JSON(errBody{Error: "Couldn't mark that read. Try again."})
 		}
 		return countAfterWrite(c, acct)
 	}
@@ -228,7 +228,7 @@ func ReadHandler(c fiber.Ctx) error {
 	if _, err := db.MarkNotificationRead(req.ID, acct.ID); err != nil {
 		util.Error(str.CNotif, "notification read failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not mark that read"})
+			JSON(errBody{Error: "Couldn't mark that read. Try again."})
 	}
 	return countAfterWrite(c, acct)
 }
@@ -248,7 +248,7 @@ func ReadAllHandler(c fiber.Ctx) error {
 	if _, err := db.MarkAllNotificationsRead(acct.ID); err != nil {
 		util.Error(str.CNotif, "notification read-all failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not clear notifications"})
+			JSON(errBody{Error: "Couldn't clear your notifications. Try again."})
 	}
 	// Best effort, and deliberately not a failure: the account's own backlog is
 	// already cleared, and refusing the whole request over the watermark would
@@ -279,12 +279,12 @@ func AnswerHandler(c fiber.Ctx) error {
 
 	var req answerRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	choice := strings.TrimSpace(req.Choice)
 	if choice == "" {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "pick one of the options"})
+			JSON(errBody{Error: "Pick one of the options."})
 	}
 
 	var (
@@ -299,11 +299,11 @@ func AnswerHandler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CNotif, "notification answer failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not record that"})
+			JSON(errBody{Error: "Couldn't save your answer. Try again."})
 	}
 	if !answered {
 		return c.Status(fiber.StatusConflict).
-			JSON(errBody{Error: "that is no longer open"})
+			JSON(errBody{Error: "That's no longer open."})
 	}
 	return countAfterWrite(c, acct)
 }
@@ -327,7 +327,7 @@ func DeclineChallengeHandler(c fiber.Ctx) error {
 
 	var req declineRequest
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	// Retire the notification either way. A challenge whose room has already
@@ -348,7 +348,7 @@ func DeclineChallengeHandler(c fiber.Ctx) error {
 	}
 	if !instance.IsInvited(&acct.ID) {
 		return c.Status(fiber.StatusForbidden).
-			JSON(errBody{Error: "that challenge is not yours to decline"})
+			JSON(errBody{Error: "That challenge isn't yours to decline."})
 	}
 
 	// Tell the challenger before the room goes: they are sitting on the waiting

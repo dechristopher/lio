@@ -46,9 +46,9 @@ func TestTVSeat(t *testing.T) {
 			want: "cdpplayer",
 		},
 		{
-			name: "anonymous human is spelled out, never left blank",
+			name: "guest is spelled out, never left blank",
 			seat: &player.Player{ID: "u3"},
-			want: "Anonymous",
+			want: "Guest",
 		},
 		{
 			name:  "bot seat is named by its difficulty persona",
@@ -69,9 +69,9 @@ func TestTVSeat(t *testing.T) {
 			glyph: engine.PersonaByKey("").Glyph,
 		},
 		{
-			name: "missing seat degrades to Anonymous rather than an empty card",
+			name: "missing seat degrades to Guest rather than an empty card",
 			seat: nil,
-			want: "Anonymous",
+			want: "Guest",
 		},
 	}
 

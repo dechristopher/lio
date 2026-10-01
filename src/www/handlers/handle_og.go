@@ -10,6 +10,7 @@ import (
 
 	"github.com/dechristopher/lio/game"
 	"github.com/dechristopher/lio/og"
+	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/room"
 )
 
@@ -48,13 +49,18 @@ func OGRoomHandler(c fiber.Ctx) error {
 	}
 
 	payload := roomInstance.GenTemplatePayload("")
-	group := cases.Title(language.English).String(payload.Variant.Group.String())
-	title := group + " (" + payload.Variant.Name + ") casual octad"
+	// the speed class, not Group: every room is a deploy variant, so Group is
+	// the constant "Deploy" and says nothing to a player
+	group := cases.Title(language.English).String(payload.Variant.SpeedGroup().String())
+	if payload.Variant.Casual {
+		group = "Casual"
+	}
+	title := group + " (" + payload.Variant.Name + ") Octad"
 
 	var subtitle string
 	switch roomInstance.State() {
 	case room.StateWaitingForPlayers:
-		challenger := "an anonymous player"
+		challenger := "a guest"
 		if payload.CreatorName != "" {
 			challenger = payload.CreatorName
 			if payload.CreatorTitle.Set() {
@@ -64,11 +70,11 @@ func OGRoomHandler(c fiber.Ctx) error {
 				challenger += " (" + payload.CreatorRating + ")"
 			}
 		}
-		subtitle = "Challenge from " + challenger + " — join the game."
+		subtitle = "Challenge from " + challenger + ". Join the game."
 	case room.StateGameOver, room.StateRoomOver:
-		subtitle = "Game finished — see how it ended."
+		subtitle = "Game over. See how it ended."
 	default:
-		subtitle = "Game in progress — watch it live."
+		subtitle = "Game in progress. Watch it live."
 	}
 
 	card := og.Card{Title: title, Subtitle: subtitle}
@@ -105,14 +111,16 @@ func ogArchivedRoom(c fiber.Ctx, id string) error {
 		return OGDefaultHandler(c)
 	}
 
-	group := cases.Title(language.English).String(last.VariantGroup)
+	// the speed class, not the stored group (always "deploy"), as on the
+	// live room card above
+	group := cases.Title(language.English).String(pools.SpeedFor(last.VariantName, last.VariantGroup))
 	mode := "competitive"
 	if last.Casual {
 		mode = "casual"
 	}
 	card := og.Card{
-		Title:    group + " (" + last.VariantName + ") " + mode + " octad",
-		Subtitle: "Archived match — see how it ended.",
+		Title:    group + " (" + last.VariantName + ") " + mode + " Octad",
+		Subtitle: "Archived match. See how it ended.",
 		OFEN:     g.Position().String(),
 	}
 	if moves := g.Moves(); len(moves) > 0 {

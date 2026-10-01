@@ -282,7 +282,9 @@ func RoomJoinHandler(c fiber.Ctx) error {
 	return redirect(c, "/#errJoinExpired")
 }
 
-// RoomCancelHandler cancels the room immediately
+// RoomCancelHandler cancels the room immediately. With then=computer (the
+// waiting page's "Play the computer instead") it redirects to /#vs-computer,
+// which opens the home page's bot picker (lio-botmodal.js).
 func RoomCancelHandler(c fiber.Ctx) error {
 	uid, roomInstance, err, redirected := getUserAndRoom(c)
 	if err != nil || redirected {
@@ -291,6 +293,7 @@ func RoomCancelHandler(c fiber.Ctx) error {
 
 	cancelPayload := struct {
 		Token string `form:"cancel_token"`
+		Then  string `form:"then"`
 	}{}
 
 	err = c.Bind().Body(&cancelPayload)
@@ -308,6 +311,9 @@ func RoomCancelHandler(c fiber.Ctx) error {
 	}
 
 	// redirect home after room cancellation
+	if cancelPayload.Then == "computer" {
+		return redirect(c, "/#vs-computer")
+	}
 	return redirect(c, "/")
 }
 
@@ -318,7 +324,7 @@ func RoomCancelHandler(c fiber.Ctx) error {
 func NewQuickRoomVsHuman(c fiber.Ctx) error {
 	return newRoom(newRoomPayload{
 		c:             c,
-		variant:       variant.HalfOneBlitzDeploy,
+		variant:       variant.QuickHuman,
 		selectedColor: util.RandomColor(),
 		public:        true,
 		// a quick game never lets the creator pick a color, so it is always
@@ -449,7 +455,7 @@ func NewCustomRoom(c fiber.Ctx) error {
 // difficulty modal, or a query param on the rematch fallback URL; unset/legacy
 // resolves to the full-strength Queen.
 func NewRoomVsComputer(c fiber.Ctx) error {
-	selectedVariant := variant.OneTwoRapidDeploy
+	selectedVariant := variant.QuickComputer
 	if tc := c.Query("tc"); tc != "" {
 		if v, ok := pools.Map[tc]; ok {
 			selectedVariant = v
@@ -714,7 +720,7 @@ func challengeLink(roomID string) string {
 }
 
 func notifyChallenge(creator player.Identity, invitedID int64, roomID string, v variant.Variant) {
-	body := creator.Username + " challenges you to " + v.Name + " octad."
+	body := creator.Username + " challenges you to a " + v.Name + " game."
 	if err := notify.Push(db.NewNotification{
 		UserID:  invitedID,
 		Kind:    db.KindChallenge,

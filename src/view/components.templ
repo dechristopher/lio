@@ -7,15 +7,16 @@ import (
 	"github.com/dechristopher/lio/prefs"
 	"github.com/dechristopher/lio/settings"
 	"github.com/dechristopher/lio/title"
+	"github.com/dechristopher/lio/variant"
 )
 
 // header is the site wordmark + account/preferences/theme controls shown at the
 // top of every page. A logged-in viewer sees their username, which opens the
-// profile popover (account admin); a logged-out viewer sees "Log in", which
-// opens the auth modal (login/register). width is the caller's complete sizing
-// class list (base width + caps), so a page whose content uses a different
-// width formula (the room game grid's min(96vw,…)) can align the header edges
-// exactly to it.
+// profile popover (account admin); a logged-out viewer sees "Log in" and
+// "Sign up", which open the auth modal on its login or register tab. width is
+// the caller's complete sizing class list (base width + caps), so a page whose
+// content uses a different width formula (the room game grid's min(96vw,…))
+// can align the header edges exactly to it.
 // siteNotice renders the admin-set announcement banner above the header, on
 // every page (arch/ADMIN_MODERATION.md Phase 3). Distinct from Meta.Notice,
 // which is a per-request one-shot on the home page ("that room is gone"): this
@@ -142,10 +143,14 @@ templ header(width string) {
 					@followingButton("followingButton", "hdr-relocatable")
 				}
 			} else if viewer(ctx).AccountsEnabled {
-				// Logged-out control: bare accent-colored text (no button chrome),
-				// shown at every width — this is where the header collapses to on
-				// small phones, replacing the old profile silhouette.
+				// Logged-out controls, shown at every width. "Log in" is bare
+				// accent text (no button chrome); "Sign up" is a small filled
+				// button beside it, because a visitor without an account reads
+				// "Log in" alone as a control for somebody else. Sign up opens
+				// the same modal on its register tab ([data-open-register],
+				// lio-auth.js).
 				<button type="button" id="loginButton" class="shrink-0 whitespace-nowrap text-sm font-semibold text-accent hover:text-accent-hover">Log in</button>
+				<button type="button" id="signupButton" data-open-register class="btn btn-primary shrink-0 whitespace-nowrap px-2.5 py-1 text-sm">Sign up</button>
 			} else {
 				// PG-less local dev: accounts have no backing store
 				<button type="button" id="loginButton" class="shrink-0 whitespace-nowrap text-sm font-semibold text-accent opacity-50" disabled title="Accounts are unavailable in this environment">Log in</button>
@@ -453,7 +458,9 @@ templ accountModal() {
 	<div id="modalAccount" class="modal-shade">
 		<div class="modal card">
 			<button type="button" class="modal-close" aria-label="Close">@iconClose()</button>
-			<h2>Welcome</h2>
+			// the title follows the tab (lio-auth.js activateTab), so it confirms
+			// which form is showing; login is the tab the modal opens on
+			<h2 data-auth-title>Welcome back</h2>
 			<div id="authTabs" class="mt-3 grid grid-cols-2 gap-1" role="tablist" aria-label="Log in or sign up">
 				<button type="button" class="theme-btn is-active" data-auth-tab="login" role="tab">Log in</button>
 				<button type="button" class="theme-btn" data-auth-tab="register" role="tab">Sign up</button>
@@ -480,20 +487,26 @@ templ accountModal() {
 					<label class="auth-label">
 						Username
 						<input class="auth-input" name="username" type="text" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{2,19}"/>
-						<span class="auth-hint" data-auth-avail></span>
+						// the rules until the visitor types; then lio-auth.js swaps in
+						// the availability result, and puts the rules back when the
+						// field is too short to check
+						<span class="auth-hint" data-auth-avail data-default="3 to 20 letters, numbers, _ or -">3 to 20 letters, numbers, _ or -</span>
 					</label>
 					<label class="auth-label">
 						Password
 						<input class="auth-input" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128"/>
+						<span class="auth-hint">At least 8 characters</span>
 					</label>
 					<label class="auth-label">
-						Email <span class="text-fg-subtle">(optional)</span>
+						// one span: .auth-label stacks its children, and a bare
+						// "(optional)" beside the text became a line of its own
+						<span>Email <span class="text-fg-subtle">(optional)</span></span>
 						<input class="auth-input" name="email" type="email" autocomplete="email"/>
 					</label>
-					<p class="auth-hint">
-						Email is only used to recover your account. Skipping it means a
-						forgotten password can't be reset.
-					</p>
+					// honest about today: there is no email delivery or reset flow yet, so
+					// the field is collected for a feature that is coming, not one
+					// that exists (see editProfileModal)
+					<p class="auth-hint">For password reset, which is coming soon. You can add it later too.</p>
 					<p class="auth-error hidden" data-auth-error role="alert"></p>
 					<button type="submit" class="btn btn-primary w-full justify-center py-2">Create account</button>
 				</fieldset>
@@ -654,16 +667,6 @@ templ iconLock(class string) {
 	</svg>
 }
 
-// iconChart is the lucide "bar-chart-2" glyph, standing for a player's profile
-// and stats page on the home page's account pitch.
-templ iconChart(class string) {
-	<svg class={ class } viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-		<path d="M18 20V10"></path>
-		<path d="M12 20V4"></path>
-		<path d="M6 20v-6"></path>
-	</svg>
-}
-
 // iconPencil is the lucide "pencil" glyph backing the profile popover's Edit
 // Profile button. h-5 w-5, the header icon size: that button is an
 // hdr-icon-btn, beside the relocated gear and following controls.
@@ -682,7 +685,7 @@ templ footerContent(meta Meta) {
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/news">News</a>
 		<span aria-hidden="true">·</span>
-		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/db">DB</a>
+		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/db">Database</a>
 		<span aria-hidden="true">·</span>
 		<a class="text-fg-muted no-underline transition-colors duration-150 hover:text-accent" href="/staff">Staff</a>
 		<span aria-hidden="true">·</span>
@@ -717,6 +720,9 @@ templ homeFooter(meta Meta) {
 
 // quickGameButtons renders the quick vs-human / vs-computer buttons. The icons
 // are flat/outline SVGs (matching the header controls) tinted with the accent.
+// Each button shows its time control below its label, so a newcomer knows the
+// game is fast before it starts. The names come from variant.QuickHuman and
+// variant.QuickComputer, which are also what the handlers create.
 // Each is a POST form (not a GET link): creating a room is a state change, so a
 // GET would be CSRF-able. The form is display:contents so its submit button is
 // the grid item directly, preserving the two-column layout.
@@ -734,6 +740,7 @@ templ quickGameButtons() {
 					@iconUsers("h-7 w-7")
 				</span>
 				<span class="text-sm font-semibold text-fg">vs Human</span>
+				<span class="text-xs text-fg-subtle">{ variant.QuickHuman.Name }</span>
 			</button>
 		</form>
 		<form action="/new/computer" method="POST" class="contents" data-bot-difficulty="quick">
@@ -742,6 +749,7 @@ templ quickGameButtons() {
 					@iconCpu("h-7 w-7")
 				</span>
 				<span class="text-sm font-semibold text-fg">vs Computer</span>
+				<span class="text-xs text-fg-subtle">{ variant.QuickComputer.Name }</span>
 			</button>
 		</form>
 	</div>
@@ -793,11 +801,11 @@ templ board(payload message.RoomTemplatePayload) {
 				// blind deploy: on-board controls (non-blocking so the board stays interactive)
 				<div id="deploy-overlay" class="deploy-overlay">
 					<div class="deploy-card">
-						<div class="deploy-headline">Arrange your pieces</div>
-						<div class="deploy-hint">Drag a piece onto another — or tap two squares — to swap, then confirm.</div>
+						<div class="deploy-headline">Set up your pieces</div>
+						<div class="deploy-hint">Drag or tap two pieces to swap them. Your opponent can't see your setup.</div>
 						<div id="deploy-countdown" class="deploy-countdown"></div>
-						<button id="deploy-confirm" type="button" class="deploy-btn">Confirm deployment</button>
-						<div id="deploy-waiting" class="deploy-waiting hidden">Locked in — waiting for opponent…</div>
+						<button id="deploy-confirm" type="button" class="deploy-btn">Confirm setup</button>
+						<div id="deploy-waiting" class="deploy-waiting hidden">Locked in. Waiting for your opponent…</div>
 						<div id="deploy-opponent-status" class="deploy-opp-status hidden"></div>
 					</div>
 				</div>
@@ -864,7 +872,7 @@ templ board(payload message.RoomTemplatePayload) {
 							// place of Rematch, which has no meaning mid-match.
 							<button id="result-next" type="button" class="result-btn result-next hidden" title={ controlTitle(payload, "Start the next game now") } disabled?={ payload.IsSpectator }>Next game</button>
 							<button id="result-rematch" type="button" class="result-btn result-rematch" title={ controlTitle(payload, "Play again") } data-rematch-url={ botRematchURL(payload) } disabled?={ payload.IsSpectator }>Rematch</button>
-							<button id="result-home" type="button" class="result-btn result-home">Home</button>
+							<button id="result-home" type="button" class="result-btn result-home">New game</button>
 						</div>
 						// who has asked for the next game: this seat's check lands
 						// on click, the opponent's when their request arrives. Sits
@@ -880,7 +888,19 @@ templ board(payload message.RoomTemplatePayload) {
 								<span class="ready-label">Opponent</span>
 							</span>
 						</div>
-						<button id="result-analyze" type="button" class="result-analyze">Analyze board</button>
+						<button id="result-analyze" type="button" class="result-analyze">Review game</button>
+						// The account pitch at the moment a guest is most engaged:
+						// they just finished a game against a person, where an
+						// account would have had a rating to move. Not after a bot
+						// game, not for a spectator. It names what an account
+						// gets from now on, never "keep this game": a guest's
+						// games do not move to a new account.
+						if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled && !payload.IsSpectator && !payload.OpponentIsBot {
+							<p class="result-signup">
+								Sign up to get a rating and a record of your games.
+								<button type="button" data-open-register>Sign up</button>
+							</p>
+						}
 						// Reporting the opponent, offered only where it can mean
 						// something: a logged-in viewer who played this game against
 						// another account. A bot, an anonymous opponent, a spectator

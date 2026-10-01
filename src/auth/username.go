@@ -17,7 +17,7 @@ var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{2,19}$`)
 // reservedUsernames are lowercase names that would collide with UI labels,
 // impersonate the site, or otherwise confuse — rejected at registration.
 var reservedUsernames = map[string]struct{}{
-	"anonymous": {}, "anon": {}, "bot": {}, "computer": {}, "engine": {},
+	"anonymous": {}, "anon": {}, "guest": {}, "guests": {}, "bot": {}, "computer": {}, "engine": {},
 	"admin": {}, "administrator": {}, "mod": {}, "moderator": {},
 	"lioctad": {}, "lioctad-org": {}, "lioctad_org": {}, "lichess": {}, "octad": {}, "octad-gg": {}, "octad_gg": {}, "lio": {},
 	"you": {}, "player": {}, "opponent": {}, "spectator": {},
@@ -28,13 +28,13 @@ var reservedUsernames = map[string]struct{}{
 var (
 	// ErrUsernameInvalid rejects names failing the pattern.
 	ErrUsernameInvalid = errors.New(
-		"usernames are 3-20 letters, numbers, _ or -, starting with a letter or number")
+		"Use 3 to 20 letters, numbers, _ or -, starting with a letter or number.")
 	// ErrUsernameReserved rejects reserved names.
-	ErrUsernameReserved = errors.New("that username is reserved")
+	ErrUsernameReserved = errors.New("That username is reserved.")
 	// ErrUsernameBlocked rejects names containing disallowed language. The
 	// message is deliberately generic: naming the matched word would echo it
 	// back and hand evaders an oracle to probe against.
-	ErrUsernameBlocked = errors.New("that username isn't available")
+	ErrUsernameBlocked = errors.New("That username isn't available.")
 )
 
 // ValidateUsername checks a candidate username against the pattern, the

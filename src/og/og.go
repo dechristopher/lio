@@ -140,8 +140,8 @@ func Default() ([]byte, error) {
 		return defaultCard, nil
 	}
 	card, err := Render(Card{
-		Title:    "Octad — 4x4 chess with a twist",
-		Subtitle: "Play with the computer, friends, or random players. Free, no ads.",
+		Title:    "Octad: small board, real chess",
+		Subtitle: "Set up your pieces in secret, then play people or the computer. Free, no ads.",
 	})
 	if err == nil {
 		defaultCard = card

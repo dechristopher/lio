@@ -48,7 +48,7 @@ func bind(c fiber.Ctx, need role.Role) (*auth.Session, db.UserRecord, banRequest
 	}
 	var req banRequest
 	if err := c.Bind().Body(&req); err != nil {
-		_ = c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		_ = c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 		return nil, db.UserRecord{}, banRequest{}, false
 	}
 	rec, ok := target(c, sess, req.UserID)
@@ -125,7 +125,7 @@ func BanHandler(c fiber.Ctx) error {
 
 	if err := db.BanUser(rec.ID, until, req.Reason); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not apply the ban"})
+			JSON(errBody{Error: "Couldn't apply the ban. Try again."})
 	}
 
 	if err := db.DeleteSessionsForUser(rec.ID); err != nil {
@@ -170,7 +170,7 @@ func UnbanHandler(c fiber.Ctx) error {
 
 	if err := db.UnbanUser(rec.ID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not lift the ban"})
+			JSON(errBody{Error: "Couldn't lift the ban. Try again."})
 	}
 	logAction(sess, rec.ID, "unban", map[string]any{
 		"lifted":    lifted,
@@ -194,7 +194,7 @@ func TitleHandler(c fiber.Ctx) error {
 		id, err := strconv.ParseInt(req.TitleID, 10, 16)
 		if err != nil {
 			return c.Status(fiber.StatusUnprocessableEntity).
-				JSON(errBody{Error: "unknown title"})
+				JSON(errBody{Error: "That title doesn't exist."})
 		}
 		id16 := int16(id)
 		titleID = &id16
@@ -202,7 +202,7 @@ func TitleHandler(c fiber.Ctx) error {
 
 	if err := db.SetUserTitle(rec.ID, titleID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not set the title"})
+			JSON(errBody{Error: "Couldn't set the title. Try again."})
 	}
 	// the account's own sessions cache the title for display; drop them so the
 	// badge updates on their next request rather than up to a cache TTL later
@@ -246,23 +246,23 @@ func RoleHandler(c fiber.Ctx) error {
 	next := role.Parse(req.Role)
 	if next.String() != req.Role {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "unknown role"})
+			JSON(errBody{Error: "That role doesn't exist."})
 	}
 	if rec.Role.CanAdmin() && !next.CanAdmin() {
 		admins, err := db.CountAdmins()
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).
-				JSON(errBody{Error: "could not verify admin count"})
+				JSON(errBody{Error: "Couldn't count the admins. Try again."})
 		}
 		if admins <= 1 {
 			return c.Status(fiber.StatusConflict).
-				JSON(errBody{Error: "that is the last admin — appoint another first"})
+				JSON(errBody{Error: "That's the last admin. Appoint another one first."})
 		}
 	}
 
 	if err := db.SetUserRole(rec.ID, next); err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not set the role"})
+			JSON(errBody{Error: "Couldn't set the role. Try again."})
 	}
 	// a demotion must bite immediately: the old role is cached on their live
 	// sessions and would otherwise keep authorizing moderation for a cache TTL
@@ -326,10 +326,10 @@ func RenameHandler(c fiber.Ctx) error {
 	if err := db.ForceRename(rec.ID, req.Username); err != nil {
 		if err == db.ErrUsernameTaken {
 			return c.Status(fiber.StatusConflict).
-				JSON(errBody{Error: "that username is taken"})
+				JSON(errBody{Error: "That username is taken."})
 		}
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not rename the account"})
+			JSON(errBody{Error: "Couldn't rename the account. Try again."})
 	}
 	// their sessions carry the old display name
 	auth.DropUserSessions(rec.ID)

@@ -96,10 +96,12 @@ func mustNotSeatName(t *testing.T, out, name string) {
 func TestRenderIndex(t *testing.T) {
 	challenges := []message.OpenChallenge{{RoomID: "seek456", Variant: variant.OneTwoRapid, Color: "w"}}
 	stats := message.SiteStats{LiveGames: 1, OpenChallenges: 1, Playing: 2}
-	out := renderSmoke(t, Index(PageMeta("Free Online Octad"), challenges, stats, message.Community{}))
-	mustContain(t, out, "<title>octad.gg • Free Online Octad</title>")
-	mustContain(t, out, "Quick game")            // home heading (uppercased via CSS)
-	mustContain(t, out, `id="createGameButton"`) // modal opener
+	out := renderSmoke(t, Index(PageMeta("Free 4x4 chess"), challenges, stats, message.Community{}))
+	mustContain(t, out, "<title>octad.gg • Free 4x4 chess</title>")
+	mustContain(t, out, "Quick game")               // home heading (uppercased via CSS)
+	mustContain(t, out, variant.QuickHuman.Name)    // time control under "vs Human"
+	mustContain(t, out, variant.QuickComputer.Name) // time control under "vs Computer"
+	mustContain(t, out, `id="createGameButton"`)    // modal opener
 	mustContain(t, out, `id="modalCreateGame"`)
 	// the dialog's wiring lives in the cached lio-nav.js, not inline
 	mustContain(t, out, "lio-nav")
@@ -136,11 +138,11 @@ func TestRenderIndex(t *testing.T) {
 	mustNotContain(t, out, templ.EscapeString(news.Items[3].Title)) // only the top three, not the fourth
 
 	// live-games TV widget: static shell + streaming client (boards stream in)
-	mustContain(t, out, `id="tv-widget"`)       // TV card
-	mustContain(t, out, `id="tv-grid"`)         // JS-populated grid mount
-	mustContain(t, out, "No games in progress") // empty state
-	mustContain(t, out, "lio-tv")               // scriptsTV client
-	mustContain(t, out, "octadground")          // scriptsTV board renderer
+	mustContain(t, out, `id="tv-widget"`)      // TV card
+	mustContain(t, out, `id="tv-grid"`)        // JS-populated grid mount
+	mustContain(t, out, "No games right now.") // empty state
+	mustContain(t, out, "lio-tv")              // scriptsTV client
+	mustContain(t, out, "octadground")         // scriptsTV board renderer
 
 	// create-game modal: opponent toggle, unified POST target, and the hidden
 	// field the resolved variant is written into. There is no mode toggle — every
@@ -182,7 +184,7 @@ func TestRenderIndex(t *testing.T) {
 func TestHomeAboutPreference(t *testing.T) {
 	page := func(v Viewer) string {
 		return renderSmokeViewer(t, v,
-			Index(PageMeta("Free Online Octad"), nil, message.SiteStats{}, message.Community{}))
+			Index(PageMeta("Free 4x4 chess"), nil, message.SiteStats{}, message.Community{}))
 	}
 
 	anon := page(Viewer{AccountsEnabled: true})
@@ -220,7 +222,7 @@ func TestHomeAboutPreference(t *testing.T) {
 func TestRenderHomeActivityEmpty(t *testing.T) {
 	out := renderSmoke(t, HomeActivity(nil, message.SiteStats{}, message.Community{}))
 	mustContain(t, out, `id="home-activity"`)
-	mustContain(t, out, "No open challenges right now")
+	mustContain(t, out, "No open challenges.")
 	// the challenge list exists but is hidden; the empty note is the visible one
 	mustContain(t, out, `id="home-challenges-list" class="mt-3 flex flex-col gap-2" hidden`)
 	mustNotContain(t, out, `id="home-challenges-empty" class="mt-3 text-sm text-fg-subtle" hidden`)
@@ -261,12 +263,12 @@ func TestRenderOpenChallengeNamesCreator(t *testing.T) {
 	mustContain(t, out, variant.OneTwoRapid.Name)
 }
 
-// An anonymous creator is named "Anonymous" rather than silently rendering a
+// A guest creator is named "Guest" rather than silently rendering a
 // nameless row — the contrast with a named seek is the point.
 func TestRenderOpenChallengeAnonymousCreator(t *testing.T) {
 	challenges := []message.OpenChallenge{{RoomID: "seek2", Variant: variant.OneTwoRapid, Color: "b"}}
 	out := renderSmoke(t, HomeActivity(challenges, message.SiteStats{}, message.Community{}))
-	mustContain(t, out, ">Anonymous<")
+	mustContain(t, out, ">Guest<")
 	mustNotContain(t, out, `class="rating-chip`)
 }
 
@@ -286,7 +288,7 @@ func TestRenderPlayersCard(t *testing.T) {
 	mustContain(t, out, `href="/@/nova"`) // ...
 	mustContain(t, out, ">playing<")      // seated marker
 	mustContain(t, out, ">WFM<")          // title badge rides along
-	mustContain(t, out, "Arrivals")       // second section
+	mustContain(t, out, "Just joined")    // second section
 	mustContain(t, out, `href="/@/pawnstar"`)
 
 	// both rosters are wrapping chip lists, not full-width rows: a name eight
@@ -306,7 +308,7 @@ func TestRenderPlayersCard(t *testing.T) {
 	mustContain(t, out, `title="joined 2 days ago"`)
 
 	// the anonymous footnote counts them and, for a logged-out viewer, says so
-	mustContain(t, out, "2 anonymous visitors (including you)")
+	mustContain(t, out, "2 guests (including you)")
 }
 
 // An arrival who is not on the site carries no presence dot. Most arrivals are
@@ -428,7 +430,7 @@ func TestRenderPlayersCardAnonNoteForMember(t *testing.T) {
 	c := message.Community{Online: []message.OnlineMember{{Username: "nova", Online: true}}, Anon: 1}
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "nova"},
 		HomeActivity(nil, message.SiteStats{}, c))
-	mustContain(t, out, "1 anonymous visitor")
+	mustContain(t, out, "1 guest")
 	mustNotContain(t, out, "including you")
 }
 
@@ -466,11 +468,19 @@ func TestRenderHomeWelcomeGating(t *testing.T) {
 	anon := page(Viewer{AccountsEnabled: true})
 	mustContain(t, anon, `id="homeCta"`)
 	mustContain(t, anon, `id="homeCtaCreate"`)
-	mustContain(t, anon, "data-open-register") // opens the modal's register tab
+	mustContain(t, anon, `id="homeCtaCreate" data-open-register`) // opens the modal's register tab
 	mustContain(t, anon, `id="homeCtaDismiss"`)
+	mustContain(t, anon, `id="signupButton" data-open-register`) // header sign-up beside "Log in"
+	mustContain(t, anon, "Small board, real chess.")             // tagline above Quick game
+	// the account modal: a title the tab rewrites, and the rules stated up front
+	mustContain(t, anon, "data-auth-title")
+	mustContain(t, anon, `data-default="3 to 20 letters, numbers, _ or -"`)
+	mustContain(t, anon, "At least 8 characters")
 
 	member := page(Viewer{AccountsEnabled: true, LoggedIn: true, Username: "nova"})
 	mustNotContain(t, member, `id="homeCta"`)
+	mustNotContain(t, member, `id="signupButton"`)
+	mustNotContain(t, member, "Small board, real chess.") // a member already knows the game
 
 	// PG-less local dev: no accounts to create
 	noAccounts := page(Viewer{})
@@ -492,9 +502,9 @@ func TestRenderRoomGame(t *testing.T) {
 	mustContain(t, out, `class="game-grid"`)
 	mustContain(t, out, "Half One blitz") // variant/time-control shown in the rail
 	mustContain(t, out, `data-bot="true"`)
-	mustContain(t, out, "octadground")                     // scriptsRoom loaded
-	mustContain(t, out, `id="game"`)                       // board mount
-	mustContain(t, out, "Challenge from anonymous player") // room title meta
+	mustContain(t, out, "octadground")            // scriptsRoom loaded
+	mustContain(t, out, `id="game"`)              // board mount
+	mustContain(t, out, "Challenge from a guest") // room title meta
 
 	// a player's page is not the watch-only variant: interactive controls with
 	// their real action tooltips, no spectator flag on the board container
@@ -510,6 +520,16 @@ func TestRenderRoomGame(t *testing.T) {
 	// the copy-PGN button carries this room's PGN Event name, so the client's
 	// fallback PGN names the situation the same way the archived one does
 	mustContain(t, out, `data-event="Unrated Blitz game vs Computer"`)
+
+	// the post-game sign-up line: a guest who played a person, nobody else
+	guest := Viewer{AccountsEnabled: true}
+	mustNotContain(t, renderSmokeViewer(t, guest, Room(RoomMeta(p), p)), `class="result-signup"`) // vs the computer
+	p.OpponentIsBot, p.BlackIsBot = false, false
+	mustContain(t, renderSmokeViewer(t, guest, Room(RoomMeta(p), p)), `class="result-signup"`)
+	member := Viewer{AccountsEnabled: true, LoggedIn: true, Username: "nova"}
+	mustNotContain(t, renderSmokeViewer(t, member, Room(RoomMeta(p), p)), `class="result-signup"`)
+	p.IsSpectator = true
+	mustNotContain(t, renderSmokeViewer(t, guest, Room(RoomMeta(p), p)), `class="result-signup"`)
 }
 
 // TestRenderRoomAnonCta locks the anonymous "create account" shim: it renders
@@ -575,13 +595,13 @@ func TestRenderRoomSpectator(t *testing.T) {
 	// its difficulty persona name ("Knight"), with the CPU icon plus the piece
 	// glyph beside it on both the clock (.clockBotGlyph) and the timeline row
 	// (.tl-seat / .tl-seat-glyph); the human seat has no account here, so it
-	// reads "Anonymous" (never "You" — the viewer is a spectator, not that
+	// reads "Guest" (never "You" — the viewer is a spectator, not that
 	// player)
 	mustSeatName(t, out, "Knight")
 	mustContain(t, out, `class="clockBotGlyph"`)
 	mustContain(t, out, `class="tl-seat"`)
 	mustContain(t, out, `class="tl-seat-glyph"`)
-	mustSeatName(t, out, "Anonymous")
+	mustSeatName(t, out, "Guest")
 	mustNotSeatName(t, out, "You")
 	mustNotSeatName(t, out, "PLAYER")
 	mustContain(t, out, `id="clockPlayer" class="clockPlayer ga-you" data-bot="false"`)
@@ -619,10 +639,10 @@ func TestRenderRoomUsernames(t *testing.T) {
 	mustSeatName(t, out, "drewtest")
 	mustSeatName(t, out, "cdpplayer")
 	mustNotSeatName(t, out, "You")
-	mustNotSeatName(t, out, "Anonymous")
+	mustNotSeatName(t, out, "Guest")
 
-	// a logged-in viewer facing an anonymous opponent: opponent reads
-	// "Anonymous", the viewer's own seat their username
+	// a logged-in viewer facing a guest opponent: opponent reads
+	// "Guest", the viewer's own seat their username
 	p2 := message.RoomTemplatePayload{
 		RoomID: "abc", PlayerColor: "w", OpponentColor: "b",
 		WhiteName: "drewtest", Variant: variant.HalfOneBlitz,
@@ -630,7 +650,7 @@ func TestRenderRoomUsernames(t *testing.T) {
 	}
 	out2 := renderSmoke(t, Room(RoomMeta(p2), p2))
 	mustSeatName(t, out2, "drewtest")
-	mustSeatName(t, out2, "Anonymous")
+	mustSeatName(t, out2, "Guest")
 
 	// the OG/room title carries the challenger's username
 	mustContain(t, out, "Challenge from drewtest")
@@ -747,7 +767,7 @@ func TestRenderRoomCreator(t *testing.T) {
 	mustContain(t, out, "/abc/cancel")
 	mustContain(t, out, "lio-room-create") // creator script
 	mustContain(t, out, `id="gameInviteLink"`)
-	mustContain(t, out, "Waiting for an opponent") // live waiting status
+	mustContain(t, out, "Looking for an opponent") // live waiting status
 	mustContain(t, out, `class="invite-qr"`)       // server-rendered QR svg
 	mustContain(t, out, "<path d=")                // QR has dark modules
 	mustContain(t, out, "You play")                // game summary
@@ -762,6 +782,15 @@ func TestRenderRoomCreator(t *testing.T) {
 	mustContain(t, out, "30 seconds each + 1 second per move")
 	// anonymous creator: no identity line
 	mustNotContain(t, out, "Playing as")
+	// a private challenge waits for a friend: no computer fallback
+	mustNotContain(t, out, "Play the computer instead")
+
+	// a listed challenge offers the way out to the bot picker
+	p.Public = true
+	listed := renderSmoke(t, Room(RoomMeta(p), p))
+	mustContain(t, listed, "Play the computer instead")
+	mustContain(t, listed, `name="then" value="computer"`)
+	p.Public = false
 
 	// logged-in creator: "Playing as" identity line with the rating chip
 	p.CreatorName = "drewtest"
@@ -790,8 +819,16 @@ func TestRenderRoomJoiner(t *testing.T) {
 	// challenger card, anonymous creator: fallback name + the side the
 	// challenger plays (joiner takes black → challenger is white)
 	mustContain(t, out, `class="challenger-card"`)
-	mustContain(t, out, "Anonymous player")
+	mustContain(t, out, ">Guest<")
 	mustContain(t, out, "Plays White")
+
+	// a rated room asks a guest to sign up first, with a log-in link under it
+	p.Rated = true
+	rated := renderSmokeViewer(t, Viewer{AccountsEnabled: true}, Room(RoomMeta(p), p))
+	mustContain(t, rated, "Sign up to play")
+	mustContain(t, rated, "data-open-login")
+	mustNotContain(t, rated, `name="join_token"`)
+	p.Rated = false
 
 	// the joiner decides whether to accept, so the match spec must precede the
 	// button that commits them to it (the panels stack in DOM order on a phone)
@@ -892,11 +929,14 @@ func TestRenderNews(t *testing.T) {
 }
 
 func TestRenderAboutAndNotFound(t *testing.T) {
-	mustContain(t, renderSmoke(t, About(PageMeta("About"), "board")), "The Board")
+	board := renderSmoke(t, About(PageMeta("About"), "board"))
+	mustContain(t, board, "The board")
+	mustNotContain(t, board, "lioctad") // the heading named the old domain
+	mustNotContain(t, board, "Deploy game mode")
 	mustContain(t, renderSmoke(t, About(PageMeta("About"), "rules")), `data-castle-demo="far"`)
 	mustContain(t, renderSmoke(t, About(PageMeta("About"), "notation")), "ppkn/4/4/NKPP w NCFncf - 0 1")
-	mustContain(t, renderSmoke(t, NotFound(PageMeta("404"))), "404")
-	mustContain(t, renderSmoke(t, DB(PageMeta("Game Database"))), "Game Database")
+	mustContain(t, renderSmoke(t, NotFound(PageMeta("404"))), "This page doesn't exist.")
+	mustContain(t, renderSmoke(t, DB(PageMeta("Game database"))), "Game database")
 }
 
 // TestNoHTMLComments locks the comment convention: notes in .templ files use
@@ -914,7 +954,7 @@ func TestNoHTMLComments(t *testing.T) {
 		Variant:     variant.HalfOneBlitz,
 	}
 	pages := map[string]templ.Component{
-		"index": Index(PageMeta("Free Online Octad"), nil, message.SiteStats{}, message.Community{}),
+		"index": Index(PageMeta("Free 4x4 chess"), nil, message.SiteStats{}, message.Community{}),
 		"room":  Room(RoomMeta(p), p),
 		"about": About(PageMeta("About"), "board"),
 		"news":  News(PageMeta("News"), 1),
@@ -1212,7 +1252,7 @@ func TestRenderProfileRatingHistory(t *testing.T) {
 	mustContain(t, out, "is-selectable")
 	// a provisional prefix means two strokes, one of them dashed by CSS
 	mustContain(t, out, "chart-line-prov")
-	mustContain(t, out, "dashed while provisional")
+	mustContain(t, out, "Dashed while provisional")
 	// values are never hover-only: a table carries every point. sr-only sits on
 	// a wrapping div, never on the table itself — a <table> ignores the width,
 	// height and overflow that class relies on, which left the whole table in
@@ -1246,10 +1286,17 @@ func TestRenderProfileEmpty(t *testing.T) {
 	mustContain(t, out, "Recent games")
 	// each is a placeholder that says what is coming
 	mustContain(t, out, `class="stat-empty"`)
-	mustContain(t, out, "Wins, draws and losses appear here")
-	mustContain(t, out, "Finished games land here")
+	mustContain(t, out, "wins, draws, and losses appear here")
+	mustContain(t, out, "Finished games show here")
 	// the hero states the unrated case in place of a rating row
-	mustContain(t, out, "No rating yet")
+	mustContain(t, out, "has no rating yet")
+	// a visitor is told about the player, never told to play: that is the
+	// owner's line, and only the owner sees it (usernames match without case)
+	mustContain(t, out, templ.EscapeString(m.Username+"'s wins, draws, and losses"))
+	mustNotContain(t, out, "Finish a rated game")
+	own := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: strings.ToUpper(m.Username)}, Profile(ProfileMeta(m), m))
+	mustContain(t, own, "Your wins, draws, and losses appear here")
+	mustContain(t, own, "Finish a rated game to get your first.")
 	// no zero-filled record rows masquerading as a real tally
 	mustNotContain(t, out, "All games")
 	// an account with no games claims no lifetime facts. Asserted on the exact
@@ -1700,7 +1747,7 @@ func TestRenderRatedPaused(t *testing.T) {
 
 	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: true}, func() {
 		on := renderSmokeViewer(t, viewer, page)
-		mustNotContain(t, on, "Rated games are temporarily disabled")
+		mustNotContain(t, on, "Rated games are paused for now")
 		mustContain(t, on, "Counts toward your rating") // live badge
 		mustContain(t, on, freeCasual)
 	})
@@ -1708,7 +1755,7 @@ func TestRenderRatedPaused(t *testing.T) {
 	withSettings(t, settings.Snapshot{RegistrationOpen: true, RatedEnabled: false}, func() {
 		off := renderSmokeViewer(t, viewer, page)
 		mustContain(t, off, "cg-rated-paused")
-		mustContain(t, off, "Rated games are temporarily disabled")
+		mustContain(t, off, "Rated games are paused for now")
 		mustNotContain(t, off, "Counts toward your rating") // live badge replaced
 		// the casual toggle is untouched: not checked, not disabled
 		mustContain(t, off, freeCasual)
@@ -1811,7 +1858,7 @@ func TestRenderStaffLinks(t *testing.T) {
 	mustContain(t, staff, `href="/system/people"`)
 	mustContain(t, staff, `href="/moderation"`)
 	// renamed security section
-	mustContain(t, staff, "Account Security")
+	mustContain(t, staff, "Account security")
 	mustNotContain(t, staff, "Two-factor &amp; passkeys")
 }
 
@@ -2037,7 +2084,7 @@ func TestRenderModBarConfirmFlow(t *testing.T) {
 		mustContain(t, out, `data-mod-action="`+act+`"`)
 	}
 	mustContain(t, out, "Ends any game in progress as a forfeit")
-	mustContain(t, out, "signs it out so the new role takes effect immediately")
+	mustContain(t, out, "logs it out so the new role takes effect immediately")
 
 	// the bar's own reason field is gone — it lives in the modal now
 	form := out[strings.Index(out, `<form id="modForm"`):]
@@ -2154,7 +2201,7 @@ func TestReportCategoryMapping(t *testing.T) {
 		if ReportCategoryClass(c) == "" {
 			t.Errorf("%q has no tint", c)
 		}
-		if help := ReportCategoryHelp(c); help == "" || help == "Reported behaviour" {
+		if help := ReportCategoryHelp(c); help == "" || help == "Reported behavior" {
 			t.Errorf("%q falls through to the generic help", c)
 		}
 		if label := ReportCategoryLabel(c); label == "" || label == c {
@@ -2487,7 +2534,7 @@ func TestRosterNoteStatesWindowAndOverflow(t *testing.T) {
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
 		HomeActivity(nil, message.SiteStats{}, c))
 
-	mustContain(t, out, "2 anonymous visitors")
+	mustContain(t, out, "2 guests")
 	mustContain(t, out, "12 more not shown")
 	mustContain(t, out, "active in the last 15 minutes")
 }
@@ -2502,7 +2549,7 @@ func TestRosterNoteOmitsWindowWithoutChips(t *testing.T) {
 	out := renderSmokeViewer(t, Viewer{LoggedIn: true, Username: "drewtest"},
 		HomeActivity(nil, message.SiteStats{}, c))
 
-	mustContain(t, out, "1 anonymous visitor")
+	mustContain(t, out, "1 guest")
 	mustNotContain(t, out, "active in the last")
 }
 

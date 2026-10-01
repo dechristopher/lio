@@ -75,17 +75,18 @@ templ createGameModal() {
 							<input type="checkbox" class="cg-toggle-box cg-casual-box" name="casual" value="true"/>
 							<span class="cg-toggle-text">
 								<span class="cg-toggle-title">Casual mode</span>
-								<span class="cg-toggle-hint">Unrated game & unlimited time<br/>Think as long as you like</span>
+								<span class="cg-toggle-hint">No clock and no rating. Take as long as you like.</span>
 							</span>
 							<span class="cg-switch" aria-hidden="true"></span>
 						</label>
 						// Rated status + control. A game is rated only when a logged-in
 						// player faces another real player in a competitive (non-casual)
 						// game. The badge lights for that case and dims (via :has() on the
-						// opponent/casual/allow-anon inputs) otherwise. The "Allow anonymous
-						// players" toggle below is the opt-out: it opens the game to anon
-						// joiners and so makes it unrated. An anonymous creator instead
-						// gets the locked variant, since rated play needs an account. Kept
+						// opponent/casual/allow-anon inputs) otherwise. The "Allow guests"
+						// toggle below is the opt-out: it opens the game to guests and so
+						// makes it unrated. A guest creator instead gets the locked
+						// variant, whose "Sign up" opens the account modal on its register
+						// tab (lio-auth.js), since rated play needs an account. Kept
 						// always-visible to avoid layout shift.
 						if !settings.Current().RatedEnabled {
 							@ratedPausedBadge()
@@ -97,8 +98,8 @@ templ createGameModal() {
 								</span>
 								<span class="cg-rated-copy">
 									<span class="cg-rated-line" data-state="on">Counts toward your rating</span>
-									<span class="cg-rated-line" data-state="open">Open game — anyone can join, unrated</span>
-									<span class="cg-rated-line" data-state="off">Just for fun — unrated</span>
+									<span class="cg-rated-line" data-state="open">Guests can join, so it's unrated</span>
+									<span class="cg-rated-line" data-state="off">Just for fun, no rating</span>
 								</span>
 							</div>
 						}
@@ -106,8 +107,8 @@ templ createGameModal() {
 							<label class="cg-toggle cg-allow-anon">
 								<input type="checkbox" class="cg-toggle-box cg-allow-anon-box" name="allow_anon" value="true"/>
 								<span class="cg-toggle-text">
-									<span class="cg-toggle-title">Allow anonymous players</span>
-									<span class="cg-toggle-hint">On = anyone can join (unrated)<br/>Off = logged-in players only (rated)</span>
+									<span class="cg-toggle-title">Allow guests</span>
+									<span class="cg-toggle-hint">Players without an account can join. The game is then unrated.</span>
 								</span>
 								<span class="cg-switch" aria-hidden="true"></span>
 							</label>
@@ -120,15 +121,17 @@ templ createGameModal() {
 									RATED
 								</span>
 								<span class="cg-rated-copy">
-									<a href="#" onclick="document.getElementById('modalAccount').classList.add('open');return false;">Log in</a> to play rated games
+									// one span: .cg-rated-copy is a grid, and a bare button
+									// beside a text node would become two grid rows
+									<span><button type="button" class="cg-rated-link" data-open-register>Sign up</button> to play rated games</span>
 								</span>
 							</div>
 						}
 						<label class="cg-toggle cg-public">
 							<input type="checkbox" class="cg-toggle-box cg-public-box" name="public" value="true"/>
 							<span class="cg-toggle-text">
-								<span class="cg-toggle-title">Open challenge</span>
-								<span class="cg-toggle-hint">On = anyone can join the game<br/>Off = only your link works</span>
+								<span class="cg-toggle-title">List on home page</span>
+								<span class="cg-toggle-hint">Players on the home page can find and join it. Off: only people with your link.</span>
 							</span>
 							<span class="cg-switch" aria-hidden="true"></span>
 						</label>
@@ -154,7 +157,7 @@ templ createGameModal() {
 									<span>7</span>
 								</label>
 							</div>
-							<span class="cg-hint"><strong>Race:</strong> games run back-to-back until a player reaches the target score — draws count ½. Human opponents only.</span>
+							<span class="cg-hint">Play games back to back until one player reaches the score. A win is 1 point, a draw ½. Against people only.</span>
 						</div>
 						<div class="cg-field cg-tc">
 							<span class="cg-label">Time control</span>
@@ -229,7 +232,7 @@ templ ratedPausedBadge() {
 			UNRATED
 		</span>
 		<span class="cg-rated-copy">
-			<span class="cg-rated-line" data-state="on">Rated games are temporarily disabled</span>
+			<span class="cg-rated-line" data-state="on">Rated games are paused for now</span>
 		</span>
 	</div>
 }

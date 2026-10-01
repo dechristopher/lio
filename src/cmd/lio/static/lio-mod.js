@@ -109,7 +109,7 @@
         label = label || "Lift the ban";
         break;
     }
-    if (who) label += " — " + who;
+    if (who) label += ": " + who;
     return { label: label, value: value, effect: btn.dataset.effect || "" };
   }
 
@@ -344,7 +344,7 @@
       submitting = false;
       applyBtn.disabled = false;
     } catch (e) {
-      setError("Network error — nothing was applied.");
+      setError("Can't reach the server. Nothing was applied.");
       submitting = false;
       applyBtn.disabled = false;
     }
@@ -576,7 +576,7 @@
       });
       const data = await res.json().catch(function () { return null; });
       if (!res.ok) {
-        setStatus(errorEl, (data && data.error) || "could not send that message");
+        setStatus(errorEl, (data && data.error) || "Couldn't send that message. Try again.");
         syncSend();
         return;
       }
@@ -593,7 +593,7 @@
       search.value = "";
       results.replaceChildren();
     } catch (e) {
-      setStatus(errorEl, "could not send that message");
+      setStatus(errorEl, "Can't reach the server. Nothing was sent.");
     } finally {
       syncSend();
     }

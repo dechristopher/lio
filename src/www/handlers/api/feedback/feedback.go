@@ -78,17 +78,17 @@ type request struct {
 func Handler(c fiber.Ctx) error {
 	if !auth.Enabled() {
 		return c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "feedback is unavailable in this environment"})
+			JSON(errBody{Error: "Feedback is unavailable right now."})
 	}
 	acct := user.GetAccount(c)
 	if acct == nil {
 		return c.Status(fiber.StatusUnauthorized).
-			JSON(errBody{Error: "log in to send feedback"})
+			JSON(errBody{Error: "Log in to send feedback."})
 	}
 
 	var req request
 	if err := c.Bind().Body(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "malformed request"})
+		return c.Status(fiber.StatusBadRequest).JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 
 	// Honeypot: answer exactly as a successful submission would and store
@@ -101,16 +101,16 @@ func Handler(c fiber.Ctx) error {
 
 	if !db.ValidFeedbackKind(req.Kind) {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "pick what kind of feedback this is"})
+			JSON(errBody{Error: "Pick what kind of feedback this is."})
 	}
 	body := strings.TrimSpace(req.Body)
 	if len(body) < minBody {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "tell us a little more than that"})
+			JSON(errBody{Error: "Tell us a little more than that."})
 	}
 	if len(body) > maxBody {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that message is too long"})
+			JSON(errBody{Error: "That message is too long."})
 	}
 
 	// The rolling cap. Checked before the insert so the refusal is honest — the
@@ -119,17 +119,17 @@ func Handler(c fiber.Ctx) error {
 	if err != nil {
 		util.Error(str.CDB, "feedback cap check failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not send that feedback"})
+			JSON(errBody{Error: "Couldn't send your feedback. Try again."})
 	}
 	if sent >= dailyCap {
 		return c.Status(fiber.StatusTooManyRequests).
-			JSON(errBody{Error: "you've sent a lot of feedback today — try again tomorrow"})
+			JSON(errBody{Error: "You've sent a lot of feedback today. Try again tomorrow."})
 	}
 
 	if err := db.SubmitFeedback(acct.ID, req.Kind, body, safePath(req.Path)); err != nil {
 		util.Error(str.CDB, "feedback submit failed error=%s", err.Error())
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not send that feedback"})
+			JSON(errBody{Error: "Couldn't send your feedback. Try again."})
 	}
 	// Light every moderator's badge now (arch/NOTIFICATIONS.md). Their pages are
 	// open and are not going to be reloaded, and the count on a socket is only

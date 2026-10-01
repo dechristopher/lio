@@ -23,7 +23,7 @@ func RatingsHandler(c fiber.Ctx) error {
 	list, err := db.ListRatingsForUser(*sess.UserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not load ratings"})
+			JSON(errBody{Error: "Couldn't load your ratings. Try again."})
 	}
 	type ratingRow struct {
 		Category    string `json:"category"`

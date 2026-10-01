@@ -39,7 +39,7 @@ func CloseRoomHandler(c fiber.Ctx) error {
 	var req closeRoomRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	reason, ok := reasonOf(c, req.Reason)
 	if !ok {
@@ -48,7 +48,7 @@ func CloseRoomHandler(c fiber.Ctx) error {
 	roomID := strings.TrimSpace(req.RoomID)
 	if roomID == "" {
 		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "which room?"})
+			JSON(errBody{Error: "Pick a room."})
 	}
 
 	if !room.CloseRoom(roomID) {
@@ -56,7 +56,7 @@ func CloseRoomHandler(c fiber.Ctx) error {
 		// worth alarming anyone about — the operator's goal (this room is not
 		// running) already holds.
 		return c.Status(fiber.StatusConflict).
-			JSON(errBody{Error: "that room is no longer live"})
+			JSON(errBody{Error: "That room is no longer live."})
 	}
 
 	if err := db.LogModAction(*sess.UserID, nil, "room", map[string]any{

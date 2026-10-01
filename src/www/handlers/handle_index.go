@@ -19,20 +19,20 @@ import (
 func IndexHandler(c fiber.Ctx) error {
 	challenges, stats, community := homeActivity(c)
 
-	meta := view.PageMeta("Free Online Octad")
+	meta := view.PageMeta("Free 4x4 chess")
 	// one-shot notice for clients redirected off a room that no longer exists
 	// (the ws layer sends them to /?notice=room-gone — typically an open
 	// challenge dropped by a server restart, which doesn't persist waiting rooms)
 	switch c.Query("notice") {
 	case "room-gone":
-		meta.Notice = "That room is gone — it was most likely cleared by a " +
-			"server update before the game started. Create a new game below."
+		meta.Notice = "That room is gone. A server update most likely cleared it " +
+			"before the game started. Create a new game below."
 	case "maintenance":
 		// refused by the maintenance switch (arch/ADMIN_MODERATION.md Phase 3).
 		// The site-wide banner usually says more about why; this explains the
 		// specific action that just didn't happen.
 		meta.Notice = "New games are paused for maintenance right now. " +
-			"Games already in progress are unaffected — please try again shortly."
+			"Games already in progress keep going. Try again shortly."
 	case "challenge-declined":
 		// the invited player turned it down, and the room closed under the
 		// challenger (arch/NOTIFICATIONS.md Phase 2). Said plainly: this is an
@@ -50,8 +50,8 @@ func IndexHandler(c fiber.Ctx) error {
 		// the invite could not be resolved — an unknown or banned account, or a
 		// tampered form. Deliberately vague about which: a message that
 		// distinguishes them would report whether an account exists.
-		meta.Notice = "That challenge could not be sent. The player may no longer " +
-			"be available — try again from their profile or the players list."
+		meta.Notice = "That challenge couldn't be sent. The player may no longer " +
+			"be available. Try again from their profile or the players list."
 	}
 
 	return view.Render(c, 200, view.Index(meta, challenges, stats, community))

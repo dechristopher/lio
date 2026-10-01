@@ -113,14 +113,14 @@ func (r *Instance) tvSeatLocked(color octad.Color) proto.TVSeat {
 
 	p := r.players[color]
 	if p == nil {
-		return proto.TVSeat{Name: "Anonymous", Locked: locked}
+		return proto.TVSeat{Name: "Guest", Locked: locked}
 	}
 	if p.IsBot {
 		persona := r.botPersona()
 		return proto.TVSeat{Name: persona.Name, Bot: true, Glyph: persona.Glyph, Locked: locked}
 	}
 	if p.Username == "" {
-		return proto.TVSeat{Name: "Anonymous", Locked: locked}
+		return proto.TVSeat{Name: "Guest", Locked: locked}
 	}
 	return proto.TVSeat{
 		Name:      p.Username,

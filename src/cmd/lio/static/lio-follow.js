@@ -176,10 +176,10 @@
           if (viewerIsOwner) bumpFollowing(now ? 1 : -1);
         } else {
           const err = await res.json().catch(() => null);
-          btn.title = (err && err.error) || "Could not save that.";
+          btn.title = (err && err.error) || "Couldn't save that. Try again.";
         }
       } catch (e) {
-        btn.title = "Network error — that did not save.";
+        btn.title = "Can't reach the server. That didn't save.";
       }
       btn.classList.remove("is-busy");
     });

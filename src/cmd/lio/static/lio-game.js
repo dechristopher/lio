@@ -890,17 +890,25 @@ const clearDrawOfferUI = () => {
 };
 
 // backend reason codes -> human-readable method subtitles
+// Every entry starts with "by" or "on", so one phrase reads correctly after
+// the card's headline ("You win" / "by checkmate"), joined into the board
+// label ("White wins by checkmate") and in a timeline tooltip ("Game 2: win
+// by checkmate").
 const resultReasons = {
 	checkmate: 'by checkmate',
 	time: 'on time',
 	resignation: 'by resignation',
 	stalemate: 'by stalemate',
-	insufficient: 'insufficient material',
+	insufficient: 'by insufficient material',
 	agreement: 'by agreement',
 	repetition: 'by repetition',
-	moverule: 'by 25-move rule',
-	abandoned: 'opponent left',
+	moverule: 'by the 25-move rule',
+	abandoned: 'by abandonment',
 };
+
+// leftHeadline names an abandoned game: the player who stayed is told their
+// opponent left; a spectator, who has no opponent, that a player did.
+const leftHeadline = () => (isSpec ? 'A player left' : 'Opponent left');
 
 /**
  * resultSummary builds the short result line for the endgame annotation
@@ -911,9 +919,9 @@ const resultReasons = {
  */
 const resultSummary = (d) => {
 	if (d.r === 'abandoned') {
-		return 'Match over';
+		return leftHeadline();
 	}
-	const who = d.w === 'd' ? 'Draw:' : (d.w === 'w' ? 'White wins:' : 'Black wins:');
+	const who = d.w === 'd' ? 'Draw' : (d.w === 'w' ? 'White wins' : 'Black wins');
 	const method = resultReasons[d.r] || '';
 	return method ? `${who} ${method}` : who;
 };
@@ -1471,7 +1479,7 @@ const showResult = (message) => {
 	if (message.d.r === 'abandoned') {
 		// abandonment closes the room; report it neutrally rather than as a draw
 		outcome = 'draw';
-		headline = 'Match over';
+		headline = leftHeadline();
 	} else if (message.d.mo && message.d.sc) {
 		// the race is decided: headline the match, not the final game — which
 		// may itself have been a draw that lifted the leader to the target. The
@@ -1546,7 +1554,9 @@ const showResult = (message) => {
 
 	// method subtitle: prefer the structured reason code, falling back to the
 	// full status string the footer already shows
-	resultReasonEl.innerHTML = resultReasons[message.d.r] || message.d.s || '';
+	resultReasonEl.innerHTML = message.d.r === 'abandoned'
+		? 'The game is over.'
+		: (resultReasons[message.d.r] || message.d.s || '');
 
 	// match score, player's score first
 	if (message.d.sc) {
@@ -1818,7 +1828,7 @@ if (homeBtn) {
 }
 
 // Resign is a two-step confirm so a mis-click can't throw the game: the first
-// click arms the button ("Confirm?"), a second within the window sends it, and
+// click arms the button ("Resign?"), a second within the window sends it, and
 // it auto-disarms after a few seconds. The server (RequestResign) only accepts
 // it from a seated player during an ongoing game.
 if (resignBtn && !isSpec) {
@@ -1829,7 +1839,7 @@ if (resignBtn && !isSpec) {
 		if (!resignArmed) {
 			resignArmed = true;
 			resignBtn.classList.add('confirm');
-			resignBtn.innerHTML = 'Confirm?';
+			resignBtn.innerHTML = 'Resign?';
 			resignArmTimer = setTimeout(resetResignButton, 4000);
 			return;
 		}
@@ -1917,7 +1927,7 @@ const handleDrawOffer = (message) => {
 	}
 };
 
-// "Analyze board" dismisses the result card (without tearing down its state, so
+// "Review game" dismisses the result card (without tearing down its state, so
 // the rematch window / countdown keep running and Rematch stays reachable) and
 // exposes a small floating button to bring the card back. This lets a player
 // step through the finished game with the board unobstructed.
@@ -1926,7 +1936,7 @@ const restoreResultBtn = document.getElementById('result-restore');
 
 /**
  * dismissResultForAnalysis hides the showing result card and exposes the
- * restore button. Besides the "Analyze board" button, any review-navigation
+ * restore button. Besides the "Review game" button, any review-navigation
  * input (arrow keys, nav buttons, move-list clicks) dismisses the card, so the
  * modal never blocks stepping through the finished game.
  */
@@ -2249,7 +2259,7 @@ const isPlayerParticipant = (message) => {
 
 /**
  * isAnalyzing reports whether the player is actively reviewing the finished game
- * — either they dismissed the result card ("Analyze board") or they've stepped
+ * — either they dismissed the result card ("Review game") or they've stepped
  * the board back to an earlier ply. Used to keep an analyzing player on the page
  * when a finished bot room is torn down, instead of bouncing them home.
  */
@@ -2339,7 +2349,10 @@ const handleGameOver = (message) => {
 	// a game ending during the pre-start countdown (resign, abandon) must take
 	// the overlay and its ticker down with it
 	hidePreStartCountdown();
-	document.getElementById("info").innerHTML = message.d.s;
+	// The info bar carries only a room-closing notice (no rematch, match
+	// complete), which arrives without a result. A result is already on the
+	// card and the board label, so the bar does not repeat it.
+	document.getElementById("info").innerHTML = (message.d.o === true && !message.d.r) ? (message.d.s || '') : '';
 	// don't replay the end sound for a room-cleanup notice while the player is
 	// reviewing the finished game; the result it announces is long since heard
 	if (!(wasGameOver && message.d.o === true && isAnalyzing())) {
@@ -2699,7 +2712,7 @@ const renderTimeline = (message) => {
 		const cell = tlGame(e, n);
 		if (isArchive) {
 			cell.classList.add('tl-link');
-			cell.title += ' — view this game';
+			cell.title += '. Click to view.';
 			cell.addEventListener('click', () => {
 				if (n !== archiveData.n) {
 					location.href = '/' + archiveData.roomId + '/' + n;
@@ -3776,8 +3789,8 @@ const enterDeploySpectatorMode = (payload) => {
 
 	// passive spectator card: no controls, just a status line
 	document.getElementById('deploy-overlay').classList.add('deploy-show');
-	document.querySelector('.deploy-headline').textContent = 'Blind deploy';
-	document.querySelector('.deploy-hint').textContent = 'Both players are secretly arranging their pieces.';
+	document.querySelector('.deploy-headline').textContent = 'Secret setup';
+	document.querySelector('.deploy-hint').textContent = 'Both players are setting up their pieces in secret.';
 	document.getElementById('deploy-countdown').classList.add('hidden');
 	document.getElementById('deploy-confirm').classList.add('hidden');
 	document.getElementById('deploy-waiting').classList.add('hidden');
@@ -4014,8 +4027,8 @@ const renderDeployLock = () => {
 	const el = document.getElementById('deploy-opponent-status');
 	if (!el) { return; }
 	if (deploySpectating) {
-		el.textContent = 'White: ' + (deployLockWhite ? 'ready ✓' : 'arranging…')
-			+ '  ·  Black: ' + (deployLockBlack ? 'ready ✓' : 'arranging…');
+		el.textContent = 'White: ' + (deployLockWhite ? 'ready ✓' : 'setting up…')
+			+ '  ·  Black: ' + (deployLockBlack ? 'ready ✓' : 'setting up…');
 		el.classList.remove('hidden');
 		return;
 	}
@@ -4107,8 +4120,9 @@ const exitDeployMode = () => {
 	}
 
 	// reset the card (a spectator overwrote its text) and controls for next time
-	document.querySelector('.deploy-headline').textContent = 'Arrange your pieces';
-	document.querySelector('.deploy-hint').textContent = 'Drag a piece onto another — or tap two squares — to swap, then confirm.';
+	// must match the card's markup in view/components.templ (board)
+	document.querySelector('.deploy-headline').textContent = 'Set up your pieces';
+	document.querySelector('.deploy-hint').textContent = "Drag or tap two pieces to swap them. Your opponent can't see your setup.";
 	document.getElementById('deploy-countdown').classList.remove('hidden');
 	document.getElementById('deploy-confirm').classList.remove('hidden');
 	document.getElementById('deploy-waiting').classList.add('hidden');

@@ -1,6 +1,7 @@
 package view
 
 import (
+	"context"
 	"math"
 	"sort"
 	"strconv"
@@ -356,13 +357,13 @@ type ProfileGameView struct {
 	URL     string // archive permalink
 	When    string // "2 days ago"
 	Variant string // "½ + 1 blitz"
-	Mode    string // "Rated" / "Casual"
+	Mode    string // "Rated" / "Unrated"
 	Result  string // "Won" / "Lost" / "Drew"
 	// Reason is the DB-canonical method token ("checkmate", "time", …), rendered
 	// into the readout as the phrase that follows the result.
 	Reason   string
 	Class    string // result-tinting class: win / loss / draw
-	Opponent string // "cdpplayer" / "BOT Queen" / "Anonymous"
+	Opponent string // "cdpplayer" / "BOT Queen" / "Guest"
 	// OppRating is the opponent's rating going into the game, shown only when
 	// the game was rated — an unrated game's ratings say nothing about it.
 	OppRating string
@@ -473,7 +474,7 @@ func ProfileMeta(m ProfileModel) Meta {
 	if m.Title.Set() {
 		who = "[" + m.Title.Code + "] " + m.Username
 	}
-	desc := who + " on " + config.SiteName() + " — octad games, ratings and record."
+	desc := who + "'s Octad games, ratings, and record on " + config.SiteName() + "."
 	if m.Closed {
 		desc = "This " + config.SiteName() + " account is closed."
 	}
@@ -635,4 +636,23 @@ func openReportsLabel(n int64) string {
 		return "1 open report against this account →"
 	}
 	return strconv.FormatInt(n, 10) + " open reports against this account →"
+}
+
+// ownProfile reports whether the viewer is looking at their own page, so an
+// empty state can speak to them ("your rating") rather than about them.
+// Usernames are unique without regard to case, so the comparison is too.
+func ownProfile(ctx context.Context, m ProfileModel) bool {
+	v := viewer(ctx)
+	return v.LoggedIn && strings.EqualFold(v.Username, m.Username)
+}
+
+// profileCopy picks an empty state's wording for the person reading it: own
+// on the player's own page, other on anyone else's, with {name} replaced by
+// the player's username. A visitor to an empty profile is not the one who
+// has games to play, so they are never told to play them.
+func profileCopy(ctx context.Context, m ProfileModel, own, other string) string {
+	if ownProfile(ctx, m) {
+		return own
+	}
+	return strings.ReplaceAll(other, "{name}", m.Username)
 }

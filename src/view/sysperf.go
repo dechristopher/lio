@@ -135,7 +135,7 @@ func runtimeView(rt sysinfo.Runtime) RuntimeView {
 		{Label: "Heap", Value: bytes(int64(rt.HeapAlloc)),
 			Help: "Live heap objects right now, excluding memory freed but not yet returned to the OS"},
 		{Label: "Sockets", Value: count(int64(rt.Sockets)),
-			Help: "Open websockets across all channels. Higher than the people online — one player with two tabs is two sockets"},
+			Help: "Open websockets across all channels. Higher than the people online: one player with two tabs is two sockets"},
 		{Label: "Move lag", Value: shortDuration(rt.MoveLag), Class: lagClass,
 			Help: "Rolling average of server move-processing time. The same figure that drives clock lag compensation"},
 	}
@@ -147,7 +147,7 @@ func runtimeView(rt sysinfo.Runtime) RuntimeView {
 				{Label: "CPUs", Value: count(int64(rt.NumCPU)),
 					Help: "Cores the machine reports"},
 				{Label: "GOMAXPROCS", Value: count(int64(rt.GOMAXPROCS)), Class: procsClass(rt),
-					Help: "Cores Go will actually schedule on. Below the CPU count means the runtime is capped — usually a container CPU limit"},
+					Help: "Cores Go will actually schedule on. Below the CPU count means the runtime is capped, usually by a container CPU limit"},
 				{Label: "Rooms", Value: count(int64(rt.Rooms)),
 					Help: "Room state machines held in memory, including finished rooms not yet reaped"},
 				{Label: "Channels", Value: count(int64(rt.Channels)),
@@ -170,7 +170,7 @@ func runtimeView(rt sysinfo.Runtime) RuntimeView {
 				{Label: "Next GC at", Value: bytes(int64(rt.GCTarget)),
 					Help: "Heap size the next collection is targeting"},
 				{Label: "Memory limit", Value: memLimitValue(rt.MemLimit),
-					Help: "GOMEMLIMIT — the soft ceiling the collector works to keep the process under"},
+					Help: "GOMEMLIMIT: the soft ceiling the collector works to keep the process under"},
 			},
 		},
 		{
@@ -208,7 +208,7 @@ func procsClass(rt sysinfo.Runtime) string {
 func postgresView(s db.Stats) BackendView {
 	v := BackendView{Name: "Postgres", Detail: "durable games archive"}
 	applyState(&v, s.Configured, s.Reachable, s.Latency, s.Err,
-		"no DSN configured — finished games are not archived")
+		"no DSN configured, so finished games are not archived")
 	if !s.Configured {
 		return v
 	}
@@ -229,7 +229,7 @@ func postgresView(s db.Stats) BackendView {
 			{Label: "Wait time", Value: shortDuration(s.EmptyAcquireWait),
 				Help: "Total time spent waiting on an empty pool since boot"},
 			{Label: "Canceled", Value: count(s.CanceledAcquireCount), Class: warnIf(s.CanceledAcquireCount > 0),
-				Help: "Checkouts abandoned before they got a connection — a request gave up or timed out"},
+				Help: "Checkouts abandoned before they got a connection: a request gave up or timed out"},
 			{Label: "Connections made", Value: count(s.NewConnsCount),
 				Help: "Connections established since boot. Far above the pool maximum means connections are churning rather than being reused"},
 		},
@@ -293,7 +293,7 @@ func poolClass(s db.Stats) string {
 func redisView(s cache.Stats) BackendView {
 	v := BackendView{Name: "Redis", Detail: s.Addr}
 	applyState(&v, s.Configured, s.Reachable, s.Latency, s.Err,
-		"no address configured — live rooms will not survive a restart")
+		"no address configured, so live rooms will not survive a restart")
 	if v.Detail == "" {
 		v.Detail = "room snapshot persistence"
 	}
@@ -336,7 +336,7 @@ func redisView(s cache.Stats) BackendView {
 				{Label: "Ops/sec", Value: count(s.OpsPerSec),
 					Help: "Commands per second, sampled by the server right now"},
 				{Label: "Hit rate", Value: hitRate(s.KeyspaceHits, s.KeyspaceMisses),
-					Help: "Share of key lookups that found something. Low is expected here — lio mostly writes snapshots and reads them once, at boot"},
+					Help: "Share of key lookups that found something. Low is expected here: lio mostly writes snapshots and reads them once, at boot"},
 			},
 		})
 	}
@@ -365,7 +365,7 @@ func redisView(s cache.Stats) BackendView {
 func objectView(s store.Stats) BackendView {
 	v := BackendView{Name: "Object store", Detail: objectDetail(s)}
 	applyState(&v, s.Configured, s.Reachable, s.Latency, s.Err,
-		"no endpoint configured — PGNs are not written")
+		"no endpoint configured, so PGNs are not written")
 	if !s.Configured {
 		return v
 	}
@@ -374,7 +374,7 @@ func objectView(s store.Stats) BackendView {
 		{Label: "PGNs written", Value: count(s.PutOK),
 			Help: "Game PGNs stored since boot"},
 		{Label: "Writes failed", Value: count(s.PutFail), Class: badIf(s.PutFail > 0),
-			Help: "PGNs that could not be stored. The game is over by then, so the failure is logged and dropped — this counter is the only other trace"},
+			Help: "PGNs that could not be stored. The game is over by then, so the failure is logged and dropped. This counter is the only other trace"},
 		{Label: "Objects read", Value: count(s.GetOK),
 			Help: "Objects fetched since boot, mostly archive page views"},
 		{Label: "Reads failed", Value: count(s.GetFail), Class: warnIf(s.GetFail > 0),

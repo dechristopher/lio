@@ -58,9 +58,9 @@ type Meta struct {
 }
 
 const (
-	defaultOGTitle     = "Octad — 4x4 chess with a twist"
-	defaultDescription = "Free online octad server. Play octad in a clean interface. " +
-		"Play octad with the computer, friends or random players. No ads."
+	defaultOGTitle     = "Octad: small board, real chess"
+	defaultDescription = "Octad is chess on a 4x4 board. Set up your pieces in secret, " +
+		"then play people or the computer. Free, no ads, no account needed."
 	roomDescription = "Join the challenge or watch the game here."
 )
 
@@ -81,13 +81,15 @@ func PageMeta(name string) Meta {
 // RoomMeta builds metadata for a room page, mirroring the OpenGraph and title
 // treatment the old room/doc_title partials produced.
 func RoomMeta(payload message.RoomTemplatePayload) Meta {
-	group := cases.Title(language.English).String(payload.Variant.Group.String())
+	// the speed class, not Group: every room is a deploy variant, so Group is
+	// the constant "Deploy" and says nothing to a player
+	group := groupTitle(payload.Variant.SpeedGroup())
 	// untimed games are casual; anything with a real clock is competitive
 	mode := "competitive"
 	if payload.Variant.Casual {
 		mode = "casual"
 	}
-	challenger := "anonymous player"
+	challenger := "a guest"
 	if payload.CreatorName != "" {
 		challenger = payload.CreatorName
 		if payload.CreatorTitle.Set() {
@@ -98,7 +100,7 @@ func RoomMeta(payload message.RoomTemplatePayload) Meta {
 		}
 	}
 	challenge := group + " (" + payload.Variant.Name +
-		") " + mode + " octad • Challenge from " + challenger
+		") " + mode + " Octad • Challenge from " + challenger
 	return Meta{
 		Version:     config.VersionString(),
 		SiteURL:     config.SiteURL(),
@@ -344,12 +346,12 @@ func speedLabel(v variant.Variant) string {
 	return groupTitle(v.SpeedGroup())
 }
 
-// formatLabel names the variant's pre-game format for the match spec: every
-// variant the create modal offers is blind-deploy today, but the spec states it
-// explicitly rather than assuming it.
+// formatLabel names the variant's setup for the match spec's "Setup" row:
+// every variant the create modal offers is a secret (blind-deploy) setup
+// today, but the spec states it explicitly rather than assuming it.
 func formatLabel(v variant.Variant) string {
 	if v.Deploy {
-		return "Blind deploy"
+		return "Secret"
 	}
 	return "Standard"
 }
@@ -436,12 +438,12 @@ func seatColorLabel(payload message.RoomTemplatePayload, color string, isBot boo
 	if name != "" {
 		return name
 	}
-	// anonymous human: the viewer's own seat reads "You", everyone else
-	// "Anonymous". A spectator has no own seat, so both seats read "Anonymous".
+	// guest: the viewer's own seat reads "You", everyone else "Guest". A
+	// spectator has no own seat, so both seats read "Guest".
 	if !payload.IsSpectator && color == payload.PlayerColor {
 		return "You"
 	}
-	return "Anonymous"
+	return "Guest"
 }
 
 // reportableOpponent returns the account name of the viewer's opponent, or ""

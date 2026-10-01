@@ -72,20 +72,20 @@ func ReportCategoryHelp(category string) string {
 	case "other":
 		return "Something not covered by the other reasons"
 	}
-	return "Reported behaviour"
+	return "Reported behavior"
 }
 
 // ReportCategoryLabel renders a category for a picker.
 func ReportCategoryLabel(category string) string {
 	switch category {
 	case "cheating":
-		return "Cheating — engine assistance"
+		return "Cheating: engine assistance"
 	case "sandbagging":
-		return "Sandbagging — losing on purpose"
+		return "Sandbagging: losing on purpose"
 	case "stalling":
-		return "Stalling — wasting time"
+		return "Stalling: wasting time"
 	case "username":
-		return "Username — the name itself"
+		return "Username: the name itself"
 	case "other":
 		return "Something else"
 	}

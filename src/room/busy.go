@@ -335,7 +335,7 @@ func (r *Instance) seatNameLocked(p *player.Player) string {
 	if p.Username != "" {
 		return p.Username
 	}
-	return "Anonymous"
+	return "Guest"
 }
 
 // setBusySeats reconciles this room's contribution to the index against the

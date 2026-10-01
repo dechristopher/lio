@@ -467,7 +467,7 @@ func messagePlayer() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = answerOptions("msgChoices", "Leave empty unless they must answer").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = answerOptions("msgChoices", "Leave empty unless they must answer.").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -523,7 +523,7 @@ func answerOptions(id string, help string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" name=\"choices\" class=\"auth-input\" type=\"text\" autocomplete=\"off\" maxlength=\"120\" placeholder=\"OK — or Yes, No\" aria-describedby=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" name=\"choices\" class=\"auth-input\" type=\"text\" autocomplete=\"off\" maxlength=\"120\" placeholder=\"OK, or Yes, No\" aria-describedby=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -603,7 +603,7 @@ func broadcastComposer() templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"card mt-3 mod-bar\"><p class=\"text-xs font-semibold uppercase tracking-wider text-warn\">⚑ Broadcast</p><p class=\"mt-2 text-sm text-fg-subtle\">Goes to the notification bell of every account, one row for the whole site. Signed-out visitors do not have a bell — the site notice is what reaches them.</p><form id=\"broadcastForm\" class=\"msg-compose mt-3\" novalidate><label class=\"auth-label\">Message <textarea name=\"body\" class=\"auth-input\" rows=\"3\" maxlength=\"500\" placeholder=\"What does everybody need to know?\"></textarea></label> <label class=\"auth-label\">Link <input name=\"link\" class=\"auth-input\" type=\"text\" autocomplete=\"off\" maxlength=\"200\" placeholder=\"/news — optional, a path on this site\"></label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"card mt-3 mod-bar\"><p class=\"text-xs font-semibold uppercase tracking-wider text-warn\">⚑ Broadcast</p><p class=\"mt-2 text-sm text-fg-subtle\">Goes to the notification bell of every account, one row for the whole site. Logged-out visitors have no bell. The site notice is what reaches them.</p><form id=\"broadcastForm\" class=\"msg-compose mt-3\" novalidate><label class=\"auth-label\">Message <textarea name=\"body\" class=\"auth-input\" rows=\"3\" maxlength=\"500\" placeholder=\"What does everybody need to know?\"></textarea></label> <label class=\"auth-label\">Link <input name=\"link\" class=\"auth-input\" type=\"text\" autocomplete=\"off\" maxlength=\"200\" placeholder=\"/news (optional, a path on this site)\"></label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1077,14 +1077,14 @@ func liveOps(m SystemModel) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\" title=\"Open the room — you join as a spectator\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\" title=\"Open the room. You join as a spectator.\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(r.RoomID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/system.templ`, Line: 386, Col: 120}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/system.templ`, Line: 386, Col: 118}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -1170,7 +1170,7 @@ func liveOps(m SystemModel) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "\" data-effect=\"Ends the room for both players. A game in progress is abandoned, not resolved — use this to clear something stuck, not to decide a game.\">Close</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "\" data-effect=\"Ends the room for both players. A game in progress is abandoned, not resolved. Use this to clear something stuck, not to decide a game.\">Close</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1667,7 +1667,7 @@ func SystemStatsBody(s SystemStats) templ.Component {
 		}
 		for _, b := range s.Backends {
 			if len(b.Sections) > 0 {
-				templ_7745c5c3_Err = statSections(b.Name+" — "+b.Detail, b.Sections).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = statSections(b.Name+" · "+b.Detail, b.Sections).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1866,7 +1866,7 @@ func activeNotices(m SystemModel) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(m.Active) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<p class=\"mt-3 text-sm text-fg-subtle\">Nothing active — the site is running on its defaults.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<p class=\"mt-3 text-sm text-fg-subtle\">Nothing active. The site is running on its defaults.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2058,7 +2058,7 @@ func siteControls(m SystemModel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "\" placeholder=\"Shown on every page & not dismissable\"></label><div class=\"flex flex-wrap items-end gap-2\"><label class=\"auth-label\">Style <select class=\"auth-input\" name=\"noticeLevel\"><option value=\"info\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "\" placeholder=\"Shown on every page. Can't be dismissed.\"></label><div class=\"flex flex-wrap items-end gap-2\"><label class=\"auth-label\">Style <select class=\"auth-input\" name=\"noticeLevel\"><option value=\"info\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2082,7 +2082,7 @@ func siteControls(m SystemModel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = settingToggle("registrationOpen", "New account registration", "Existing accounts keep signing in either way.", m.Settings.RegistrationOpen).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = settingToggle("registrationOpen", "New account registration", "Existing accounts keep logging in either way.", m.Settings.RegistrationOpen).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

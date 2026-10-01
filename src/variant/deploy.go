@@ -61,3 +61,12 @@ var ThreeFiveRapidDeploy = Variant{
 	Control:  withDeployPreStart(ThreeFiveRapidTC),
 	Deploy:   true,
 }
+
+// QuickHuman is the variant of the home page's quick "vs Human" game, and
+// QuickComputer the variant of its quick "vs Computer" game. The room handlers
+// create the game from these, and the home page shows their names on the
+// buttons, so the label and the game cannot be different.
+var (
+	QuickHuman    = HalfOneBlitzDeploy
+	QuickComputer = OneTwoRapidDeploy
+)

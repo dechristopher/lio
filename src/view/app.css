@@ -500,6 +500,16 @@
 		.room-cta { width: min(96vw, 48rem); }
 	}
 	html[data-roomcta="off"] .room-cta { display: none; }
+	/* While the result card is up with its own sign-up line (a guest who just
+	   played a person), the bar steps aside so the page asks once, not twice.
+	   It fades in place and keeps its space, so the board does not move; it
+	   comes back when the card is dismissed for review or the next game
+	   starts. */
+	.room-cta { transition: opacity 150ms var(--ease-snappy), visibility 150ms; }
+	.game-room:has(.result-overlay.result-show:not(.result-dismissed) .result-signup) .room-cta {
+		opacity: 0;
+		visibility: hidden;
+	}
 
 	/* ---- home-page community panels ----
 	   The account pitch (home.templ homeWelcome) and the people rosters
@@ -529,28 +539,6 @@
 		color: var(--text);
 		background: color-mix(in srgb, var(--text) 8%, transparent);
 	}
-	.home-cta-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-		margin-top: 0.75rem;
-		font-size: 0.82rem;
-		line-height: 1.35;
-		color: var(--text-muted);
-	}
-	.home-cta-list li {
-		display: flex;
-		align-items: start;
-		gap: 0.5rem;
-	}
-	/* the icons are optically centered on the first line of their row rather
-	   than the row box, which wraps to two lines on a narrow phone */
-	.home-cta-list svg {
-		flex: none;
-		margin-top: 0.15rem;
-		color: var(--accent);
-	}
-	.home-cta-list strong { color: var(--text); font-weight: 600; }
 	html[data-homecta="off"] .home-cta { display: none; }
 
 	/* The "What is Octad?" explainer. It borrows the pitch card's × (.home-cta-x)
@@ -562,6 +550,14 @@
 	.home-about { position: relative; }
 	/* keep the heading clear of the × on the narrowest column */
 	.home-about > h2 { padding-right: 1.75rem; }
+	/* the explainer's "two things are new" list. Preflight removes list
+	   markers, so the bullets are put back here, in the accent color. */
+	.home-about-new {
+		margin-top: 0.25rem;
+		padding-left: 1.1rem;
+		list-style: disc;
+	}
+	.home-about-new li::marker { color: var(--accent); }
 
 	/* Rosters come in two shapes, because the two are read differently.
 
@@ -1764,6 +1760,10 @@
 
 	/* "opponent wants a rematch" note above the actions */
 	.result-note { margin-top: 0.5rem; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+	/* the guest sign-up line under the result (view/components.templ board) */
+	.result-signup { margin-top: 0.75rem; font-size: 0.78rem; line-height: 1.4; color: var(--text-muted); }
+	.result-signup button { font-weight: 600; color: var(--accent); cursor: pointer; }
+	.result-signup button:hover { text-decoration: underline; }
 	.result-actions { display: flex; gap: 0.6rem; justify-content: center; margin-top: 1rem; }
 	.result-btn {
 		font-size: 0.9rem;
@@ -2589,7 +2589,8 @@
 		line-height: 1.3;
 		color: var(--text-subtle);
 	}
-	.cg-rated-copy a { color: var(--accent); font-weight: 600; }
+	.cg-rated-copy a, .cg-rated-link { color: var(--accent); font-weight: 600; cursor: pointer; }
+	.cg-rated-link:hover { text-decoration: underline; }
 	.cg-rated-line { grid-area: 1 / 1; visibility: hidden; }
 	/* copy swap (all three lines stacked so the row height never changes):
 	   'on' (rated) by default, 'open' when the game is opened to anonymous
@@ -3022,11 +3023,28 @@
 	   one), loss-tinted on hover */
 	.wait-foot {
 		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
 		justify-content: flex-end;
+		gap: 0.5rem 1rem;
 		margin-top: 1.25rem;
 		padding-top: 1rem;
 		border-top: 1px solid var(--border);
 	}
+	/* "No one yet? Play the computer instead": takes the free space on the
+	   left, so the cancel button stays at the right edge */
+	.wait-fallback {
+		margin-right: auto;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+	.wait-fallback-btn {
+		margin-left: 0.25rem;
+		font-weight: 600;
+		color: var(--accent);
+		cursor: pointer;
+	}
+	.wait-fallback-btn:hover { text-decoration: underline; }
 	.wait-note { font-size: 0.72rem; line-height: 1.4; color: var(--text-subtle); }
 	.cancel-ghost { padding: 0.4rem 0.9rem; font-size: 0.8rem; color: var(--text-muted); }
 	.cancel-ghost:hover { color: var(--loss); border-color: var(--loss); }

@@ -80,18 +80,18 @@ func Wire(g fiber.Router) {
 func actor(c fiber.Ctx, need role.Role) (*auth.Session, bool) {
 	if !auth.Enabled() {
 		_ = c.Status(fiber.StatusServiceUnavailable).
-			JSON(errBody{Error: "accounts are unavailable in this environment"})
+			JSON(errBody{Error: "Accounts are unavailable right now."})
 		return nil, false
 	}
 	sess := auth.CurrentSession(c)
 	if sess == nil || !sess.LoggedIn() {
-		_ = c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "not logged in"})
+		_ = c.Status(fiber.StatusUnauthorized).JSON(errBody{Error: "You're not logged in."})
 		return nil, false
 	}
 	if !sess.Role.AtLeast(need) {
 		// deliberately identical to what a logged-in non-moderator sees for a
 		// route that does not exist: privilege boundaries are not an oracle
-		_ = c.Status(fiber.StatusNotFound).JSON(errBody{Error: "not found"})
+		_ = c.Status(fiber.StatusNotFound).JSON(errBody{Error: "Not found."})
 		return nil, false
 	}
 	return sess, true
@@ -131,18 +131,18 @@ func target(c fiber.Ctx, sess *auth.Session, userID int64) (db.UserRecord, bool)
 	rec, found, err := db.GetUserByID(userID)
 	if err != nil {
 		_ = c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not load that account"})
+			JSON(errBody{Error: "Couldn't load that account. Try again."})
 		return db.UserRecord{}, false
 	}
 	if !found {
-		_ = c.Status(fiber.StatusNotFound).JSON(errBody{Error: "no such account"})
+		_ = c.Status(fiber.StatusNotFound).JSON(errBody{Error: "That account doesn't exist."})
 		return db.UserRecord{}, false
 	}
 
 	if isSelf(sess, rec.ID) {
 		if !sess.Role.CanAdmin() {
 			_ = c.Status(fiber.StatusForbidden).
-				JSON(errBody{Error: "you cannot moderate your own account"})
+				JSON(errBody{Error: "You can't moderate your own account."})
 			return db.UserRecord{}, false
 		}
 		return rec, true
@@ -150,12 +150,12 @@ func target(c fiber.Ctx, sess *auth.Session, userID int64) (db.UserRecord, bool)
 
 	if !sess.Role.CanActOn(rec.Role) {
 		_ = c.Status(fiber.StatusForbidden).
-			JSON(errBody{Error: "that account outranks you"})
+			JSON(errBody{Error: "That account outranks you."})
 		return db.UserRecord{}, false
 	}
 	if rec.Role.CanAdmin() && !grantedBy(sess, rec.ID) {
 		_ = c.Status(fiber.StatusForbidden).
-			JSON(errBody{Error: "only the admin who promoted this account can act on it"})
+			JSON(errBody{Error: "Only the admin who promoted this account can act on it."})
 		return db.UserRecord{}, false
 	}
 	return rec, true
@@ -185,7 +185,7 @@ func grantedBy(sess *auth.Session, userID int64) bool {
 // self-service use.
 func selfRefused(c fiber.Ctx, what string) error {
 	return c.Status(fiber.StatusForbidden).
-		JSON(errBody{Error: "you cannot " + what + " your own account"})
+		JSON(errBody{Error: "You can't " + what + " your own account."})
 }
 
 // reasonOf validates the mandatory justification attached to every action. It
@@ -199,12 +199,12 @@ func reasonOf(c fiber.Ctx, reason string) (string, bool) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
 		_ = c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "a reason is required"})
+			JSON(errBody{Error: "A reason is required."})
 		return "", false
 	}
 	if len(reason) > maxReason {
 		_ = c.Status(fiber.StatusUnprocessableEntity).
-			JSON(errBody{Error: "that reason is too long"})
+			JSON(errBody{Error: "That reason is too long."})
 		return "", false
 	}
 	return reason, true
@@ -226,7 +226,7 @@ func ActionsHandler(c fiber.Ctx) error {
 	actions, err := db.ListModActions(filter, pageSize, 0)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not load the audit log"})
+			JSON(errBody{Error: "Couldn't load the audit log. Try again."})
 	}
 	return c.Status(fiber.StatusOK).JSON(actions)
 }

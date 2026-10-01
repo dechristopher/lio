@@ -652,10 +652,10 @@
           if (data) setCount(data.followers);
         } else {
           const err = await res.json().catch(() => null);
-          say((err && err.error) || "Could not save that.");
+          say((err && err.error) || "Couldn't save that. Try again.");
         }
       } catch (e) {
-        say("Network error — that did not save.");
+        say("Can't reach the server. Your change didn't save.");
       }
       btn.classList.remove("is-busy");
       busy = false;

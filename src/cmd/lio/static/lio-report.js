@@ -95,7 +95,7 @@
         // 200 with {already:true} is the duplicate case, which is not a
         // failure: the player has already told us, and saying so plainly beats
         // an error that invites them to try again.
-        let message = "Thanks — a moderator will review this.";
+        let message = "Thanks. A moderator will review this.";
         if (res.status === 200) {
           const data = await res.json().catch(() => null);
           if (data && data.message) message = data.message;
@@ -107,9 +107,9 @@
         return;
       }
       const err = await res.json().catch(() => null);
-      setError((err && err.error) || "Could not send that report.");
+      setError((err && err.error) || "Couldn't send that report. Try again.");
     } catch (e) {
-      setError("Network error — the report was not sent.");
+      setError("Can't reach the server. The report wasn't sent.");
     }
     submitting = false;
     submitBtn.disabled = false;

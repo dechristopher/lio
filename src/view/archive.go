@@ -5,6 +5,7 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/dechristopher/lio/config"
+	"github.com/dechristopher/lio/pools"
 	"github.com/dechristopher/lio/title"
 	"github.com/dechristopher/lio/www/ws/proto"
 )
@@ -164,12 +165,18 @@ func archiveModeLabel(m ArchiveModel) string {
 // OG card reuses the room-card route (which falls back to the archive too) so
 // shared links preview the final position.
 func ArchiveMeta(m ArchiveModel) Meta {
-	group := cases.Title(language.English).String(m.VariantGroup)
+	// the speed class, not the stored group: every game is deploy, so the
+	// group is the constant "Deploy" and says nothing to a player
+	group := cases.Title(language.English).String(pools.SpeedFor(m.VariantName, m.VariantGroup))
 	mode := "competitive"
 	if m.Casual {
 		mode = "casual"
 	}
-	pageTitle := group + " (" + m.VariantName + ") " + mode + " octad • Archived match"
+	kind := "Archived match"
+	if m.Standalone {
+		kind = "Archived game"
+	}
+	pageTitle := group + " (" + m.VariantName + ") " + mode + " Octad • " + kind
 
 	meta := Meta{
 		Version:     config.VersionString(),
@@ -178,12 +185,12 @@ func ArchiveMeta(m ArchiveModel) Meta {
 		OGTitle:     pageTitle,
 		OGURL:       config.SiteOrigin() + "/game/" + m.Data.GameID,
 		OGImage:     config.SiteOrigin() + "/og/default.png",
-		Description: "Finished octad game — replay every move.",
+		Description: "A finished Octad game. Replay every move.",
 	}
 	if !m.Standalone {
 		meta.OGURL = config.SiteOrigin() + "/" + m.RoomID
 		meta.OGImage = config.SiteOrigin() + "/og/room/" + m.RoomID + ".png"
-		meta.Description = "Finished octad match — replay every move."
+		meta.Description = "A finished Octad match. Replay every move."
 	}
 	return meta
 }

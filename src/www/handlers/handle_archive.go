@@ -356,8 +356,8 @@ func isBotSeat(seatUID string, seatUserID *int64) bool {
 // games.bot_persona stamp, NULL/empty resolving to the full-strength Queen
 // every pre-persona bot played as; the piece glyph is the clock avatar, see
 // seatGlyph), a seat with an account shows its username to everyone (including
-// that player), the anonymous viewer's own seat reads "You", and any other
-// anonymous human is "Anonymous". A seat with an account but a lost session uid
+// that player), the guest viewer's own seat reads "You", and any other guest
+// is "Guest". (The PGN tags keep "Anonymous": see archiveSeatName.) A seat with an account but a lost session uid
 // (the deploy-rebuild bug) still resolves by its username, never as a bot.
 func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID, botPersona string) string {
 	if isBotSeat(seatUID, seatUserID) {
@@ -369,7 +369,7 @@ func seatLabel(seatUID, seatUsername string, seatUserID *int64, viewerUID, botPe
 	if viewerUID != "" && seatUID != "" && seatUID == viewerUID {
 		return "You"
 	}
-	return "Anonymous"
+	return "Guest"
 }
 
 // archiveReportTarget names the opponent this viewer may report from an archive

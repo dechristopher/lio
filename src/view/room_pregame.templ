@@ -34,12 +34,12 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 			}
 			<div class="waiting-status">
 				<span class="waiting-dot" aria-hidden="true"></span>
-				<h1 class="wait-title">Waiting for an opponent…</h1>
+				<h1 class="wait-title">Looking for an opponent…</h1>
 			</div>
 			if payload.Public {
-				<p class="wait-sub">Your challenge is listed on the home page. Anyone can join by visiting the link.</p>
+				<p class="wait-sub">Your game is listed on the home page. The first player to join plays you.</p>
 			} else {
-				<p class="wait-sub">Your challenge is unlisted: only someone with the link can join.</p>
+				<p class="wait-sub">Your game is not listed. Only someone with the link can join.</p>
 			}
 			if payload.CreatorName != "" {
 				<p class="wait-identity">
@@ -55,7 +55,7 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 		</div>
 		<div class="wait-body">
 			<section class="wait-panel panel-invite">
-				<h2 class="panel-label">Invite</h2>
+				<h2 class="panel-label">Invite a friend</h2>
 				// unhidden by lio-room-create.js only where navigator.share exists;
 				// hidden by CSS from 40rem up, where the QR + copy already serve
 				<button type="button" id="shareInviteButton" class="btn btn-ghost share-btn" hidden title="Share the invite link">
@@ -74,7 +74,6 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 						@iconQR()
 					</button>
 				</div>
-				<p class="wait-note">Anyone who opens this link can take the open seat.</p>
 				// One QR, two presentations. Below 40rem this is a real modal that
 				// dims the page (opened by #qrModalButton); from 40rem up the CSS
 				// collapses the shade and the modal box with display:contents, so
@@ -99,6 +98,18 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 			</section>
 		</div>
 		<div class="wait-foot">
+			// The way out for a creator nobody has answered: cancel this
+			// challenge and go to the bot picker. Only on a listed challenge;
+			// a private one waits for a friend who has the link. The handler
+			// redirects to /#vs-computer, which lio-botmodal.js reads.
+			if payload.Public {
+				<form class="wait-fallback" method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
+					<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
+					<input type="hidden" name="then" value="computer"/>
+					<span>No one yet?</span>
+					<button type="submit" class="wait-fallback-btn">Play the computer instead</button>
+				</form>
+			}
 			<form method="post" action={ "/" + payload.RoomID + "/cancel" } hx-post={ "/" + payload.RoomID + "/cancel" }>
 				<input type="hidden" name="cancel_token" value={ payload.CancelToken }/>
 				<button type="submit" class="btn btn-ghost cancel-ghost" title="Cancel the game">× Cancel game</button>
@@ -110,8 +121,8 @@ templ roomCreator(meta Meta, payload message.RoomTemplatePayload) {
 // roomJoiner is the joining player's pre-game view: the same head treatment as
 // the creator over the same two-panel body, with the invite panel replaced by
 // the opponent panel — who is challenging you, the side they play, and the join
-// call-to-action. A rated room swaps the Join button for a "Log in to play"
-// prompt for anonymous viewers.
+// call-to-action. A rated room swaps the Join button for a "Sign up to play"
+// prompt (with a log-in link under it) for guests.
 //
 // The spec leads in the DOM here, unlike the creator's invite-first order: a
 // creator already chose these settings and came back only to share, while a
@@ -126,7 +137,7 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 				<span class="waiting-dot" aria-hidden="true"></span>
 				<h1 class="wait-title">An opponent is waiting for you</h1>
 			</div>
-			<p class="wait-sub">The game starts the moment you take the seat.</p>
+			<p class="wait-sub">The game starts as soon as you join.</p>
 		</div>
 		<div class="wait-body">
 			<section class="wait-panel panel-match">
@@ -144,15 +155,19 @@ templ roomJoiner(payload message.RoomTemplatePayload) {
 								<span class="rating-chip">{ payload.CreatorRating }</span>
 							}
 						} else {
-							Anonymous player
+							Guest
 						}
 					</span>
 					<span class="challenger-sub">Plays { challengerColorName(payload) }</span>
 				</div>
 				if payload.Rated && !viewer(ctx).LoggedIn {
+					// Sign up leads: somebody who opens a friend's rated link
+					// usually has no account yet. Both controls open the account
+					// modal on the matching tab (lio-auth.js).
 					<div class="wait-join-cta">
-						<p class="wait-note mb-2">This is a rated game. Log in to accept the challenge.</p>
-						<button type="button" class="btn btn-primary btn-block btn-lg" onclick="document.getElementById('modalAccount').classList.add('open')" title="Log in to play">Log in to play</button>
+						<p class="wait-note mb-2">This is a rated game, so you need an account to play. It takes a username and a password.</p>
+						<button type="button" class="btn btn-primary btn-block btn-lg" data-open-register>Sign up to play</button>
+						<p class="wait-note mt-2 text-center">Have an account? <button type="button" class="font-semibold text-accent hover:underline cursor-pointer" data-open-login>Log in</button></p>
 					</div>
 				} else {
 					<form class="wait-join-cta" method="post" action={ "/" + payload.RoomID + "/join" } hx-post={ "/" + payload.RoomID + "/join" }>

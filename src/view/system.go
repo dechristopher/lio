@@ -297,7 +297,7 @@ func ActionClass(action string) string {
 func ActionHelp(action string) string {
 	switch action {
 	case "ban":
-		return "Account sanctioned: signed out everywhere and barred from logging in"
+		return "Account sanctioned: logged out everywhere and barred from logging in"
 	case "unban":
 		return "Sanction lifted early"
 	case "title":
@@ -515,7 +515,7 @@ func SettingEffect(key string, turningOn bool) string {
 		if turningOn {
 			return "Visitors can create accounts again."
 		}
-		return "New sign-ups are refused. Existing accounts keep signing in."
+		return "New sign-ups are refused. Existing accounts keep logging in."
 	case "ratedEnabled":
 		if turningOn {
 			return "New games count toward ratings again."

@@ -263,9 +263,11 @@ func profileGameView(g db.ProfileGame) view.ProfileGameView {
 		opponent = "BOT " + view.BotSeatLabel(g.BotPersona)
 		glyph = view.BotSeatGlyph(g.BotPersona)
 	case opponent == "":
-		opponent = "Anonymous"
+		opponent = "Guest"
 	}
-	mode := "Casual"
+	// whether the rating moved, nothing more: "Casual" is the name of the
+	// untimed mode, and an unrated timed game is not one
+	mode := "Unrated"
 	if g.Rated {
 		mode = "Rated"
 	}

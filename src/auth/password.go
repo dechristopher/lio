@@ -36,7 +36,7 @@ var (
 	// ErrPasswordLength rejects out-of-bounds passwords at registration and
 	// password change.
 	ErrPasswordLength = fmt.Errorf(
-		"password must be between %d and %d characters",
+		"Your password needs %d to %d characters.",
 		PasswordMinLen, PasswordMaxLen)
 
 	errMalformedPHC = errors.New("malformed password hash")

@@ -272,7 +272,8 @@
 			liveDot.classList.toggle('hidden', n === 0);
 		}
 		grid.classList.toggle('hidden', n === 0);
-		setStatus(n > 0 ? (n + ' live') : 'no games');
+		// blank at zero: the empty-state line in the card already says so
+		setStatus(n > 0 ? (n + ' live') : '');
 	};
 
 	// stop reconnecting once the page is going away

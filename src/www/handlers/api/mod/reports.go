@@ -36,7 +36,7 @@ func ResolveReportHandler(c fiber.Ctx) error {
 	var req resolveRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).
-			JSON(errBody{Error: "malformed request"})
+			JSON(errBody{Error: "Something went wrong. Try again."})
 	}
 	resolution, ok := reasonOf(c, req.Resolution)
 	if !ok {
@@ -46,13 +46,13 @@ func ResolveReportHandler(c fiber.Ctx) error {
 	targetID, closed, err := db.ResolveReport(req.ID, *sess.UserID, resolution)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).
-			JSON(errBody{Error: "could not resolve that report"})
+			JSON(errBody{Error: "Couldn't resolve that report. Try again."})
 	}
 	if !closed {
 		// another moderator got there first; say so rather than silently
 		// overwriting their decision
 		return c.Status(fiber.StatusConflict).
-			JSON(errBody{Error: "that report was already resolved"})
+			JSON(errBody{Error: "That report is already resolved."})
 	}
 
 	// Logged against the reported account, so the decision shows up in that

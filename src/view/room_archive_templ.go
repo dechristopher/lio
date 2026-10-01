@@ -352,7 +352,7 @@ func archiveGame(meta Meta, m ArchiveModel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <span class=\"archive-chip\" title=\"This match has ended; you are viewing its permanent archive\">Archived</span> <button type=\"button\" id=\"btn-copy-pgn\" class=\"copy-pgn\" title=\"Copy PGN to clipboard\" aria-label=\"Copy game PGN to clipboard\" data-variant=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <span class=\"archive-chip\" title=\"This match has ended. This is its permanent archive.\">Archived</span> <button type=\"button\" id=\"btn-copy-pgn\" class=\"copy-pgn\" title=\"Copy PGN to clipboard\" aria-label=\"Copy game PGN to clipboard\" data-variant=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -370,7 +370,7 @@ func archiveGame(meta Meta, m ArchiveModel) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if m.Matchup != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"opening-name\" title=\"This game's opening: the two sides' deploy formations and the name of their matchup\"><span class=\"opening-matchup\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"opening-name\" title=\"This game's opening: each side's setup formation and the name of their matchup\"><span class=\"opening-matchup\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

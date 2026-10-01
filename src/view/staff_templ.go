@@ -335,7 +335,7 @@ func staffRow(s StaffView, detailed bool) templ.Component {
 		}
 		if detailed {
 			if s.Bootstrapped() {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "   <span class=\"staff-granted staff-bootstrap\" title=\"Role set outside the app, so no grantor is on record — this account cannot be demoted through the UI\">bootstrapped</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "   <span class=\"staff-granted staff-bootstrap\" title=\"Role set outside the app, so no grantor is on record. This account can't be demoted through the UI.\">bootstrapped</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -268,7 +268,7 @@
 	// human's row is just the name.
 	const setSeat = (c, s, deploying) => {
 		s = s || {};
-		const label = s.n || 'Anonymous';
+		const label = s.n || 'Guest';
 		const glyph = s.bot ? (s.g || '') : '';
 		c.glyph.textContent = glyph;
 		c.glyph.classList.toggle('hidden', !glyph);

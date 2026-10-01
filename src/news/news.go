@@ -17,29 +17,48 @@ type Item struct {
 // can see or do — not the commit that shipped it.
 var Items = []Item{
 	{
-		Title: "Following & Learning",
+		Title: "Who's that?",
+		Date:  "Aug 2, 2026",
+		Body: "Hover over any username to see that player's card: their ratings, their record, " +
+			"and when they joined. If they're playing right now, the card shows their game " +
+			"live on a mini board.",
+	},
+	{
+		Title: "Easier on phones",
+		Date:  "Aug 2, 2026",
+		Body: "Creating a game on a phone now opens a sheet with the color buttons always in " +
+			"reach. On the home page, \"What is Octad?\" now sits right under Quick game, and " +
+			"the lessons fit small screens better.",
+	},
+	{
+		Title: "One game at a time",
+		Date:  "Aug 2, 2026",
+		Body: "Your account, or your guest session, now plays one live game at a time. If you " +
+			"leave a game in progress, a bar at the top of every page takes you back to it.",
+	},
+	{
+		Title: "Following and learning",
 		Date:  "Jul 30, 2026",
 		Body: "You can now follow players. We've shipped updates to the homepage, notification " +
 			"system, and profile. There is also a new learning mode for beginner players.",
 	},
 	{
-		Title: "A Challenger Approaches",
+		Title: "A challenger approaches",
 		Date:  "Jul 30, 2026",
 		Body: "You can now challenge players to a game (or match) directly on their profile " +
-			"or on the homepage player list. Soon you will also be able to follow players.",
+			"or on the homepage player list.",
 	},
 	{
 		Title: "Join up!",
 		Date:  "Jul 29, 2026",
 		Body: "The homepage now shows more accurate live games in all phases, new players " +
-			"that have joined the site, and a top-rated leaderboard. Following & challenging " +
-			"players is coming soon!",
+			"that have joined the site, and a top-rated leaderboard.",
 	},
 	{
-		Title: "Player Profiles & Stats",
+		Title: "Player profiles and stats",
 		Date:  "Jul 27, 2026",
 		Body: "We added player profiles and in-depth stats, so you can see how you're " +
-			"improving. Also landed: a light mode overhaul and a way for logged in " +
+			"improving. Also landed: a light mode overhaul and a way for logged-in " +
 			"players to send feedback and report bugs.",
 	},
 	{
@@ -47,44 +66,44 @@ var Items = []Item{
 		Date:  "Jul 24, 2026",
 		Body: "Octad has a shorter, snappier home: octad.gg. Old lioctad.org links " +
 			"redirect here automatically, so anything you've bookmarked or shared still " +
-			"works. One heads-up: because the address changed, you'll need to sign in " +
+			"works. One heads-up: because the address changed, you'll need to log in " +
 			"again, and any passkeys you set up will need to be re-added under the new " +
 			"domain.",
 	},
 	{
-		Title: "v1.5.1: Homepage & game room UI polish",
+		Title: "v1.5.1: Homepage and game room UI polish",
 		Date:  "Jul 23, 2026",
 		Body: "Today's release cleans up some minor UI issues on the homepage and game room, especially on " +
 			"mobile devices. We're working hard to make Octad easy to play anywhere, and we think this should " +
 			"be one of the final steps in getting there.",
 	},
 	{
-		Title: "v1.3.1: Analysis Board & UX improvements",
+		Title: "v1.3.1: Analysis board and UX improvements",
 		Date:  "Jul 21, 2026",
-		Body: "Today's release includes quality of live improvements to the analysis board, especially " +
+		Body: "Today's release includes quality of life improvements to the analysis board, especially " +
 			"relating to the exploration of alternate lines. The board will now show annotations for " +
 			"alternate win conditions when reached. We've also improved the look and feel of the timeline " +
 			"and have enabled head-to-head stats in the timeline when facing bot opponents, so you can " +
 			"see how you fare over time.",
 	},
 	{
-		Title: "More Bot Personas",
+		Title: "More bot personas",
 		Date:  "Jul 21, 2026",
 		Body: "We've added various bot difficulty levels, so players both new and veteran can face a " +
 			"proper challenge. We've also added study mode to analysis boards, so different lines of " +
 			"moves can be explored.",
 	},
 	{
-		Title: "Octad Has Arrived",
+		Title: "Octad has arrived",
 		Date:  "Jul 21, 2026",
 		Body: "The first full release of Octad, the new chess variant, is now available. Play it " +
 			"against other players, or against the computer, and let us know what you think.",
 	},
 	{
-		Title: "Games That Count",
+		Title: "Games that count",
 		Date:  "Jul 20, 2026",
 		Body: "Timed games against another player are now rated. Win, lose, or draw and your rating " +
-			"shifts, shown right next to your name on the clocks — with a separate rating for each " +
+			"shifts, shown right next to your name on the clocks, with a separate rating for each " +
 			"speed, from bullet to rapid. A brand-new rating wears a \"?\" until it settles, and after " +
 			"each game a small +/- shows exactly how it moved. Casual and computer games never count.",
 	},
@@ -92,7 +111,7 @@ var Items = []Item{
 		Title: "Extra locks for your account",
 		Date:  "Jul 20, 2026",
 		Body: "Add a second step to your login: pair an authenticator app by scanning a QR code, or " +
-			"set up a passkey and sign in with Face ID, Touch ID, or a security key. Tuck away a set " +
+			"set up a passkey and log in with Face ID, Touch ID, or a security key. Tuck away a set " +
 			"of one-time recovery codes in case you're ever locked out. It's all optional and lives " +
 			"in your account settings.",
 	},
@@ -100,35 +119,35 @@ var Items = []Item{
 		Title: "Settle the rivalry",
 		Date:  "Jul 20, 2026",
 		Body: "Sit down across from someone you've played before and the match timeline now keeps " +
-			"your all-time score against each other beside your names — whoever's ahead shown in " +
+			"your all-time score against each other beside your names, with whoever's ahead shown in " +
 			"green. It follows you from live games to the archives.",
 	},
 	{
 		Title: "Games with your name on them",
 		Date:  "Jul 20, 2026",
 		Body: "You can now sign up and play under a username, which shows on your clocks, match " +
-			"timelines, and shared game links. A new profile menu keeps your account in one place — " +
-			"change your password, and review or sign out the devices you're logged in on. " +
-			"Anonymous play is unchanged; an account is entirely optional.",
+			"timelines, and shared game links. A new profile menu keeps your account in one place: " +
+			"change your password, and review or log out the devices you're logged in on. " +
+			"Guest play is unchanged; an account is entirely optional.",
 	},
 	{
 		Title: "It's that time already?",
 		Date:  "Jul 19, 2026",
-		Body: "Finished games can now be replayed at their original pace — a new play button in the " +
+		Body: "Finished games can now be replayed at their original pace: a new play button in the " +
 			"archive steps through the moves with the real timing between them, and the move list " +
 			"shows how long each move took.",
 	},
 	{
 		Title: "Matches that outlive the room",
 		Date:  "Jul 19, 2026",
-		Body: "Game links no longer go dead when a room closes — every finished match lives on at " +
+		Body: "Game links no longer go dead when a room closes. Every finished match lives on at " +
 			"its original link, ready to replay in full, and each game of a match gets its own " +
 			"permanent address to share.",
 	},
 	{
 		Title: "A timeline you can click through",
 		Date:  "Jul 19, 2026",
-		Body: "The match score timeline got a clean new look — one compact score column per game, " +
+		Body: "The match score timeline got a clean new look: one compact score column per game, " +
 			"showing who had which color and how each game was decided. It's clickable now, too: " +
 			"once a game ends, tap any earlier game to replay it right there on the board while " +
 			"the rematch clock keeps ticking, then tap the latest game to jump back. Archived " +
@@ -137,16 +156,16 @@ var Items = []Item{
 	{
 		Title: "Quick games go blind",
 		Date:  "Jul 18, 2026",
-		Body: "The quick-game buttons now deal deploy games by default: arrange your home rank in " +
-			"secret, then meet your opponent's setup at the reveal. Also fixed a brief flash of the " +
-			"standard starting position before the blind setup covered the board.",
+		Body: "The quick-game buttons now start with a secret setup by default: arrange your back " +
+			"row, then meet your opponent's setup at the reveal. Also fixed a brief flash of the " +
+			"standard starting position before the secret setup covered the board.",
 	},
 	{
 		Title: "The reveal gets a countdown",
 		Date:  "Jul 17, 2026",
-		Body: "In deploy games, a ten-second countdown now rings the center of the board the " +
+		Body: "In games with a secret setup, a ten-second countdown now rings the center of the board the " +
 			"moment both secret arrangements are revealed. Take it in, then make your first move " +
-			"whenever you're ready — or let the timer lapse and white's clock starts on its own. " +
+			"whenever you're ready, or let the timer lapse and White's clock starts on its own. " +
 			"The computer holds its opening move for a beat too, so the reveal is never a blur. " +
 			"And a player who never moves now loses on time like anyone else, instead of the " +
 			"game quietly closing.",
@@ -154,7 +173,7 @@ var Items = []Item{
 	{
 		Title: "Sound for spectators",
 		Date:  "Jul 17, 2026",
-		Body: "Browsers keep a page silent until it's been tapped at least once — so watching a " +
+		Body: "Browsers keep a page silent until it's been tapped at least once, so watching a " +
 			"game from a fresh tab used to mean no sounds at all, with no hint why. Spectators " +
 			"now see a small muted icon mid-board while sound is locked: tap it (or anywhere) " +
 			"and the game comes to life.",
@@ -162,7 +181,7 @@ var Items = []Item{
 	{
 		Title: "Little touches",
 		Date:  "Jul 17, 2026",
-		Body: "The preferences menu now highlights your chosen theme — light, dark, or system — " +
+		Body: "The preferences menu now highlights your chosen theme (light, dark, or system) " +
 			"in your accent color, matching the board and piece pickers. The home page counts " +
 			"every game ever played on the site. A clock that runs out now reads an honest " +
 			"0:00.0. And gradient backgrounds on Android lost their color banding.",
@@ -220,7 +239,7 @@ var Items = []Item{
 		Title: "Sound, ready the moment you need it",
 		Date:  "Jul 10, 2026",
 		Body: "Move, capture, and check sounds are now served straight from octad.gg and loaded " +
-			"ahead of time, so audio is primed to play the instant it's needed. No waiting on an " +
+			"ahead of time, so audio is primed to play the instant it's needed. No waiting on a " +
 			"CDN or outside service.",
 	},
 	{
@@ -235,7 +254,7 @@ var Items = []Item{
 		Date:  "Jul 9, 2026",
 		Body: "Watching a match no longer plays musical chairs: each player keeps their side " +
 			"of the board and scoreboard for the whole match while the colors swap between " +
-			"games, and every clock now wears a stripe showing who has white and black — " +
+			"games, and every clock now wears a stripe showing who has White and Black, " +
 			"for players too. The score timeline also scrolls as one.",
 	},
 	{
@@ -248,7 +267,7 @@ var Items = []Item{
 	{
 		Title: "Castling, demonstrated",
 		Date:  "Jul 9, 2026",
-		Body: "The about page got an overhaul: octad's three castle types now play out on " +
+		Body: "The about page got an overhaul: Octad's three castle types now play out on " +
 			"looping demo boards, so the swap-and-cross mechanics can be watched instead " +
 			"of deciphered from notation.",
 	},
@@ -275,8 +294,8 @@ var Items = []Item{
 	{
 		Title: "Rock-solid connections",
 		Date:  "Jul 8, 2026",
-		Body: "Squashed a long-standing bug that could silently drop moves mid-game — most " +
-			"often on iPhones — alongside smoother reconnects and game-state re-sync.",
+		Body: "Squashed a long-standing bug that could silently drop moves mid-game (most " +
+			"often on iPhones), alongside smoother reconnects and game-state re-sync.",
 	},
 	{
 		Title: "The board plays itself",
@@ -287,11 +306,11 @@ var Items = []Item{
 	{
 		Title: "Make the board yours",
 		Date:  "Jul 6, 2026",
-		Body: "Pick from eight board themes and three piece sets in settings — and your board " +
-			"choice retints the whole site's accent color to match.",
+		Body: "Pick from eight board themes and three piece sets in settings. Your board " +
+			"choice also retints the whole site's accent color to match.",
 	},
 	{
-		Title: "Match play & race to a target",
+		Title: "Match play and race to a target",
 		Date:  "Jul 5, 2026",
 		Body: "Play a series instead of a single game: race to a set number of points and " +
 			"follow the match on a live score timeline that stays in sync from board to board.",
@@ -306,7 +325,7 @@ var Items = []Item{
 		Title: "See who's around",
 		Date:  "Jul 3, 2026",
 		Body: "Live player presence and site stats show how many people are online, how many " +
-			"games are in progress, and how many seeks are open right now.",
+			"games are in progress, and how many challenges are open right now.",
 	},
 	{
 		Title: "Spectator mode overhaul",
@@ -317,13 +336,13 @@ var Items = []Item{
 	{
 		Title: "Smarter engine timing",
 		Date:  "Jul 2, 2026",
-		Body: "The engine now budgets its thinking time against the clock and caches its deploy " +
-			"selection, so bot games stay responsive and no longer flag under time pressure.",
+		Body: "The engine now budgets its thinking time against the clock and caches its setup " +
+			"choice, so bot games stay responsive and no longer run out of time under pressure.",
 	},
 	{
-		Title: "Deploy: a new way to start",
+		Title: "Secret setup: a new way to start",
 		Date:  "Jul 1, 2026",
-		Body: "A new deploy game mode lets you set up your pieces before the first move, shipped " +
+		Body: "A new game mode lets you set up your pieces in secret before the first move, shipped " +
 			"alongside WebSocket hardening and rematch sync fixes.",
 	},
 	{
@@ -351,7 +370,7 @@ var Items = []Item{
 			"single-page app for faster loads.",
 	},
 	{
-		Title: "Engine variety & a thinking indicator",
+		Title: "Engine variety and a thinking indicator",
 		Date:  "Jun 24, 2026",
 		Body: "The engine now varies its opening moves for more interesting games and shows a live " +
 			"thinking indicator while it's on the move.",
@@ -393,7 +412,7 @@ var Items = []Item{
 		Title: "Clocks worth trusting",
 		Date:  "Aug 18, 2022",
 		Body: "Rebuilt game clocks tick smoothly, compensate for network lag on every move, and " +
-			"carry the running match score. Rematches landed too — same room, same opponent, " +
+			"carry the running match score. Rematches landed too: same room, same opponent, " +
 			"swapped colors.",
 	},
 	{
@@ -413,7 +432,7 @@ var Items = []Item{
 		Title: "The engine gets serious",
 		Date:  "Nov 5, 2021",
 		Body: "The computer now searches all of its candidate moves in parallel, looks seven " +
-			"plies ahead, and factors checks into its evaluation — a meaningfully stronger " +
+			"half-moves ahead, and factors checks into its evaluation, for a noticeably stronger " +
 			"opponent.",
 	},
 	{
@@ -438,7 +457,7 @@ var Items = []Item{
 		Title: "Hello, world",
 		Date:  "Feb 21, 2021",
 		Body: "octad.gg is born: a fresh Go server, the first pages, and a mission: a free, " +
-			"libre home for octad, the 4x4 chess variant, in the spirit of lichess.",
+			"libre home for Octad, the 4×4 chess variant, in the spirit of lichess.",
 	},
 }
 

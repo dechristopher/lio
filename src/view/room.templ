@@ -58,10 +58,10 @@ templ roomAnonCta() {
 	if !viewer(ctx).LoggedIn && viewer(ctx).AccountsEnabled {
 		<div id="roomCta" class="room-cta" role="region" aria-label="Create a free account">
 			<span class="room-cta-text">
-				<strong>Playing anonymously.</strong>
-				Sign up for a free username and rated games!
+				<strong>You're playing as a guest.</strong>
+				Sign up to get a name and a rating.
 			</span>
-			<button type="button" id="roomCtaCreate" data-open-register class="room-cta-btn">Create account</button>
+			<button type="button" id="roomCtaCreate" data-open-register class="room-cta-btn">Sign up</button>
 			<button type="button" id="roomCtaDismiss" class="room-cta-x" aria-label="Dismiss" title="Dismiss">
 				@iconClose()
 			</button>

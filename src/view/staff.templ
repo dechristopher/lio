@@ -100,7 +100,7 @@ templ staffRow(s StaffView, detailed bool) {
 				// Not missing data: this is the account promoted by hand in SQL,
 				// which by design has no grantor and cannot be demoted through the
 				// UI. Saying so is the difference between a gap and a fact.
-				<span class="staff-granted staff-bootstrap" title="Role set outside the app, so no grantor is on record — this account cannot be demoted through the UI">bootstrapped</span>
+				<span class="staff-granted staff-bootstrap" title="Role set outside the app, so no grantor is on record. This account can't be demoted through the UI.">bootstrapped</span>
 			} else {
 				<span class="staff-granted" title={ "Appointed " + s.GrantedExact }>
 					by { s.GrantedBy } { s.Granted }
