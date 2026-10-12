@@ -2,22 +2,27 @@ package fiber
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/gofiber/fiber/v3/internal/byterange"
+	internalcookie "github.com/gofiber/fiber/v3/internal/cookie"
+	"github.com/gofiber/fiber/v3/internal/fieldname"
+	"github.com/gofiber/fiber/v3/internal/headerlist"
+	"github.com/gofiber/fiber/v3/internal/quotedstring"
 	"github.com/gofiber/utils/v2"
 	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
@@ -39,7 +44,8 @@ type SendFile struct {
 	// Optional. Default: false
 	Compress bool `json:"compress"`
 
-	// When set to true, enables byte range requests.
+	// When set to true, enables byte range requests. A request for several
+	// ranges, or whose If-Range does not match, gets the whole file.
 	//
 	// Optional. Default: false
 	ByteRange bool `json:"byte_range"`
@@ -74,7 +80,7 @@ type sendFileStore struct {
 //
 // Here we don't use reflect.DeepEqual because it is quite slow compared to manual comparison.
 func (sf *sendFileStore) configEqual(cfg SendFile) bool {
-	if sf.config.FS != cfg.FS {
+	if !sameFS(sf.config.FS, cfg.FS) {
 		return false
 	}
 
@@ -99,6 +105,36 @@ func (sf *sendFileStore) configEqual(cfg SendFile) bool {
 	}
 
 	return true
+}
+
+// sameFS reports whether two file systems are the same one. Values of an
+// uncomparable dynamic type (fstest.MapFS) are compared by what they reference.
+func sameFS(a, b fs.FS) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+
+	va, vb := reflect.ValueOf(a), reflect.ValueOf(b)
+	if va.Type() != vb.Type() {
+		return false
+	}
+	if va.Type().Comparable() {
+		return a == b
+	}
+
+	switch va.Kind() {
+	case reflect.Slice:
+		// Pointer() is &elem[0] and ignores the length, so two prefixes of one
+		// backing array would otherwise look like the same file system.
+		return va.Pointer() == vb.Pointer() && va.Len() == vb.Len()
+	case reflect.Map, reflect.Chan, reflect.Pointer, reflect.UnsafePointer:
+		return va.Pointer() == vb.Pointer()
+	default:
+		// A func's pointer is its code entry, shared by every closure over the
+		// same body, so two file systems capturing different roots would look
+		// like one. Treat them as distinct rather than serve the wrong root.
+		return false
+	}
 }
 
 // Cookie defines the values used when configuring cookies emitted by
@@ -137,49 +173,49 @@ func (r *DefaultRes) App() *App {
 
 // Append the specified value to the HTTP response header field.
 // If the header is not already set, it creates the header with the specified value.
+// Empty values are skipped: a sender must not generate empty list elements
+// (RFC 9110 Section 5.6.1.2).
+// Members are compared byte-exactly, because some lists (Link, Cache-Control)
+// are not all field names. For Vary field names, use Vary, which folds case.
 func (r *DefaultRes) Append(field string, values ...string) {
 	if len(values) == 0 {
 		return
 	}
-	h := r.c.app.toString(r.c.fasthttp.Response.Header.Peek(field))
-	originalH := h
-	for _, value := range values {
-		if h == "" {
-			h = value
-		} else if !headerContainsValue(h, value) {
-			h += ", " + value
-		}
+	// Consider all existing field lines combined (RFC 9110 Section 5.2) so
+	// the dedup check sees members added on later lines via Header.Add.
+	existing, multiLine := peekJoinedResponseHeader(&r.c.fasthttp.Response.Header, field)
+	updated := headerlist.AppendUnique(utils.UnsafeString(existing), values)
+	if updated == "" {
+		return
 	}
-	if originalH != h {
-		r.Set(field, h)
+	if multiLine {
+		// Set only rewrites the first field line; drop the extras that are
+		// now folded into the combined value.
+		r.c.fasthttp.Response.Header.Del(field)
 	}
+	r.Set(field, updated)
 }
 
-// headerContainsValue checks if a header value already contains the given value
-// as a comma-separated element. Per RFC 9110, list elements are separated by commas
-// with optional whitespace (OWS) around them.
-func headerContainsValue(header, value string) bool {
-	// Empty value should never match
-	if value == "" {
-		return false
-	}
-
-	// Exact match (single value header)
-	if header == value {
-		return true
-	}
-
-	// Check each comma-separated element, handling optional whitespace (OWS)
-	for part := range strings.SplitSeq(header, ",") {
-		if utils.TrimSpace(part) == value {
-			return true
-		}
-	}
-
-	return false
-}
+// varyAccept is the field list Format and AutoFormat add to Vary. It is
+// hoisted because a fresh "..." argument list is a slice the compiler has to
+// heap-allocate — Vary's result reaches the header store, so escape analysis
+// marks the elements as leaking even though fasthttp copies the bytes — while
+// passing an existing slice hands over its backing array. Both callers are
+// methods on *DefaultRes, so the Vary they reach is the one below and not
+// something a custom Res could substitute; it only reads the field list, which
+// makes sharing one array across every request safe.
+var varyAccept = []string{HeaderAccept}
 
 func sanitizeFilename(filename string) string {
+	// unicode.IsControl matches C0, DEL and the C1 range. The first two are
+	// single bytes utils.IndexControl finds word-at-a-time, and C1 can only
+	// appear in non-ASCII input, so an all-ASCII name that clears both scans
+	// is clean without decoding a rune. That pair measures 24-58% faster than
+	// the rune loop across 13- to 90-byte names.
+	if utils.IndexControl(filename) == -1 && utils.IsASCII(filename) {
+		return utils.TrimSpace(filename)
+	}
+
 	for _, r := range filename {
 		if unicode.IsControl(r) {
 			b := make([]byte, 0, len(filename))
@@ -203,6 +239,59 @@ func fallbackFilenameIfInvalid(filename string) string {
 	return filename
 }
 
+// isExtValueAttrChar reports whether c is an attr-char per RFC 8187 §3.2:
+// ALPHA / DIGIT / "!" / "#" / "$" / "&" / "+" / "-" / "." / "^" / "_" /
+// "`" / "|" / "~". Every other byte of an ext-value must be pct-encoded.
+func isExtValueAttrChar(c byte) bool {
+	switch {
+	case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		return true
+	}
+	switch c {
+	case '!', '#', '$', '&', '+', '-', '.', '^', '_', '`', '|', '~':
+		return true
+	default:
+		return false
+	}
+}
+
+// encodeExtValue percent-encodes s as the value-chars of an RFC 8187
+// ext-value. URL path/query escaping is not sufficient here: it leaves
+// bytes such as ':', '=', and '@' bare, which the ext-value grammar forbids.
+func encodeExtValue(s string) string {
+	const hex = "0123456789ABCDEF"
+	b := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if isExtValueAttrChar(c) {
+			b = append(b, c)
+		} else {
+			b = append(b, '%', hex[c>>4], hex[c&0x0F])
+		}
+	}
+	return string(b)
+}
+
+// contentDispositionAttachment builds an RFC 6266 Content-Disposition value
+// for a sanitized filename: the filename parameter is a quoted-string with
+// RFC 9110 §5.6.4 escaping, and non-ASCII names additionally carry an
+// RFC 8187 filename* ext-value for interoperability.
+func contentDispositionAttachment(fname string) string {
+	disp := `attachment; filename="` + quotedstring.Escape(fname) + `"`
+	if !utils.IsASCII(fname) {
+		disp += `; filename*=UTF-8''` + encodeExtValue(fname)
+	}
+	return disp
+}
+
+// Add appends the value as a new field line, where Append folds values into one
+// comma-separated line. The headers fasthttp keeps in a slot of their own are
+// the exception: Content-Type, Server and the rest are replaced and Date and TE
+// ignored, though Set-Cookie is slotted and does append. Use Cookie for that.
+func (r *DefaultRes) Add(key, val string) {
+	r.c.fasthttp.Response.Header.Add(key, val)
+}
+
 // Attachment sets the HTTP response Content-Disposition header field to attachment.
 func (r *DefaultRes) Attachment(filename ...string) {
 	if len(filename) > 0 {
@@ -210,18 +299,7 @@ func (r *DefaultRes) Attachment(filename ...string) {
 		fname = sanitizeFilename(fname)
 		fname = fallbackFilenameIfInvalid(fname)
 		r.Type(filepath.Ext(fname))
-		app := r.c.app
-		var quoted string
-		if app.isASCII(fname) {
-			quoted = app.quoteString(fname)
-		} else {
-			quoted = app.quoteRawString(fname)
-		}
-		disp := `attachment; filename="` + quoted + `"`
-		if !app.isASCII(fname) {
-			disp += `; filename*=UTF-8''` + url.PathEscape(fname)
-		}
-		r.setCanonical(HeaderContentDisposition, disp)
+		r.setCanonical(HeaderContentDisposition, contentDispositionAttachment(fname))
 		return
 	}
 	r.setCanonical(HeaderContentDisposition, "attachment")
@@ -250,50 +328,50 @@ func (r *DefaultRes) RequestCtx() *fasthttp.RequestCtx {
 }
 
 // Cookie sets a cookie by passing a cookie struct.
+//
+// The argument is treated as read-only: the normalization this method applies
+// (default Path, SessionOnly, and the Secure implied by SameSite=None or
+// Partitioned) happens on a local copy, so a caller may reuse the same *Cookie
+// template across requests.
 func (r *DefaultRes) Cookie(cookie *Cookie) {
-	if cookie.Path == "" {
-		cookie.Path = "/"
+	c := *cookie
+
+	if c.Path == "" {
+		c.Path = "/"
 	}
 
-	if cookie.SessionOnly {
-		cookie.MaxAge = 0
-		cookie.Expires = time.Time{}
+	if c.SessionOnly {
+		c.MaxAge = 0
+		c.Expires = time.Time{}
 	}
 
-	var sameSite http.SameSite
-
-	switch {
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteStrictMode):
-		sameSite = http.SameSiteStrictMode
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteNoneMode):
-		sameSite = http.SameSiteNoneMode
+	sameSite, _ := internalcookie.ParseSameSite(c.SameSite)
+	if sameSite.RequiresSecure {
 		// SameSite=None requires Secure=true per RFC and browser requirements
-		cookie.Secure = true
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteDisabled):
-		sameSite = 0
-	case utils.EqualFold(cookie.SameSite, CookieSameSiteLaxMode):
-		sameSite = http.SameSiteLaxMode
-	default:
-		sameSite = http.SameSiteLaxMode
+		c.Secure = true
 	}
 
 	// Partitioned requires Secure=true per CHIPS spec
-	if cookie.Partitioned {
-		cookie.Secure = true
+	if c.Partitioned {
+		c.Secure = true
 	}
 
-	// create/validate cookie using net/http
+	// Surrounding double quotes frame the value (RFC 6265 §4.1.1); they are not part of it.
+	value, quoted := unquoteCookieValue(c.Value)
+
+	// Validate before fasthttp's setters can silently replace CR/LF or semicolons;
+	// rejection, rather than mutation, is this API's existing contract.
 	hc := &http.Cookie{ //nolint:gosec // G124: http.Cookie missing or has insecure Secure, HttpOnly, or SameSite attribute
-		Name:        cookie.Name,
-		Value:       cookie.Value,
-		Path:        cookie.Path,
-		Domain:      cookie.Domain,
-		Expires:     cookie.Expires,
-		MaxAge:      cookie.MaxAge,
-		Secure:      cookie.Secure,
-		HttpOnly:    cookie.HTTPOnly,
-		SameSite:    sameSite,
-		Partitioned: cookie.Partitioned,
+		Name:        c.Name,
+		Value:       value,
+		Path:        c.Path,
+		Domain:      c.Domain,
+		Expires:     c.Expires,
+		MaxAge:      c.MaxAge,
+		Secure:      c.Secure,
+		HttpOnly:    c.HTTPOnly,
+		SameSite:    sameSite.HTTPMode,
+		Partitioned: c.Partitioned,
 	}
 
 	if err := hc.Valid(); err != nil {
@@ -304,11 +382,17 @@ func (r *DefaultRes) Cookie(cookie *Cookie) {
 	// create fasthttp cookie
 	fcookie := fasthttp.AcquireCookie()
 	fcookie.SetKey(hc.Name)
-	fcookie.SetValue(hc.Value)
+	// net/http quotes a value with a space or comma, and so does this, although
+	// RFC 6265 §4.1.1 allows neither even in quotes. fasthttp drops the quotes on read.
+	wireValue := hc.Value
+	if quoted || utils.IndexAny2(wireValue, ' ', ',') >= 0 {
+		wireValue = `"` + wireValue + `"`
+	}
+	fcookie.SetValue(wireValue)
 	fcookie.SetPath(hc.Path)
 	fcookie.SetDomain(hc.Domain)
 
-	if !cookie.SessionOnly {
+	if !c.SessionOnly {
 		fcookie.SetMaxAge(hc.MaxAge)
 		fcookie.SetExpire(hc.Expires)
 	}
@@ -316,22 +400,123 @@ func (r *DefaultRes) Cookie(cookie *Cookie) {
 	fcookie.SetSecure(hc.Secure)
 	fcookie.SetHTTPOnly(hc.HttpOnly)
 
-	switch sameSite {
-	case http.SameSiteLaxMode:
-		fcookie.SetSameSite(fasthttp.CookieSameSiteLaxMode)
-	case http.SameSiteStrictMode:
-		fcookie.SetSameSite(fasthttp.CookieSameSiteStrictMode)
-	case http.SameSiteNoneMode:
-		fcookie.SetSameSite(fasthttp.CookieSameSiteNoneMode)
-	default:
-		fcookie.SetSameSite(fasthttp.CookieSameSiteDisabled)
-	}
+	fcookie.SetSameSite(sameSite.FastHTTPMode)
 
 	fcookie.SetPartitioned(hc.Partitioned)
 
 	// Set resp header
 	r.c.fasthttp.Response.Header.SetCookie(fcookie)
 	fasthttp.ReleaseCookie(fcookie)
+}
+
+// unquoteCookieValue strips one pair of surrounding double quotes. A lone quote
+// is left for validation to reject.
+func unquoteCookieValue(value string) (string, bool) {
+	if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+		return value[1 : len(value)-1], true
+	}
+	return value, false
+}
+
+// GetCookie reads back a cookie this response is set to send, false when the
+// name is unset or its value does not parse. Names are case-sensitive and a
+// repeat resolves to the first. Writing the copy back through Cookie stamps
+// Path=/ on a cookie that carried none, widening its scope — set Path first.
+func (r *DefaultRes) GetCookie(name string) (*Cookie, bool) {
+	header := &r.c.fasthttp.Response.Header
+
+	fcookie := fasthttp.AcquireCookie()
+	defer fasthttp.ReleaseCookie(fcookie)
+
+	for key, value := range header.Cookies() {
+		if string(key) != name {
+			continue
+		}
+		// Parsed from the yielded value rather than looked up again by name: the
+		// lookup discards the parse error, turning a Set-Cookie whose attributes
+		// fail to parse into one that silently lost its Path and flags.
+		if fcookie.ParseBytes(value) != nil {
+			return nil, false
+		}
+		return responseCookie(fcookie, value), true
+	}
+
+	return nil, false
+}
+
+// GetCookies returns a copy of every cookie this response is set to send, in
+// order, or nil when there are none. Repeated names are kept apart, and an
+// unparsable one is skipped. For what the client sent, use Req.Cookies.
+//
+// Named for GetCookie beside it rather than Cookies, which would collide with
+// Req.Cookies under a different signature and stop Ctx satisfying Res.
+func (r *DefaultRes) GetCookies() []*Cookie {
+	header := &r.c.fasthttp.Response.Header
+
+	fcookie := fasthttp.AcquireCookie()
+	defer fasthttp.ReleaseCookie(fcookie)
+
+	var cookies []*Cookie
+	// Each entry is parsed where it is found: resolving the name against the
+	// header again answers with the first cookie of that name once per entry,
+	// hiding every later one behind a duplicate of the first.
+	for _, value := range header.Cookies() {
+		if fcookie.ParseBytes(value) != nil {
+			continue
+		}
+		cookies = append(cookies, responseCookie(fcookie, value))
+	}
+
+	return cookies
+}
+
+// cookieAttrPresent reports whether a Set-Cookie value carries the named
+// attribute. RFC 6265 Section 4.1.1 excludes ";" from cookie-value, so splitting
+// on it is safe; the first element is the name=value pair and is skipped.
+func cookieAttrPresent(value []byte, attr string) bool {
+	_, rest, found := utils.CutByte(value, ';')
+	if !found {
+		return false
+	}
+
+	for len(rest) > 0 {
+		part := rest
+		if i := bytes.IndexByte(rest, ';'); i >= 0 {
+			part, rest = rest[:i], rest[i+1:]
+		} else {
+			rest = nil
+		}
+		name, _, _ := utils.CutByte(part, '=')
+		if utils.EqualFold(utils.UnsafeString(utils.TrimSpace(name)), attr) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// responseCookie converts a parsed Set-Cookie back into the Cookie Res.Cookie
+// accepts. fasthttp writes a deletion as "max-age=0" and parses it back as 0,
+// so raw is consulted to tell that from an absent attribute.
+func responseCookie(fcookie *fasthttp.Cookie, raw []byte) *Cookie {
+	cookie := &Cookie{
+		Name:        string(fcookie.Key()),
+		Value:       string(fcookie.Value()),
+		Path:        string(fcookie.Path()),
+		Domain:      string(fcookie.Domain()),
+		Expires:     fcookie.Expire(),
+		MaxAge:      fcookie.MaxAge(),
+		Secure:      fcookie.Secure(),
+		HTTPOnly:    fcookie.HTTPOnly(),
+		SameSite:    internalcookie.FormatSameSite(fcookie.SameSite()),
+		Partitioned: fcookie.Partitioned(),
+	}
+	if cookie.MaxAge == 0 && cookieAttrPresent(raw, "max-age") {
+		cookie.MaxAge = -1
+	}
+	cookie.SessionOnly = cookie.MaxAge == 0 && cookie.Expires.IsZero()
+
+	return cookie
 }
 
 // Download transfers the file from path as an attachment.
@@ -347,18 +532,7 @@ func (r *DefaultRes) Download(file string, filename ...string) error {
 	}
 	fname = sanitizeFilename(fname)
 	fname = fallbackFilenameIfInvalid(fname)
-	app := r.c.app
-	var quoted string
-	if app.isASCII(fname) {
-		quoted = app.quoteString(fname)
-	} else {
-		quoted = app.quoteRawString(fname)
-	}
-	disp := `attachment; filename="` + quoted + `"`
-	if !app.isASCII(fname) {
-		disp += `; filename*=UTF-8''` + url.PathEscape(fname)
-	}
-	r.setCanonical(HeaderContentDisposition, disp)
+	r.setCanonical(HeaderContentDisposition, contentDispositionAttachment(fname))
 	return r.SendFile(file)
 }
 
@@ -368,6 +542,10 @@ func (r *DefaultRes) Download(file string, filename ...string) error {
 func (r *DefaultRes) Response() *fasthttp.Response {
 	return &r.c.fasthttp.Response
 }
+
+// formatDefaultMediaType is the sentinel MediaType marking a Format handler as
+// the fallback. It is not a media type and is never emitted as a Content-Type.
+const formatDefaultMediaType = "default"
 
 // Format performs content-negotiation on the Accept HTTP header.
 // It uses Accepts to select a proper format and calls the matching
@@ -386,11 +564,28 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 		}
 	}
 
-	r.Vary(HeaderAccept)
+	// Handlers must see the custom context when the app uses one, as Next does.
+	handlerCtx := r.c.ctxForHandlers()
 
-	if r.c.DefaultReq.Get(HeaderAccept) == "" {
-		r.c.fasthttp.Response.Header.SetContentType(handlers[0].MediaType)
-		return handlers[0].Handler(r.c)
+	r.Vary(varyAccept...)
+
+	// Absent means the combined Accept view (RFC 9110 Section 5.2) is empty:
+	// no field line, or only empty ones. The joined read matches the field name
+	// case-insensitively, the same way Accepts negotiates, so the two entry
+	// points agree on whether the client stated a preference.
+	acceptRaw := peekJoinedRequestHeader(&r.c.fasthttp.Request.Header, HeaderAccept)
+	if len(acceptRaw) == 0 {
+		// Without an Accept header the client accepts any media type
+		// (RFC 9110 Section 12.5.1), so pick the first non-default handler and
+		// use its media type. The literal "default" is not a media type and
+		// must not be emitted as a Content-Type value.
+		for _, h := range handlers {
+			if h.MediaType != formatDefaultMediaType {
+				r.c.fasthttp.Response.Header.SetContentType(h.MediaType)
+				return h.Handler(handlerCtx)
+			}
+		}
+		return handlers[0].Handler(handlerCtx)
 	}
 
 	// Using an int literal as the slice capacity allows for the slice to be
@@ -400,7 +595,7 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 	types := make([]string, 0, 8)
 	var defaultHandler Handler
 	for _, h := range handlers {
-		if h.MediaType == "default" {
+		if h.MediaType == formatDefaultMediaType {
 			defaultHandler = h.Handler
 			continue
 		}
@@ -412,13 +607,13 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 		if defaultHandler == nil {
 			return r.SendStatus(StatusNotAcceptable)
 		}
-		return defaultHandler(r.c)
+		return defaultHandler(handlerCtx)
 	}
 
 	for _, h := range handlers {
 		if h.MediaType == accept {
 			r.c.fasthttp.Response.Header.SetContentType(h.MediaType)
-			return h.Handler(r.c)
+			return h.Handler(handlerCtx)
 		}
 	}
 
@@ -432,8 +627,17 @@ func (r *DefaultRes) Format(handlers ...ResFmt) error {
 // For more flexible content negotiation, use Format.
 // If the header is not specified or there is no proper format, text/plain is used.
 func (r *DefaultRes) AutoFormat(body any) error {
-	// Get accepted content type
-	accept := r.c.DefaultReq.Accepts("html", "json", "txt", "xml", "msgpack", "cbor") //nolint:staticcheck // It is fine to ignore the static check
+	// The response is selected based on the Accept header, so let caches know
+	// (RFC 9110 Section 12.5.5).
+	r.Vary(varyAccept...)
+
+	// Get accepted content type; text/plain when nothing matches.
+	accept := "txt"
+	if len(peekJoinedRequestHeader(&r.c.fasthttp.Request.Header, HeaderAccept)) > 0 {
+		if negotiated := r.c.DefaultReq.Accepts("html", "json", "txt", "xml", "msgpack", "cbor"); negotiated != "" { //nolint:staticcheck // It is fine to ignore the static check
+			accept = negotiated
+		}
+	}
 
 	// Set accepted content type
 	r.Type(accept)
@@ -468,12 +672,38 @@ func (r *DefaultRes) AutoFormat(body any) error {
 	return r.SendString(b)
 }
 
+// ContentLength returns what the Content-Length response header declares: a
+// length a handler or upstream set, -1 for an unknown-length stream, 0 when
+// none is declared. fasthttp fills it in on serialization; see also Res.Body.
+func (r *DefaultRes) ContentLength() int {
+	return r.c.fasthttp.Response.Header.ContentLength()
+}
+
+// ContentType returns the Content-Type response header, the read side of Type.
+// With none set it reports what would be sent: fasthttp's default, or "" under
+// Config.DisableDefaultContentType. Only valid within the handler.
+func (r *DefaultRes) ContentType() string {
+	return r.c.app.toString(r.c.fasthttp.Response.Header.ContentType())
+}
+
+// Del removes every field line stored under key, whatever case it is spelled in,
+// and is a no-op for a header that was never set. Del(HeaderSetCookie) withdraws
+// the pending cookies, where ClearCookie expires one in the client's jar.
+func (r *DefaultRes) Del(key string) {
+	header := &r.c.fasthttp.Response.Header
+	// The byte-exact fast path needs both sides canonical: the stored names (a
+	// proxied response can hold lower-case ones) and the caller's key, which
+	// fasthttp only normalizes while DisableHeaderNormalizing is off.
+	canonical := !r.c.app.config.DisableHeaderNormalizing && fieldname.Canonical(header)
+	fieldname.Del(header, key, canonical)
+}
+
 // Get (a.k.a. GetRespHeader) returns the HTTP response header specified by field.
 // Field names are case-insensitive
 // Returned value is only valid within the handler. Do not store any references.
 // Make copies or use the Immutable setting instead.
 func (r *DefaultRes) Get(key string, defaultValue ...string) string {
-	return defaultString(r.c.app.toString(r.c.fasthttp.Response.Header.Peek(key)), defaultValue)
+	return defaultString(r.c.app.toString(fieldname.Peek(&r.c.fasthttp.Response.Header, key)), defaultValue)
 }
 
 // GetHeaders (a.k.a GetRespHeaders) returns the HTTP response headers.
@@ -557,15 +787,23 @@ func (r *DefaultRes) CBOR(data any, ctype ...string) error {
 // JSONP sends a JSON response with JSONP support.
 // This method is identical to JSON, except that it opts-in to JSONP callback support.
 // By default, the callback name is simply callback.
+//
+// The callback name is reduced to a JavaScript member expression: everything
+// outside [A-Za-z0-9_$.[]] is dropped. Callers routinely take the name straight
+// from the query string, which is what JSONP is for, and the name lands
+// verbatim in a same-origin text/javascript body — so an unfiltered one would
+// let a request supply arbitrary script for the app's own origin.
 func (r *DefaultRes) JSONP(data any, callback ...string) error {
 	raw, err := r.c.app.config.JSONEncoder(data)
 	if err != nil {
 		return err
 	}
 
-	cb := "callback"
+	cb := defaultJSONPCallback
 	if len(callback) > 0 {
-		cb = callback[0]
+		if sanitized := sanitizeJSONPCallback(callback[0]); sanitized != "" {
+			cb = sanitized
+		}
 	}
 
 	// Build JSONP response: callback(data);
@@ -582,6 +820,146 @@ func (r *DefaultRes) JSONP(data any, callback ...string) error {
 	r.c.fasthttp.Response.SetBody(buf.Bytes())
 	bytebufferpool.Put(buf)
 	return nil
+}
+
+const defaultJSONPCallback = "callback"
+
+// isJSONPCallbackByte reports whether b may appear in a JSONP callback name. The
+// set spells a JavaScript member expression and admits nothing that could open a
+// string, comment or statement.
+func isJSONPCallbackByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') ||
+		(b >= '0' && b <= '9') ||
+		b == '_' || b == '$' || b == '.' || b == '[' || b == ']'
+}
+
+// sanitizeJSONPCallback drops every byte isJSONPCallbackByte rejects, as Express
+// and Django do, then requires a member expression, returning "" otherwise.
+// Filtering is enough for safety, not correctness: "1.2.3" and "a[" only throw.
+func sanitizeJSONPCallback(cb string) string {
+	i := 0
+	for ; i < len(cb); i++ {
+		if !isJSONPCallbackByte(cb[i]) {
+			break
+		}
+	}
+
+	if i != len(cb) {
+		out := make([]byte, i, len(cb))
+		copy(out, cb[:i])
+		for ; i < len(cb); i++ {
+			if isJSONPCallbackByte(cb[i]) {
+				out = append(out, cb[i])
+			}
+		}
+		cb = utils.UnsafeString(out)
+	}
+
+	if !isJSONPMemberExpression(cb) {
+		return ""
+	}
+	return cb
+}
+
+// isJSONPMemberExpression reports whether cb is a dotted chain of identifiers
+// with optional bracket indexing — the shape a JSONP body may legally call.
+func isJSONPMemberExpression(cb string) bool {
+	if cb == "" {
+		return false
+	}
+	// "let" is a keyword only where a "[" follows it, and only at the head: an
+	// expression statement may not begin "let [", so the body "let[a](…);" is
+	// read as a destructuring declaration and is a syntax error. "let(…)",
+	// "let.a(…)" and an inner "cb[let[a]]" are all calls and stay allowed.
+	if strings.HasPrefix(cb, "let[") {
+		return false
+	}
+
+	depth := 0
+	atStart := true     // expecting the first byte of an identifier
+	inIndex := false    // that first byte follows '[', so a number may stand there
+	afterClose := false // a ']' just closed an index
+	numeric := false    // the open index began with a digit, so it is a number
+	isRef := true       // the open token is read as a name, not written as a property
+	start := 0          // first byte of the open token
+	for i := 0; i < len(cb); i++ {
+		switch c := cb[i]; c {
+		case '.':
+			if atStart || numeric || (isRef && isJSReservedWord(cb[start:i])) {
+				return false
+			}
+			atStart, inIndex, afterClose, isRef = true, false, false, false
+		case '[':
+			if atStart || numeric || (isRef && isJSReservedWord(cb[start:i])) {
+				return false
+			}
+			depth++
+			atStart, inIndex, afterClose, isRef = true, true, false, true
+			start = i + 1
+		case ']':
+			if atStart || depth == 0 {
+				return false
+			}
+			if isRef && !numeric && isJSReservedWord(cb[start:i]) {
+				return false
+			}
+			depth--
+			afterClose, numeric, isRef = true, false, false
+		default:
+			// Only '.', '[' or another ']' may follow a closing bracket, so "cb[0]x"
+			// is no member expression. Without this the machine would accept it and
+			// emit a body that does not parse.
+			if afterClose {
+				return false
+			}
+			if atStart {
+				// An identifier may not start with a digit. A bracket index may, and
+				// then it is that number alone: "cb[0]" parses, "cb[0x]" does not.
+				// Only a token opened by '[' counts — "cb[a.0]" is a property named
+				// after a dot, where a digit is as illegal as it is at the top level.
+				if c >= '0' && c <= '9' {
+					if !inIndex {
+						return false
+					}
+					numeric = true
+				}
+				atStart, inIndex = false, false
+			} else if numeric && (c < '0' || c > '9') {
+				return false
+			}
+		}
+	}
+	if isRef && !numeric && isJSReservedWord(cb[start:]) {
+		return false
+	}
+	return depth == 0 && !atStart
+}
+
+// isJSReservedWord reports whether tok is a word JavaScript will not read as a
+// name. Only the positions that are read matter — the head of the expression and
+// the head inside each index — since "a.for" and "a[b.class]" name properties,
+// which any word may do. Emitting "for({…})" instead just ships a syntax error to
+// the browser, so those spellings fall back to the default callback.
+func isJSReservedWord(tok string) bool {
+	// Only the words a classic script rejects wherever they stand. A JSONP body
+	// is loaded by a script tag, so it is parsed under the script goal in sloppy
+	// mode, and several words that look reserved are ordinary identifiers there.
+	//
+	// Absent on purpose: "this", "true", "false" and "null" are keywords, but
+	// each is a complete expression, so "this.cb" and "cb[true]" parse. "await"
+	// is reserved only in a module or an async function, and "yield" only in
+	// strict mode or a generator, so both name a callback here. "let" is
+	// contextual in a third way and handled where it is read.
+	switch tok {
+	case "break", "case", "catch", "class", "const", "continue",
+		"debugger", "default", "delete", "do", "else", "enum", "export",
+		"extends", "finally", "for", "function", "if", "import", "in",
+		"instanceof", "new", "return", "super", "switch",
+		"throw", "try", "typeof", "var", "void", "while", "with":
+		return true
+	default:
+		return false
+	}
 }
 
 // XML converts any interface or string to XML.
@@ -611,7 +989,9 @@ func (r *DefaultRes) Links(link ...string) {
 			bb.WriteByte('>')
 		} else {
 			bb.WriteString(`; rel="`)
-			bb.WriteString(link[i])
+			// The rel value sits inside a quoted-string, so quotes and
+			// backslashes must be escaped (RFC 9110 Section 5.6.4).
+			bb.WriteString(quotedstring.Escape(link[i]))
 			bb.WriteString(`",`)
 		}
 	}
@@ -678,9 +1058,37 @@ func (r *DefaultRes) Render(name string, bind any, layouts ...string) error {
 
 	rootApp := r.c.app
 	var rendered bool
+
+	// A sub-app mounted on a domain only applies to a matching host, so the
+	// path scan below cannot find it. Rank it against the plain mounts by how
+	// deep its mount path is, so neither borrows the other's engine; a tie
+	// goes to the domain mount, which matched the host as well.
+	domain := rootApp.domainMountOwner(r.c)
+	domainViews, domainLayout := domainMountRender(domain)
+
 	for _, prefix := range slices.Backward(rootApp.mountFields.appListKeys) {
 		app := rootApp.mountFields.appList[prefix]
-		if prefix == "" || strings.Contains(r.c.OriginalURL(), prefix) {
+		if domain.outranks(mountDepth(prefix)) {
+			// The layout applies whether or not the owner brought an engine:
+			// a mount configuring only a layout renders through the engine
+			// above it, exactly as an ordinary one does.
+			if len(layouts) == 0 && domainLayout != "" {
+				layouts = []string{domainLayout}
+			}
+
+			if domainViews != nil {
+				break
+			}
+
+			// With no engine of its own the search goes on above the owner, as
+			// it does for an ordinary mount — but not through a mount the
+			// owner supersedes, which did not serve the request and whose
+			// engine is not the owner's to borrow.
+			if domain.supersedes(mountDepth(prefix), app) {
+				continue
+			}
+		}
+		if prefix == "" || rootApp.mountCoversPath(prefix, r.c.Path()) {
 			if len(layouts) == 0 && app.config.ViewsLayout != "" {
 				layouts = []string{
 					app.config.ViewsLayout,
@@ -688,7 +1096,7 @@ func (r *DefaultRes) Render(name string, bind any, layouts ...string) error {
 			}
 
 			// Render template from Views
-			if app.config.Views != nil {
+			if !isNilViews(app.config.Views) {
 				if err := func() error {
 					viewsLock := getViewsLock(app.config.Views)
 					viewsLock.RLock()
@@ -707,6 +1115,26 @@ func (r *DefaultRes) Render(name string, bind any, layouts ...string) error {
 				break
 			}
 		}
+	}
+
+	// The layout is already settled: the scan above visits the root mount at
+	// worst, which every owner outranks, and applies the owner's layout there.
+	if !rendered && domainViews != nil {
+		if err := func() error {
+			viewsLock := getViewsLock(domainViews.config.Views)
+			viewsLock.RLock()
+			defer viewsLock.RUnlock()
+
+			if err := domainViews.config.Views.Render(buf, name, bind, layouts...); err != nil {
+				return fmt.Errorf("failed to render: %w", err)
+			}
+
+			return nil
+		}(); err != nil {
+			return err
+		}
+
+		rendered = true
 	}
 
 	if !rendered {
@@ -741,6 +1169,32 @@ func (r *DefaultRes) renderExtensions(bind any) {
 	r.c.renderExtensions(bind)
 }
 
+// Body returns the response body buffered so far, or nil for a streamed one,
+// which draining would de-stream; Written tells those apart. The buffer is live,
+// so writing to it writes to the response, and the next write voids it.
+func (r *DefaultRes) Body() []byte {
+	resp := &r.c.fasthttp.Response
+	if resp.IsBodyStream() {
+		return nil
+	}
+	return resp.Body()
+}
+
+// ResetBody discards the response body, keeping the status and headers.
+// Use it before replacing a partially written body — an error page over a
+// half-rendered view, a cached body over a fresh one.
+func (r *DefaultRes) ResetBody() {
+	r.c.fasthttp.Response.ResetBody()
+}
+
+// Written reports whether anything has been written to the response body, so a
+// handler that produced one can be told from a handler that did not. A stream
+// counts without being drained; a status or header alone does not.
+func (r *DefaultRes) Written() bool {
+	resp := &r.c.fasthttp.Response
+	return resp.IsBodyStream() || len(resp.Body()) > 0
+}
+
 // Send sets the HTTP response body without copying it.
 // From this point onward the body argument must not be changed.
 func (r *DefaultRes) Send(body []byte) error {
@@ -766,6 +1220,14 @@ func (r *DefaultRes) SendEarlyHints(hints []string) error {
 	for _, h := range hints {
 		r.c.fasthttp.Response.Header.Add("Link", h)
 	}
+	// A server MUST NOT send a 1xx response to an HTTP/1.0 (or earlier)
+	// client (RFC 9110 Section 15.2), and fasthttp can only write interim
+	// responses on real HTTP/1.1 connections, so send the 103 exclusively
+	// for HTTP/1.1 requests. The Link headers above still go out on the
+	// final response; only the interim 103 is skipped.
+	if !r.c.fasthttp.Request.Header.IsHTTP11() {
+		return nil
+	}
 	return r.c.fasthttp.EarlyHints()
 }
 
@@ -776,6 +1238,13 @@ func (r *DefaultRes) SendEarlyHints(hints []string) error {
 func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 	// Save the filename, we will need it in the error message if the file isn't found
 	filename := file
+
+	// A control byte is no part of a name a client can ask for. One that
+	// reached fasthttp's URI parser failed it silently, which left the root
+	// path and served the root's index.html instead.
+	if utils.IndexControl(utils.UnsafeBytes(file)) >= 0 {
+		return NewError(StatusNotFound, fmt.Sprintf("sendfile: file %s not found", filename))
+	}
 
 	var cfg SendFile
 	if len(config) > 0 {
@@ -788,17 +1257,24 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 
 	var fsHandler fasthttp.RequestHandler
 	var cacheControlValue string
+	// Function values have no safe identity in Go: reflect.Value.Pointer only
+	// identifies their shared code, not captured closure data. Do not retain
+	// handlers for function-backed file systems, since they can never be safely
+	// matched and would otherwise grow the application cache on every request.
+	cacheHandler := cfg.FS == nil || reflect.ValueOf(cfg.FS).Kind() != reflect.Func
 
 	app := r.c.app
-	app.sendfilesMutex.RLock()
-	for _, sf := range app.sendfiles {
-		if sf.configEqual(cfg) {
-			fsHandler = sf.handler
-			cacheControlValue = sf.cacheControlValue
-			break
+	if cacheHandler {
+		app.sendfilesMutex.RLock()
+		for _, sf := range app.sendfiles {
+			if sf.configEqual(cfg) {
+				fsHandler = sf.handler
+				cacheControlValue = sf.cacheControlValue
+				break
+			}
 		}
+		app.sendfilesMutex.RUnlock()
 	}
-	app.sendfilesMutex.RUnlock()
 
 	if fsHandler == nil {
 		fasthttpFS := &fasthttp.FS{
@@ -812,30 +1288,36 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 			CompressZstd:           cfg.Compress,
 			CompressedFileSuffixes: app.config.CompressedFileSuffixes,
 			CacheDuration:          cfg.CacheDuration,
-			SkipCache:              cfg.CacheDuration < 0,
+			SkipCache:              cfg.CacheDuration < 0 || !cacheHandler,
 			IndexNames:             []string{"index.html"},
 			PathNotFound: func(ctx *fasthttp.RequestCtx) {
 				ctx.Response.SetStatusCode(StatusNotFound)
 			},
 		}
 
+		handler := fasthttpFS.NewRequestHandler()
+		if cfg.ByteRange {
+			handler = byterange.Wrap(handler)
+		}
 		sf := &sendFileStore{
 			config:  cfg,
-			handler: fasthttpFS.NewRequestHandler(),
+			handler: handler,
 		}
 
 		maxAge := cfg.MaxAge
 		if maxAge > 0 {
-			sf.cacheControlValue = "public, max-age=" + strconv.Itoa(maxAge)
+			sf.cacheControlValue = "public, max-age=" + utils.FormatInt(int64(maxAge))
 		}
 
 		// set vars
 		fsHandler = sf.handler
 		cacheControlValue = sf.cacheControlValue
 
-		app.sendfilesMutex.Lock()
-		app.sendfiles = append(app.sendfiles, sf)
-		app.sendfilesMutex.Unlock()
+		if cacheHandler {
+			app.sendfilesMutex.Lock()
+			app.sendfiles = append(app.sendfiles, sf)
+			app.sendfilesMutex.Unlock()
+		}
 	}
 
 	// Keep original path for mutable params
@@ -843,11 +1325,7 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 
 	request := &r.c.fasthttp.Request
 
-	// Delete the Accept-Encoding header if compression is disabled
-	if !cfg.Compress {
-		// https://github.com/valyala/fasthttp/blob/7cc6f4c513f9e0d3686142e0a1a5aa2f76b3194a/fs.go#L55
-		request.Header.Del(HeaderAcceptEncoding)
-	}
+	// Keep the request's Accept-Encoding: middleware running after this call still needs it.
 
 	// copy of https://github.com/valyala/fasthttp/blob/7cc6f4c513f9e0d3686142e0a1a5aa2f76b3194a/fs.go#L103-L121 with small adjustments
 	if file == "" || (!filepath.IsAbs(file) && cfg.FS == nil) {
@@ -872,8 +1350,18 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 	originalURL := utils.CopyString(r.c.OriginalURL())
 	defer request.SetRequestURI(originalURL)
 
-	// Set new URI for fileHandler
-	request.SetRequestURI(file)
+	// The file server reads the request URI, which fasthttp percent-decodes and
+	// splits at "?" and "#" as it parses it, so the name goes in escaped and
+	// comes out of that decode exactly as given: "100%25.txt" is the file of
+	// that name and not "100%.txt", "a?b" is not "a" with a query, and a
+	// "..%2Fsecret.txt" that a route parameter carried into filepath.Join stays
+	// one segment instead of decoding, after the join was cleaned, into a step
+	// out of the caller's directory. SetRequestURIBytes copies the escaped
+	// name, so a pooled buffer holds it only for the call.
+	uriBuf := bytebufferpool.Get()
+	uriBuf.B = utils.AppendPathSegmentsEscape(uriBuf.B[:0], file)
+	request.SetRequestURIBytes(uriBuf.B)
+	bytebufferpool.Put(uriBuf)
 
 	var (
 		sendFileSize    int64
@@ -907,6 +1395,23 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 	// Get the status code which is set by fasthttp
 	fsStatus := response.StatusCode()
 
+	// fasthttp answers a directory named without a trailing slash with a
+	// redirect to the name with one, the only redirect its file handler
+	// issues. Here that name is a filesystem path, not a route, so the
+	// redirect could only disclose it: the directory is not found. The
+	// Location carries the name escaped, so it is not compared with the
+	// name. A name with the trailing slash serves the directory's index.html.
+	// The error carries no name either, since the default error handler writes
+	// its message to the client.
+	if fsStatus == StatusFound {
+		response.Header.Del(HeaderLocation)
+		response.SetStatusCode(StatusNotFound)
+		if status != StatusNotFound {
+			return ErrNotFound
+		}
+		fsStatus = StatusNotFound
+	}
+
 	// Check for error
 	if status != StatusNotFound && fsStatus == StatusNotFound {
 		return NewError(StatusNotFound, fmt.Sprintf("sendfile: file %s not found", filename))
@@ -920,7 +1425,7 @@ func (r *DefaultRes) SendFile(file string, config ...SendFile) error {
 	// Apply cache control header
 	if status != StatusNotFound && status != StatusForbidden {
 		if cfg.ByteRange && hasSendFileSize && response.StatusCode() == StatusRequestedRangeNotSatisfiable && len(response.Header.Peek(HeaderContentRange)) == 0 {
-			response.Header.Set(HeaderContentRange, "bytes */"+strconv.FormatInt(sendFileSize, 10))
+			response.Header.Set(HeaderContentRange, "bytes */"+utils.FormatInt(sendFileSize))
 		}
 
 		if cacheControlValue != "" {
@@ -954,13 +1459,29 @@ func sendFileContentLength(path string, cfg SendFile) (int64, error) {
 	return info.Size(), nil
 }
 
+// NoContent replies 204 No Content. SendStatus already discards the body; this
+// drops the Content-Type too, since RFC 9110 Section 6.4.1 gives a 204 no
+// content to describe. SendStatus(204) keeps it, so the two differ.
+func (r *DefaultRes) NoContent() error {
+	r.Del(HeaderContentType)
+
+	return r.SendStatus(StatusNoContent)
+}
+
 // SendStatus sets the HTTP status code and if the response body is empty,
 // it sets the correct status message in the body.
 func (r *DefaultRes) SendStatus(status int) error {
-	r.Status(status)
+	// Settle the status first so the checks below use the one that is sent.
+	status = validStatus(status)
+	r.c.fasthttp.Response.SetStatusCode(status)
 
 	if statusDisallowsBody(status) {
-		r.c.fasthttp.Response.ResetBody()
+		resp := &r.c.fasthttp.Response
+		resp.ResetBody()
+		// ResetBody drops the body but keeps a Content-Length the handler
+		// declared, which RFC 9110 Section 8.6 forbids here and which leaves a
+		// keep-alive peer waiting for bytes that never come.
+		resp.Header.Del(HeaderContentLength)
 		return nil
 	}
 
@@ -1000,6 +1521,14 @@ func (r *DefaultRes) SendStreamWriter(streamWriter func(*bufio.Writer)) error {
 
 // Set sets the response's HTTP header field to the specified key, value.
 func (r *DefaultRes) Set(key, val string) {
+	// A key already in canonical form skips the normalization fasthttp's Set
+	// runs only to arrive at the same bytes, and the second copy of the value
+	// it makes on the way; the line stored is the same in either store mode.
+	// Test_Res_Set_MatchesHeaderSet keeps the two paths storing it alike.
+	if fieldname.IsCanonical(key) {
+		r.setCanonical(key, val)
+		return
+	}
 	r.c.fasthttp.Response.Header.Set(key, val)
 }
 
@@ -1009,9 +1538,18 @@ func (r *DefaultRes) setCanonical(key, val string) {
 
 // Status sets the HTTP status for the response.
 // This method is chainable.
+//
+// A status outside 100 to 999 is logged and replaced by 500.
 func (r *DefaultRes) Status(status int) Ctx {
-	r.c.fasthttp.Response.SetStatusCode(status)
+	r.c.fasthttp.Response.SetStatusCode(validStatus(status))
 	return r.c
+}
+
+// StatusCode returns the status code set on the response, the read side of
+// Status, and reports 200 until something sets another. After Next it is the
+// status the chain settled on.
+func (r *DefaultRes) StatusCode() int {
+	return r.c.fasthttp.Response.StatusCode()
 }
 
 func statusDisallowsBody(status int) bool {
@@ -1070,8 +1608,35 @@ func shouldIncludeCharset(mimeType string) bool {
 
 // Vary adds the given header field to the Vary response header.
 // This will append the header, if not already listed; otherwise, leaves it listed in the current location.
+// Field names are compared case-insensitively (RFC 9110 Section 5.1); the first spelling is kept.
+// Per RFC 9110 Section 12.5.5 the wildcard "*" only has meaning as the sole member of the field:
+// once "*" is added (or already present), the header is collapsed to a single "*".
 func (r *DefaultRes) Vary(fields ...string) {
-	r.Append(HeaderVary, fields...)
+	if len(fields) == 0 {
+		return
+	}
+	// Peek without copying: the value is only inspected before any write.
+	// All field lines are combined (RFC 9110 Section 5.2) so a wildcard on a
+	// later line added via Header.Add is still honored.
+	existing, multiLine := peekJoinedResponseHeader(&r.c.fasthttp.Response.Header, HeaderVary)
+	existingStr := utils.UnsafeString(existing)
+	if slices.Contains(fields, "*") || headerlist.Contains(existingStr, "*") {
+		if multiLine {
+			// setCanonical only rewrites the first field line.
+			r.c.fasthttp.Response.Header.Del(HeaderVary)
+		}
+		r.setCanonical(HeaderVary, "*")
+		return
+	}
+	updated := headerlist.AppendUniqueFold(existingStr, fields)
+	if updated == "" {
+		return
+	}
+	if multiLine {
+		// Set only rewrites the first field line; fold the extras into one.
+		r.c.fasthttp.Response.Header.Del(HeaderVary)
+	}
+	r.Set(HeaderVary, updated)
 }
 
 // Write appends p into response body.

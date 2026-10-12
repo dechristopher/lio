@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -40,9 +41,15 @@ const (
 	globalIpv4Addr = "0.0.0.0"
 )
 
+// ErrCertFileAndKeyRequired indicates that only one of CertFile and CertKeyFile was set.
+var ErrCertFileAndKeyRequired = errors.New("tls: CertFile and CertKeyFile must both be set to serve TLS")
+
 // ListenConfig is a struct to customize startup of Fiber.
 type ListenConfig struct {
 	// GracefulContext is a field to shutdown Fiber by given context gracefully.
+	//
+	// With EnablePrefork the context stops only the process it is canceled in;
+	// deliver the signal to every process so each child drains its own connections.
 	//
 	// Default: nil
 	GracefulContext context.Context `json:"graceful_context"` //nolint:containedctx // It's needed to set context inside Listen.
@@ -55,11 +62,14 @@ type ListenConfig struct {
 
 	// TLSConfigFunc allows customizing tls.Config as you want.
 	//
+	// Ignored when TLSConfig is set: configure that tls.Config directly instead.
+	//
 	// Default: nil
 	TLSConfigFunc func(tlsConfig *tls.Config) `json:"tls_config_func"`
 
-	// TLSConfig allows providing a tls.Config used as the base for TLS settings.
-	// This enables external certificate providers via GetCertificate.
+	// TLSConfig is cloned and served as supplied, enabling external certificate
+	// providers via GetCertificate. It replaces the other TLS settings rather than
+	// seeding them, so there is no mutual TLS unless its ClientAuth requires it.
 	//
 	// Default: nil
 	TLSConfig *tls.Config `json:"tls_config"`
@@ -98,15 +108,17 @@ type ListenConfig struct {
 	// Default : ""
 	CertKeyFile string `json:"cert_key_file"`
 
-	// CertClientFile is a path of client certificate.
-	// If you want to use mTLS, you have to enter this field.
+	// CertClientFile is a path of the CA bundle used to verify client
+	// certificates, which is how ListenConfig asks for mTLS. Ignored when
+	// TLSConfig is set: its ClientAuth decides instead, against its ClientCAs.
 	//
 	// Default : ""
 	CertClientFile string `json:"cert_client_file"`
 
 	// When the graceful shutdown begins, use this field to set the timeout
 	// duration. If the timeout is reached, OnPostShutdown will be called with the error.
-	// Set to 0 to disable the timeout and wait indefinitely.
+	// It bounds the wait for connections only; Listen also waits for the shutdown hooks.
+	// Negative disables the timeout and waits indefinitely; zero applies the default.
 	//
 	// Default: 10 * time.Second
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
@@ -131,6 +143,8 @@ type ListenConfig struct {
 	UnixSocketFileMode os.FileMode `json:"unix_socket_file_mode"`
 
 	// TLSMinVersion allows to set TLS minimum version.
+	//
+	// Ignored when TLSConfig is set: set MinVersion on that tls.Config instead.
 	//
 	// Default: tls.VersionTLS12
 	// WARNING: TLS1.0 and TLS1.1 versions are not supported.
@@ -183,11 +197,22 @@ func listenConfigDefault(config ...ListenConfig) ListenConfig {
 		cfg.TLSMinVersion = tls.VersionTLS12
 	}
 
-	if cfg.TLSMinVersion != tls.VersionTLS12 && cfg.TLSMinVersion != tls.VersionTLS13 {
-		panic("unsupported TLS version, please use tls.VersionTLS12 or tls.VersionTLS13")
+	if cfg.ShutdownTimeout == 0 {
+		cfg.ShutdownTimeout = 10 * time.Second
 	}
 
 	return cfg
+}
+
+// validateTLSMinVersion rejects a version this package will not build a
+// tls.Config from. Asked only where the field is read: rejecting it in the
+// defaults panicked before warnSupersededTLSFields or
+// warnIgnoredTLSFieldsOnListener could say the value was being ignored anyway,
+// which is the diagnostic a stale TLS 1.1 most needs.
+func validateTLSMinVersion(cfg *ListenConfig) {
+	if cfg.TLSMinVersion != tls.VersionTLS12 && cfg.TLSMinVersion != tls.VersionTLS13 {
+		panic("unsupported TLS version, please use tls.VersionTLS12 or tls.VersionTLS13")
+	}
 }
 
 // Listen serves HTTP requests from the given addr.
@@ -204,7 +229,10 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 	var tlsHandler *TLSHandler
 	if cfg.TLSConfig != nil {
 		tlsConfig = cfg.TLSConfig.Clone()
+		warnSupersededTLSFields(&cfg)
 	} else {
+		validateTLSMinVersion(&cfg)
+
 		switch {
 		case cfg.AutoCertManager != nil && (cfg.CertFile != "" || cfg.CertKeyFile != ""):
 			return ErrAutoCertWithCertFile
@@ -222,6 +250,10 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 				},
 				GetCertificate: tlsHandler.GetClientInfo,
 			}
+
+		case cfg.CertFile != "" || cfg.CertKeyFile != "":
+			// Half a key pair is a misconfiguration: refuse rather than serve plaintext.
+			return ErrCertFileAndKeyRequired
 
 		case cfg.AutoCertManager != nil:
 			tlsConfig = &tls.Config{
@@ -249,12 +281,8 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 	}
 
 	// Graceful shutdown
-	if cfg.GracefulContext != nil {
-		ctx, cancel := context.WithCancel(cfg.GracefulContext)
-		defer cancel()
-
-		go app.gracefulShutdown(ctx, &cfg)
-	}
+	waitForShutdown := app.startGracefulShutdown(&cfg)
+	defer waitForShutdown()
 
 	// Start prefork
 	if cfg.EnablePrefork {
@@ -266,6 +294,16 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
+
+	// Close the listener on any path that doesn't reach Serve (which otherwise
+	// takes ownership of it) — an early error return or a panicking hook — so
+	// the bound socket isn't leaked.
+	served := false
+	defer func() {
+		if !served {
+			_ = ln.Close() //nolint:errcheck // best-effort cleanup on the error path
+		}
+	}()
 
 	// prepare the server for the start
 	app.startupProcess()
@@ -284,8 +322,84 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 			return err
 		}
 	}
+	app.hookHeaderReceived()
 
+	served = true
 	return app.server.Serve(ln)
+}
+
+// warnSupersededTLSFields logs the ListenConfig TLS fields a supplied TLSConfig
+// supersedes. CertClientFile is where silence is dangerous: it is the only way
+// ListenConfig asks for mTLS, and a TLSConfig says nothing about it by default.
+func warnSupersededTLSFields(cfg *ListenConfig) {
+	if cfg.CertClientFile != "" {
+		log.Warn("[Listen] TLSConfig supersedes CertClientFile: a client certificate is required only if " +
+			"TLSConfig sets ClientAuth to a Require mode, with ClientCAs as the roots it verifies against.")
+	}
+
+	var ignored []string
+	if cfg.CertFile != "" || cfg.CertKeyFile != "" {
+		ignored = append(ignored, "CertFile/CertKeyFile")
+	}
+	// Zero is unset and listenConfigDefault fills in TLS 1.2, so only a caller who
+	// asked for something else is losing anything here.
+	if cfg.TLSMinVersion != 0 && cfg.TLSMinVersion != tls.VersionTLS12 {
+		ignored = append(ignored, "TLSMinVersion")
+	}
+	if cfg.AutoCertManager != nil {
+		ignored = append(ignored, "AutoCertManager")
+	}
+	if cfg.TLSConfigFunc != nil {
+		ignored = append(ignored, "TLSConfigFunc")
+	}
+	if len(ignored) > 0 {
+		log.Warnf("[Listen] TLSConfig supersedes %s.", strings.Join(ignored, ", "))
+	}
+}
+
+// warnIgnoredTLSFieldsOnListener reports TLS settings App.Listener cannot honor.
+// It serves the listener it is handed, so CertClientFile buys no client-
+// certificate verification — and unless the caller wrapped it, no TLS either.
+func warnIgnoredTLSFieldsOnListener(cfg *ListenConfig, ln net.Listener) {
+	if cfg.CertClientFile != "" {
+		log.Warn("[Listener] CertClientFile is ignored: a client certificate is required only if the supplied " +
+			"listener already asks for one. Wrap it with tls.NewListener using a tls.Config whose ClientAuth " +
+			"is a Require mode.")
+	}
+
+	var ignored []string
+	if cfg.TLSConfig != nil {
+		ignored = append(ignored, "TLSConfig")
+	}
+	if cfg.CertFile != "" || cfg.CertKeyFile != "" {
+		ignored = append(ignored, "CertFile/CertKeyFile")
+	}
+	if cfg.TLSMinVersion != 0 && cfg.TLSMinVersion != tls.VersionTLS12 {
+		ignored = append(ignored, "TLSMinVersion")
+	}
+	if cfg.AutoCertManager != nil {
+		ignored = append(ignored, "AutoCertManager")
+	}
+	if cfg.TLSConfigFunc != nil {
+		ignored = append(ignored, "TLSConfigFunc")
+	}
+	if len(ignored) == 0 {
+		return
+	}
+
+	suffix := "."
+	if getTLSConfig(ln) == nil {
+		suffix = "; this listener is not serving TLS."
+	}
+	log.Warnf("[Listener] serves the supplied listener as-is, so %s %s ignored%s",
+		strings.Join(ignored, ", "), pluralIsAre(len(ignored)), suffix)
+}
+
+func pluralIsAre(n int) string {
+	if n == 1 {
+		return "is"
+	}
+	return "are"
 }
 
 func applyClientCert(tlsConfig *tls.Config, certClientFile string) error {
@@ -311,16 +425,17 @@ func applyClientCert(tlsConfig *tls.Config, certClientFile string) error {
 
 // Listener serves HTTP requests from the given listener.
 // You should enter custom ListenConfig to customize startup. (prefork, startup message, graceful shutdown...)
+//
+// The listener is served exactly as supplied, so every TLS field of the config
+// is ignored — including CertClientFile. Wrap it with tls.NewListener yourself
+// to serve TLS or require a client certificate.
 func (app *App) Listener(ln net.Listener, config ...ListenConfig) error {
 	cfg := listenConfigDefault(config...)
+	warnIgnoredTLSFieldsOnListener(&cfg, ln)
 
 	// Graceful shutdown
-	if cfg.GracefulContext != nil {
-		ctx, cancel := context.WithCancel(cfg.GracefulContext)
-		defer cancel()
-
-		go app.gracefulShutdown(ctx, &cfg)
-	}
+	waitForShutdown := app.startGracefulShutdown(&cfg)
+	defer waitForShutdown()
 
 	// prepare the server for the start
 	app.startupProcess()
@@ -344,6 +459,7 @@ func (app *App) Listener(ln net.Listener, config ...ListenConfig) error {
 	if cfg.EnablePrefork {
 		log.Warn("Prefork isn't supported for custom listeners.")
 	}
+	app.hookHeaderReceived()
 
 	return app.server.Serve(ln)
 }
@@ -377,6 +493,7 @@ func (*App) createListener(addr string, tlsConfig *tls.Config, cfg *ListenConfig
 
 	if cfg.ListenerNetwork == NetworkUnix {
 		if err = os.Chmod(addr, cfg.UnixSocketFileMode); err != nil {
+			_ = listener.Close() //nolint:errcheck // best-effort cleanup on the error path
 			return nil, fmt.Errorf("cannot chmod %#o for %q: %w", cfg.UnixSocketFileMode, addr, err)
 		}
 	}
@@ -602,22 +719,34 @@ func (app *App) printRoutesMessage() {
 	_ = w.Flush() //nolint:errcheck // It is fine to ignore the error here
 }
 
-// shutdown goroutine
-func (app *App) gracefulShutdown(ctx context.Context, cfg *ListenConfig) {
-	<-ctx.Done()
+// startGracefulShutdown watches cfg.GracefulContext and returns the cleanup Listen
+// defers. Serve returns once the listener closes, so the cleanup waits out the drain.
+func (app *App) startGracefulShutdown(cfg *ListenConfig) func() {
+	if cfg.GracefulContext == nil {
+		return func() {}
+	}
 
-	var err error
+	done := make(chan struct{})
+	stop := context.AfterFunc(cfg.GracefulContext, func() {
+		defer close(done)
+		app.gracefulShutdown(cfg)
+	})
 
-	if cfg != nil && cfg.ShutdownTimeout != 0 {
-		err = app.ShutdownWithTimeout(cfg.ShutdownTimeout) //nolint:contextcheck // TODO: Implement it
+	return func() {
+		if !stop() {
+			<-done
+		}
+	}
+}
+
+func (app *App) gracefulShutdown(cfg *ListenConfig) {
+	// The OnPostShutdown hooks are fired by ShutdownWithContext (via
+	// Shutdown/ShutdownWithTimeout) with the real error, so we must not fire
+	// them again here or they would run twice. That error is already delivered
+	// to those hooks, so it is intentionally ignored here.
+	if cfg != nil && cfg.ShutdownTimeout > 0 {
+		_ = app.ShutdownWithTimeout(cfg.ShutdownTimeout) //nolint:errcheck // error is delivered to OnPostShutdown hooks
 	} else {
-		err = app.Shutdown() //nolint:contextcheck // TODO: Implement it
+		_ = app.Shutdown() //nolint:errcheck // error is delivered to OnPostShutdown hooks
 	}
-
-	if err != nil {
-		app.hooks.executeOnPostShutdownHooks(err)
-		return
-	}
-
-	app.hooks.executeOnPostShutdownHooks(nil)
 }
