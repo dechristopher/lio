@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/gofiber/utils/v2"
+	"github.com/gofiber/utils/v2/swar"
 	"github.com/google/uuid"
 )
 
@@ -161,15 +164,40 @@ func findConstraintHandler(name string, regexHandler any, customs []CustomConstr
 			return &customConstraintWrapper{CustomConstraint: cc}
 		}
 	}
-	if name == ConstraintRegex {
+	// A built-in name matches however the pattern spells it: the pattern is now
+	// adopted as written, where it used to arrive lowercased. Custom constraints
+	// keep the exact match above, so two customs differing only in case stay
+	// distinct and a custom cannot capture a built-in name in another case.
+	if utils.EqualFold(name, ConstraintRegex) {
 		return regexConstraintType{regexHandler: regexHandler}
 	}
 	for _, bc := range builtinConstraints {
-		if bc.Name() == name {
+		if utils.EqualFold(bc.Name(), name) {
 			return bc
 		}
 	}
 	return nil
+}
+
+// mergeCustomConstraints adds the constraints of a mounted app to the app its
+// routes are being expanded into.
+//
+// Expanding a mount re-parses the sub-app's routes against the expanding app,
+// so without this a constraint the sub-app registered stops resolving the
+// moment its routes move up a level — findConstraintHandler returns nil and
+// analyseParameterPart drops the constraint, leaving a route that silently
+// validates nothing. A name the expanding app already defines keeps its own
+// constraint, which is what its own routes were parsed with.
+func mergeCustomConstraints(dst, src []CustomConstraint) []CustomConstraint {
+	for _, constraint := range src {
+		if slices.ContainsFunc(dst, func(existing CustomConstraint) bool { return existing.Name() == constraint.Name() }) {
+			continue
+		}
+
+		dst = append(dst, constraint)
+	}
+
+	return dst
 }
 
 // newConstraint creates a Constraint with the given handler and data,
@@ -227,6 +255,10 @@ func (c *Constraint) matchConstraint(param string) bool {
 type intConstraintType struct{}
 
 func (intConstraintType) Name() string { return ConstraintInt }
+
+// The int-family constraints (int, min, max, range) deliberately stay on
+// strconv.Atoi: utils.ParseNativeInt benchmarked slower for the short
+// (1-14 digit) params routes actually see, winning only near 19 digits.
 func (intConstraintType) Execute(param string, _ []any) bool {
 	_, err := strconv.Atoi(param)
 	return err == nil
@@ -244,7 +276,7 @@ type floatConstraintType struct{}
 
 func (floatConstraintType) Name() string { return ConstraintFloat }
 func (floatConstraintType) Execute(param string, _ []any) bool {
-	_, err := strconv.ParseFloat(param, 32)
+	_, err := strconv.ParseFloat(param, 64)
 	return err == nil
 }
 
@@ -252,8 +284,40 @@ type alphaConstraintType struct{}
 
 func (alphaConstraintType) Name() string { return ConstraintAlpha }
 func (alphaConstraintType) Execute(param string, _ []any) bool {
-	for _, c := range param {
-		if !unicode.IsLetter(c) {
+	// SWAR fast path for the ASCII-common case; the first word containing a
+	// non-ASCII byte defers the rest to the Unicode rune loop, and so does
+	// the sub-word tail. The handoff happens only where every preceding
+	// byte is ASCII, i.e. on a rune boundary.
+	n := len(param)
+	i := 0
+	for ; i+swar.WordLen <= n; i += swar.WordLen {
+		w := swar.Load8(param, i)
+		if w&swar.HighBits != 0 {
+			return isUnicodeAlpha(param[i:])
+		}
+		if swar.MatchRangeMask(w, 'A', 'Z')|swar.MatchRangeMask(w, 'a', 'z') != swar.HighBits {
+			return false
+		}
+	}
+	// Scalar tail rather than isUnicodeAlpha(param[i:]): short params are
+	// the common case and skipping the rune decoding measures ~12% faster
+	// on Benchmark_ConstraintExecution/alpha.
+	for ; i < n; i++ {
+		c := param[i]
+		if c >= 0x80 {
+			return isUnicodeAlpha(param[i:])
+		}
+		if lc := c | 0x20; lc < 'a' || lc > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+// isUnicodeAlpha reports whether s consists only of Unicode letters.
+func isUnicodeAlpha(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) {
 			return false
 		}
 	}
@@ -526,6 +590,8 @@ func (regexConstraintType) Execute(param string, data []any) bool {
 
 // resolveConstraintName handles case-insensitive and alias matching for constraint names.
 func resolveConstraintName(name string) string {
+	// strings.ToLower (not the ASCII-only utils variant) so aliases keep
+	// Unicode simple case folding, e.g. Turkish-locale "MİNLEN" -> "minlen".
 	switch strings.ToLower(name) {
 	case "minlen":
 		return ConstraintMinLen

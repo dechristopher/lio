@@ -371,17 +371,16 @@ func (d *TCPDialer) tryDial(
 }
 
 // ErrDialTimeout is returned when TCP dialing is timed out.
-var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
+var ErrDialTimeout = errors.New("fasthttp: dialing to the given tcp address timed out")
 
 // ErrDialWithUpstream wraps dial error with upstream info.
 //
-// Should use errors.As to get upstream information from error:
+// Use errors.AsType to get upstream information from the error:
 //
 //	hc := fasthttp.HostClient{Addr: "foo.com,bar.com"}
 //	err := hc.Do(req, res)
 //
-//	var dialErr *fasthttp.ErrDialWithUpstream
-//	if errors.As(err, &dialErr) {
+//	if dialErr, ok := errors.AsType[*fasthttp.ErrDialWithUpstream](err); ok {
 //		upstream = dialErr.Upstream // 34.206.39.153:80
 //	}
 type ErrDialWithUpstream struct {
@@ -549,4 +548,4 @@ func resolveTCPAddrs(addr string, dualStack bool, resolver Resolver, deadline ti
 	return addrs, nil
 }
 
-var errNoDNSEntries = errors.New("couldn't find DNS entries for the given domain. Try using DialDualStack")
+var errNoDNSEntries = errors.New("couldn't find dns entries for the given domain: try using dual-stack dialing")

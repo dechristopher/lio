@@ -3,8 +3,6 @@ package limiter
 import (
 	"fmt"
 	"math"
-	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -22,7 +20,7 @@ func (SlidingWindow) New(cfg *Config) fiber.Handler {
 	}
 
 	// Limiter variables
-	mux := &sync.RWMutex{}
+	locks := new(keyedMutex)
 
 	// Create manager to simplify storage operations ( see manager.go )
 	manager := newManager(cfg.Storage, !cfg.DisableValueRedaction)
@@ -41,24 +39,20 @@ func (SlidingWindow) New(cfg *Config) fiber.Handler {
 		}
 
 		// Generate expiration from generator
-		expirationDuration := cfg.ExpirationFunc(c)
-		if expirationDuration <= 0 {
-			expirationDuration = ConfigDefault.Expiration
-		}
-		expiration := uint64(expirationDuration.Seconds())
+		expiration := windowSeconds(cfg.ExpirationFunc(c))
 
 		// Get key from request
 		key := cfg.KeyGenerator(c)
 
 		// Lock entry
-		mux.Lock()
+		mu := locks.lock(key)
 
 		reqCtx := c.Context()
 
 		// Get entry from pool and release when finished
 		e, err := manager.get(reqCtx, key)
 		if err != nil {
-			mux.Unlock()
+			mu.Unlock()
 			return err
 		}
 
@@ -94,26 +88,26 @@ func (SlidingWindow) New(cfg *Config) fiber.Handler {
 		// Otherwise, after the end of "sample window", attackers could launch
 		// a new request with the full window length.
 		if setErr := manager.set(reqCtx, key, e, ttlDuration(resetInSec, expiration)); setErr != nil {
-			mux.Unlock()
+			mu.Unlock()
 			return fmt.Errorf("limiter: failed to persist state: %w", setErr)
 		}
 
 		// Unlock entry
-		mux.Unlock()
+		mu.Unlock()
 
 		// Check if hits exceed the allowed maximum for this request
 		if remaining < 0 {
 			// Return response with Retry-After header
 			// https://tools.ietf.org/html/rfc6584
 			if !cfg.DisableHeaders {
-				c.Set(fiber.HeaderRetryAfter, strconv.FormatUint(resetInSec, 10))
+				c.Set(fiber.HeaderRetryAfter, utils.FormatUint(resetInSec))
 			}
 
 			// Call LimitReached handler
 			return cfg.LimitReached(c)
 		}
 
-		// Continue stack for reaching c.Response().StatusCode()
+		// Continue stack for reaching c.Res().StatusCode()
 		// Store err for returning
 		err = c.Next()
 
@@ -125,10 +119,10 @@ func (SlidingWindow) New(cfg *Config) fiber.Handler {
 
 		if skipHit || !cfg.DisableHeaders {
 			// Lock entry
-			mux.Lock()
+			mu = locks.lock(key) // rehash: c.Next() may have rewritten an unsafe key
 			entry, getErr := manager.get(reqCtx, key)
 			if getErr != nil {
-				mux.Unlock()
+				mu.Unlock()
 				return getErr
 			}
 			e = entry
@@ -146,11 +140,11 @@ func (SlidingWindow) New(cfg *Config) fiber.Handler {
 			rate = int(math.Ceil(float64(e.prevHits)*weight)) + e.currHits
 			remaining = maxRequests - rate
 			if setErr := manager.set(reqCtx, key, e, ttlDuration(resetInSec, expiration)); setErr != nil {
-				mux.Unlock()
+				mu.Unlock()
 				return fmt.Errorf("limiter: failed to persist state: %w", setErr)
 			}
 			// Unlock entry
-			mux.Unlock()
+			mu.Unlock()
 
 			// rate can exceed maxRequests (blocked requests persist their
 			// increment), so clamp remaining to keep the header >= 0.
@@ -160,9 +154,9 @@ func (SlidingWindow) New(cfg *Config) fiber.Handler {
 
 			// We can continue, update RateLimit headers
 			if !cfg.DisableHeaders {
-				c.Set(xRateLimitLimit, strconv.Itoa(maxRequests))
-				c.Set(xRateLimitRemaining, strconv.Itoa(remaining))
-				c.Set(xRateLimitReset, strconv.FormatUint(resetInSec, 10))
+				c.Set(xRateLimitLimit, utils.FormatInt(int64(maxRequests)))
+				c.Set(xRateLimitRemaining, utils.FormatInt(int64(remaining)))
+				c.Set(xRateLimitReset, utils.FormatUint(resetInSec))
 			}
 		}
 
