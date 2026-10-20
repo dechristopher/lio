@@ -169,6 +169,44 @@ func convertUint64(value string) reflect.Value {
 	return invalidValue
 }
 
+// parseNative* adapt the builtin parsers to the (T, bool) shape used by the
+// native slice decode path, mirroring setBuiltinKind's per-kind behavior.
+
+func parseNativeString(s string) (string, bool) { return s, true }
+
+func parseNativeInt(s string) (int, bool) {
+	n, err := utils.ParseInt(s)
+	return int(n), err == nil && int64(int(n)) == n
+}
+
+func parseNativeInt64(s string) (int64, bool) {
+	n, err := utils.ParseInt(s)
+	return n, err == nil
+}
+
+func parseNativeUint(s string) (uint, bool) {
+	n, err := utils.ParseUint(s)
+	return uint(n), err == nil && uint64(uint(n)) == n
+}
+
+func parseNativeUint64(s string) (uint64, bool) {
+	n, err := utils.ParseUint(s)
+	return n, err == nil
+}
+
+func parseNativeFloat64(s string) (float64, bool) {
+	f, err := utils.ParseFloat64(s)
+	return f, err == nil
+}
+
+func parseNativeBool(s string) (bool, bool) {
+	if s == "on" {
+		return true, true
+	}
+	b, err := strconv.ParseBool(s)
+	return b, err == nil
+}
+
 // setBuiltinKind parses val and assigns it directly into v for builtin
 // convertible kinds, avoiding the reflect.Value boxing of the Converter API.
 // handled reports whether the kind is builtin-convertible; ok reports whether
