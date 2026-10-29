@@ -1,3 +1,8 @@
+<p align="center">
+  <img height="125" alt="Fiber Schema" src="https://raw.githubusercontent.com/gofiber/schema/main/.github/logo-dark.svg#gh-dark-mode-only" />
+  <img height="125" alt="Fiber Schema" src="https://raw.githubusercontent.com/gofiber/schema/main/.github/logo.svg#gh-light-mode-only" />
+</p>
+
 # gofiber/schema
 
 Package gofiber/schema converts structs to and from form values.
@@ -78,8 +83,36 @@ The supported field types in the struct are:
 * struct
 * a pointer to one of the above types
 * a slice or a pointer to a slice of one of the above types
+* a map with string keys whose values are one of the non-struct types above, a type with a registered converter or an `encoding.TextUnmarshaler` implementation, or a pointer or slice of those (see below)
 
 Unsupported types are simply ignored, however custom types can be registered to be converted.
+
+### Map fields
+
+A map field is filled from keys of the form `<field>.<key>`, one map entry per key:
+
+```go
+type Filter struct {
+    Attributes map[string]string   `schema:"attributes"` // attributes.colour=red
+    Tags       map[string][]string `schema:"tags"`       // tags.size=m&tags.size=l
+    Limits     map[string]int      `schema:"limits"`     // limits.max=10
+}
+```
+
+The field name matches case-insensitively like any other field, while the key is kept exactly as sent, and everything after the field name is the key (`attributes.a.b` gives the key `a.b`). Each value is decoded as a field of the map's value type would be, so a single-value map takes the last of several values. For a plain built-in value type (a string, bool or number), an empty value adds no entry unless `ZeroEmpty` is set; any other value type, such as a slice, a pointer or a type with a converter or `encoding.TextUnmarshaler`, gets an entry decoded from the empty value as such a field would be. A map is allocated on first use and entries are added to an existing one. A map type with a registered converter or an `encoding.TextUnmarshaler` implementation is decoded as a whole from the field's own key instead.
+
+## Decoding Key/Value Pairs
+
+When values arrive one key/value pair at a time, as a parsed query string's do, `DecodeValues` decodes the pairs without first building the map `Decode` takes:
+
+```go
+keys := []string{"name", "phone", "phone"}
+values := []string{"Jane Doe", "555-5555", "555-0100"}
+
+err := decoder.DecodeValues(&person, keys, values)
+```
+
+`values[i]` is a value of the key `keys[i]`, and a key given more than once has all of its values in the order given, as it would in the map. The two slices must be the same length.
 
 ## Setting Defaults
 
@@ -108,9 +141,34 @@ The `default` tag option is supported for the following types:
 > [!NOTE]  
 > Because primitive types like int, float, bool, unint and their variants have their default (or zero) values set by Golang, it is not possible to distinguish them from a provided value when decoding/encoding form values. In this case, the value provided by the `default` option tag will be always applied. For example, let's assume that the value submitted in the form for `balance` is `0.0` then the default of `10.0` will be applied, even if `0.0` is part of the form data for the `balance` field. In such cases, it is highly recommended to use pointers to allow schema to distinguish between when a form field has no provided value and when a form has a value equal to the corresponding default set by Golang for a particular type. If the type of the `Balance` field above is changed to `*float64`, then the zero value would be `nil`. In this case, if the form data value for `balance` is `0.0`, then the default will not be applied.
 
+<!-- skip-docs -->
 ## ☕ Supporters
 
 Fiber is an open-source project that runs on donations to pay the bills, e.g., our domain name, hosting, and serverless infrastructure. If you want to support Fiber, please become a [GitHub Sponsor](https://github.com/sponsors/gofiber).
+
+<p align="center">
+  <a href="https://www.coderabbit.ai/?utm_source=gofiber&utm_medium=sponsor&utm_content=readme">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://www.coderabbit.ai/images/logo-dark.svg">
+      <img width="280" height="52" alt="CodeRabbit" src="https://www.coderabbit.ai/images/logo-orange.svg">
+    </picture>
+  </a>
+</p>
+<p align="center">
+  <a href="https://blacksmith.sh/?utm_source=gofiber&utm_medium=sponsor&utm_content=readme">
+    <img width="280" height="96" alt="Blacksmith" src="https://raw.githubusercontent.com/gofiber/.github/main/assets/sponsors/blacksmith.png">
+  </a>
+</p>
+<p align="center">
+  <sub><b>Tool Sponsors</b> - supporting Fiber with free IDE licenses and AI credits</sub>
+</p>
+<p align="center">
+  <a href="https://www.jetbrains.com/?from=gofiber" title="JetBrains - IDE licenses"><img width="36" height="36" alt="JetBrains" src="https://github.com/JetBrains.png?size=72"></a>
+  &nbsp;
+  <a href="https://openai.com/?utm_source=gofiber&utm_medium=sponsor&utm_content=readme" title="OpenAI - AI credits"><img width="36" height="36" alt="OpenAI" src="https://github.com/openai.png?size=72"></a>
+  &nbsp;
+  <a href="https://www.anthropic.com/?utm_source=gofiber&utm_medium=sponsor&utm_content=readme" title="Anthropic - AI credits"><img width="36" height="36" alt="Anthropic" src="https://github.com/anthropics.png?size=72"></a>
+</p>
 
 <!-- sponsors -->
 
@@ -118,7 +176,7 @@ Fiber is an open-source project that runs on donations to pay the bills, e.g., o
 
 <table>
 <tr><td valign="top"><strong>🔥 Fiber Guardian</strong></td><td><a href="https://www.coderabbit.ai/?utm_source=cr_org&amp;utm_medium=github" title="@coderabbitai"><img src="https://github.com/coderabbitai.png" width="50" alt="@coderabbitai" /></a></td></tr>
-<tr><td valign="top"><strong>☕ Fiber Supporter</strong></td><td><a href="https://ndole.studio" title="@NdoleStudio"><img src="https://github.com/NdoleStudio.png" width="34" alt="@NdoleStudio" /></a>&nbsp;<a href="https://cyberapper.ai" title="@petercool"><img src="https://github.com/petercool.png" width="34" alt="@petercool" /></a></td></tr>
+<tr><td valign="top"><strong>☕ Fiber Supporter</strong></td><td><a href="https://ndole.studio" title="@NdoleStudio"><img src="https://github.com/NdoleStudio.png" width="34" alt="@NdoleStudio" /></a></td></tr>
 <tr><td valign="top"><strong>🪴 Fiber Friend</strong></td><td><a href="https://github.com/simonheisstpeter" title="@simonheisstpeter"><img src="https://github.com/simonheisstpeter.png" width="32" alt="@simonheisstpeter" /></a></td></tr>
 </table>
 
@@ -126,8 +184,10 @@ Fiber is an open-source project that runs on donations to pay the bills, e.g., o
 
 <table>
 <tr><td valign="top"><strong>🚀 Fiber Hero</strong></td><td><a href="https://www.thanks.dev" title="@thnxdev"><img src="https://github.com/thnxdev.png" width="40" alt="@thnxdev" /></a></td></tr>
+<tr><td valign="top"><strong>🪴 Fiber Friend</strong></td><td><a href="https://github.com/Gl1tchedPixzl" title="@Gl1tchedPixzl"><img src="https://github.com/Gl1tchedPixzl.png" width="26" alt="@Gl1tchedPixzl" /></a></td></tr>
 </table>
 <!-- sponsors -->
+<!-- skip-docs -->
 
 ## License
 

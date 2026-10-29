@@ -120,6 +120,20 @@ This is needed for disambiguation: if the nested struct also had a slice
 field, we could not translate multiple values to it if we did not use an
 index for the parent struct.
 
+A map field with string keys is filled one entry per key, from keys of the
+form "<field>.<key>". So to fill a Person with arbitrary attributes, like:
+
+	type Person struct {
+		Name       string
+		Attributes map[string]string
+	}
+
+...the source map could have the keys "Name", "Attributes.eyes" and
+"Attributes.hair". The key is kept exactly as sent, and everything after the
+field name is the key. Map values are decoded like fields of the value type:
+scalars, types with a converter or a TextUnmarshaler, pointers to them, and
+slices of them.
+
 There's also the possibility to create a custom type that implements the
 TextUnmarshaler interface, and in this case there's no need to register
 a converter, like:
