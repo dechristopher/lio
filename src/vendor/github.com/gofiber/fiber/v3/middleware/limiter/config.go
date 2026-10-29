@@ -32,7 +32,9 @@ type Config struct {
 	// }
 	MaxFunc func(c fiber.Ctx) int
 
-	// A function to dynamically calculate the expiration time for rate limiter entries
+	// A function to dynamically calculate the expiration time for rate limiter entries.
+	// Window accounting is whole-second, so a positive value below one second is floored to
+	// one second. A zero or negative value falls back to the configured Expiration.
 	//
 	// Default: A function that returns the static `Expiration` value from the config.
 	ExpirationFunc func(c fiber.Ctx) time.Duration
@@ -43,7 +45,11 @@ type Config struct {
 	// utils.Timestamp() is used on the hot path.
 	clock func() time.Time
 
-	// KeyGenerator allows you to generate custom keys, by default c.IP() is used
+	// KeyGenerator allows you to generate custom keys, by default c.IP() is used.
+	// Behind a reverse proxy, c.IP() only identifies a client when TrustProxy,
+	// TrustProxyConfig and ProxyHeader are configured, plus EnableIPValidation when
+	// the header is a chain the proxy appends to (X-Forwarded-For); otherwise it is
+	// the proxy's address or the raw, client-influenced forwarded header.
 	//
 	// Default: func(c fiber.Ctx) string {
 	//   return c.IP()
@@ -127,7 +133,7 @@ func configDefault(config ...Config) Config {
 	if cfg.Max <= 0 {
 		cfg.Max = ConfigDefault.Max
 	}
-	if int(cfg.Expiration.Seconds()) <= 0 {
+	if cfg.Expiration <= 0 {
 		cfg.Expiration = ConfigDefault.Expiration
 	}
 	if cfg.KeyGenerator == nil {
@@ -150,6 +156,25 @@ func configDefault(config ...Config) Config {
 		}
 	}
 	return cfg
+}
+
+// windowSeconds turns a per-request expiration into the whole-second window used
+// for accounting. A zero or negative value falls back to configured, the
+// Expiration the limiter was set up with. A positive sub-second value floors
+// to 1s instead of truncating to a 0-second window (NaN rate in sliding, no
+// limiting at all in fixed).
+func windowSeconds(d, configured time.Duration) uint64 {
+	if d <= 0 {
+		d = configured
+	}
+	if d <= 0 {
+		// A Config that did not go through configDefault carries no Expiration.
+		d = ConfigDefault.Expiration
+	}
+	if sec := uint64(d.Seconds()); sec > 0 {
+		return sec
+	}
+	return 1
 }
 
 // currentSecond returns the current Unix time in whole seconds used for window
