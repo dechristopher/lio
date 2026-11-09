@@ -2,12 +2,15 @@ package logger
 
 import (
 	"errors"
-	"fmt"
 	"maps"
 	"strings"
 	"sync"
 
+	"github.com/valyala/fasthttp"
+
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/internal/fieldname"
+	"github.com/gofiber/fiber/v3/internal/mediatype"
 )
 
 // Logger variables
@@ -88,54 +91,120 @@ func MustRegisterTag(tag string, fn LogFunc) {
 
 // createTagMap function merged the default with the custom tags
 func createTagMap(cfg *Config) map[string]LogFunc {
-	// Set default tags
+	// Set default tags. Those reading the request log nothing once data.timeoutResp is set:
+	// the timed-out handler may still use it, and even fasthttp's reads write shared state.
 	tagFunctions := map[string]LogFunc{
-		TagReferer: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Get(fiber.HeaderReferer))
+		TagReferer: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Get(fiber.HeaderReferer))
 		},
 		TagProtocol: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
 			return output.WriteString(c.Protocol())
 		},
-		TagScheme: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Scheme())
+		TagScheme: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			// Scheme echoes X-Forwarded-Proto / X-Url-Scheme once the proxy is
+			// trusted, so it is request-derived like ${ips} and ${ua}.
+			if proxyHeadersInUse(c, data) {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Scheme())
 		},
 		TagPort: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
 			return output.WriteString(c.Port())
 		},
-		TagIP: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.IP())
+		TagIP: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			return writeSanitizedString(output, clientIP(c, data))
 		},
-		TagIPs: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Get(fiber.HeaderXForwardedFor))
+		TagIPs: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			// Ask the framework for the chain rather than read the header a second way:
+			// a lower-case "x-forwarded-for:" logged an empty chain while the trust
+			// decisions used it. c.IPs() splits and trims, so both wire forms match.
+			ips := c.IPs()
+			n := 0
+			for i, ip := range ips {
+				if i > 0 {
+					m, err := output.WriteString(",")
+					n += m
+					if err != nil {
+						return n, err
+					}
+				}
+				m, err := writeSanitizedString(output, ip)
+				n += m
+				if err != nil {
+					return n, err
+				}
+			}
+			return n, nil
 		},
-		TagHost: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Hostname())
+		TagHost: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if proxyHeadersInUse(c, data) {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Hostname())
 		},
 		TagPath: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Path())
+			return writeSanitizedString(output, c.Path())
 		},
 		TagURL: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.OriginalURL())
+			return writeSanitizedString(output, c.OriginalURL())
 		},
-		TagUA: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Get(fiber.HeaderUserAgent))
+		TagUA: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Get(fiber.HeaderUserAgent))
 		},
-		TagBody: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.Write(c.Body())
+		TagBody: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			if err := bufferBodyStream(c); err != nil {
+				return writeSanitizedString(output, err.Error())
+			}
+			res := c.Res()
+			if res.Written() {
+				return writeSanitized(output, c.Body())
+			}
+			// Body answers an undecodable Content-Encoding itself; the tag only observes.
+			status := res.StatusCode()
+			body := c.Body()
+			if res.Written() {
+				res.Status(status)
+				res.ResetBody()
+			}
+			return writeSanitized(output, body)
 		},
 		TagBytesReceived: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return appendInt(output, c.Request().Header.ContentLength())
+			return appendInt(output, c.Req().ContentLength())
 		},
-		TagBytesSent: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return appendInt(output, c.Response().Header.ContentLength())
+		TagBytesSent: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			return appendInt(output, response(c, data).Header.ContentLength())
 		},
 		TagRoute: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Route().Path)
+			// Normally the registered pattern, but Ctx.Route falls back to a
+			// synthetic route carrying the raw request path when no route
+			// matched, so this can be request-derived too.
+			return writeSanitizedString(output, c.Route().Path)
 		},
-		TagResBody: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.Write(c.Response().Body())
+		TagResBody: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if resp := data.timeoutResp; resp != nil {
+				return writeSanitized(output, resp.Body())
+			}
+			// Res.Body answers nil for a streamed response rather than draining
+			// it, so logging cannot buffer an SSE or SendFile body it was only
+			// meant to observe.
+			return writeSanitized(output, c.Res().Body())
 		},
-		TagReqHeaders: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
+		TagReqHeaders: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
 			out := make(map[string][]string)
 			if err := c.Bind().Header(&out); err != nil {
 				return 0, err
@@ -145,10 +214,13 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 			for k, v := range out {
 				reqHeaders = append(reqHeaders, k+"="+strings.Join(v, ","))
 			}
-			return output.WriteString(strings.Join(reqHeaders, "&"))
+			return writeSanitizedString(output, strings.Join(reqHeaders, "&"))
 		},
-		TagQueryStringParams: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
-			return output.WriteString(c.Request().URI().QueryArgs().String())
+		TagQueryStringParams: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Req().URI().QueryArgs().String())
 		},
 
 		TagBlack: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
@@ -182,59 +254,90 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 			if data.ChainErr != nil {
 				if cfg.areColorsEnabled {
 					colors := c.App().Config().ColorScheme
-					return fmt.Fprintf(output, "%s%s%s", colors.Red, data.ChainErr.Error(), colors.Reset)
+					return writeSanitizedColored(output, colors.Red, data.ChainErr.Error(), colors.Reset)
 				}
-				return output.WriteString(data.ChainErr.Error())
+				return writeSanitizedString(output, data.ChainErr.Error())
 			}
 			return output.WriteString("-")
 		},
-		TagReqHeader: func(output Buffer, c fiber.Ctx, _ *Data, extraParam string) (int, error) {
-			return output.WriteString(c.Get(extraParam))
+		TagReqHeader: func(output Buffer, c fiber.Ctx, data *Data, extraParam string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Get(extraParam))
 		},
-		TagRespHeader: func(output Buffer, c fiber.Ctx, _ *Data, extraParam string) (int, error) {
-			return output.WriteString(c.GetRespHeader(extraParam))
+		TagRespHeader: func(output Buffer, c fiber.Ctx, data *Data, extraParam string) (int, error) {
+			return writeSanitized(output, fieldname.Peek(&response(c, data).Header, extraParam))
 		},
-		TagQuery: func(output Buffer, c fiber.Ctx, _ *Data, extraParam string) (int, error) {
-			return output.WriteString(fiber.Query[string](c, extraParam))
+		TagQuery: func(output Buffer, c fiber.Ctx, data *Data, extraParam string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			return writeSanitizedString(output, fiber.Query[string](c, extraParam))
 		},
-		TagForm: func(output Buffer, c fiber.Ctx, _ *Data, extraParam string) (int, error) {
-			return output.WriteString(c.FormValue(extraParam))
+		TagForm: func(output Buffer, c fiber.Ctx, data *Data, extraParam string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			if req := c.Request(); req.IsBodyStream() {
+				// Only a form body is a FormValue source; past BodyLimit just the query string is left.
+				ct := req.Header.ContentType()
+				if (mediatype.IsForm(ct) || mediatype.ParsesPostArgs(ct)) && bufferBodyStream(c) != nil {
+					return writeSanitizedString(output, c.Query(extraParam))
+				}
+			}
+			return writeSanitizedString(output, c.FormValue(extraParam))
 		},
-		TagCookie: func(output Buffer, c fiber.Ctx, _ *Data, extraParam string) (int, error) {
-			return output.WriteString(c.Cookies(extraParam))
+		TagCookie: func(output Buffer, c fiber.Ctx, data *Data, extraParam string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
+			return writeSanitizedString(output, c.Cookies(extraParam))
 		},
-		TagLocals: func(output Buffer, c fiber.Ctx, _ *Data, extraParam string) (int, error) {
+		TagLocals: func(output Buffer, c fiber.Ctx, data *Data, extraParam string) (int, error) {
+			if data.timeoutResp != nil {
+				return 0, nil
+			}
 			switch v := c.Locals(extraParam).(type) {
 			case []byte:
-				return output.Write(v)
+				return writeSanitized(output, v)
 			case string:
-				return output.WriteString(v)
+				return writeSanitizedString(output, v)
 			case nil:
 				return 0, nil
 			default:
-				return fmt.Fprintf(output, "%v", v)
+				// %v can render arbitrary text (e.g. a struct holding request
+				// data), so it goes through the same scrubbing.
+				return writeSanitizedValue(output, v)
 			}
 		},
-		TagStatus: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
+		TagStatus: func(output Buffer, c fiber.Ctx, data *Data, _ string) (int, error) {
+			status := response(c, data).StatusCode()
 			if cfg.areColorsEnabled {
+				// Written in place rather than with fmt: "%s%3d%s" reflects
+				// over three arguments and boxes the status, which measured
+				// well over twice the cost of the same three writes.
 				colors := c.App().Config().ColorScheme
-				return fmt.Fprintf(output, "%s%3d%s", statusColor(c.Response().StatusCode(), &colors), c.Response().StatusCode(), colors.Reset)
+				return writeColoredInt(output, statusColor(status, &colors), status, 3, colors.Reset)
 			}
-			return appendInt(output, c.Response().StatusCode())
+			return appendInt(output, status)
 		},
 		TagMethod: func(output Buffer, c fiber.Ctx, _ *Data, _ string) (int, error) {
+			method := c.Method()
 			if cfg.areColorsEnabled {
 				colors := c.App().Config().ColorScheme
-				return fmt.Fprintf(output, "%s%s%s", methodColor(c.Method(), &colors), c.Method(), colors.Reset)
+				return writeColored(output, methodColor(method, &colors), method, colors.Reset)
 			}
-			return output.WriteString(c.Method())
+			return output.WriteString(method)
 		},
 		TagPid: func(output Buffer, _ fiber.Ctx, data *Data, _ string) (int, error) {
 			return output.WriteString(data.Pid)
 		},
 		TagLatency: func(output Buffer, _ fiber.Ctx, data *Data, _ string) (int, error) {
-			latency := data.Stop.Sub(data.Start)
-			return fmt.Fprintf(output, "%13v", latency)
+			// Rendered digit-wise rather than with fmt: "%13v" reflects over
+			// the Duration, allocates its String, and boxes it, which measured
+			// ~5x the cost of appending the same 13 columns in place.
+			return appendDurationTag(output, data.Stop.Sub(data.Start), 13)
 		},
 		TagTime: func(output Buffer, _ fiber.Ctx, data *Data, _ string) (int, error) {
 			return output.WriteString(data.Timestamp)
@@ -248,4 +351,35 @@ func createTagMap(cfg *Config) map[string]LogFunc {
 	maps.Copy(tagFunctions, cfg.CustomTags)
 
 	return tagFunctions
+}
+
+// timeoutResponse returns what fasthttp sends for a request timeout.New gave up on, or nil.
+// IsAbandoned goes first: its atomic load orders the read after the timeout middleware's write.
+func timeoutResponse(c fiber.Ctx) *fasthttp.Response {
+	if !c.IsAbandoned() {
+		return nil
+	}
+	return c.RequestCtx().LastTimeoutErrorResponse()
+}
+
+// response returns the response the client receives: the timed-out handler may still write c's own.
+func response(c fiber.Ctx, data *Data) *fasthttp.Response {
+	if data.timeoutResp != nil {
+		return data.timeoutResp
+	}
+	return c.Response()
+}
+
+// proxyHeadersInUse reports whether IP, Host and Scheme would read the headers of a request
+// timeout.New gave up on, which its handler may still be reading.
+func proxyHeadersInUse(c fiber.Ctx, data *Data) bool {
+	return data.timeoutResp != nil && c.IsProxyTrusted()
+}
+
+// clientIP is c.IP, or empty where that would read headers the timed-out handler may still read.
+func clientIP(c fiber.Ctx, data *Data) string {
+	if proxyHeadersInUse(c, data) {
+		return ""
+	}
+	return c.IP()
 }

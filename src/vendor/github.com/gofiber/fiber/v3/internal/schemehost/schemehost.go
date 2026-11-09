@@ -1,12 +1,15 @@
 // Package schemehost compares the scheme and host of two URLs for same-origin
-// checks. It is shared by the CSRF middleware (Origin/Referer validation) and
-// the core redirect logic (open-redirect prevention).
+// checks. It is shared by the CSRF middleware (Origin/Referer validation), the
+// core redirect logic (open-redirect prevention) and the proxy Balancer.
 package schemehost
 
 import (
+	"net/netip"
 	"net/url"
 	"strings"
 
+	"github.com/gofiber/fiber/v3/internal/ipv6host"
+	"github.com/gofiber/utils/v2"
 	utilsstrings "github.com/gofiber/utils/v2/strings"
 )
 
@@ -15,76 +18,206 @@ const (
 	schemeHTTPS = "https"
 )
 
+// schemePorts is the single source of truth for the schemes whose default
+// port is normalized away during origin comparison.
+var schemePorts = [...]struct {
+	scheme string
+	port   string
+}{
+	{schemeHTTP, "80"},
+	{schemeHTTPS, "443"},
+}
+
+// foldSchemePort resolves scheme against schemePorts, ASCII
+// case-insensitively, returning the canonical lowercase scheme and its
+// default port.
+func foldSchemePort(scheme string) (canonical, port string, known bool) { //nolint:nonamedreturns // names document the three results
+	for _, e := range schemePorts {
+		if utils.EqualFold(scheme, e.scheme) {
+			return e.scheme, e.port, true
+		}
+	}
+	return "", "", false
+}
+
 // Match reports whether (schemeA, hostA) and (schemeB, hostB) denote the same
 // origin. Scheme comparison is case-insensitive and default ports (http:80,
 // https:443) are normalized so "example.com" and "example.com:443" match.
 func Match(schemeA, hostA, schemeB, hostB string) bool {
-	normalizedSchemeA := utilsstrings.ToLower(schemeA)
-	normalizedSchemeB := utilsstrings.ToLower(schemeB)
-
-	normalizedHostA := normalizeSchemeHost(normalizedSchemeA, hostA)
-	normalizedHostB := normalizeSchemeHost(normalizedSchemeB, hostB)
-
-	return normalizedSchemeA == normalizedSchemeB && normalizedHostA == normalizedHostB
-}
-
-func normalizeSchemeHost(scheme, host string) string {
-	host = utilsstrings.ToLower(host)
-
-	var defaultPort string
-	switch scheme {
-	case schemeHTTP:
-		defaultPort = "80"
-	case schemeHTTPS:
-		defaultPort = "443"
-	default:
-		return host
+	if !utils.EqualFold(schemeA, schemeB) {
+		return false
 	}
 
-	// Fast path for a clean "host" or "host:port" value (the common case),
-	// avoiding the url.Parse allocation. Anything unusual (userinfo, path,
-	// percent-encoding, bracketed IPv6, control chars, empty/invalid port, ...)
-	// falls back to the url.Parse path, which preserves the exact legacy behavior.
-	if hasPort, clean := classifyHostPort(host); clean {
-		if hasPort {
+	// Identical host strings always normalize identically, so they denote the
+	// same origin once the schemes match. This is the dominant same-origin
+	// input (e.g. Origin-vs-Host on non-CORS requests).
+	if hostA == hostB {
+		return true
+	}
+
+	scheme, defaultPort, known := foldSchemePort(schemeA)
+	if !known {
+		// Unknown schemes get no port normalization: the hosts must simply be
+		// equal, ASCII case-insensitively.
+		return utils.EqualFold(hostA, hostB)
+	}
+
+	// Fast path for two clean "host" or "host:port" values (the common case):
+	// compare the host parts case-insensitively and the effective ports
+	// exactly, without allocating lowered or port-normalized copies.
+	if hostOnlyA, portA, cleanA := splitCleanHostPort(hostA); cleanA {
+		if hostOnlyB, portB, cleanB := splitCleanHostPort(hostB); cleanB {
+			if portA == "" {
+				portA = defaultPort
+			}
+			if portB == "" {
+				portB = defaultPort
+			}
+			return portA == portB && utils.EqualFold(hostOnlyA, hostOnlyB)
+		}
+	}
+
+	// Two bracketed IPv6 hosts compare by address, so every spelling matches.
+	if addrA, portA, okA := splitIPv6HostPort(hostA, defaultPort); okA {
+		if addrB, portB, okB := splitIPv6HostPort(hostB, defaultPort); okB {
+			return addrA == addrB && portA == portB
+		}
+	}
+
+	// Anything unusual (userinfo, percent-encoding, an IPv6 zone, control
+	// chars, invalid port, ...) takes the legacy normalize-and-compare path.
+	return normalizeHostPort(scheme, hostA, defaultPort) == normalizeHostPort(scheme, hostB, defaultPort)
+}
+
+// MatchStrict is Match for one scheme without the url.Parse fallback: a value that is not a plain
+// host with an optional port matches nothing, so no other parser can read it as another host.
+func MatchStrict(scheme, hostA, hostB string) bool {
+	_, defaultPort, _ := foldSchemePort(scheme)
+	nameA, portA, okA := splitStrictHostPort(hostA, defaultPort)
+	nameB, portB, okB := splitStrictHostPort(hostB, defaultPort)
+	return okA && okB && portA == portB && utils.EqualFold(nameA, nameB)
+}
+
+// splitStrictHostPort splits a reg-name, IPv4 or bracketed IPv6 host from its port, defaultPort when
+// absent or empty. Userinfo, an escape, an IPv6 zone or any other byte makes it not ok.
+func splitStrictHostPort(s, defaultPort string) (host, port string, ok bool) { //nolint:nonamedreturns // names document the three results
+	end := 0
+	if inner, bracketed := strings.CutPrefix(s, "["); bracketed {
+		end = strings.IndexByte(inner, ']')
+		if end <= 0 || !onlyBytes(inner[:end], &ipv6LiteralBytes) {
+			return "", "", false
+		}
+		end += len("[]")
+	} else {
+		for end < len(s) && regNameBytes[s[end]] {
+			end++
+		}
+	}
+	switch rest := s[end:]; {
+	case end == 0:
+		return "", "", false
+	case rest == "" || rest == ":":
+		return s[:end], defaultPort, true
+	case rest[0] == ':' && allDigits(rest[1:]):
+		return s[:end], rest[1:], true
+	default:
+		return "", "", false
+	}
+}
+
+// splitIPv6HostPort splits "[ipv6]" or "[ipv6]:port" into the address and the
+// port, defaultPort when absent. A zone or anything else makes it not ok.
+func splitIPv6HostPort(s, defaultPort string) (netip.Addr, string, bool) {
+	inner, bracketed := strings.CutPrefix(s, "[")
+	end := strings.IndexByte(inner, ']')
+	if !bracketed || end < 0 {
+		return netip.Addr{}, "", false
+	}
+	addr, ok := ipv6host.Parse(inner[:end])
+	switch rest := inner[end+1:]; {
+	case !ok:
+		return netip.Addr{}, "", false
+	case rest == "":
+		return addr, defaultPort, true
+	case rest[0] == ':' && allDigits(rest[1:]):
+		return addr, rest[1:], true
+	default:
+		return netip.Addr{}, "", false
+	}
+}
+
+var (
+	regNameBytes     = byteSet("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
+	ipv6LiteralBytes = byteSet("0123456789abcdefABCDEF:.")
+)
+
+func byteSet(s string) [256]bool {
+	var set [256]bool
+	for i := 0; i < len(s); i++ {
+		set[s[i]] = true
+	}
+	return set
+}
+
+func onlyBytes(s string, set *[256]bool) bool {
+	for i := 0; i < len(s); i++ {
+		if !set[s[i]] {
+			return false
+		}
+	}
+	return true
+}
+
+// normalizeHostPort lowercases host and appends defaultPort when no explicit
+// port is present. scheme is only used by the url.Parse fallback.
+func normalizeHostPort(scheme, host, defaultPort string) string {
+	host = ipv6host.Canonical(utilsstrings.ToLower(host))
+
+	// Clean "host" or "host:port" values (e.g. the clean side of a mixed
+	// clean/unclean pair; Match handles the clean/clean case itself) avoid the
+	// url.Parse allocation. Anything unusual (userinfo, path, percent-encoding,
+	// bracketed IPv6, control chars, empty/invalid port, ...) falls back to the
+	// url.Parse path, which preserves the exact legacy behavior.
+	if _, port, clean := splitCleanHostPort(host); clean {
+		if port != "" {
 			return host
 		}
 		return host + ":" + defaultPort
 	}
 
-	return normalizeSchemeHostViaParse(scheme, host, defaultPort)
+	return normalizeHostPortViaParse(scheme, host, defaultPort)
 }
 
-// classifyHostPort reports whether host is a plain "<reg-name-or-IPv4>" or
-// "<reg-name-or-IPv4>:<port>" value (clean) and, if so, whether it carries an
-// explicit numeric port. The accepted character set is deliberately narrow
-// (lowercase ASCII letters, digits, '.', '-', and a single ':'); anything else,
-// including bracketed IPv6 literals, returns clean=false and is handled by the
+// splitCleanHostPort splits a plain "<reg-name-or-IPv4>" or
+// "<reg-name-or-IPv4>:<port>" value (clean) into its host and port parts. The
+// accepted character set is deliberately narrow (ASCII letters, digits, '.',
+// '-', and a single ':' followed by digits); anything else, including
+// bracketed IPv6 literals, returns clean=false and is handled by the
 // url.Parse fallback so behavior stays identical to the legacy implementation.
-func classifyHostPort(host string) (hasPort, clean bool) { //nolint:nonamedreturns // names document the two booleans
+func splitCleanHostPort(s string) (host, port string, clean bool) { //nolint:nonamedreturns // names document the three results
 	colon := -1
-	for i := 0; i < len(host); i++ {
-		c := host[i]
+	for i := 0; i < len(s); i++ {
+		c := s[i]
 		switch {
-		case c >= 'a' && c <= 'z', c >= '0' && c <= '9', c == '.', c == '-':
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '.', c == '-':
 			// safe reg-name / IPv4 character
 		case c == ':':
 			if colon >= 0 {
-				return false, false // more than one colon -> not a clean host:port
+				return "", "", false // more than one colon -> not a clean host:port
 			}
 			colon = i
 		default:
-			return false, false // brackets, control chars, anything else
+			return "", "", false // brackets, control chars, anything else
 		}
 	}
 
 	if colon < 0 {
-		return false, host != "" // no port; empty host falls back to url.Parse
+		return s, "", s != "" // no port; empty host falls back to url.Parse
 	}
-	if !allDigits(host[colon+1:]) {
-		return false, false // "host:" or "host:abc" -> let url.Parse decide
+	if !allDigits(s[colon+1:]) {
+		return "", "", false // "host:" or "host:abc" -> let url.Parse decide
 	}
-	return true, true
+	return s[:colon], s[colon+1:], true
 }
 
 // allDigits reports whether s is non-empty and all ASCII digits.
@@ -100,9 +233,9 @@ func allDigits(s string) bool {
 	return true
 }
 
-// normalizeSchemeHostViaParse is the url.Parse-based fallback. host is already
+// normalizeHostPortViaParse is the url.Parse-based fallback. host is already
 // lowercased and scheme is known to be http or https.
-func normalizeSchemeHostViaParse(scheme, host, defaultPort string) string {
+func normalizeHostPortViaParse(scheme, host, defaultPort string) string {
 	parsedHost, err := url.Parse(scheme + "://" + host)
 	if err != nil {
 		return host

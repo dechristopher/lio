@@ -53,7 +53,8 @@ type Config struct {
 	// Optional. Default: false
 	Compress bool `json:"compress"`
 
-	// When set to true, enables byte range requests.
+	// When set to true, enables byte range requests. A request for several
+	// ranges, or whose If-Range does not match, gets the whole file.
 	//
 	// Optional. Default: false
 	ByteRange bool `json:"byte_range"`
@@ -67,6 +68,12 @@ type Config struct {
 	//
 	// Optional. Default: false.
 	Download bool `json:"download"`
+
+	// When set to true, symbolic links that leave the root, and absolute ones,
+	// are followed. Without FS only; leave it off unless such links are intended.
+	//
+	// Optional. Default: false.
+	AllowSymlinksOutsideRoot bool `json:"allow_symlinks_outside_root"`
 }
 
 // ConfigDefault is the default config

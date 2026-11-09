@@ -6,16 +6,17 @@ import (
 )
 
 var (
-	errInvalidIPv6Host    = errors.New("invalid IPv6 host")
-	errInvalidIPv6Zone    = errors.New("invalid IPv6 zone")
-	errInvalidIPv6Address = errors.New("invalid IPv6 address")
+	errInvalidIPv6Host    = errors.New("invalid ipv6 host")
+	errInvalidIPv6Zone    = errors.New("invalid ipv6 zone")
+	errInvalidIPv6Address = errors.New("invalid ipv6 address")
 )
 
 func validateIPv6Literal(host []byte) error {
 	if len(host) == 0 || host[0] != '[' {
 		return nil
 	}
-	end := bytes.IndexByte(host, ']')
+	// The zone may contain an escaped ']' (RFC 6874), so the closing bracket is the last one.
+	end := bytes.LastIndexByte(host, ']')
 	if end < 0 || end == 1 {
 		return errInvalidIPv6Host
 	}
