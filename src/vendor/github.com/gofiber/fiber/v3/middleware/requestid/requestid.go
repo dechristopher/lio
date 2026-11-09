@@ -4,8 +4,10 @@ import (
 	"sync"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/internal/bytepolicy"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/utils/v2"
+	"github.com/gofiber/utils/v2/swar"
 )
 
 // The contextKey type is unexported to prevent collisions with context keys defined in
@@ -75,9 +77,23 @@ func isValidRequestID(rid string) bool {
 		return false
 	}
 
-	for i := 0; i < len(rid); i++ {
-		c := rid[i]
-		if c < 0x20 || c > 0x7e {
+	// Check eight bytes per iteration, finishing inputs of 8+ bytes with
+	// one overlapping word; shorter ones are checked byte-wise.
+	n := len(rid)
+	i := 0
+	for ; i+swar.WordLen <= n; i += swar.WordLen {
+		if bytepolicy.NonVisibleASCIIMask(swar.Load8(rid, i)) != 0 {
+			return false
+		}
+	}
+	if i == n {
+		return true
+	}
+	if n >= swar.WordLen {
+		return bytepolicy.NonVisibleASCIIMask(swar.Load8(rid, n-swar.WordLen)) == 0
+	}
+	for ; i < n; i++ {
+		if bytepolicy.IsNonVisibleASCII(rid[i]) {
 			return false
 		}
 	}
