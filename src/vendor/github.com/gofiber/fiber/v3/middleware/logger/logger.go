@@ -120,9 +120,11 @@ func New(config ...Config) fiber.Handler {
 		} else {
 			data.Timestamp = ""
 		}
-		// These compiled chains are shared across requests. The default logger and
-		// custom LoggerFunc implementations must only read them, for example via
-		// logtemplate.ExecuteChains.
+		// These compiled chains are shared across requests, so a custom
+		// LoggerFunc must only read them — never append to or reorder them.
+		// Walk Data.TemplateChain and Data.LogFuncChain in step; the helper the
+		// default logger uses for this lives in internal/ and is not importable
+		// from outside the module.
 		data.TemplateChain = templateChain
 		data.LogFuncChain = logFuncChain
 		// put data back in the pool
@@ -137,10 +139,14 @@ func New(config ...Config) fiber.Handler {
 		chainErr := c.Next()
 
 		data.ChainErr = chainErr
+		data.timeoutResp = timeoutResponse(c)
 		// Manually call error handler
 		if chainErr != nil {
 			if err := errHandler(c, chainErr); err != nil {
-				_ = c.SendStatus(fiber.StatusInternalServerError) //nolint:errcheck // TODO: Explain why we ignore the error here
+				// The error handler failed, so fall back to a bare 500. SendStatus only
+				// sets the status and body on the response and does no I/O; if it fails,
+				// there is no further fallback left.
+				_ = c.SendStatus(fiber.StatusInternalServerError) //nolint:errcheck // no further fallback if this fails
 			}
 		}
 
@@ -150,7 +156,12 @@ func New(config ...Config) fiber.Handler {
 		}
 
 		// Logger instance & update some logger data fields
-		return cfg.LoggerFunc(c, data, &cfg)
+		err := cfg.LoggerFunc(c, data, &cfg)
+		if err == nil && data.timeoutResp != nil {
+			// errHandler answered nothing, and the error keeps the middleware before us off the handler's response.
+			return chainErr
+		}
+		return err
 	}
 }
 

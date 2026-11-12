@@ -6,7 +6,7 @@ package fiber
 
 import (
 	"fmt"
-	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/gofiber/utils/v2"
@@ -305,7 +305,7 @@ func (d *domainRouter) wrapHandlers(handlers []Handler) []Handler {
 						values: values,
 					}
 				}
-				c.Locals(cacheKey, check)
+				setLocal(c, cacheKey, check)
 			}
 
 			if !check.isMatched {
@@ -314,13 +314,36 @@ func (d *domainRouter) wrapHandlers(handlers []Handler) []Handler {
 
 			// Reuse the cached domainParams (or nil to clear stale values)
 			// instead of allocating a new struct per handler invocation.
-			c.Locals(domainLocalsKey, check.params)
+			setLocal(c, domainLocalsKey, check.params)
 
 			return origHandler(c)
 		}
 	}
 
 	return result
+}
+
+// hosts returns the patterns a route registered through d records, which are
+// the ones wrapHandlers filters its handlers on. See Route.hosts.
+func (d *domainRouter) hosts() []domainMatcher {
+	return []domainMatcher{d.matcher}
+}
+
+// servesHost reports whether the request's hostname satisfies every Domain
+// pattern the route is behind, which is whether its handlers run or decline.
+func (r *Route) servesHost(c *DefaultCtx) bool {
+	if len(r.hosts) == 0 {
+		return true
+	}
+
+	hostname := c.Hostname()
+	for i := range r.hosts {
+		if matched, _ := r.hosts[i].match(hostname); !matched {
+			return false
+		}
+	}
+
+	return true
 }
 
 // registerPath returns the full path for registration, taking group prefix into account.
@@ -348,39 +371,16 @@ func (d *domainRouter) registerGroup() *Group {
 //	    return c.Next()
 //	})
 func (d *domainRouter) Use(args ...any) Router {
-	var subApp *App
-	var prefix string
-	var prefixes []string
-	var handlers []Handler
-
-	for i := range args {
-		switch arg := args[i].(type) {
-		case string:
-			prefix = arg
-		case []string:
-			prefixes = arg
-		case *App:
-			subApp = arg
-		default:
-			handler, ok := toFiberHandler(arg)
-			if !ok {
-				panic(fmt.Sprintf("use: invalid handler %v", reflect.TypeOf(arg)))
-			}
-			handlers = append(handlers, handler)
-		}
-	}
-
-	if len(prefixes) == 0 {
-		prefixes = append(prefixes, prefix)
-	}
+	prefixes, subApp, handlers := useArgs(args)
 
 	for _, prefix := range prefixes {
 		if subApp != nil {
-			return d.mount(prefix, subApp)
+			d.mount(prefix, subApp)
+			continue
 		}
 
 		wrapped := d.wrapHandlers(handlers)
-		d.app.register([]string{methodUse}, d.registerPath(prefix), d.registerGroup(), wrapped...)
+		d.app.registerForHosts(d.hosts(), []string{methodUse}, d.registerPath(prefix), d.registerGroup(), wrapped...)
 	}
 
 	// Mark the underlying group so Name() can distinguish between
@@ -418,35 +418,76 @@ func (d *domainRouter) mount(prefix string, subApp *App) Router {
 	// Create a wrapper app so that the original sub-app is not mutated.
 	// This allows the same sub-app to be reused (e.g., mounted on multiple
 	// domains) without double-wrapping handlers.
+	//
+	// The method table comes from the app being mounted on, not from the
+	// sub-app: processSubAppsRoutes reads the wrapper's stack at the parent's
+	// method indexes, so a wrapper with a shorter stack would put that read out
+	// of range.
 	wrapperApp := New(Config{
-		CaseSensitive: subApp.config.CaseSensitive,
-		StrictRouting: subApp.config.StrictRouting,
-		RegexHandler:  subApp.config.RegexHandler,
+		CaseSensitive:           subApp.config.CaseSensitive,
+		StrictRouting:           subApp.config.StrictRouting,
+		RegexHandler:            subApp.config.RegexHandler,
+		RequestMethods:          d.app.config.RequestMethods,
+		DisableHeadAutoRegister: subApp.config.DisableHeadAutoRegister,
 	})
-	wrapperApp.customConstraints = subApp.customConstraints
+	// Every route the wrapper carries is filtered by the pattern of the mount
+	// it came from, which is what the automatic HEAD routes have to respect:
+	// the apps behind one wrapper do not all answer for the same hostnames.
+	wrapperApp.mountFields.hostScopedRoutes = true
 
-	// Clone routes from the sub-app with domain-wrapped handlers.
-	// Lock the sub-app while reading to prevent data races with concurrent
-	// route registration.
-	subApp.mutex.Lock()
-	defer subApp.mutex.Unlock()
-	for m := range subApp.stack {
-		for _, route := range subApp.stack[m] {
-			clonedRoute := subApp.copyRoute(route)
-			if len(clonedRoute.Handlers) > 0 {
-				clonedRoute.Handlers = d.wrapHandlers(clonedRoute.Handlers)
-			}
-			wrapperApp.stack[m] = append(wrapperApp.stack[m], clonedRoute)
-		}
+	// Clone routes from the sub-app with domain-wrapped handlers. The clone
+	// also collects the constraints of every app it walks, since the wrapper is
+	// what the routes are re-parsed against when the mount is expanded, and
+	// marks the routes of the apps that register no automatic HEAD routes.
+	d.cloneRoutesForDomain(wrapperApp, subApp)
+
+	// Give the clones their automatic HEAD routes. A mounted app normally gets
+	// them from startupProcess, which walks the parent's app list — and the
+	// wrapper is deliberately not in it, so without this a domain-mounted GET
+	// route answers HEAD with 405 where a plain mount answers 200.
+	//
+	// The routes marked while cloning are passed over, and the marks travel on
+	// to the app this one is mounted on, so it withholds them there as well.
+	wrapperApp.ensureAutoHeadRoutes()
+
+	// Register the sub-app, and every app it has mounted, as domain mounts of
+	// the parent. They are kept out of appList so that their ErrorHandler and
+	// view engine only answer for hosts this domain matches, and so that two
+	// sub-apps mounted at the same path on different domains do not displace
+	// each other.
+	//
+	// Collect the mounts before taking the parent's lock, and hold only one
+	// app's lock at a time while doing it. App.mount writes these lists under
+	// the lock of the app they belong to, so reading them unguarded would race
+	// — but holding two at once would hang outright when an app is mounted on
+	// itself, and could deadlock two goroutines mounting each other's apps.
+	//
+	// The walk goes through the sub-app's own mount metadata rather than its
+	// flattened list, which is filled in as apps are mounted and so misses one
+	// mounted on a descendant afterwards; it also picks up the apps each
+	// descendant domain-mounted itself, since those records live only on the
+	// app they were registered on. The routes reach all of them either way.
+	pending := subApp.mountTree()
+
+	// Each app's mount path is written under its own lock, and before the
+	// parent's is taken: an app registering a route reads it there, and it may
+	// be the parent itself when an app is mounted on itself.
+	for i := range pending {
+		mount := &pending[i]
+		mount.path = getGroupPath(mountPath, mount.path)
+
+		mount.app.mutex.Lock()
+		mount.app.mountFields.mountPath = mount.path
+		mount.app.mutex.Unlock()
 	}
 
 	d.app.mutex.Lock()
 	// Support for configs of mounted-apps and sub-mounted-apps
-	for mountedPrefixes, subAppInstance := range subApp.mountFields.appList {
-		path := getGroupPath(mountPath, mountedPrefixes)
+	for i := range pending {
+		mount := &pending[i]
+		recorded := d.app.newDomainMount(mount.app, mount.path, append(slices.Clone(mount.matchers), d.matcher), mount.ancestors, mount.declared)
 
-		subAppInstance.mountFields.mountPath = path
-		d.app.mountFields.appList[path] = subAppInstance
+		d.app.mountFields.domainAppList = addDomainMount(d.app.mountFields.domainAppList, &recorded)
 	}
 	d.app.mutex.Unlock()
 
@@ -471,6 +512,180 @@ func (d *domainRouter) mount(prefix string, subApp *App) Router {
 	}
 
 	return d
+}
+
+// cloneRoutesForDomain fills dst with domain-filtered clones of src's routes,
+// expanding any app src itself has mounted.
+//
+// The expansion is what keeps a nested mount working. A mount is registered as
+// a placeholder route that carries its target app in the unexported group
+// field, and copyRoute does not carry that field over, so a cloned placeholder
+// would reach startup with mount set and group nil and crash the expansion in
+// processSubAppsRoutes. Flattening the descendants here also runs their
+// handlers through wrapHandlers, so they stay bound to the domain instead of
+// being served on every host.
+// Routes cloned from an app that registers no automatic HEAD routes are marked
+// as such on the wrapper, so synthesizing them stays off for those and stays on
+// for the rest.
+func (d *domainRouter) cloneRoutesForDomain(dst, src *App) {
+	// The app the routes are mounted on has the last word, as in processSubAppsRoutes:
+	// its opt-out covers everything flattened into it, so it seeds the whole walk.
+	for m, routes := range d.domainRoutes(dst, src, domainClone{skipAutoHead: d.app.config.DisableHeadAutoRegister}) {
+		dst.stack[m] = routes
+	}
+}
+
+// domainClone is what a walk down a mounted app's tree carries with it.
+type domainClone struct {
+	// prefix is the path the app being walked is mounted at, relative to the
+	// app the domain mount was registered with
+	prefix string
+	// chain holds the apps between the mounted sub-app and this one, so a mount
+	// cycle terminates. It is a slice rather than a set because it is only ever
+	// a few entries deep and each branch needs its own: an app mounted twice on
+	// sibling branches is cloned for both.
+	chain []*App
+	// skipAutoHead marks that an app above this one registers no automatic HEAD
+	// routes, and stands in front of these
+	skipAutoHead bool
+}
+
+// domainRoutes returns src's routes, cloned with domain-filtered handlers and
+// with the walk's prefix applied, as one slice per method index of dst. Routes
+// of an app src has mounted take the placeholder's position, so the order the
+// sub-app registered its routes in is preserved.
+func (d *domainRouter) domainRoutes(dst, src *App, walk domainClone) [][]*Route {
+	routes := make([][]*Route, len(dst.stack))
+	if slices.Contains(walk.chain, src) {
+		return routes
+	}
+
+	// An app that does not serve HEAD, or that turned the automatic routes off,
+	// contributes neither HEAD routes nor HEAD middleware to the clone — so a
+	// HEAD route synthesized from one of its GET routes would run the handler
+	// with nothing in front of it. That holds for the apps it has mounted too,
+	// whose routes it stands in front of, and for no one else: the mount is a
+	// tree, and an app opting out says nothing about its siblings. The walk is
+	// seeded with the opt-out of the app the routes are mounted on.
+	skipAutoHead := walk.skipAutoHead || src.config.DisableHeadAutoRegister || src.methodInt(MethodHead) < 0
+
+	// Take a snapshot rather than holding the lock for the whole walk: it keeps
+	// this from ever holding two apps' locks at once. The routes are copied by
+	// value, not by pointer, because registering a route on a path src already
+	// serves appends to that route's handlers in place, and renaming one writes
+	// its name — a clone taken after the lock was released would race both.
+	//
+	// A mount placeholder is kept as it is: its target app is read from the
+	// group it carries, and the walk into it has to happen unlocked.
+	//
+	// The snapshot is indexed by dst's methods, not src's: an app is free to
+	// configure its own RequestMethods, and the two tables then neither line up
+	// nor have to be the same length.
+	type sourceRoute struct {
+		route       *Route
+		owner       *App
+		constraints []CustomConstraint
+		// src's own mark: the app that opted out may be flattened into src already
+		skipAutoHead bool
+	}
+
+	src.mutex.Lock()
+	// As startupProcess does before a plain mount: src's HEAD routes are placed in its
+	// own route order, never by id against the routes of the apps it is flattened with.
+	if !skipAutoHead {
+		src.ensureAutoHeadRoutesLocked()
+	}
+	stack := make([][]sourceRoute, len(routes))
+	for m := range stack {
+		srcRoutes := src.routesForMethod(dst.method(m))
+		stack[m] = make([]sourceRoute, len(srcRoutes))
+
+		for i, route := range srcRoutes {
+			if route.mount {
+				stack[m][i] = sourceRoute{route: route}
+				continue
+			}
+
+			// src is itself a wrapper when the sub-app had domain mounts of its
+			// own, and already knows the real app behind each of its routes.
+			owner := src.routeOwner(route)
+			if owner == nil {
+				owner = src
+			}
+
+			stack[m][i] = sourceRoute{
+				route:        src.copyRoute(route),
+				owner:        owner,
+				constraints:  src.routeConstraintsFor(route),
+				skipAutoHead: src.skipsAutoHeadFor(route),
+			}
+		}
+	}
+	dst.customConstraints = mergeCustomConstraints(dst.customConstraints, src.customConstraints)
+	src.mutex.Unlock()
+
+	// Mounted apps are flattened once and reused across the method indexes:
+	// register files a copy of the placeholder in every method's stack, and
+	// all of them share the one group it was registered with.
+	var mounted map[*Group][][]*Route
+
+	for m := range routes {
+		for _, source := range stack[m] {
+			if source.route.mount {
+				// register only sets mount for a route whose group carries the
+				// mounted app, so group and group.app are both set here — the
+				// same invariant processSubAppsRoutes relies on.
+				group := source.route.group
+				if mounted[group] == nil {
+					if mounted == nil {
+						mounted = make(map[*Group][][]*Route)
+					}
+					mounted[group] = d.domainRoutes(dst, group.app, domainClone{
+						prefix:       getGroupPath(walk.prefix, source.route.Path),
+						chain:        append(walk.chain, src),
+						skipAutoHead: skipAutoHead,
+					})
+				}
+
+				routes[m] = append(routes[m], mounted[group][m]...)
+				continue
+			}
+
+			// An app started before the walk carries its automatic HEAD routes already.
+			if skipAutoHead && source.route.autoHead {
+				continue
+			}
+
+			clonedRoute := source.route
+			// An empty prefix cannot change the path, and re-parsing the route
+			// to reach the same result is the most expensive thing here.
+			// The route brings the constraints of the apps that composed its
+			// path, and those win over the ones collected from the rest of the
+			// tree: two apps mounted side by side can name one constraint
+			// differently, and neither binds the other.
+			constraints := mergeCustomConstraints(slices.Clone(source.constraints), dst.customConstraints)
+			dst.markRouteConstraints(clonedRoute, constraints)
+
+			if walk.prefix != "" {
+				dst.addPrefixToRoute(walk.prefix, clonedRoute, src.config.RegexHandler, constraints...)
+			}
+			clonedRoute.Handlers = d.wrapHandlers(clonedRoute.Handlers)
+			clonedRoute.hosts = append(slices.Clone(clonedRoute.hosts), d.matcher)
+
+			// Record the app the route came from, so a request that runs it
+			// resolves that app's config rather than one inferred from the host
+			// and the path.
+			dst.markRouteOwner(clonedRoute, source.owner)
+
+			if skipAutoHead || source.skipAutoHead {
+				dst.markSkipAutoHead(clonedRoute)
+			}
+
+			routes[m] = append(routes[m], clonedRoute)
+		}
+	}
+
+	return routes
 }
 
 // Get registers a route for GET methods.
@@ -538,7 +753,7 @@ func (d *domainRouter) Query(path string, handler any, handlers ...any) Router {
 func (d *domainRouter) Add(methods []string, path string, handler any, handlers ...any) Router {
 	converted := collectHandlers("domain", append([]any{handler}, handlers...)...)
 	wrapped := d.wrapHandlers(converted)
-	d.app.register(methods, d.registerPath(path), d.registerGroup(), wrapped...)
+	d.app.registerForHosts(d.hosts(), methods, d.registerPath(path), d.registerGroup(), wrapped...)
 
 	// Mark the underlying group so Name() can distinguish between
 	// group-name-prefix calls (before routes) and route-name calls (after routes).
@@ -563,7 +778,7 @@ func (d *domainRouter) Group(prefix string, handlers ...any) Router {
 	if len(handlers) > 0 {
 		converted := collectHandlers("domain", handlers...)
 		wrapped := d.wrapHandlers(converted)
-		d.app.register([]string{methodUse}, fullPrefix, d.registerGroup(), wrapped...)
+		d.app.registerForHosts(d.hosts(), []string{methodUse}, fullPrefix, d.registerGroup(), wrapped...)
 	}
 
 	// Create a new group on the app
@@ -639,7 +854,7 @@ var _ Register = (*domainRegistering)(nil)
 func (r *domainRegistering) All(handler any, handlers ...any) Register {
 	converted := collectHandlers("domain", append([]any{handler}, handlers...)...)
 	wrapped := r.domain.wrapHandlers(converted)
-	r.domain.app.register([]string{methodUse}, r.path, r.domain.registerGroup(), wrapped...)
+	r.domain.app.registerForHosts(r.domain.hosts(), []string{methodUse}, r.path, r.domain.registerGroup(), wrapped...)
 
 	return r
 }
@@ -687,7 +902,7 @@ func (r *domainRegistering) Query(handler any, handlers ...any) Register {
 func (r *domainRegistering) Add(methods []string, handler any, handlers ...any) Register {
 	converted := collectHandlers("domain", append([]any{handler}, handlers...)...)
 	wrapped := r.domain.wrapHandlers(converted)
-	r.domain.app.register(methods, r.path, r.domain.registerGroup(), wrapped...)
+	r.domain.app.registerForHosts(r.domain.hosts(), methods, r.path, r.domain.registerGroup(), wrapped...)
 
 	return r
 }
