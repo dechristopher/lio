@@ -6,8 +6,6 @@
 CI](https://github.com/pressly/goose/actions/workflows/ci.yaml/badge.svg)](https://github.com/pressly/goose/actions/workflows/ci.yaml)
 [![Go
 Reference](https://pkg.go.dev/badge/github.com/pressly/goose/v3.svg)](https://pkg.go.dev/github.com/pressly/goose/v3)
-[![Go Report
-Card](https://goreportcard.com/badge/github.com/pressly/goose/v3)](https://goreportcard.com/report/github.com/pressly/goose/v3)
 
 Goose is a database migration tool. Both a CLI and a library.
 
@@ -39,8 +37,11 @@ Binary too big? Build a lite version by excluding the drivers you don't need:
 go build -tags='no_postgres no_mysql no_sqlite3 no_ydb' -o goose ./cmd/goose
 
 # Available build tags:
-#   no_clickhouse  no_libsql   no_mssql    no_mysql
-#   no_postgres    no_sqlite3  no_vertica  no_ydb
+#   no_azuresql    no_clickhouse  no_libsql   no_mssql
+#   no_mysql       no_postgres    no_sqlite3  no_vertica
+#   no_ydb
+#
+# Note: no_mssql also excludes the azuresql driver.
 ```
 
 For macOS users `goose` is available as a [Homebrew
@@ -48,6 +49,22 @@ Formulae](https://formulae.brew.sh/formula/goose#default):
 
 ```shell
 brew install goose
+```
+
+A container image is available for `linux/amd64` and `linux/arm64`. It has no shell and supports `.sql` migrations only. The working directory is `/migrations`.
+
+```shell
+docker run --rm \
+  -v "$PWD/migrations:/migrations" \
+  -e GOOSE_DRIVER=postgres \
+  -e GOOSE_DBSTRING="postgres://user:password@host:5432/dbname" \
+  ghcr.io/pressly/goose:latest up
+```
+
+Tags: `vX.Y.Z`, `vX.Y`, `vX`, and `latest`. To copy the binary into your own image:
+
+```dockerfile
+COPY --from=ghcr.io/pressly/goose:v3.30.1 /usr/local/bin/goose /usr/local/bin/goose
 ```
 
 See [installation documentation](https://pressly.github.io/goose/installation/) for more details.
@@ -75,6 +92,7 @@ Drivers:
     sqlite3
     spanner
     mssql
+    azuresql
     redshift
     tidb
     clickhouse
@@ -95,6 +113,7 @@ Examples:
     goose redshift "postgres://user:password@qwerty.us-east-1.redshift.amazonaws.com:5439/db" status
     goose tidb "user:password@/dbname?parseTime=true" status
     goose mssql "sqlserver://user:password@hostname:1433?database=master" status
+    goose azuresql "sqlserver://myserver.database.windows.net?database=mydb&fedauth=ActiveDirectoryDefault" status
     goose clickhouse "tcp://127.0.0.1:9000" status
     goose ydb "grpcs://localhost:2135/local?go_query_mode=scripting&go_fake_tx=scripting&go_query_bind=declare,numeric" status
     goose starrocks "user:password@/dbname?parseTime=true&interpolateParams=true" status
@@ -114,6 +133,8 @@ Options:
         file path to root CA's certificates in pem format (only support on mysql)
   -dir string
         directory with migration files (default ".", can be set via the GOOSE_MIGRATION_DIR env variable).
+  -env string
+        load environment variables from file (default .env)
   -h    print help
   -no-color
         disable color output (NO_COLOR env variable supported)
@@ -143,11 +164,14 @@ Commands:
     status               Dump the migration status for the current DB
     version              Print the current version of the database
     create NAME [sql|go] Creates new migration file with the current timestamp
+    env                  Print the current Goose environment configuration
     fix                  Apply sequential ordering to migrations
     validate             Check migration files without running them
 ```
 
 </details>
+
+See [drivers](#drivers) for driver-specific details.
 
 Commonly used commands:
 
@@ -361,15 +385,18 @@ $$ LANGUAGE plpgsql;
 <details>
 <summary>Supported expansions (click here to expand):</summary>
 
-- `${VAR}` or $VAR - expands to the value of the environment variable `VAR`
-- `${VAR:-default}` - expands to the value of the environment variable `VAR`, or `default` if `VAR`
-  is unset or null
-- `${VAR-default}` - expands to the value of the environment variable `VAR`, or `default` if `VAR`
-  is unset
-- `${VAR?err_msg}` - expands to the value of the environment variable `VAR`, or prints `err_msg` and
-  error if `VAR` unset
-- ~~`${VAR:?err_msg}` - expands to the value of the environment variable `VAR`, or prints `err_msg`
-  and error if `VAR` unset or null.~~ **THIS IS NOT SUPPORTED**
+- `${VAR}` or `$VAR` - the value of `VAR`, or an empty string if `VAR` is unset
+- `${VAR:-default}` - `default` if `VAR` is unset or empty
+- `${VAR-default}` - `default` if `VAR` is unset
+- `${VAR:?err_msg}` - an error with `err_msg` if `VAR` is unset or empty
+- `${VAR?err_msg}` - an error with `err_msg` if `VAR` is unset
+- `${VAR:+word}` - `word` if `VAR` is set and not empty, otherwise an empty string
+- `${VAR+word}` - `word` if `VAR` is set, otherwise an empty string
+- `${#VAR}` - the length of the value in characters
+- `${VAR:offset}` or `${VAR:offset:length}` - a substring of the value
+
+Write `$$` or `\$` for a literal `$`. A `$` that does not start a variable name, such as `$1`, is
+kept as-is.
 
 See
 [mfridman/interpolate](https://github.com/mfridman/interpolate?tab=readme-ov-file#supported-expansions)
@@ -488,6 +515,15 @@ When you're ready to deploy your migrations in a production environment, we also
 `fix` command to convert your migrations into sequential order, while preserving the timestamp
 ordering. We recommend running `fix` in the CI pipeline, and only when the migrations are ready for
 production.
+
+# Drivers
+
+Some drivers have specific requirements or special behaviour. Make sure to read the documentation
+for your database's driver before adopting and deploying Goose.
+
+* [ClickHouse](doc/dialect-clickhouse.md) only fully supports some clickhouse
+  deployment modes and requires careful configuration or work-arounds for
+  others.
 
 ## Credit
 
