@@ -25,7 +25,7 @@ type (
 	OnPreShutdownHandler = func() error
 	// OnPostShutdownHandler runs after shutdown and receives the shutdown result.
 	OnPostShutdownHandler = func(error) error
-	// OnForkHandler runs inside a forked worker process and receives the worker ID.
+	// OnForkHandler runs in the prefork master process each time it starts a child process and receives that child's PID.
 	OnForkHandler = func(int) error
 	// OnMountHandler runs after a sub-application mounts to a parent and receives the parent app reference.
 	OnMountHandler = func(*App) error
@@ -113,7 +113,7 @@ func (sm *PreStartupMessageData) AddInfo(key, title, value string, priority ...i
 	sm.addEntry(key, title, value, pri, StartupMessageLevelInfo)
 }
 
-// AddWarning adds a warning entry to the startup message with "WARNING" label.
+// AddWarning adds a warning entry to the startup message with "WARN" label.
 func (sm *PreStartupMessageData) AddWarning(key, title, value string, priority ...int) {
 	pri := -1
 	if len(priority) > 0 {
@@ -307,7 +307,8 @@ func (h *Hooks) OnPostShutdown(handler ...OnPostShutdownHandler) {
 	h.app.mutex.Unlock()
 }
 
-// OnFork is a hook to execute user function after fork process.
+// OnFork is a hook to execute user functions in the prefork master process each time it starts a child process,
+// including a child it starts again after a crash. The handler receives the PID of that child; the children do not run it.
 func (h *Hooks) OnFork(handler ...OnForkHandler) {
 	h.app.mutex.Lock()
 	h.onFork = append(h.onFork, handler...)
@@ -427,8 +428,34 @@ func (h *Hooks) executeOnPostStartupMessageHooks(data *PostStartupMessageData) e
 	return nil
 }
 
+// snapshotOnPreShutdown copies the registered pre-shutdown hooks under the app
+// mutex, so a hook may register others without deadlocking on the iteration.
+func (h *Hooks) snapshotOnPreShutdown() []OnPreShutdownHandler {
+	if h.app == nil {
+		return h.onPreShutdown
+	}
+	h.app.mutex.Lock()
+	defer h.app.mutex.Unlock()
+
+	return append([]OnPreShutdownHandler(nil), h.onPreShutdown...)
+}
+
+// snapshotOnPostShutdown copies the registered post-shutdown hooks under the
+// app mutex, for the same reason as snapshotOnPreShutdown.
+func (h *Hooks) snapshotOnPostShutdown() []OnPostShutdownHandler {
+	if h.app == nil {
+		return h.onPostShutdown
+	}
+	h.app.mutex.Lock()
+	defer h.app.mutex.Unlock()
+
+	return append([]OnPostShutdownHandler(nil), h.onPostShutdown...)
+}
+
 func (h *Hooks) executeOnPreShutdownHooks() {
-	for _, v := range h.onPreShutdown {
+	// Snapshot under the app mutex the registration appends under: shutdown no
+	// longer holds it while draining, so iterating the slice directly races.
+	for _, v := range h.snapshotOnPreShutdown() {
 		if err := v(); err != nil {
 			log.Errorf("failed to call pre shutdown hook: %v", err)
 		}
@@ -436,7 +463,7 @@ func (h *Hooks) executeOnPreShutdownHooks() {
 }
 
 func (h *Hooks) executeOnPostShutdownHooks(err error) {
-	for _, v := range h.onPostShutdown {
+	for _, v := range h.snapshotOnPostShutdown() {
 		if hookErr := v(err); hookErr != nil {
 			log.Errorf("failed to call post shutdown hook: %v", hookErr)
 		}

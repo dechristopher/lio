@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,13 +19,17 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"text/tabwriter"
 	"time"
 
+	"github.com/gofiber/utils/v2"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"golang.org/x/crypto/acme/autocert"
 
+	"github.com/gofiber/fiber/v3/internal/hostname"
 	"github.com/gofiber/fiber/v3/log"
 )
 
@@ -40,9 +45,21 @@ const (
 	globalIpv4Addr = "0.0.0.0"
 )
 
+// ErrCertFileAndKeyRequired indicates that only one of CertFile and CertKeyFile was set.
+var ErrCertFileAndKeyRequired = errors.New("tls: CertFile and CertKeyFile must both be set to serve TLS")
+
 // ListenConfig is a struct to customize startup of Fiber.
 type ListenConfig struct {
 	// GracefulContext is a field to shutdown Fiber by given context gracefully.
+	//
+	// A context that is done before the server starts to serve, including one that is
+	// already done when Listen or Listener is called, shuts it down the same way:
+	// Listen and Listener return once the shutdown has finished.
+	//
+	// With EnablePrefork the context stops only the process it is canceled in;
+	// deliver the signal to every process so each child drains its own connections.
+	// The master only runs its shutdown hooks and keeps supervising its children, so
+	// Listen returns in a child but not in the master.
 	//
 	// Default: nil
 	GracefulContext context.Context `json:"graceful_context"` //nolint:containedctx // It's needed to set context inside Listen.
@@ -55,16 +72,21 @@ type ListenConfig struct {
 
 	// TLSConfigFunc allows customizing tls.Config as you want.
 	//
+	// Ignored when TLSConfig is set: configure that tls.Config directly instead.
+	//
 	// Default: nil
 	TLSConfigFunc func(tlsConfig *tls.Config) `json:"tls_config_func"`
 
-	// TLSConfig allows providing a tls.Config used as the base for TLS settings.
-	// This enables external certificate providers via GetCertificate.
+	// TLSConfig is cloned and served as supplied, enabling external certificate
+	// providers via GetCertificate. It replaces the other TLS settings rather than
+	// seeding them, so there is no mutual TLS unless its ClientAuth requires it.
 	//
 	// Default: nil
 	TLSConfig *tls.Config `json:"tls_config"`
 
-	// ListenerFunc allows accessing and customizing net.Listener.
+	// ListenerAddrFunc is called with the net.Addr of the listener that Listen creates,
+	// for example to read the port the OS picked for ":0". It cannot change the listener.
+	// With prefork it runs once in each child process, and Listener does not call it.
 	//
 	// Default: nil
 	ListenerAddrFunc func(addr net.Addr) `json:"listener_addr_func"`
@@ -98,15 +120,17 @@ type ListenConfig struct {
 	// Default : ""
 	CertKeyFile string `json:"cert_key_file"`
 
-	// CertClientFile is a path of client certificate.
-	// If you want to use mTLS, you have to enter this field.
+	// CertClientFile is a path of the CA bundle used to verify client
+	// certificates, which is how ListenConfig asks for mTLS. Ignored when
+	// TLSConfig is set: its ClientAuth decides instead, against its ClientCAs.
 	//
 	// Default : ""
 	CertClientFile string `json:"cert_client_file"`
 
 	// When the graceful shutdown begins, use this field to set the timeout
 	// duration. If the timeout is reached, OnPostShutdown will be called with the error.
-	// Set to 0 to disable the timeout and wait indefinitely.
+	// It bounds the wait for connections only; Listen also waits for the shutdown hooks.
+	// Negative disables the timeout and waits indefinitely; zero applies the default.
 	//
 	// Default: 10 * time.Second
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
@@ -131,6 +155,8 @@ type ListenConfig struct {
 	UnixSocketFileMode os.FileMode `json:"unix_socket_file_mode"`
 
 	// TLSMinVersion allows to set TLS minimum version.
+	//
+	// Ignored when TLSConfig is set: set MinVersion on that tls.Config instead.
 	//
 	// Default: tls.VersionTLS12
 	// WARNING: TLS1.0 and TLS1.1 versions are not supported.
@@ -183,11 +209,22 @@ func listenConfigDefault(config ...ListenConfig) ListenConfig {
 		cfg.TLSMinVersion = tls.VersionTLS12
 	}
 
-	if cfg.TLSMinVersion != tls.VersionTLS12 && cfg.TLSMinVersion != tls.VersionTLS13 {
-		panic("unsupported TLS version, please use tls.VersionTLS12 or tls.VersionTLS13")
+	if cfg.ShutdownTimeout == 0 {
+		cfg.ShutdownTimeout = 10 * time.Second
 	}
 
 	return cfg
+}
+
+// validateTLSMinVersion rejects a version this package will not build a
+// tls.Config from. Asked only where the field is read: rejecting it in the
+// defaults panicked before warnSupersededTLSFields or
+// warnIgnoredTLSFieldsOnListener could say the value was being ignored anyway,
+// which is the diagnostic a stale TLS 1.1 most needs.
+func validateTLSMinVersion(cfg *ListenConfig) {
+	if cfg.TLSMinVersion != tls.VersionTLS12 && cfg.TLSMinVersion != tls.VersionTLS13 {
+		panic("unsupported TLS version, please use tls.VersionTLS12 or tls.VersionTLS13")
+	}
 }
 
 // Listen serves HTTP requests from the given addr.
@@ -204,7 +241,10 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 	var tlsHandler *TLSHandler
 	if cfg.TLSConfig != nil {
 		tlsConfig = cfg.TLSConfig.Clone()
+		warnSupersededTLSFields(&cfg)
 	} else {
+		validateTLSMinVersion(&cfg)
+
 		switch {
 		case cfg.AutoCertManager != nil && (cfg.CertFile != "" || cfg.CertKeyFile != ""):
 			return ErrAutoCertWithCertFile
@@ -222,6 +262,10 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 				},
 				GetCertificate: tlsHandler.GetClientInfo,
 			}
+
+		case cfg.CertFile != "" || cfg.CertKeyFile != "":
+			// Half a key pair is a misconfiguration: refuse rather than serve plaintext.
+			return ErrCertFileAndKeyRequired
 
 		case cfg.AutoCertManager != nil:
 			tlsConfig = &tls.Config{
@@ -248,14 +292,6 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 		}
 	}
 
-	// Graceful shutdown
-	if cfg.GracefulContext != nil {
-		ctx, cancel := context.WithCancel(cfg.GracefulContext)
-		defer cancel()
-
-		go app.gracefulShutdown(ctx, &cfg)
-	}
-
 	// Start prefork
 	if cfg.EnablePrefork {
 		return app.prefork(addr, tlsConfig, &cfg)
@@ -266,6 +302,21 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
+
+	// Watch GracefulContext only once the listener exists, so that a bind that fails never
+	// runs the shutdown hooks, even for a context that is already done.
+	graceful := app.watchGracefulContext(&cfg)
+	defer graceful.stopAndWait()
+
+	// Close the listener on any path that doesn't reach Serve (which otherwise
+	// takes ownership of it) — an early error return or a panicking hook — so
+	// the bound socket isn't leaked.
+	served := false
+	defer func() {
+		if !served {
+			_ = ln.Close() //nolint:errcheck // best-effort cleanup on the error path
+		}
+	}()
 
 	// prepare the server for the start
 	app.startupProcess()
@@ -284,8 +335,84 @@ func (app *App) Listen(addr string, config ...ListenConfig) error {
 			return err
 		}
 	}
+	app.hookHeaderReceived()
 
-	return app.server.Serve(ln)
+	served = true
+	return app.serve(graceful, ln)
+}
+
+// warnSupersededTLSFields logs the ListenConfig TLS fields a supplied TLSConfig
+// supersedes. CertClientFile is where silence is dangerous: it is the only way
+// ListenConfig asks for mTLS, and a TLSConfig says nothing about it by default.
+func warnSupersededTLSFields(cfg *ListenConfig) {
+	if cfg.CertClientFile != "" {
+		log.Warn("[Listen] TLSConfig supersedes CertClientFile: a client certificate is required only if " +
+			"TLSConfig sets ClientAuth to a Require mode, with ClientCAs as the roots it verifies against.")
+	}
+
+	var ignored []string
+	if cfg.CertFile != "" || cfg.CertKeyFile != "" {
+		ignored = append(ignored, "CertFile/CertKeyFile")
+	}
+	// Zero is unset and listenConfigDefault fills in TLS 1.2, so only a caller who
+	// asked for something else is losing anything here.
+	if cfg.TLSMinVersion != 0 && cfg.TLSMinVersion != tls.VersionTLS12 {
+		ignored = append(ignored, "TLSMinVersion")
+	}
+	if cfg.AutoCertManager != nil {
+		ignored = append(ignored, "AutoCertManager")
+	}
+	if cfg.TLSConfigFunc != nil {
+		ignored = append(ignored, "TLSConfigFunc")
+	}
+	if len(ignored) > 0 {
+		log.Warnf("[Listen] TLSConfig supersedes %s.", strings.Join(ignored, ", "))
+	}
+}
+
+// warnIgnoredTLSFieldsOnListener reports TLS settings App.Listener cannot honor.
+// It serves the listener it is handed, so CertClientFile buys no client-
+// certificate verification — and unless the caller wrapped it, no TLS either.
+func warnIgnoredTLSFieldsOnListener(cfg *ListenConfig, ln net.Listener) {
+	if cfg.CertClientFile != "" {
+		log.Warn("[Listener] CertClientFile is ignored: a client certificate is required only if the supplied " +
+			"listener already asks for one. Wrap it with tls.NewListener using a tls.Config whose ClientAuth " +
+			"is a Require mode.")
+	}
+
+	var ignored []string
+	if cfg.TLSConfig != nil {
+		ignored = append(ignored, "TLSConfig")
+	}
+	if cfg.CertFile != "" || cfg.CertKeyFile != "" {
+		ignored = append(ignored, "CertFile/CertKeyFile")
+	}
+	if cfg.TLSMinVersion != 0 && cfg.TLSMinVersion != tls.VersionTLS12 {
+		ignored = append(ignored, "TLSMinVersion")
+	}
+	if cfg.AutoCertManager != nil {
+		ignored = append(ignored, "AutoCertManager")
+	}
+	if cfg.TLSConfigFunc != nil {
+		ignored = append(ignored, "TLSConfigFunc")
+	}
+	if len(ignored) == 0 {
+		return
+	}
+
+	suffix := "."
+	if getTLSConfig(ln) == nil {
+		suffix = "; this listener is not serving TLS."
+	}
+	log.Warnf("[Listener] serves the supplied listener as-is, so %s %s ignored%s",
+		strings.Join(ignored, ", "), pluralIsAre(len(ignored)), suffix)
+}
+
+func pluralIsAre(n int) string {
+	if n == 1 {
+		return "is"
+	}
+	return "are"
 }
 
 func applyClientCert(tlsConfig *tls.Config, certClientFile string) error {
@@ -311,16 +438,17 @@ func applyClientCert(tlsConfig *tls.Config, certClientFile string) error {
 
 // Listener serves HTTP requests from the given listener.
 // You should enter custom ListenConfig to customize startup. (prefork, startup message, graceful shutdown...)
+//
+// The listener is served exactly as supplied, so every TLS field of the config
+// is ignored — including CertClientFile. Wrap it with tls.NewListener yourself
+// to serve TLS or require a client certificate.
 func (app *App) Listener(ln net.Listener, config ...ListenConfig) error {
 	cfg := listenConfigDefault(config...)
+	warnIgnoredTLSFieldsOnListener(&cfg, ln)
 
 	// Graceful shutdown
-	if cfg.GracefulContext != nil {
-		ctx, cancel := context.WithCancel(cfg.GracefulContext)
-		defer cancel()
-
-		go app.gracefulShutdown(ctx, &cfg)
-	}
+	graceful := app.watchGracefulContext(&cfg)
+	defer graceful.stopAndWait()
 
 	// prepare the server for the start
 	app.startupProcess()
@@ -344,8 +472,9 @@ func (app *App) Listener(ln net.Listener, config ...ListenConfig) error {
 	if cfg.EnablePrefork {
 		log.Warn("Prefork isn't supported for custom listeners.")
 	}
+	app.hookHeaderReceived()
 
-	return app.server.Serve(ln)
+	return app.serve(graceful, ln)
 }
 
 // Create listener function.
@@ -377,6 +506,7 @@ func (*App) createListener(addr string, tlsConfig *tls.Config, cfg *ListenConfig
 
 	if cfg.ListenerNetwork == NetworkUnix {
 		if err = os.Chmod(addr, cfg.UnixSocketFileMode); err != nil {
+			_ = listener.Close() //nolint:errcheck // best-effort cleanup on the error path
 			return nil, fmt.Errorf("cannot chmod %#o for %q: %w", cfg.UnixSocketFileMode, addr, err)
 		}
 	}
@@ -398,7 +528,7 @@ func (app *App) printMessages(cfg *ListenConfig, listenData *ListenData) {
 
 // prepareListenData creates a ListenData instance populated with the application metadata.
 func (app *App) prepareListenData(addr string, isTLS bool, cfg *ListenConfig, childPIDs []int) *ListenData { //revive:disable-line:flag-parameter // Accepting a bool param named isTLS is fine here
-	host, port := parseAddr(addr)
+	host, port := hostname.SplitPort(utils.TrimSpace(addr))
 	if host == "" {
 		if cfg.ListenerNetwork == NetworkTCP6 {
 			host = "[::1]"
@@ -602,22 +732,149 @@ func (app *App) printRoutesMessage() {
 	_ = w.Flush() //nolint:errcheck // It is fine to ignore the error here
 }
 
-// shutdown goroutine
-func (app *App) gracefulShutdown(ctx context.Context, cfg *ListenConfig) {
-	<-ctx.Done()
+// gracefulWatch is what Listen, Listener and a prefork process hold for the GracefulContext of
+// their ListenConfig, from watchGracefulContext: a *gracefulRun when there is a context, an
+// inertWatch when there is none. The holder defers stopAndWait and hands its listener to Serve
+// only through App.serve.
+type gracefulWatch interface {
+	// wrap returns what to hand to Serve in place of ln.
+	wrap(ln net.Listener) net.Listener
+	// stopAndWait stops watching the context and waits out a shutdown that has begun. Serve
+	// returns once the listener closes, but the holder must not hand control back while that
+	// shutdown is still draining.
+	stopAndWait()
+}
 
-	var err error
+// inertWatch is the gracefulWatch of a ListenConfig without a GracefulContext: it changes nothing.
+type inertWatch struct{}
 
-	if cfg != nil && cfg.ShutdownTimeout != 0 {
-		err = app.ShutdownWithTimeout(cfg.ShutdownTimeout) //nolint:contextcheck // TODO: Implement it
-	} else {
-		err = app.Shutdown() //nolint:contextcheck // TODO: Implement it
+func (inertWatch) wrap(ln net.Listener) net.Listener { return ln }
+
+func (inertWatch) stopAndWait() {}
+
+// serve hands ln to fasthttp through watch. Every Serve of Listen, Listener and a prefork child
+// goes through here: without watch.wrap, a shutdown that ran before Serve registered ln would
+// leave Serve running for ever.
+func (app *App) serve(watch gracefulWatch, ln net.Listener) error {
+	return app.server.Serve(watch.wrap(ln))
+}
+
+// gracefulRun is the graceful shutdown of one process serving through Listen, Listener or a
+// prefork child, or supervising as the prefork master: it ties ListenConfig.GracefulContext to
+// the listener the run serves.
+//
+// fasthttp's Shutdown closes only the listeners Serve has already registered, so one that
+// runs during startup closes nothing and the Serve that follows would never return. wrap
+// therefore wraps the listener so that it stops Serve itself.
+type gracefulRun struct {
+	app *App
+	// stop ends the watch of the context and reports whether it did so before the shutdown began.
+	stop func() bool
+	// done is closed when the shutdown the watch started has finished.
+	done chan struct{}
+	// draining is set once that shutdown begins to stop the server from accepting: after the
+	// OnPreShutdown hooks, right before fasthttp is told to close its listeners.
+	draining atomic.Bool
+}
+
+// watchGracefulContext starts to watch cfg.GracefulContext, if there is one.
+func (app *App) watchGracefulContext(cfg *ListenConfig) gracefulWatch {
+	if cfg.GracefulContext == nil {
+		return inertWatch{}
 	}
 
-	if err != nil {
-		app.hooks.executeOnPostShutdownHooks(err)
-		return
+	return app.newGracefulRun(cfg)
+}
+
+// newGracefulRun starts a run that shuts the app down once cfg.GracefulContext, which must be
+// set, is done.
+func (app *App) newGracefulRun(cfg *ListenConfig) *gracefulRun {
+	g := &gracefulRun{app: app, done: make(chan struct{})}
+	// The closure keeps the timeout, not the whole config.
+	timeout := cfg.ShutdownTimeout
+	g.stop = context.AfterFunc(cfg.GracefulContext, func() {
+		defer close(g.done)
+		g.shutdown(timeout)
+	})
+
+	return g
+}
+
+func (g *gracefulRun) stopAndWait() {
+	if !g.stop() {
+		<-g.done
+	}
+}
+
+func (g *gracefulRun) wrap(ln net.Listener) net.Listener {
+	return &gracefulListener{Listener: ln, draining: &g.draining}
+}
+
+// beginDraining records that the shutdown is about to stop the server from accepting.
+func (g *gracefulRun) beginDraining() {
+	g.draining.Store(true)
+}
+
+// shutdown is the shutdown the context asks for. It waits up to timeout for the connections to
+// drain, or without a limit when timeout is not positive.
+func (g *gracefulRun) shutdown(timeout time.Duration) {
+	ctx := context.Background()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
 
-	app.hooks.executeOnPostShutdownHooks(nil)
+	// The OnPostShutdown hooks are fired by the shutdown with the real error, so we must not
+	// fire them again here or they would run twice. That error is already delivered to those
+	// hooks, so it is intentionally ignored here.
+	_ = g.app.runShutdown(ctx, g.beginDraining) //nolint:errcheck // error is delivered to OnPostShutdown hooks
+}
+
+// gracefulListener ends Serve once the shutdown that GracefulContext started is draining, that
+// is, has begun to stop the server from accepting, however early that is.
+//
+// Serve registers a listener before it first accepts on it, and the shutdown sets draining
+// before it closes the registered listeners. So either the shutdown finds the listener and
+// closes it, or Accept finds draining set: no shutdown can fall between the two.
+type gracefulListener struct {
+	net.Listener
+	draining *atomic.Bool
+	closeErr error
+	once     sync.Once
+}
+
+// Accept refuses once the shutdown is draining, and closes the listener as the shutdown
+// would have. net.ErrClosed is the error Serve takes for a closed listener and returns nil
+// on, as it does after a shutdown. Until then Accept keeps accepting, as the OnPreShutdown
+// hooks run while the server still serves.
+func (l *gracefulListener) Accept() (net.Conn, error) {
+	if l.draining.Load() {
+		// Close keeps its first result for a later Close, such as the one Shutdown makes when it
+		// finds the listener. When it does not, because Serve started after the shutdown, nothing
+		// else reports a failure, so the close that Accept makes logs one, once.
+		l.once.Do(func() {
+			l.closeListener()
+
+			if l.closeErr != nil {
+				log.Errorf("failed to close the listener: %v", l.closeErr)
+			}
+		})
+
+		return nil, net.ErrClosed
+	}
+
+	return l.Listener.Accept() //nolint:wrapcheck // fasthttp inspects this error itself, so it must not be wrapped
+}
+
+// Close closes the listener once, so that Shutdown closing it after Accept did still
+// succeed instead of passing a closed-listener error to OnPostShutdown.
+func (l *gracefulListener) Close() error {
+	l.once.Do(l.closeListener)
+
+	return l.closeErr
+}
+
+func (l *gracefulListener) closeListener() {
+	l.closeErr = l.Listener.Close()
 }
