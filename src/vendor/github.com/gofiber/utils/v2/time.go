@@ -13,14 +13,34 @@ var (
 	updaterDone chan struct{}
 )
 
-// Timestamp returns the current cached Unix timestamp (seconds).
-// Call StartTimeStampUpdater() once at app startup for best performance.
+// newTicker returns a channel and stop func because a fake *time.Ticker panics on Stop.
+var (
+	now       = time.Now
+	newTicker = func(d time.Duration) (<-chan time.Time, func()) {
+		t := time.NewTicker(d)
+		return t.C, t.Stop
+	}
+)
+
+// Timestamp returns the Unix time in seconds as a uint32, which wraps on 2106-02-07. While the updater
+// runs it is the value it last published, at most about a second old, for the cost of one atomic load;
+// otherwise it reads the clock.
 func Timestamp() uint32 {
-	return timestamp.Load()
+	if t := timestamp.Load(); t != 0 {
+		return t
+	}
+	return clockTimestamp()
 }
 
-// StartTimeStampUpdater launches a background goroutine that updates the cached timestamp every second.
-// It is safe to call multiple times and from multiple goroutines; only one updater runs at a time.
+// clockTimestamp is Timestamp's out-of-line slow path.
+//
+//go:noinline
+func clockTimestamp() uint32 {
+	return uint32(now().Unix())
+}
+
+// StartTimeStampUpdater starts a goroutine that refreshes the cached timestamp every second.
+// Repeated and concurrent calls are safe.
 func StartTimeStampUpdater() {
 	updaterMu.Lock()
 	defer updaterMu.Unlock()
@@ -28,19 +48,22 @@ func StartTimeStampUpdater() {
 		return
 	}
 
-	timestamp.Store(uint32(time.Now().Unix()))
+	timestamp.Store(uint32(now().Unix()))
 	stopUpdater = make(chan struct{})
 	updaterDone = make(chan struct{})
 
+	// Created before the goroutine so it exists when this returns.
+	tick, stopTick := newTicker(time.Second)
+
 	go func(stop, done chan struct{}) {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
+		// stopTick before close(done): Stop's wait then implies release.
 		defer close(done)
+		defer stopTick()
 
 		for {
 			select {
-			case <-ticker.C:
-				timestamp.Store(uint32(time.Now().Unix()))
+			case <-tick:
+				timestamp.Store(uint32(now().Unix()))
 			case <-stop:
 				return
 			}
@@ -48,9 +71,8 @@ func StartTimeStampUpdater() {
 	}(stopUpdater, updaterDone)
 }
 
-// StopTimeStampUpdater stops the background updater goroutine.
-// Call this on app shutdown to avoid leaking goroutines.
-// It is safe to call multiple times and from multiple goroutines.
+// StopTimeStampUpdater stops the updater goroutine; call it on shutdown to avoid a leak.
+// Timestamp reads the clock afterwards. Repeated and concurrent calls are safe.
 func StopTimeStampUpdater() {
 	updaterMu.Lock()
 	defer updaterMu.Unlock()
@@ -62,4 +84,5 @@ func StopTimeStampUpdater() {
 	<-updaterDone
 	stopUpdater = nil
 	updaterDone = nil
+	timestamp.Store(0) // nothing refreshes the value any more: read the clock instead
 }
