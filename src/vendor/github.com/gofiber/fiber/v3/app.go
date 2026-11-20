@@ -9,6 +9,7 @@ package fiber
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
@@ -20,7 +21,6 @@ import (
 	"net/http/httputil"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,12 +30,13 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/gofiber/fiber/v3/binder"
+	"github.com/gofiber/fiber/v3/internal/errorreplay"
 	"github.com/gofiber/fiber/v3/internal/nilerror"
 	"github.com/gofiber/fiber/v3/log"
 )
 
 // Version of current fiber package
-const Version = "3.4.0"
+const Version = "3.7.0"
 
 // Handler defines a function to serve HTTP requests.
 type Handler = func(Ctx) error
@@ -82,8 +83,6 @@ type App struct {
 	pool sync.Pool
 	// Fasthttp server
 	server *fasthttp.Server
-	// Converts string to a byte slice
-	toBytes func(s string) (b []byte)
 	// Converts byte slice to a string
 	toString func(b []byte) string
 	// Hooks
@@ -100,6 +99,9 @@ type App struct {
 	state *State
 	// shared state management (prefork-safe, storage-backed)
 	sharedState *SharedState
+	// headerHook is the HeaderReceived callback hookHeaderReceived installed, kept
+	// to tell it from one set since
+	headerHook func(*fasthttp.RequestHeader) fasthttp.RequestConfig
 	// Route stack divided by HTTP methods
 	stack [][]*Route
 	// customConstraints is a list of external constraints
@@ -108,8 +110,20 @@ type App struct {
 	sendfiles []*sendFileStore
 	// custom binders
 	customBinders []CustomBinder
-	// Route stack divided by HTTP methods and route prefixes
+	// Route stack divided by HTTP methods and route prefixes. Build-time only:
+	// requests go through treeIndex. Each build replaces it with freshly
+	// allocated buckets rather than refilling the previous ones, so a published
+	// tree stays immutable; it is retained as a field because buildLookahead
+	// reads it to index the same buckets next() will scan.
 	treeStack []map[int][]*Route
+	// Request-time view of treeStack: one flat, open-addressed index per HTTP
+	// method, rebuilt with the tree (see routeTree in router.go). Held by
+	// pointer so a rebuild publishes each method's tree in one store.
+	treeIndex []*routeTree
+	// Precomputed unmatched-route indexes, rebuilt with the tree (router_skip.go)
+	skip             skipRouteIndex
+	autoHeadRouteID  uint64
+	autoHeadStackLen int
 	// sendfilesMutex is a mutex used for sendfile operations
 	sendfilesMutex sync.RWMutex
 	mutex          sync.Mutex
@@ -117,8 +131,12 @@ type App struct {
 	handlersCount uint32
 	// contains the information if the route stack has been changed to build the optimized tree
 	hasRoutesRefreshed bool
+	connStateHooked    bool
 	// hasCustomCtx tracks whether app uses a custom context implementation
 	hasCustomCtx bool
+	// hasParamRoutes tracks whether any route consults the per-request slash
+	// count (rebuilt with the tree); when false the count is skipped entirely
+	hasParamRoutes bool
 }
 
 type viewsLockKey struct {
@@ -171,6 +189,20 @@ func getViewsLock(views Views) *sync.RWMutex {
 	return globalViewsLocks.get(views)
 }
 
+func isNilViews(views any) bool {
+	if views == nil {
+		return true
+	}
+
+	value := reflect.ValueOf(views)
+	switch value.Kind() {
+	case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer:
+		return value.IsNil()
+	default:
+		return false
+	}
+}
+
 // Config is a struct holding the server settings.
 type Config struct { //nolint:govet // Aligning the struct fields is not necessary. betteralign:ignore
 	// Enables the "Server: value" HTTP header.
@@ -180,6 +212,7 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 
 	// When set to true, the router treats "/foo" and "/foo/" as different.
 	// By default this is disabled and both "/foo" and "/foo/" will execute the same handler.
+	// Middleware registered with Use on "/foo/" runs for "/foo" either way.
 	//
 	// Default: false
 	StrictRouting bool `json:"strict_routing"`
@@ -191,11 +224,39 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	// Default: false
 	CaseSensitive bool `json:"case_sensitive"`
 
+	// When set to true, requests whose path and method match no registered route
+	// are answered with 404 (or 405 when the path exists for other methods)
+	// before the middleware chain runs, so no work is spent on bots, scanners,
+	// and bad URLs.
+	//
+	// Warning: middleware never runs for skipped requests. This breaks Use-based
+	// responders on unregistered paths (catch-all 404 pages, static, proxy,
+	// healthcheck, rewrite and redirect middleware); loggers and metrics will not
+	// see the skipped requests either, and a rate limiter neither counts nor
+	// throttles them. CORS preflight requests are exempt, so cors middleware
+	// keeps working. Customize the 404/405 responses via ErrorHandler.
+	//
+	// Note: with more than 64 entries in RequestMethods the fast path is disabled
+	// and requests fall through to the normal router.
+	//
+	// Default: false
+	SkipUnmatchedRoutes bool `json:"skip_unmatched_routes"`
+
 	// When set to true, disables automatic registration of HEAD routes for
 	// every GET route.
 	//
 	// Default: false
 	DisableHeadAutoRegister bool `json:"disable_head_auto_register"`
+
+	// When set to true, disables redirect flash messages: Redirect().With and
+	// WithInput set no cookie, Messages and OldInput report nothing, and the
+	// scan of every request's headers for an incoming flash cookie is skipped.
+	// Flash messages travel in the fiber_flash cookie, so only clients that
+	// keep cookies across a redirect, browsers above all, ever receive them;
+	// deployments whose clients do not lose nothing by turning them off.
+	//
+	// Default: false
+	DisableFlashMessages bool `json:"disable_flash_messages"`
 
 	// When set to true, this relinquishes the 0-allocation promise in certain
 	// cases in order to access the handler values (e.g. request bodies) in an
@@ -205,10 +266,12 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	// Default: false
 	Immutable bool `json:"immutable"`
 
-	// When set to true, converts all encoded characters in the route back
-	// before setting the path for the context, so that the routing,
-	// the returning of the current url from the context `ctx.Path()`
-	// and the parameters `ctx.Params(%key%)` with decoded characters will work
+	// The router always normalizes the request path before matching (RFC 3986
+	// Section 6.2.2): escapes of unreserved characters are decoded, other
+	// escapes keep their encoding with uppercase hex digits, and "." and ".."
+	// segments are removed. When set to true, every escape is decoded, so the
+	// routing, `ctx.Path()` and `ctx.Params(%key%)` see the fully decoded
+	// path.
 	//
 	// Default: false
 	UnescapePath bool `json:"unescape_path"`
@@ -277,12 +340,12 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	// Increase this buffer if your clients send multi-KB RequestURIs
 	// and/or multi-KB headers (for example, BIG cookies).
 	//
-	// Default: 4096
+	// Default: 8192
 	ReadBufferSize int `json:"read_buffer_size"`
 
 	// Per-connection buffer size for responses' writing.
 	//
-	// Default: 4096
+	// Default: 8192
 	WriteBufferSize int `json:"write_buffer_size"`
 
 	// CompressedFileSuffixes adds suffix to the original file name and
@@ -299,10 +362,11 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	// Default: ""
 	ProxyHeader string `json:"proxy_header"`
 
-	// GETOnly rejects all non-GET requests if set to true.
+	// GETOnly rejects every method except GET and HEAD if set to true.
 	// This option is useful as anti-DoS protection for servers
 	// accepting only GET requests. The request size is limited
-	// by ReadBufferSize if GETOnly is set.
+	// by ReadBufferSize if GETOnly is set. A rejected request gets 405 with
+	// "Allow: GET, HEAD", and no middleware runs for it.
 	//
 	// Default: false
 	GETOnly bool `json:"get_only"`
@@ -356,6 +420,9 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	// and calls the handler sooner when given body is
 	// larger than the current limit.
 	//
+	// Only BodyStream reads such a body: Body, FormValue and the binders still
+	// apply BodyLimit, and a multipart form is never pre-parsed.
+	//
 	// Default: false
 	StreamRequestBody bool
 
@@ -364,7 +431,8 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	// This option is useful for servers that desire to treat
 	// multipart form data as a binary blob, or choose when to parse the data.
 	//
-	// Server pre parses multipart form data by default.
+	// Server pre parses multipart form data by default, but never with
+	// StreamRequestBody.
 	//
 	// Default: false
 	DisablePreParseMultipartForm bool
@@ -467,7 +535,13 @@ type Config struct { //nolint:govet // Aligning the struct fields is not necessa
 	TrustProxyConfig TrustProxyConfig `json:"trust_proxy_config"`
 
 	// If set to true, c.IP() and c.IPs() will validate IP addresses before returning them.
-	// Also, c.IP() will return only the first valid IP rather than just the raw header
+	// Also, c.IP() will return a single validated IP rather than just the raw header value,
+	// which for X-Forwarded-For may be a comma-separated chain: when TrustProxyConfig names
+	// proxy IPs or ranges (Proxies, Loopback, Private or LinkLocal) the chain is walked
+	// right-to-left and those proxies are skipped; otherwise, including when only UnixSocket
+	// is trusted, the first valid IP from the left is returned. Enable it whenever c.IP() is
+	// used as a single client identifier and the header can carry a chain; a proxy that
+	// overwrites the header with one address, or a single-IP header, does not need it.
 	// WARNING: this has a performance cost associated with it.
 	//
 	// Default: false
@@ -585,8 +659,8 @@ const (
 	DefaultBodyLimit       = 4 * 1024 * 1024
 	DefaultMaxRanges       = 16
 	DefaultConcurrency     = 256 * 1024
-	DefaultReadBufferSize  = 4096
-	DefaultWriteBufferSize = 4096
+	DefaultReadBufferSize  = 8192
+	DefaultWriteBufferSize = 8192
 )
 
 const (
@@ -668,7 +742,6 @@ func New(config ...Config) *App {
 	app := &App{
 		// Create config
 		config:        Config{},
-		toBytes:       utils.UnsafeBytes,
 		toString:      utils.UnsafeString,
 		latestRoute:   &Route{},
 		customBinders: []CustomBinder{},
@@ -730,7 +803,7 @@ func New(config ...Config) *App {
 	}
 
 	if app.config.Immutable {
-		app.toBytes, app.toString = toBytesImmutable, toStringImmutable
+		app.toString = toStringImmutable
 	}
 
 	if app.config.ErrorHandler == nil {
@@ -776,6 +849,11 @@ func New(config ...Config) *App {
 	// Create router stack
 	app.stack = make([][]*Route, len(app.config.RequestMethods))
 	app.treeStack = make([]map[int][]*Route, len(app.config.RequestMethods))
+	app.treeIndex = make([]*routeTree, len(app.config.RequestMethods))
+	for i := range app.treeIndex {
+		// Never nil: next() may run before the tree is first built.
+		app.treeIndex[i] = &routeTree{}
+	}
 
 	// Override colors
 	app.config.ColorScheme = defaultColors(&app.config.ColorScheme)
@@ -834,7 +912,12 @@ func (app *App) handleTrustedProxy(ipAddress string) {
 		if ip == nil {
 			log.Warnf("IP address %q could not be parsed", ipAddress)
 		} else {
-			app.config.TrustProxyConfig.ips[ipAddress] = struct{}{}
+			// Store the canonical spelling, which lookups compare against.
+			app.config.TrustProxyConfig.ips[ip.String()] = struct{}{}
+			if ip4 := ip.To4(); ip4 != nil {
+				// netip keeps the IPv4-mapped spelling apart from the dotted one.
+				app.config.TrustProxyConfig.ips["::ffff:"+ip4.String()] = struct{}{}
+			}
 		}
 	}
 }
@@ -865,21 +948,15 @@ func (app *App) RegisterCustomBinder(customBinder CustomBinder) {
 // ReloadViews reloads the configured view engine by invoking its Load method.
 // It returns an error if no view engine is configured or if reloading fails.
 func (app *App) ReloadViews() error {
-	app.mutex.Lock()
-	defer app.mutex.Unlock()
-
-	apps := map[string]*App{"": app}
-	if app.mountFields != nil {
-		apps = app.mountFields.appList
-	}
+	// Walks the mount metadata rather than the flattened app list: a domain
+	// mount nested inside a plain one only reaches the root's list once the
+	// app has started, and ReloadViews may be called before that. The walk
+	// takes each app's own lock in turn, so this must not hold one itself.
+	apps := app.mountedApps()
 
 	var reloaded bool
 	for _, targetApp := range apps {
-		if targetApp == nil || targetApp.config.Views == nil {
-			continue
-		}
-
-		if viewValue := reflect.ValueOf(targetApp.config.Views); viewValue.Kind() == reflect.Pointer && viewValue.IsNil() {
+		if targetApp == nil || isNilViews(targetApp.config.Views) {
 			continue
 		}
 
@@ -907,6 +984,27 @@ func (app *App) ReloadViews() error {
 	return nil
 }
 
+// Render writes a template through the configured view engine.
+func (app *App) Render(out io.Writer, name string, binding any, layouts ...string) error {
+	views := app.config.Views
+	if isNilViews(views) {
+		return ErrNoViewEngineConfigured
+	}
+	if len(layouts) == 0 && app.config.ViewsLayout != "" {
+		layouts = []string{app.config.ViewsLayout}
+	}
+
+	viewsLock := getViewsLock(views)
+	viewsLock.RLock()
+	defer viewsLock.RUnlock()
+
+	if err := views.Render(out, name, binding, layouts...); err != nil {
+		return fmt.Errorf("fiber: failed to render views: %w", err)
+	}
+
+	return nil
+}
+
 // SetTLSHandler Can be used to set ClientHelloInfo when using TLS with Listener.
 func (app *App) SetTLSHandler(tlsHandler *TLSHandler) {
 	// Attach the tlsHandler to the config
@@ -920,12 +1018,24 @@ func (app *App) Name(name string) Router {
 	app.mutex.Lock()
 	defer app.mutex.Unlock()
 
+	hosts := matchersKey(app.latestRoute.hosts)
+
 	for _, routes := range app.stack {
 		for _, route := range routes {
-			isMethodValid := route.Method == app.latestRoute.Method || app.latestRoute.use ||
+			// The shared registration id covers every method of a multi-method
+			// Add, and only those: matching on the method as well would rename
+			// an older route that merely shares the path, and would do it only
+			// when the registration happened to finish on that method. It is
+			// latestID rather than id because a method whose route the
+			// registration merged into keeps the id of the registration that
+			// created it.
+			isMethodValid := route.latestID == app.latestRoute.latestID ||
+				app.latestRoute.use ||
 				(app.latestRoute.Method == MethodGet && route.Method == MethodHead)
 
-			if route.Path == app.latestRoute.Path && isMethodValid {
+			// The path alone does not make it the same route: another Domain
+			// pattern can serve it too, under a name of its own.
+			if route.Path == app.latestRoute.Path && isMethodValid && matchersKey(route.hosts) == hosts {
 				route.Name = name
 				if route.group != nil {
 					route.Name = route.group.name + route.Name
@@ -994,19 +1104,38 @@ func (app *App) GetRoutes(filterUseOption ...bool) []Route {
 //
 // This method will match all HTTP verbs: GET, POST, PUT, HEAD etc...
 func (app *App) Use(args ...any) Router {
-	var prefix string
-	var subApp *App
-	var prefixes []string
-	var handlers []Handler
+	prefixes, subApp, handlers := useArgs(args)
 
-	for i := range args {
-		switch arg := args[i].(type) {
+	for _, prefix := range prefixes {
+		if subApp != nil {
+			// Every prefix mounts the sub-app, as every prefix registers a handler.
+			app.mount(prefix, subApp)
+			continue
+		}
+
+		app.register([]string{methodUse}, prefix, nil, handlers...)
+	}
+
+	return app
+}
+
+// useArgs sorts the arguments of a Use call. Anything it would otherwise drop
+// silently panics: a second prefix argument, a second sub-app, or handlers next to a sub-app.
+func useArgs(args []any) (prefixes []string, subApp *App, handlers []Handler) { //nolint:nonamedreturns // names tell the three results apart
+	prefixArgs := 0
+	for _, arg := range args {
+		switch arg := arg.(type) {
 		case string:
-			prefix = arg
-		case *App:
-			subApp = arg
+			prefixes = []string{arg}
+			prefixArgs++
 		case []string:
 			prefixes = arg
+			prefixArgs++
+		case *App:
+			if subApp != nil {
+				panic("use: only one sub-app can be passed in one call\n")
+			}
+			subApp = arg
 		default:
 			handler, ok := toFiberHandler(arg)
 			if !ok {
@@ -1016,19 +1145,16 @@ func (app *App) Use(args ...any) Router {
 		}
 	}
 
+	if prefixArgs > 1 {
+		panic("use: pass several prefixes as one []string\n")
+	}
+	if subApp != nil && len(handlers) > 0 {
+		panic("use: handlers and a sub-app cannot be passed in one call\n")
+	}
 	if len(prefixes) == 0 {
-		prefixes = append(prefixes, prefix)
+		prefixes = []string{""}
 	}
-
-	for _, prefix := range prefixes {
-		if subApp != nil {
-			return app.mount(prefix, subApp)
-		}
-
-		app.register([]string{methodUse}, prefix, nil, handlers...)
-	}
-
-	return app
+	return prefixes, subApp, handlers
 }
 
 // Get registers a route for GET methods that requests a representation
@@ -1221,8 +1347,9 @@ func NewErrorf(code int, message ...any) *Error {
 		if format, ok := message[0].(string); ok {
 			msg = fmt.Sprintf(format, message[1:]...)
 		} else {
-			// If the first arg isn’t a string, fall back.
-			msg = fmt.Sprint(message[0])
+			// If the first arg isn’t a format string, stringify all of them
+			// instead of dropping everything after the first.
+			msg = fmt.Sprint(message...)
 		}
 	}
 
@@ -1235,7 +1362,7 @@ func (app *App) Config() Config {
 }
 
 // Handler returns the server handler.
-func (app *App) Handler() fasthttp.RequestHandler { //revive:disable-line:confusing-naming // Having both a Handler() (uppercase) and a handler() (lowercase) is fine. TODO: Use nolint:revive directive instead. See https://github.com/golangci/golangci-lint/issues/3476
+func (app *App) Handler() fasthttp.RequestHandler { //nolint:revive // Having both a Handler() (uppercase) and a handler() (lowercase) is fine.
 	// prepare the server for the start
 	app.startupProcess()
 	return app.selectRequestHandler()
@@ -1275,8 +1402,8 @@ func (app *App) Shutdown() error {
 	return app.ShutdownWithContext(context.Background())
 }
 
-// ShutdownWithTimeout gracefully shuts down the server without interrupting any active connections. However, if the timeout is exceeded,
-// ShutdownWithTimeout will forcefully close any active connections.
+// ShutdownWithTimeout gracefully shuts down the server without interrupting any active connections. If the timeout is exceeded,
+// it stops waiting and returns context.DeadlineExceeded; connections still active are not closed.
 // ShutdownWithTimeout works by first closing all open listeners and then waiting for all connections to return to idle before shutting down.
 //
 // Make sure the program doesn't exit and waits instead for ShutdownWithTimeout to return.
@@ -1288,26 +1415,44 @@ func (app *App) ShutdownWithTimeout(timeout time.Duration) error {
 	return app.ShutdownWithContext(ctx)
 }
 
-// ShutdownWithContext shuts down the server including by force if the context's deadline is exceeded.
+// ShutdownWithContext shuts down the server and stops waiting once ctx is done; connections still active are not closed.
 //
 // Make sure the program doesn't exit and waits instead for ShutdownWithTimeout to return.
 //
 // ShutdownWithContext does not close keepalive connections so its recommended to set ReadTimeout to something else than 0.
 func (app *App) ShutdownWithContext(ctx context.Context) error {
+	return app.runShutdown(ctx, nil)
+}
+
+// runShutdown is the body of ShutdownWithContext, which passes a nil afterPreHooks. The graceful
+// shutdown of a GracefulContext passes a function that tells its run the server is about to
+// stop accepting, and runShutdown calls it once the OnPreShutdown hooks are done, right before
+// the server is told to stop. A Serve that has not registered its listener by then closes
+// nothing in that shutdown, and the listener of the run finds the news instead.
+func (app *App) runShutdown(ctx context.Context, afterPreHooks func()) error {
 	app.mutex.Lock()
-	defer app.mutex.Unlock()
+	server := app.server
+	app.mutex.Unlock()
 
-	var err error
-
-	if app.server == nil {
+	if server == nil {
 		return ErrNotRunning
 	}
 
+	// The drain waits for in-flight handlers, so the mutex must not be held
+	// meanwhile: a handler taking it (RebuildTree, Name, ...) would never finish.
+	var err error
+
 	// Execute the Shutdown hook
 	app.hooks.executeOnPreShutdownHooks()
-	defer app.hooks.executeOnPostShutdownHooks(err)
+	// Use a closure so the hooks receive the final error; a plain
+	// `defer ...(err)` would capture the nil value at registration time.
+	defer func() { app.hooks.executeOnPostShutdownHooks(err) }()
 
-	err = app.server.ShutdownWithContext(ctx)
+	if afterPreHooks != nil {
+		afterPreHooks()
+	}
+
+	err = server.ShutdownWithContext(ctx)
 	return err
 }
 
@@ -1366,7 +1511,19 @@ func (app *App) Test(req *http.Request, config ...TestConfig) (*http.Response, e
 
 	// Add Content-Length if not provided with body
 	if req.Body != http.NoBody && req.Header.Get(HeaderContentLength) == "" {
-		req.Header.Add(HeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
+		// net/http reports a body it cannot size as -1, or as 0 with a body
+		if req.Body != nil && req.ContentLength <= 0 {
+			body, err := io.ReadAll(req.Body)
+			if closeErr := req.Body.Close(); err == nil {
+				err = closeErr
+			}
+			if err != nil {
+				return nil, fmt.Errorf("failed to read request body: %w", err)
+			}
+			req.Body = io.NopCloser(bytes.NewReader(body))
+			req.ContentLength = int64(len(body))
+		}
+		req.Header.Add(HeaderContentLength, utils.FormatInt(req.ContentLength))
 	}
 
 	// Ensure Host header is present in the dump (required by fasthttp)
@@ -1390,6 +1547,11 @@ func (app *App) Test(req *http.Request, config ...TestConfig) (*http.Response, e
 
 	// Create test connection
 	conn := new(testConn)
+	var served net.Conn = conn
+	if req.TLS != nil {
+		// httptest.NewRequest sets TLS for an https target; serve such a request over TLS.
+		served = &testTLSConn{testConn: conn, state: *req.TLS}
+	}
 
 	// Write raw http request
 	if _, err = conn.r.Write(dump); err != nil {
@@ -1397,6 +1559,7 @@ func (app *App) Test(req *http.Request, config ...TestConfig) (*http.Response, e
 	}
 	// prepare the server for the start
 	app.startupProcess()
+	app.hookHeaderReceived()
 
 	// Serve conn to server
 	channel := make(chan error, 1)
@@ -1408,7 +1571,7 @@ func (app *App) Test(req *http.Request, config ...TestConfig) (*http.Response, e
 			}
 		}()
 
-		channel <- app.server.ServeConn(conn)
+		channel <- app.server.ServeConn(served)
 		returned = true
 	}()
 
@@ -1492,7 +1655,7 @@ func (app *App) init() *App {
 		app.initServices()
 
 		// Only load templates if a view engine is specified
-		if app.config.Views != nil {
+		if !isNilViews(app.config.Views) {
 			if err := app.config.Views.Load(); err != nil {
 				log.Warnf("failed to load views: %v", err)
 			}
@@ -1523,7 +1686,9 @@ func (app *App) init() *App {
 		app.server.GetOnly = app.config.GETOnly
 		app.server.ReduceMemoryUsage = app.config.ReduceMemoryUsage
 		app.server.StreamRequestBody = app.config.StreamRequestBody
-		app.server.DisablePreParseMultipartForm = app.config.DisablePreParseMultipartForm
+		// fasthttp pre-parses a streamed multipart body of any length before the
+		// handler runs; MultipartForm parses it on demand within BodyLimit instead.
+		app.server.DisablePreParseMultipartForm = app.config.DisablePreParseMultipartForm || app.config.StreamRequestBody
 	}()
 
 	// Register the Services shutdown handler once the app is initialized and unlocked.
@@ -1548,32 +1713,59 @@ func (app *App) init() *App {
 // error handler. Otherwise, it uses the configured error handler for
 // the app, which if not set is the DefaultErrorHandler.
 func (app *App) ErrorHandler(ctx Ctx, err error) error {
+	// Once fasthttp holds a timeout response, writes are ignored and the
+	// timed-out handler may still be writing: leave the context alone.
+	if ctx.RequestCtx().LastTimeoutErrorResponse() != nil {
+		return nil
+	}
+
 	// Fast path: no mounted sub-apps, so no prefix lookup is needed
-	if len(app.mountFields.appListKeys) == 0 {
+	if len(app.mountFields.appListKeys) == 0 && len(app.mountFields.domainAppList) == 0 {
 		return app.config.ErrorHandler(ctx, err)
 	}
 
 	var (
 		mountedErrHandler  ErrorHandler
+		mountedErrApp      *App
 		mountedPrefixParts int
 	)
 
-	normalizedPath := utils.AddTrailingSlashString(ctx.Path())
-
 	for _, prefix := range app.mountFields.appListKeys {
 		subApp := app.mountFields.appList[prefix]
-		normalizedPrefix := utils.AddTrailingSlashString(prefix)
 
-		if prefix != "" && strings.HasPrefix(normalizedPath, normalizedPrefix) {
+		if app.mountCoversPath(prefix, ctx.Path()) {
 			// Count slashes instead of splitting - more efficient
-			parts := strings.Count(prefix, "/") + 1
+			parts := mountDepth(prefix)
 			if mountedPrefixParts <= parts {
 				if subApp.configured.ErrorHandler != nil {
 					mountedErrHandler = subApp.config.ErrorHandler
+					mountedErrApp = subApp
 				}
 
 				mountedPrefixParts = parts
 			}
+		}
+	}
+
+	// Sub-apps mounted on a domain answer only for a matching host, so their
+	// error handler cannot be picked by path alone. The owner is considered
+	// after the plain mounts, which lets a domain mount win a tie on path
+	// depth: it matched the host too, so it is the more specific of the two.
+	if owner := app.domainMountOwner(ctx); owner.outranks(mountedPrefixParts) {
+		// A plain mount the owner supersedes did not serve the request, so its
+		// handler is dropped rather than inherited. One enclosing the owner
+		// still does, and an owner configuring no handler of its own inherits
+		// it, as a nested mount inherits the handler of the mount it sits in.
+		//
+		// Unless the mount is one of the apps the owner sits in: a domain
+		// mount at the root of a plain one covers exactly the paths that mount
+		// does, and is as deep as it without being beside it.
+		if owner.supersedes(mountedPrefixParts, mountedErrApp) {
+			mountedErrHandler = nil
+		}
+
+		if handler := domainMountConfig(owner, appHasErrorHandler); handler != nil {
+			mountedErrHandler = handler.config.ErrorHandler
 		}
 	}
 
@@ -1584,6 +1776,18 @@ func (app *App) ErrorHandler(ctx Ctx, err error) error {
 	return app.config.ErrorHandler(ctx, err)
 }
 
+const (
+	// getOnlyAllow is the Allow value of the 405 that Config.GETOnly produces.
+	getOnlyAllow = MethodGet + ", " + MethodHead
+
+	// unsupportedTransferCodingMarker precedes the quoted coding in fasthttp's
+	// error. The ErrUnsupportedTransferEncoding sentinel is not matched: it also
+	// covers HTTP/1.0 and repeated fields, which are framing errors and stay 400,
+	// and with Server.SecureErrorLogMessage it stands for every fault, the
+	// coding included, which then stays 400 as well.
+	unsupportedTransferCodingMarker = `unsupported transfer-encoding: "`
+)
+
 // serverErrorHandler is a wrapper around the application's error handler method
 // user for the fasthttp server configuration. It maps a set of fasthttp errors to fiber
 // errors before calling the application's error handler method.
@@ -1593,8 +1797,10 @@ func (app *App) serverErrorHandler(fctx *fasthttp.RequestCtx, err error) {
 	defer app.ReleaseCtx(c)
 
 	var (
-		errNetOP *net.OpError
-		netErr   net.Error
+		errNetOP    *net.OpError
+		netErr      net.Error
+		timeoutErr  interface{ Timeout() bool }
+		brokenChunk fasthttp.ErrBrokenChunk
 	)
 
 	errMessage := utils.StatusMessage(StatusBadRequest)
@@ -1619,17 +1825,40 @@ func (app *App) serverErrorHandler(fctx *fasthttp.RequestCtx, err error) {
 		err = ErrRequestEntityTooLarge
 	case errors.Is(err, fasthttp.ErrGetOnly):
 		err = ErrMethodNotAllowed
-	case strings.Contains(errMessage, "unsupported http request method"):
+		// A 405 must carry Allow (RFC 9110 §15.5.6).
+		c.Set(HeaderAllow, getOnlyAllow)
+	case errors.Is(err, fasthttp.ErrUnsupportedRequestMethod),
+		strings.HasPrefix(innermostMessage(err), "unsupported http request method"):
+		// The innermost error, not the whole text: the wrappers quote request
+		// bytes, so a malformed trailer could otherwise pick its own status.
 		err = ErrNotImplemented
-	case strings.Contains(errMessage, "timeout"):
+	case strings.HasPrefix(innermostMessage(err), unsupportedTransferCodingMarker):
+		// An unknown transfer coding is a 501, not a 400 (RFC 9112 §6.1).
+		err = ErrNotImplemented
+	case errors.As(err, &timeoutErr) && timeoutErr.Timeout(),
+		errors.As(err, &brokenChunk) && strings.HasSuffix(brokenChunk.Error(), "timeout"):
+		// fasthttp.ErrTimeout, as a stalled trailer returns it, is no net.Error;
+		// ErrBrokenChunk does not unwrap to the read error it ends with.
 		err = ErrRequestTimeout
 	default:
 		err = NewError(StatusBadRequest, errMessage)
 	}
 
-	if c.getMethodInt() != -1 {
+	// Seed the mapped status so middleware observes it instead of the default 200.
+	// The ErrorHandler below still has the last word on what goes out.
+	if fiberErr, matched := asFiberError(err); matched && fiberErr != nil {
+		c.Status(fiberErr.Code)
+	}
+
+	// A method GETOnly refuses is not replayed: a Use handler that ends the chain would carry it out.
+	// Asked of the method, not ErrGetOnly, since a header error is reported first.
+	methodRefused := app.server.GetOnly && !fctx.IsGet() && !fctx.IsHead()
+	if !methodRefused && c.getMethodInt() != -1 {
 		c.setSkipNonUseRoutes(true)
 		defer c.setSkipNonUseRoutes(false)
+		// The route never runs, so what the chain leaves is no response for the URL.
+		errorreplay.Mark(fctx)
+		defer errorreplay.Unmark(fctx)
 
 		var nextErr error
 		if d, isDefault := c.(*DefaultCtx); isDefault {
@@ -1641,6 +1870,8 @@ func (app *App) serverErrorHandler(fctx *fasthttp.RequestCtx, err error) {
 		if nextErr != nil && !errors.Is(nextErr, ErrNotFound) && !errors.Is(nextErr, ErrMethodNotAllowed) {
 			log.Errorf("serverErrorHandler: middleware traversal failed: %v", nextErr)
 		}
+		// Route guards were skipped too: drop the chain's body, which an ErrorHandler calling SendStatus would send.
+		fctx.Response.ResetBody()
 	}
 
 	if catch := app.ErrorHandler(c, err); catch != nil {
@@ -1650,11 +1881,26 @@ func (app *App) serverErrorHandler(fctx *fasthttp.RequestCtx, err error) {
 	}
 }
 
+// innermostMessage returns the text of the error err wraps last, which fasthttp
+// starts with its own words before any bytes of the request it quotes.
+func innermostMessage(err error) string {
+	for {
+		inner := errors.Unwrap(err)
+		if inner == nil {
+			return err.Error()
+		}
+		err = inner
+	}
+}
+
 // startupProcess Is the method which executes all the necessary processes just before the start of the server.
 func (app *App) startupProcess() {
 	app.mutex.Lock()
 	defer app.mutex.Unlock()
 
+	app.hookConnState()
+	// Collect every mounted app first, nested ones included, so all get their automatic HEAD routes.
+	app.collectSubApps()
 	app.ensureAutoHeadRoutesLocked()
 	for prefix, subApp := range app.mountFields.appList {
 		if prefix == "" {
@@ -1666,6 +1912,67 @@ func (app *App) startupProcess() {
 
 	// build route tree stack
 	app.buildTree()
+}
+
+// hookConnState makes the server report new and closed connections to the TLS
+// handler, keeping a user ConnState callback. A connection is reported new
+// while it can still say what it wraps, which is what lets its record be found
+// again at close. Idempotent; the caller holds app.mutex.
+func (app *App) hookConnState() {
+	if app.connStateHooked || app.server == nil {
+		return
+	}
+	app.connStateHooked = true
+	user := app.server.ConnState
+	app.server.ConnState = func(conn net.Conn, state fasthttp.ConnState) {
+		// StateHijacked is terminal too: fasthttp never reports StateClosed after
+		// it, so a hijacked connection (every WebSocket upgrade) would strand its
+		// record.
+		if state == fasthttp.StateNew || state == fasthttp.StateClosed || state == fasthttp.StateHijacked {
+			app.mutex.Lock()
+			handler := app.tlsHandler
+			app.mutex.Unlock()
+			if handler != nil {
+				if state == fasthttp.StateNew {
+					handler.track(conn)
+				} else {
+					handler.forget(conn)
+				}
+			}
+		}
+		if user != nil {
+			user(conn, state)
+		}
+	}
+}
+
+// hookHeaderReceived makes the server close the connection after a request that
+// carries both Content-Length and Transfer-Encoding (RFC 9112 §6.1), keeping a
+// user HeaderReceived callback. It must run before the body is decoded: after that
+// fasthttp has replaced the length and dropped the Content-Length value. Call it
+// right before the server serves: it wraps the callback set by then, in
+// ListenConfig.BeforeServeFunc too, and one replaced since an earlier start. Its
+// own hook is left alone: Test and a listener run on one server at the same time,
+// and the connections they serve read the callback.
+func (app *App) hookHeaderReceived() {
+	app.mutex.Lock()
+	defer app.mutex.Unlock()
+
+	if app.server == nil || sameFunc(app.server.HeaderReceived, app.headerHook) {
+		return
+	}
+	user := app.server.HeaderReceived
+	app.headerHook = func(header *fasthttp.RequestHeader) fasthttp.RequestConfig {
+		if bothFramingFields(header) {
+			header.SetConnectionClose()
+		}
+		if user != nil {
+			return user(header)
+		}
+		// The zero value keeps the server's own limits and timeouts.
+		return fasthttp.RequestConfig{}
+	}
+	app.server.HeaderReceived = app.headerHook
 }
 
 // Run onListen hooks. If they return an error, panic.

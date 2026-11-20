@@ -1,9 +1,7 @@
 package limiter
 
 import (
-	"fmt"
-	"strconv"
-	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/utils/v2"
@@ -12,15 +10,12 @@ import (
 // FixedWindow implements a fixed-window rate limiting strategy.
 type FixedWindow struct{}
 
-// New creates a new fixed window middleware handler
+// New creates a new fixed window middleware handler. Unset fields of cfg take their defaults.
 func (FixedWindow) New(cfg *Config) fiber.Handler {
-	if cfg == nil {
-		defaultCfg := configDefault()
-		cfg = &defaultCfg
-	}
+	cfg = withDefaults(cfg)
 
 	// Limiter variables
-	mux := &sync.RWMutex{}
+	locks := new(keyedMutex)
 
 	// Create manager to simplify storage operations ( see manager.go )
 	manager := newManager(cfg.Storage, !cfg.DisableValueRedaction)
@@ -30,47 +25,37 @@ func (FixedWindow) New(cfg *Config) fiber.Handler {
 
 	// Return new handler
 	return func(c fiber.Ctx) error {
-		// Generate maxRequests from generator, if no generator was provided the default value returned is 5
-		maxRequests := cfg.MaxFunc(c)
-
 		// Don't execute middleware if Next returns true or if the max is 0
-		if (cfg.Next != nil && cfg.Next(c)) || maxRequests == 0 {
+		maxRequests, ok := cfg.limit(c)
+		if !ok {
 			return c.Next()
 		}
 
 		// Generate expiration from generator
-		expirationDuration := cfg.ExpirationFunc(c)
-		if expirationDuration <= 0 {
-			expirationDuration = ConfigDefault.Expiration
-		}
-		expiration := uint64(expirationDuration.Seconds())
+		windowSec := windowSeconds(cfg.ExpirationFunc(c), cfg.Expiration)
 
-		// Get key from request
-		key := cfg.KeyGenerator(c)
+		// The key may point into request memory the handler can rewrite: entryKey copies it for a Storage
+		// that may keep it. The built-in store copies the keys it keeps, so only the re-read needs one.
+		key := manager.entryKey(cfg.KeyGenerator(c))
+		rereads := cfg.SkipSuccessfulRequests || cfg.SkipFailedRequests
 
 		// Lock entry
-		mux.Lock()
+		mu := locks.lock(key)
 
 		reqCtx := c.Context()
 
 		// Get entry from pool and release when finished
 		e, err := manager.get(reqCtx, key)
 		if err != nil {
-			mux.Unlock()
+			mu.Unlock()
 			return err
 		}
 
 		// Get timestamp
 		ts := cfg.currentSecond()
 
-		// Set expiration if entry does not exist
-		if e.exp == 0 {
-			e.exp = ts + expiration
-		} else if ts >= e.exp {
-			// Check if entry is expired
-			e.currHits = 0
-			e.exp = ts + expiration
-		}
+		// Rotate window
+		e.rotateFixed(ts, windowSec)
 
 		// Increment hits
 		e.currHits++
@@ -83,41 +68,34 @@ func (FixedWindow) New(cfg *Config) fiber.Handler {
 		remaining := maxRequests - e.currHits
 
 		// Update storage
-		if setErr := manager.set(reqCtx, key, e, expirationDuration); setErr != nil {
-			mux.Unlock()
-			return fmt.Errorf("limiter: failed to persist state: %w", setErr)
+		if setErr := manager.set(reqCtx, key, e, e.ttl(ts)); setErr != nil {
+			mu.Unlock()
+			return errPersist(setErr)
 		}
 
 		// Unlock entry
-		mux.Unlock()
+		mu.Unlock()
 
 		// Check if hits exceed the max
 		if remaining < 0 {
-			// Return response with Retry-After header
-			// https://tools.ietf.org/html/rfc6584
-			if !cfg.DisableHeaders {
-				c.Set(fiber.HeaderRetryAfter, strconv.FormatUint(resetInSec, 10))
-			}
-
-			// Call LimitReached handler
-			return cfg.LimitReached(c)
+			return cfg.reject(c, resetInSec)
 		}
 
-		// Continue stack for reaching c.Response().StatusCode()
+		if rereads && manager.copiesKeys() {
+			key = utils.CopyString(key)
+		}
+
+		// Continue stack for reaching c.Res().StatusCode()
 		// Store err for returning
 		err = c.Next()
 
-		// Get the effective status code from either the error or response
-		statusCode := getEffectiveStatusCode(c, err)
-
 		// Check for SkipFailedRequests and SkipSuccessfulRequests
-		if (cfg.SkipSuccessfulRequests && statusCode < fiber.StatusBadRequest) ||
-			(cfg.SkipFailedRequests && statusCode >= fiber.StatusBadRequest) {
+		if cfg.skipsHit(getEffectiveStatusCode(c, err)) {
 			// Lock entry
-			mux.Lock()
+			mu.Lock()
 			entry, getErr := manager.get(reqCtx, key)
 			if getErr != nil {
-				mux.Unlock()
+				mu.Unlock()
 				return getErr
 			}
 			e = entry
@@ -127,27 +105,32 @@ func (FixedWindow) New(cfg *Config) fiber.Handler {
 				e.currHits--
 			}
 			remaining = maxRequests - e.currHits
-			if setErr := manager.set(reqCtx, key, e, expirationDuration); setErr != nil {
-				mux.Unlock()
-				return fmt.Errorf("limiter: failed to persist state: %w", setErr)
+			if setErr := manager.set(reqCtx, key, e, e.ttl(cfg.currentSecond())); setErr != nil {
+				mu.Unlock()
+				return errPersist(setErr)
 			}
 			// Unlock entry
-			mux.Unlock()
-		}
-
-		// On the skip path currHits can exceed maxRequests (blocked requests
-		// persist their increment), so clamp remaining to keep the header >= 0.
-		if remaining < 0 {
-			remaining = 0
+			mu.Unlock()
 		}
 
 		// We can continue, update RateLimit headers
-		if !cfg.DisableHeaders {
-			c.Set(xRateLimitLimit, strconv.Itoa(maxRequests))
-			c.Set(xRateLimitRemaining, strconv.Itoa(remaining))
-			c.Set(xRateLimitReset, strconv.FormatUint(resetInSec, 10))
-		}
+		cfg.setRateLimitHeaders(c, maxRequests, remaining, resetInSec)
 
 		return err
 	}
+}
+
+func (e *item) rotateFixed(ts, windowSec uint64) {
+	if e.exp == 0 {
+		e.exp = ts + windowSec
+	} else if ts >= e.exp {
+		e.currHits = 0
+		e.exp = ts + windowSec
+	}
+}
+
+// ttl keeps the entry until its window ends, whichever request opened it, for at least a second.
+func (e *item) ttl(ts uint64) time.Duration {
+	d, _ := secondsToDuration(max(e.exp, ts+1) - ts)
+	return d
 }

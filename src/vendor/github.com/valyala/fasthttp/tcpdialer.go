@@ -160,6 +160,11 @@ type TCPDialer struct {
 	// DNSCacheDuration may be used to override the default DNS cache duration (DefaultDNSCacheDuration)
 	DNSCacheDuration time.Duration
 
+	// KeepAlive specifies the keep-alive period for an active network connection.
+	// If zero, keep-alives are enabled if supported by the protocol and operating system.
+	// If negative, keep-alives are disabled.
+	KeepAlive time.Duration
+
 	once sync.Once
 
 	// DisableDNSResolution may be used to disable DNS resolution
@@ -357,6 +362,9 @@ func (d *TCPDialer) tryDial(
 	if d.LocalAddr != nil {
 		dialer.LocalAddr = d.LocalAddr
 	}
+	if d.KeepAlive != 0 {
+		dialer.KeepAlive = d.KeepAlive
+	}
 
 	ctx, cancelCtx := context.WithDeadline(context.Background(), deadline)
 	defer cancelCtx()
@@ -371,17 +379,16 @@ func (d *TCPDialer) tryDial(
 }
 
 // ErrDialTimeout is returned when TCP dialing is timed out.
-var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
+var ErrDialTimeout = errors.New("fasthttp: dialing to the given tcp address timed out")
 
 // ErrDialWithUpstream wraps dial error with upstream info.
 //
-// Should use errors.As to get upstream information from error:
+// Use errors.AsType to get upstream information from the error:
 //
 //	hc := fasthttp.HostClient{Addr: "foo.com,bar.com"}
 //	err := hc.Do(req, res)
 //
-//	var dialErr *fasthttp.ErrDialWithUpstream
-//	if errors.As(err, &dialErr) {
+//	if dialErr, ok := errors.AsType[*fasthttp.ErrDialWithUpstream](err); ok {
 //		upstream = dialErr.Upstream // 34.206.39.153:80
 //	}
 type ErrDialWithUpstream struct {
@@ -476,8 +483,16 @@ func (d *TCPDialer) tcpAddrsClean() {
 	}
 }
 
+// tcpAddrsKey is the key of a DNS cache entry. An entry resolved for Dial
+// holds the IPv4 addresses only, so DialDualStack keeps entries of its own.
+type tcpAddrsKey struct {
+	addr      string
+	dualStack bool
+}
+
 func (d *TCPDialer) getTCPAddrs(addr string, dualStack bool, deadline time.Time) ([]net.TCPAddr, uint32, error) {
-	item, exist := d.tcpAddrsMap.Load(addr)
+	key := tcpAddrsKey{addr: addr, dualStack: dualStack}
+	item, exist := d.tcpAddrsMap.Load(key)
 	e, ok := item.(*tcpAddrEntry)
 	if exist && ok && e != nil && time.Since(e.resolveTime) > d.DNSCacheDuration {
 		// Only let one goroutine re-resolve at a time.
@@ -489,7 +504,7 @@ func (d *TCPDialer) getTCPAddrs(addr string, dualStack bool, deadline time.Time)
 	if e == nil {
 		addrs, err := resolveTCPAddrs(addr, dualStack, d.Resolver, deadline)
 		if err != nil {
-			item, exist := d.tcpAddrsMap.Load(addr)
+			item, exist := d.tcpAddrsMap.Load(key)
 			e, ok = item.(*tcpAddrEntry)
 			if exist && ok && e != nil {
 				// Set pending to 0 so another goroutine can retry.
@@ -502,7 +517,7 @@ func (d *TCPDialer) getTCPAddrs(addr string, dualStack bool, deadline time.Time)
 			addrs:       addrs,
 			resolveTime: time.Now(),
 		}
-		d.tcpAddrsMap.Store(addr, e)
+		d.tcpAddrsMap.Store(key, e)
 	}
 
 	idx := atomic.AddUint32(&e.addrsIdx, 1)
@@ -549,4 +564,4 @@ func resolveTCPAddrs(addr string, dualStack bool, resolver Resolver, deadline ti
 	return addrs, nil
 }
 
-var errNoDNSEntries = errors.New("couldn't find DNS entries for the given domain. Try using DialDualStack")
+var errNoDNSEntries = errors.New("couldn't find dns entries for the given domain: try using dual-stack dialing")

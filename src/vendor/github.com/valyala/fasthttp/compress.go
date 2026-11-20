@@ -28,7 +28,7 @@ func acquireGzipReader(r io.Reader) (*gzip.Reader, error) {
 	if v == nil {
 		return gzip.NewReader(r)
 	}
-	zr := v.(*gzip.Reader)
+	zr := v.(*gzip.Reader) //nolint:forcetypeassert
 	if err := zr.Reset(r); err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func acquireFlateReader(r io.Reader) (io.ReadCloser, error) {
 		}
 		return zr, nil
 	}
-	zr := v.(io.ReadCloser)
+	zr := v.(io.ReadCloser) //nolint:forcetypeassert
 	if err := resetFlateReader(zr, r); err != nil {
 		return nil, err
 	}
@@ -83,16 +83,17 @@ func acquireStacklessGzipWriter(w io.Writer, level int) stackless.Writer {
 			return acquireRealGzipWriter(w, level)
 		})
 	}
-	sw := v.(stackless.Writer)
+	sw := v.(stackless.Writer) //nolint:forcetypeassert
 	sw.Reset(w)
 	return sw
 }
 
-func releaseStacklessGzipWriter(sw stackless.Writer, level int) {
-	sw.Close()
+func releaseStacklessGzipWriter(sw stackless.Writer, level int) error {
+	err := sw.Close()
 	nLevel := normalizeCompressLevel(level)
 	p := stacklessGzipWriterPoolMap[nLevel]
 	p.Put(sw)
+	return err
 }
 
 func acquireRealGzipWriter(w io.Writer, level int) *gzip.Writer {
@@ -113,7 +114,7 @@ func acquireRealGzipWriter(w io.Writer, level int) *gzip.Writer {
 		}
 		return zw
 	}
-	zw := v.(*gzip.Writer)
+	zw := v.(*gzip.Writer) //nolint:forcetypeassert
 	zw.Reset(w)
 	return zw
 }
@@ -172,7 +173,9 @@ func WriteGzipLevel(w io.Writer, p []byte, level int) (int, error) {
 	default:
 		zw := acquireStacklessGzipWriter(w, level)
 		n, err := zw.Write(p)
-		releaseStacklessGzipWriter(zw, level)
+		if errc := releaseStacklessGzipWriter(zw, level); err == nil {
+			err = errc
+		}
 		return n, err
 	}
 }
@@ -190,7 +193,7 @@ func stacklessWriteGzip(ctx any) {
 }
 
 func nonblockingWriteGzip(ctxv any) {
-	ctx := ctxv.(*compressCtx)
+	ctx := ctxv.(*compressCtx) //nolint:forcetypeassert
 	zw := acquireRealGzipWriter(ctx.w, ctx.level)
 
 	zw.Write(ctx.p) //nolint:errcheck // no way to handle this error anyway
@@ -279,7 +282,9 @@ func WriteDeflateLevel(w io.Writer, p []byte, level int) (int, error) {
 	default:
 		zw := acquireStacklessDeflateWriter(w, level)
 		n, err := zw.Write(p)
-		releaseStacklessDeflateWriter(zw, level)
+		if errc := releaseStacklessDeflateWriter(zw, level); err == nil {
+			err = errc
+		}
 		return n, err
 	}
 }
@@ -297,7 +302,7 @@ func stacklessWriteDeflate(ctx any) {
 }
 
 func nonblockingWriteDeflate(ctxv any) {
-	ctx := ctxv.(*compressCtx)
+	ctx := ctxv.(*compressCtx) //nolint:forcetypeassert
 	zw := acquireRealDeflateWriter(ctx.w, ctx.level)
 
 	zw.Write(ctx.p) //nolint:errcheck // no way to handle this error anyway
@@ -395,16 +400,17 @@ func acquireStacklessDeflateWriter(w io.Writer, level int) stackless.Writer {
 			return acquireRealDeflateWriter(w, level)
 		})
 	}
-	sw := v.(stackless.Writer)
+	sw := v.(stackless.Writer) //nolint:forcetypeassert
 	sw.Reset(w)
 	return sw
 }
 
-func releaseStacklessDeflateWriter(sw stackless.Writer, level int) {
-	sw.Close()
+func releaseStacklessDeflateWriter(sw stackless.Writer, level int) error {
+	err := sw.Close()
 	nLevel := normalizeCompressLevel(level)
 	p := stacklessDeflateWriterPoolMap[nLevel]
 	p.Put(sw)
+	return err
 }
 
 func acquireRealDeflateWriter(w io.Writer, level int) *zlib.Writer {
@@ -425,7 +431,7 @@ func acquireRealDeflateWriter(w io.Writer, level int) *zlib.Writer {
 		}
 		return zw
 	}
-	zw := v.(*zlib.Writer)
+	zw := v.(*zlib.Writer) //nolint:forcetypeassert
 	zw.Reset(w)
 	return zw
 }
@@ -465,7 +471,7 @@ func isFileCompressible(f fs.File, minCompressRatio float64) bool {
 		N: 4096,
 	}
 	_, err := copyZeroAlloc(zw, lr)
-	releaseStacklessGzipWriter(zw, CompressDefaultCompression)
+	_ = releaseStacklessGzipWriter(zw, CompressDefaultCompression)
 	seeker, ok := f.(io.Seeker)
 	if !ok {
 		return false
