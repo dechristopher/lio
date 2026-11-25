@@ -3,6 +3,8 @@ package table
 import (
 	"log/slog"
 	"time"
+
+	"github.com/pressly/goose/v3/internal/retry"
 )
 
 // Config holds configuration for table locker.
@@ -25,4 +27,13 @@ type Config struct {
 type ProbeConfig struct {
 	IntervalDuration time.Duration
 	FailureThreshold uint64
+}
+
+func (p ProbeConfig) policy() retry.Policy {
+	return retry.Policy{
+		Interval:   p.IntervalDuration,
+		MaxRetries: p.FailureThreshold,
+		// Add +/- 25% jitter to reduce thundering herd
+		JitterPercent: 25,
+	}
 }
